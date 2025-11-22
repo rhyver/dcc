@@ -1,0 +1,47 @@
+{
+  "name": "dcc-vite",
+  "version": "1.0.0",
+  "private": true,
+  "description": "An Electron application with React and TypeScript",
+  "author": "example.com",
+  "homepage": "https://electron-vite.org",
+  "scripts": {
+    "format": "prettier --write .",
+    "lint": "turbo run lint",
+    "lint:fix": "turbo run lint:fix",
+    "tsc": "turbo run tsc",
+    "clean": "turbo run clean",
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "build:unpack": "turbo run build && turbo run build:unpack --filter=@dcc/core",
+    "build:win": "turbo run build && turbo run build:win --filter=@dcc/core",
+    "build:mac": "turbo run build && turbo run build:mac --filter=@dcc/core",
+    "build:linux": "turbo run build && turbo run build:linux --filter=@dcc/core"
+  },
+  "devDependencies": {
+    "@electron-toolkit/eslint-config-prettier": "^3.0.0",
+    "@electron-toolkit/eslint-config-ts": "^3.1.0",
+    "@electron-toolkit/preload": "^3.0.2",
+    "@electron-toolkit/tsconfig": "^2.0.0",
+    "@electron-toolkit/utils": "^4.0.0",
+    "babel-plugin-react-compiler": "^1.0.0",
+    "electron": "38.1.2",
+    "electron-builder": "^25.1.8",
+    "electron-store": "^11.0.2",
+    "electron-updater": "^6.3.9",
+    "electron-vite": "^4.0.1",
+    "eslint": "^9.36.0",
+    "prettier": "^3.6.2",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "turbo": "^2.3.3",
+    "typescript": "^5.9.2"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron",
+      "esbuild"
+    ]
+  },
+  "packageManager": "pnpm@10.22.0"
+}

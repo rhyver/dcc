@@ -1,0 +1,42 @@
+{
+  "name": "@dcc/core",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "cross-env CAMPAIGN_URL=http://localhost:5173 DOCUMENT_URL=http://localhost:5174 electron-vite dev",
+    "build": "electron-vite build",
+    "build:unpack": "electron-builder --projectDir ../.. -c apps/core/electron-builder.yml --dir",
+    "build:win": "electron-builder --projectDir ../.. -c apps/core/electron-builder.yml --win",
+    "build:mac": "electron-builder --projectDir ../.. -c apps/core/electron-builder.yml --mac",
+    "build:linux": "electron-builder --projectDir ../.. -c apps/core/electron-builder.yml --linux",
+    "tsc": "tsc --noEmit",
+    "lint": "eslint ./src",
+    "lint:fix": "eslint ./src --fix",
+    "clean": "rm -rf .turbo dist out node_modules"
+  },
+  "dependencies": {
+    "@dcc/contracts": "workspace:*",
+    "@dcc/data": "workspace:*",
+    "@electron-toolkit/preload": "^3.0.2",
+    "@electron-toolkit/utils": "^4.0.0",
+    "@orpc/server": "^1.10.0",
+    "electron-store": "^11.0.2",
+    "electron-updater": "^6.3.9",
+    "neverthrow": "^8.2.0",
+    "superjson": "^2.2.5",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@electron-toolkit/eslint-config-prettier": "^3.0.0",
+    "@electron-toolkit/eslint-config-ts": "^3.1.0",
+    "@electron-toolkit/tsconfig": "^2.0.0",
+    "@types/node": "^22.18.6",
+    "cross-env": "^7.0.3",
+    "electron": "38.1.2",
+    "electron-builder": "^25.1.8",
+    "electron-vite": "^4.0.1",
+    "eslint": "^9.36.0",
+    "typescript": "^5.9.2"
+  }
+}

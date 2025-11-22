@@ -1,4 +1,4 @@
-import { createBrowserRouter, redirect } from 'react-router'
+import { createHashRouter, redirect } from 'react-router'
 import { Home } from './routes/active/home/home'
 import { ActiveLayout } from './routes/active/layout'
 import { coreClient } from './lib/orpc'
@@ -14,7 +14,7 @@ async function activeCampaignMiddleware() {
   activeStore.trigger.loadCampaign({ campaign: activeCampaign })
 }
 
-export const router = createBrowserRouter([
+export const router = createHashRouter([
   {
     path: '/',
     Component: ActiveLayout,

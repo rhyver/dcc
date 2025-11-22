@@ -16,8 +16,6 @@
     "clean": "rm -rf .turbo dist out node_modules"
   },
   "dependencies": {
-    "@dcc/contracts": "workspace:*",
-    "@dcc/data": "workspace:*",
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
     "@orpc/server": "^1.10.0",
@@ -28,6 +26,8 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@dcc/contracts": "workspace:*",
+    "@dcc/data": "workspace:*",
     "@electron-toolkit/eslint-config-prettier": "^3.0.0",
     "@electron-toolkit/eslint-config-ts": "^3.1.0",
     "@electron-toolkit/tsconfig": "^2.0.0",

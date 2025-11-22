@@ -5,12 +5,21 @@ directories:
   app: apps/core
   buildResources: build
 files:
+  # Explicit include set to avoid traversing workspace symlinks by default
+  - out/**
+  - resources/**
+  - package.json
+  - node_modules/**
+  # Exclude workspace-linked packages that are bundled by electron-vite
+  - '!**/node_modules/@dcc/**'
+  # General exclusions
   - '!**/.vscode/*'
-  - '!src/*'
+  - '!src/**'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
   - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  - '!**/.turbo/**'
 asarUnpack:
   - resources/**
 extraResources:

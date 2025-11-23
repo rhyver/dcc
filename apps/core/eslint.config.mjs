@@ -8,7 +8,8 @@ export default defineConfig(
   eslintConfigPrettier,
   {
     rules: {
-      '@typescript-eslint/explicit-function-return-type': 'off'
+      '@typescript-eslint/explicit-function-return-type': 'off',
+      'prettier/prettier': ['error', { endOfLine: 'auto' }]
     }
   }
 )

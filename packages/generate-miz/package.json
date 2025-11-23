@@ -1,0 +1,33 @@
+{
+  "name": "@dcc/generate-miz",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "main": "src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "tsc",
+    "tsc": "tsc --noEmit",
+    "lint": "eslint ./src",
+    "lint:fix": "eslint ./src --fix"
+  },
+  "dependencies": {
+    "@dcc/contracts": "workspace:*",
+    "@kilcekru/lua-table": "^1.1.2",
+    "adm-zip": "^0.5.16",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@kilcekru/ts-basics": "^4.0.0",
+    "@types/adm-zip": "^0.5.7",
+    "eslint": "^9.36.0",
+    "eslint-plugin-prettier": "^5.5.4",
+    "typescript": "^5.9.2"
+  }
+}

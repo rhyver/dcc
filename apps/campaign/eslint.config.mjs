@@ -36,7 +36,8 @@ export default defineConfig(
           varsIgnorePattern: '^_',
           caughtErrorsIgnorePattern: '^_'
         }
-      ]
+      ],
+      'prettier/prettier': ['error', { endOfLine: 'auto' }]
     }
   }
 )

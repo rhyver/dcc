@@ -55,10 +55,18 @@ const createCampaign = base
   })
   .output(campaignSchemas.campaign)
 
+const generateMiz = base
+  .route({
+    summary: 'Generate a MIZ file from the active campaign',
+    tags: ['Campaign', 'Generate']
+  })
+  .input(campaignSchemas.campaign)
+
 export const campaign = {
   getActiveCampaign,
   createCampaign,
-  saveActiveCampaign
+  saveActiveCampaign,
+  generateMiz
 }
 
 const getScenario = base

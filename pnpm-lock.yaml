@@ -47,12 +47,6 @@ importers:
       prettier:
         specifier: ^3.6.2
         version: 3.6.2
-      react:
-        specifier: ^19.1.1
-        version: 19.2.0
-      react-dom:
-        specifier: ^19.1.1
-        version: 19.2.0(react@19.2.0)
       turbo:
         specifier: ^2.3.3
         version: 2.6.1
@@ -180,12 +174,6 @@ importers:
 
   apps/core:
     dependencies:
-      '@dcc/contracts':
-        specifier: workspace:*
-        version: link:../../packages/contracts
-      '@dcc/data':
-        specifier: workspace:*
-        version: link:../../packages/data
       '@electron-toolkit/preload':
         specifier: ^3.0.2
         version: 3.0.2(electron@38.1.2)
@@ -211,6 +199,15 @@ importers:
         specifier: ^4.1.12
         version: 4.1.12
     devDependencies:
+      '@dcc/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      '@dcc/data':
+        specifier: workspace:*
+        version: link:../../packages/data
+      '@dcc/generate-miz':
+        specifier: workspace:*
+        version: link:../../packages/generate-miz
       '@electron-toolkit/eslint-config-prettier':
         specifier: ^3.0.0
         version: 3.0.0(eslint@9.38.0(jiti@2.6.1))(prettier@3.6.2)
@@ -328,6 +325,9 @@ importers:
       eslint:
         specifier: ^9.36.0
         version: 9.38.0(jiti@2.6.1)
+      eslint-plugin-prettier:
+        specifier: ^5.5.4
+        version: 5.5.4(eslint-config-prettier@10.1.8(eslint@9.38.0(jiti@2.6.1)))(eslint@9.38.0(jiti@2.6.1))(prettier@3.6.2)
       typescript:
         specifier: ^5.9.2
         version: 5.9.3
@@ -347,6 +347,37 @@ importers:
       eslint:
         specifier: ^9.36.0
         version: 9.38.0(jiti@2.6.1)
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.3
+
+  packages/generate-miz:
+    dependencies:
+      '@dcc/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@kilcekru/lua-table':
+        specifier: ^1.1.2
+        version: 1.1.2
+      adm-zip:
+        specifier: ^0.5.16
+        version: 0.5.16
+      zod:
+        specifier: ^4.1.12
+        version: 4.1.12
+    devDependencies:
+      '@kilcekru/ts-basics':
+        specifier: ^4.0.0
+        version: 4.0.0(@typescript-eslint/parser@8.26.0(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3))(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3)
+      '@types/adm-zip':
+        specifier: ^0.5.7
+        version: 0.5.7
+      eslint:
+        specifier: ^9.36.0
+        version: 9.38.0(jiti@2.6.1)
+      eslint-plugin-prettier:
+        specifier: ^5.5.4
+        version: 5.5.4(eslint-config-prettier@10.1.8(eslint@9.38.0(jiti@2.6.1)))(eslint@9.38.0(jiti@2.6.1))(prettier@3.6.2)
       typescript:
         specifier: ^5.9.2
         version: 5.9.3
@@ -754,6 +785,10 @@ packages:
   '@kilcekru/dcs-coordinates@2.0.0':
     resolution: {integrity: sha512-0Up/P+F21r39lDy0UmSSVZbFh8P4f4de1SRG3i8zQPVlrVpOhkv5GAv0d2LGFl2V0rdTZ08dJi9ax6jbLow21Q==}
     engines: {pnpm: '>=7.15.0'}
+
+  '@kilcekru/lua-table@1.1.2':
+    resolution: {integrity: sha512-dm20X3e2OnSm/BqJFZejBaxAHoGb5prFXU6RI0FJKrBJo4iMUQkwip90iNQujDHCZ/iWh11A0N97cNH6ge0Lwg==}
+    engines: {node: '>=18.12.0', pnpm: ^8.6.2}
 
   '@kilcekru/ts-basics@4.0.0':
     resolution: {integrity: sha512-avbZSf0SnjXGO9+uqMdvkY1kQPUdw0kQ4r3TBcOJHOF4lTEIP0IeEBqBAJKFvuLZXv8uBGCEf+mtiV/ZH11+7A==}
@@ -1326,6 +1361,9 @@ packages:
     resolution: {integrity: sha512-XCuKFP5PS55gnMVu3dty8KPatLqUoy/ZYzDzAGCQ8JNFCkLXzmI7vNHCR+XpbZaMWQK/vQubr7PkYq8g470J/A==}
     engines: {node: '>= 10'}
 
+  '@types/adm-zip@0.5.7':
+    resolution: {integrity: sha512-DNEs/QvmyRLurdQPChqq0Md4zGvPwHerAJYWk9l2jCbD1VPpnzRJorOdiq4zsw09NFbYnhfsoEhWtxIzXpn2yw==}
+
   '@types/babel__core@7.20.5':
     resolution: {integrity: sha512-qoQprZvz5wQFJwMDqeseRXWv3rqMvhgpbXFfVyWhbx9X47POIA6i/+dXefEmZKoAgOaTdaIgNSMqMIU61yRyzA==}
 
@@ -1556,6 +1594,10 @@ packages:
     resolution: {integrity: sha512-NZyJarBfL7nWwIq+FDL6Zp/yHEhePMNnnJ0y3qfieCrmNvYct8uvtiV41UvlSe6apAfk0fY1FbWx+NwfmpvtTg==}
     engines: {node: '>=0.4.0'}
     hasBin: true
+
+  adm-zip@0.5.16:
+    resolution: {integrity: sha512-TGw5yVi4saajsSEgz25grObGHEUaDrniwvA2qwSC060KfqGPdglhvPMA2lPIoxs3PQIItj2iag35fONcQqgUaQ==}
+    engines: {node: '>=12.0'}
 
   agent-base@6.0.2:
     resolution: {integrity: sha512-RZNwNclF7+MS/8bDg70amg32dyeZGZxiDuQmZxKLAlQjr3jGyLx+4Kkk58UO7D2QdgFIQCovuSuZESne6RG6XQ==}
@@ -4583,6 +4625,8 @@ snapshots:
       zod: 3.25.76
       zod-validation-error: 2.1.0(zod@3.25.76)
 
+  '@kilcekru/lua-table@1.1.2': {}
+
   '@kilcekru/ts-basics@4.0.0(@typescript-eslint/parser@8.26.0(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3))(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3)':
     dependencies:
       '@eslint/js': 9.22.0
@@ -5161,6 +5205,10 @@ snapshots:
 
   '@tootallnate/once@2.0.0': {}
 
+  '@types/adm-zip@0.5.7':
+    dependencies:
+      '@types/node': 22.18.12
+
   '@types/babel__core@7.20.5':
     dependencies:
       '@babel/parser': 7.28.4
@@ -5459,6 +5507,8 @@ snapshots:
       acorn: 8.15.0
 
   acorn@8.15.0: {}
+
+  adm-zip@0.5.16: {}
 
   agent-base@6.0.2:
     dependencies:

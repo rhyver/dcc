@@ -4,6 +4,9 @@ import path from 'path'
 import { schemas } from '@dcc/contracts'
 import { neverthrowParse, NotFoundError, parseJson, readFile, writeFile } from '../../utils'
 import { createCampaign } from './create-campaign'
+import { generateMizFromCampaign } from '@dcc/generate-miz'
+import { getScenarios } from '../data/get-scenarios'
+import { getTheatre } from '../data/get-theatre'
 
 const stateFile = path.join(app.getPath('userData'), 'state.json')
 console.log('stateFile', stateFile)
@@ -37,8 +40,24 @@ const saveActiveCampaign = pub.campaign.saveActiveCampaign.handler(async ({ erro
     }
   )
 })
+
+export const generateMiz = pub.campaign.generateMiz.handler(async ({ input, errors }) => {
+  const mizPath = path.join(app.getPath('downloads'), 'dcc_mission.miz')
+  const scenarios = getScenarios()
+  const scenario = scenarios.find((s) => s.id === input.scenarioId)
+  if (scenario == null) {
+    throw errors.NOT_FOUND({ data: { message: 'Scenario not found', path: 'scenarioId' } })
+  }
+  const theatre = getTheatre(scenario.theatreName)
+  if (theatre == null) {
+    throw errors.NOT_FOUND({ data: { message: 'Theatre not found', path: scenario.theatreName } })
+  }
+  return generateMizFromCampaign(input, theatre, mizPath)
+})
+
 export const campaign = {
   getActiveCampaign,
   createCampaign,
-  saveActiveCampaign
+  saveActiveCampaign,
+  generateMiz
 }

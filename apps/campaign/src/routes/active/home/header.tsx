@@ -77,6 +77,7 @@ export function Header() {
             variant="outline"
             size="sm"
             className="h-8 border-[#ff00aa]/50 bg-[#0b0014]/80 px-3 text-xs text-[#ff00aa] hover:bg-[#ff00aa]/20"
+            onClick={() => coreClient.campaign.generateMiz(activeStore.getSnapshot().context)}
           >
             Takeoff
           </Button>

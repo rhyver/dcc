@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.lib.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "paths": {
+      "@kilcekru/lua-table": ["./node_modules/@kilcekru/lua-table/dist/index.d.ts"]
+    }
+  },
+  "include": ["src"],
+}

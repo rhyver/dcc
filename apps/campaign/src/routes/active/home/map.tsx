@@ -11,7 +11,7 @@ import { schemas } from '@dcc/contracts'
 import MaplibreMap, { Marker as MaplibreMarker } from 'react-map-gl/maplibre'
 import MilSymbol from 'milsymbol'
 import { getMilSymbolCode } from './unit-code'
-import { ObjectiveMarker as ObjectiveMarkerType, useMapItems } from './use-map-items'
+import { type ObjectiveMarker as ObjectiveMarkerType, useMapItems } from './use-map-items'
 import {
   Card,
   CardHeader,

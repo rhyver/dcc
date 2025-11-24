@@ -1,12 +1,8 @@
 {
-  "$schema": "https://json.schemastore.org/tsconfig",
+   "$schema": "https://www.schemastore.org/tsconfig",
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "jsx": "react-jsx",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "types": ["vite/client"]
-  },
-  "references": [
-    { "path": "./packages/contracts" }
-  ]
-}
+    "lib": ["es2022", "dom", "dom.iterable"],
+    "jsx": "react-jsx"
+  }
+ }

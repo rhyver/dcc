@@ -1,5 +1,5 @@
 import { schemas } from '@dcc/contracts'
-import * as luaTable from '@kilcekru/lua-table'
+import * as luaTable from '@dcc/lua-table'
 import AdmZip from 'adm-zip'
 import * as z from 'zod'
 
@@ -158,7 +158,10 @@ export function generateMizFromCampaign(
     }
   }
 
-  addStructuresToMission(mission, campaign, theatre)
+  const structuresResult = addStructuresToMission(mission, campaign, theatre)
+  if (structuresResult.isErr()) {
+    return structuresResult
+  }
 
   const lua = luaTable.stringify(mission, { mixedKeyTypes: true })
 

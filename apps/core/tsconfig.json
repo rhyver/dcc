@@ -1,11 +1,8 @@
 {
   "extends": "@electron-toolkit/tsconfig/tsconfig.node.json",
-  "include": ["electron.vite.config.*", "src/main/**/*", "src/preload/**/*"],
+  "include": ["src"],
   "compilerOptions": {
     "types": ["electron-vite/node"]
   },
-  "references": [
-    { "path": "../../packages/contracts" }
-  ]
 }
 

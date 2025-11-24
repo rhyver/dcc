@@ -1,5 +1,6 @@
 import { schemas } from '@dcc/contracts'
 import { buildings, structures } from '@dcc/data'
+import { err, ok } from 'neverthrow'
 import * as z from 'zod'
 
 export function addStructuresToMission(
@@ -12,39 +13,20 @@ export function addStructuresToMission(
     return mission.currentKey
   }
 
-  const coalitionMap = {
-    BLUE: 'blue',
-    RED: 'red',
-    NEUTRAL: 'neutrals'
-  } as const
-
   Object.entries(campaign.coalitions).forEach(([key, value]) => {
-    const missionCoalitionKey = coalitionMap[key as keyof typeof coalitionMap]
-    if (!missionCoalitionKey) return
+    const missionCoalitionKey = key === 'player' ? 'blue' : key === 'opponent' ? 'red' : 'neutrals'
 
     const coalitionStructures = value.structures
 
-    if (!coalitionStructures || coalitionStructures.length === 0) return
+    if (!coalitionStructures || coalitionStructures.length === 0) return ok()
 
-    let countryList = mission.coalition[missionCoalitionKey].country
-
-    if (!countryList || countryList.length === 0) {
-      const countryId = missionCoalitionKey === 'blue' ? 2 : 0
-      const countryName = missionCoalitionKey === 'blue' ? 'USA' : 'Russia'
-
-      countryList = [
-        {
-          id: countryId,
-          name: countryName,
-          static: { group: [] }
-        }
-      ]
-      mission.coalition[missionCoalitionKey].country = countryList
-    }
+    const countryList = mission.coalition[missionCoalitionKey].country
 
     // countryList is guaranteed to be non-empty array here
-    const country = countryList[0]
-    if (!country) return
+    const country = countryList?.[0]
+    if (country == null) {
+      return err(new Error(`no country found for coalition ${missionCoalitionKey} ${key}`))
+    }
 
     if (!country.static) {
       country.static = { group: [] }
@@ -94,12 +76,14 @@ export function addStructuresToMission(
           groupId: groupId,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
           units: groupUnits as any,
-          y: groupUnits[0].y,
-          x: groupUnits[0].x,
+          y: groupUnits[0]?.y ?? 0,
+          x: groupUnits[0]?.x ?? 0,
           name: groupName,
           dead: false
         })
       }
     })
   })
+
+  return ok()
 }

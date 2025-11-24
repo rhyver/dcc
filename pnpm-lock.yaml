@@ -23,6 +23,9 @@ importers:
       '@electron-toolkit/utils':
         specifier: ^4.0.0
         version: 4.0.0(electron@38.1.2)
+      '@kilcekru/ts-basics':
+        specifier: ^4.0.0
+        version: 4.0.0(@typescript-eslint/parser@8.26.0(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3))(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3)
       babel-plugin-react-compiler:
         specifier: ^1.0.0
         version: 1.0.0
@@ -359,12 +362,15 @@ importers:
       '@dcc/data':
         specifier: workspace:*
         version: link:../data
-      '@kilcekru/lua-table':
-        specifier: ^1.1.2
-        version: 1.1.2
+      '@dcc/lua-table':
+        specifier: workspace:*
+        version: link:../lua-table
       adm-zip:
         specifier: ^0.5.16
         version: 0.5.16
+      neverthrow:
+        specifier: ^8.2.0
+        version: 8.2.0
       zod:
         specifier: ^4.1.12
         version: 4.1.12
@@ -375,6 +381,21 @@ importers:
       '@types/adm-zip':
         specifier: ^0.5.7
         version: 0.5.7
+      eslint:
+        specifier: ^9.36.0
+        version: 9.38.0(jiti@2.6.1)
+      eslint-plugin-prettier:
+        specifier: ^5.5.4
+        version: 5.5.4(eslint-config-prettier@10.1.8(eslint@9.38.0(jiti@2.6.1)))(eslint@9.38.0(jiti@2.6.1))(prettier@3.6.2)
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.3
+
+  packages/lua-table:
+    devDependencies:
+      '@kilcekru/ts-basics':
+        specifier: ^4.0.0
+        version: 4.0.0(@typescript-eslint/parser@8.26.0(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3))(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3)
       eslint:
         specifier: ^9.36.0
         version: 9.38.0(jiti@2.6.1)
@@ -788,10 +809,6 @@ packages:
   '@kilcekru/dcs-coordinates@2.0.0':
     resolution: {integrity: sha512-0Up/P+F21r39lDy0UmSSVZbFh8P4f4de1SRG3i8zQPVlrVpOhkv5GAv0d2LGFl2V0rdTZ08dJi9ax6jbLow21Q==}
     engines: {pnpm: '>=7.15.0'}
-
-  '@kilcekru/lua-table@1.1.2':
-    resolution: {integrity: sha512-dm20X3e2OnSm/BqJFZejBaxAHoGb5prFXU6RI0FJKrBJo4iMUQkwip90iNQujDHCZ/iWh11A0N97cNH6ge0Lwg==}
-    engines: {node: '>=18.12.0', pnpm: ^8.6.2}
 
   '@kilcekru/ts-basics@4.0.0':
     resolution: {integrity: sha512-avbZSf0SnjXGO9+uqMdvkY1kQPUdw0kQ4r3TBcOJHOF4lTEIP0IeEBqBAJKFvuLZXv8uBGCEf+mtiV/ZH11+7A==}
@@ -4627,8 +4644,6 @@ snapshots:
     dependencies:
       zod: 3.25.76
       zod-validation-error: 2.1.0(zod@3.25.76)
-
-  '@kilcekru/lua-table@1.1.2': {}
 
   '@kilcekru/ts-basics@4.0.0(@typescript-eslint/parser@8.26.0(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3))(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3)':
     dependencies:

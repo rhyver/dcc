@@ -1,4 +1,6 @@
+export * from './buildings'
 export * from './factions'
 export * from './scenarios'
+export * from './structures'
 export * from './templates'
 export * from './theatres'

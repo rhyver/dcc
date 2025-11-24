@@ -356,6 +356,9 @@ importers:
       '@dcc/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@dcc/data':
+        specifier: workspace:*
+        version: link:../data
       '@kilcekru/lua-table':
         specifier: ^1.1.2
         version: 1.1.2

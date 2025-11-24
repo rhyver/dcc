@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@dcc/contracts": "workspace:*",
+    "@dcc/data": "workspace:*",
     "@kilcekru/lua-table": "^1.1.2",
     "adm-zip": "^0.5.16",
     "zod": "^4.1.12"

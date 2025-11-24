@@ -3,6 +3,7 @@ import * as luaTable from '@kilcekru/lua-table'
 import AdmZip from 'adm-zip'
 import * as z from 'zod'
 
+import { addStructuresToMission } from './add-structures'
 import { dictionary, mapResource } from './l10n'
 import { options } from './options'
 import { warehouses } from './warehouses'
@@ -92,266 +93,13 @@ export function generateMizFromCampaign(
             id: 2,
             name: 'USA',
             plane: {
-              group: [
-                {
-                  modulation: 0,
-                  tasks: {},
-                  uncontrollable: false,
-                  task: 'CAP',
-                  uncontrolled: false,
-                  route: {
-                    points: [
-                      {
-                        alt: 18,
-                        action: 'From Parking Area',
-                        alt_type: 'BARO',
-                        properties: {
-                          addopt: {}
-                        },
-                        speed: 138.88888888889,
-                        task: {
-                          id: 'ComboTask',
-                          params: {
-                            tasks: [
-                              {
-                                enabled: true,
-                                key: 'CAP',
-                                id: 'EngageTargets',
-                                number: 1,
-                                auto: true,
-                                params: {
-                                  targetTypes: ['Air'],
-                                  priority: 0
-                                }
-                              },
-                              {
-                                enabled: true,
-                                auto: true,
-                                id: 'WrappedAction',
-                                number: 2,
-                                params: {
-                                  action: {
-                                    id: 'Option',
-                                    params: {
-                                      value: true,
-                                      name: 17
-                                    }
-                                  }
-                                }
-                              },
-                              {
-                                enabled: true,
-                                auto: true,
-                                id: 'WrappedAction',
-                                number: 3,
-                                params: {
-                                  action: {
-                                    id: 'Option',
-                                    params: {
-                                      value: 4,
-                                      name: 18
-                                    }
-                                  }
-                                }
-                              },
-                              {
-                                enabled: true,
-                                auto: true,
-                                id: 'WrappedAction',
-                                number: 4,
-                                params: {
-                                  action: {
-                                    id: 'Option',
-                                    params: {
-                                      value: true,
-                                      name: 19
-                                    }
-                                  }
-                                }
-                              },
-                              {
-                                enabled: true,
-                                auto: true,
-                                id: 'WrappedAction',
-                                number: 5,
-                                params: {
-                                  action: {
-                                    id: 'Option',
-                                    params: {
-                                      targetTypes: [],
-                                      name: 21,
-                                      value: 'none;',
-                                      noTargetTypes: [
-                                        'Fighters',
-                                        'Multirole fighters',
-                                        'Bombers',
-                                        'Helicopters',
-                                        'UAVs',
-                                        'Infantry',
-                                        'Fortifications',
-                                        'Tanks',
-                                        'IFV',
-                                        'APC',
-                                        'Artillery',
-                                        'Unarmed vehicles',
-                                        'AAA',
-                                        'SR SAM',
-                                        'MR SAM',
-                                        'LR SAM',
-                                        'Aircraft Carriers',
-                                        'Cruisers',
-                                        'Destroyers',
-                                        'Frigates',
-                                        'Corvettes',
-                                        'Light armed ships',
-                                        'Unarmed ships',
-                                        'Submarines',
-                                        'Cruise missiles',
-                                        'Antiship Missiles',
-                                        'AA Missiles',
-                                        'AG Missiles',
-                                        'SA Missiles'
-                                      ]
-                                    }
-                                  }
-                                }
-                              },
-                              {
-                                enabled: true,
-                                auto: true,
-                                id: 'WrappedAction',
-                                number: 6,
-                                params: {
-                                  action: {
-                                    id: 'EPLRS',
-                                    params: {
-                                      value: true,
-                                      groupId: 1
-                                    }
-                                  }
-                                }
-                              },
-                              {
-                                enabled: true,
-                                auto: true,
-                                id: 'WrappedAction',
-                                number: 7,
-                                params: {
-                                  action: {
-                                    id: 'Option',
-                                    params: {
-                                      value: true,
-                                      name: 35
-                                    }
-                                  }
-                                }
-                              }
-                            ]
-                          }
-                        },
-                        type: 'TakeOffParking',
-                        ETA: 0,
-                        ETA_locked: true,
-                        y: 635293,
-                        x: -317776.65625,
-                        speed_locked: true,
-                        formation_template: '',
-                        airdromeId: 24
-                      }
-                    ]
-                  },
-                  groupId: 1,
-                  hidden: false,
-                  units: [
-                    {
-                      alt: 18,
-                      alt_type: 'BARO',
-                      livery_id: 'default',
-                      skill: 'Client',
-                      parking: '4',
-                      speed: 138.88888888889,
-                      AddPropAircraft: {
-                        HelmetMountedDevice: 1,
-                        VoiceCallsignLabel: 'ED',
-                        STN_L16: '00201',
-                        LAU3ROF: 0,
-                        VoiceCallsignNumber: '11'
-                      },
-                      type: 'F-16C_50',
-                      Radio: [
-                        {
-                          channelsNames: {},
-                          modulations: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                          channels: [
-                            305, 264, 265, 256, 254, 250, 270, 257, 255, 262, 259, 268, 269, 260,
-                            263, 261, 267, 251, 253, 266
-                          ]
-                        },
-                        {
-                          channelsNames: {},
-                          modulations: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                          channels: [
-                            127, 135, 136, 127, 125, 121, 141, 128, 126, 133, 130, 139, 140, 131,
-                            134, 132, 138, 122, 124, 137
-                          ]
-                        }
-                      ],
-                      unitId: 1,
-                      psi: 0,
-                      onboard_num: '010',
-                      parking_id: '40',
-                      x: -317776.65625,
-                      name: 'Aerial-1-1',
-                      payload: {
-                        pylons: {},
-                        fuel: 3249,
-                        flare: 60,
-                        ammo_type: 5,
-                        chaff: 60,
-                        gun: 100
-                      },
-                      y: 635293,
-                      heading: 0,
-                      callsign: {
-                        1: 5,
-                        2: 1,
-                        3: 1,
-                        4: 'Dodge11',
-                        name: 'Dodge11'
-                      },
-                      datalinks: {
-                        Link16: {
-                          settings: {
-                            flightLead: true,
-                            transmitPower: 3,
-                            specialChannel: 1,
-                            fighterChannel: 1,
-                            missionChannel: 1
-                          },
-                          network: {
-                            teamMembers: [
-                              {
-                                TDOA: true,
-                                missionUnitId: 1
-                              }
-                            ],
-                            donors: {}
-                          }
-                        }
-                      },
-                      communication: true,
-                      start_time: 0,
-                      frequency: 305
-                    }
-                  ],
-                  y: 635293,
-                  x: -317776.65625,
-                  name: 'Aerial-1',
-                  communication: true,
-                  start_time: 0,
-                  frequency: 305
-                }
-              ]
+              group: []
+            },
+            static: {
+              group: []
+            },
+            vehicle: {
+              group: []
             }
           }
         ]
@@ -360,7 +108,21 @@ export function generateMizFromCampaign(
         bullseye: { y: 371700, x: 11557 },
         nav_points: [],
         name: 'red',
-        country: []
+        country: [
+          {
+            id: 0,
+            name: 'USA',
+            plane: {
+              group: []
+            },
+            static: {
+              group: []
+            },
+            vehicle: {
+              group: []
+            }
+          }
+        ]
       }
     },
     result: {
@@ -395,6 +157,8 @@ export function generateMizFromCampaign(
       funcStartup: {}
     }
   }
+
+  addStructuresToMission(mission, campaign, theatre)
 
   const lua = luaTable.stringify(mission, { mixedKeyTypes: true })
 

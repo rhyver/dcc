@@ -37,7 +37,6 @@ export function addStructuresToMission(
       if (!structureDefArray || structureDefArray.length === 0) return
 
       const structureDef = structureDefArray[0]
-      console.log('structureDef', structureDef)
       if (!structureDef) return
 
       const objective = theatre.objectives.find((o) => o.name === struct.objectiveId)
@@ -77,7 +76,7 @@ export function addStructuresToMission(
           points: [
             {
               alt: 0,
-              name: '',
+              name: `${groupName}-${1}`,
               type: '',
               y: posY,
               speed: 0,

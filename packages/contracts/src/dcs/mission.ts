@@ -102,22 +102,57 @@ const failure = z.object({
   mm: z.number()
 })
 
-const routePoint = z.object({
-  alt: z.number(),
-  action: z.string(),
-  alt_type: z.string(),
-  speed: z.number(),
-  task: z.any().optional(),
-  type: z.string(),
-  ETA: z.number(),
-  ETA_locked: z.boolean(),
-  y: z.number(),
-  x: z.number(),
-  speed_locked: z.boolean(),
-  formation_template: z.string().optional(),
-  airdromeId: z.number().optional(),
-  properties: z.any().optional()
-})
+// Static route point schema
+const staticRoutePoint = z
+  .object({
+    alt: z.number(),
+    type: z.string(),
+    name: z.string().optional(),
+    y: z.number(),
+    x: z.number(),
+    speed: z.number(),
+    action: z.string(),
+    formation_template: z.string().optional()
+  })
+  .loose()
+
+// Vehicle/Ship route point schema
+const vehicleRoutePoint = z
+  .object({
+    alt: z.number(),
+    alt_type: z.string(),
+    type: z.string(),
+    y: z.number(),
+    x: z.number(),
+    speed: z.number(),
+    action: z.string(),
+    task: z.any().optional(),
+    ETA: z.number(),
+    ETA_locked: z.boolean(),
+    speed_locked: z.boolean(),
+    formation_template: z.string().optional()
+  })
+  .loose()
+
+// Aircraft route point schema
+const aircraftRoutePoint = z
+  .object({
+    alt: z.number(),
+    alt_type: z.string(),
+    type: z.string(),
+    y: z.number(),
+    x: z.number(),
+    speed: z.number(),
+    action: z.string(),
+    task: z.any().optional(),
+    ETA: z.number(),
+    ETA_locked: z.boolean(),
+    speed_locked: z.boolean(),
+    formation_template: z.string().optional(),
+    airdromeId: z.number().optional(),
+    properties: z.any().optional()
+  })
+  .loose()
 
 const payload = z
   .object({
@@ -130,50 +165,113 @@ const payload = z
   })
   .loose()
 
-const unit = z
+// Static unit schema
+const staticUnit = z
   .object({
     unitId: z.number(),
     name: z.string(),
     x: z.number(),
     y: z.number(),
-    alt: z.number().optional(),
-    alt_type: z.string().optional(),
-    speed: z.number().optional(),
     type: z.string(),
+    heading: z.number(),
+    category: z.string().optional(),
+    shape_name: z.string().optional(),
+    rate: z.number().optional()
+  })
+  .loose()
+
+// Static group schema
+const staticGroup = z
+  .object({
+    groupId: z.number().optional(),
+    name: z.string(),
+    units: z.array(staticUnit),
+    x: z.number(),
+    y: z.number(),
+    heading: z.number().optional(),
+    dead: z.boolean().optional(),
+    route: z
+      .object({
+        points: z.array(staticRoutePoint)
+      })
+      .optional()
+  })
+  .loose()
+
+// Vehicle/Ship unit schema
+const vehicleUnit = z
+  .object({
+    unitId: z.number(),
+    name: z.string(),
+    x: z.number(),
+    y: z.number(),
+    type: z.string(),
+    heading: z.number(),
+    skill: z.string().optional(),
+    coldAtStart: z.boolean().optional(),
+    playerCanDrive: z.boolean().optional()
+  })
+  .loose()
+
+// Vehicle/Ship group schema
+const vehicleGroup = z
+  .object({
+    groupId: z.number().optional(),
+    name: z.string(),
+    units: z.array(vehicleUnit),
+    x: z.number(),
+    y: z.number(),
+    hidden: z.boolean().optional(),
+    visible: z.boolean().optional(),
+    task: z.string().optional(),
+    tasks: z.any().optional(),
+    uncontrollable: z.boolean().optional(),
+    start_time: z.number().optional(),
+    route: z
+      .object({
+        points: z.array(vehicleRoutePoint),
+        spans: z.array(z.any()).optional()
+      })
+      .optional()
+  })
+  .loose()
+
+// Aircraft (plane/helicopter) unit schema
+const aircraftUnit = z
+  .object({
+    unitId: z.number(),
+    name: z.string(),
+    x: z.number(),
+    y: z.number(),
+    type: z.string(),
+    alt: z.number(),
+    alt_type: z.string(),
+    speed: z.number(),
+    heading: z.number(),
     skill: z.string().optional(),
     livery_id: z.string().optional(),
     parking: z.string().optional(),
     parking_id: z.string().optional(),
     psi: z.number().optional(),
     onboard_num: z.string().optional(),
-    heading: z.number().optional(),
     payload: payload.optional(),
-    callsign: z.any().optional(), // Mixed table
+    callsign: z.any().optional(),
     datalinks: z.any().optional(),
     Radio: z.array(z.any()).optional(),
-    AddPropAircraft: z.any().optional(),
-    communication: z.boolean().optional(),
-    start_time: z.number().optional(),
-    frequency: z.number().optional(),
-    hardpoint_racks: z.boolean().optional()
+    AddPropAircraft: z.any().optional()
   })
   .loose()
 
-const group = z
+// Aircraft (plane/helicopter) group schema
+const aircraftGroup = z
   .object({
     groupId: z.number().optional(),
     name: z.string(),
-    units: z.array(unit),
-    y: z.number().optional(),
-    x: z.number().optional(),
+    units: z.array(aircraftUnit),
+    x: z.number(),
+    y: z.number(),
     hidden: z.boolean().optional(),
-    visible: z.boolean().optional(),
     task: z.string().optional(),
-    route: z
-      .object({
-        points: z.array(routePoint)
-      })
-      .optional(),
     tasks: z.any().optional(),
     modulation: z.number().optional(),
     uncontrollable: z.boolean().optional(),
@@ -181,7 +279,15 @@ const group = z
     start_time: z.number().optional(),
     communication: z.boolean().optional(),
     frequency: z.number().optional(),
-    lateActivation: z.boolean().optional()
+    lateActivation: z.boolean().optional(),
+    dynSpawnTemplate: z.boolean().optional(),
+    DTC: z.any().optional(),
+    radioSet: z.boolean().optional(),
+    route: z
+      .object({
+        points: z.array(aircraftRoutePoint)
+      })
+      .optional()
   })
   .loose()
 
@@ -189,11 +295,11 @@ const country = z
   .object({
     id: z.number(),
     name: z.string(),
-    plane: z.object({ group: z.array(group) }).optional(),
-    helicopter: z.object({ group: z.array(group) }).optional(),
-    ship: z.object({ group: z.array(group) }).optional(),
-    vehicle: z.object({ group: z.array(group) }).optional(),
-    static: z.object({ group: z.array(group) }).optional()
+    plane: z.object({ group: z.array(aircraftGroup) }).optional(),
+    helicopter: z.object({ group: z.array(aircraftGroup) }).optional(),
+    ship: z.object({ group: z.array(vehicleGroup) }).optional(),
+    vehicle: z.object({ group: z.array(vehicleGroup) }).optional(),
+    static: z.object({ group: z.array(staticGroup) }).optional()
   })
   .loose()
 

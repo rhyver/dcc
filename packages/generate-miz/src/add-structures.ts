@@ -37,6 +37,7 @@ export function addStructuresToMission(
       if (!structureDefArray || structureDefArray.length === 0) return
 
       const structureDef = structureDefArray[0]
+      console.log('structureDef', structureDef)
       if (!structureDef) return
 
       const objective = theatre.objectives.find((o) => o.name === struct.objectiveId)
@@ -48,40 +49,52 @@ export function addStructuresToMission(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const groupUnits: { x: number; y: number; [key: string]: any }[] = []
 
-      structureDef.buildings.forEach((b, index) => {
-        const buildingInfo = buildings[b.type]
-        if (!buildingInfo) return
+      const structureBuilding = structureDef.buildings[0]
+      if (!structureBuilding) return
+      const buildingInfo = buildings[structureBuilding.type]
+      if (!buildingInfo) return
+      if (!buildingInfo) return
 
-        const unitId = nextId()
-        const posX = objective.position.x + b.offset.x
-        const posY = objective.position.y + b.offset.y
+      const unitId = nextId()
+      const posX = objective.position.x + structureBuilding.offset.x
+      const posY = objective.position.y + structureBuilding.offset.y
 
-        groupUnits.push({
-          category: buildingInfo.category,
-          shape_name: buildingInfo.shapeName,
-          type: buildingInfo.type,
-          unitId: unitId,
-          rate: 100,
-          y: posY,
-          x: posX,
-          name: `${groupName}-${index + 1}`,
-          heading: 0
-        })
+      groupUnits.push({
+        category: buildingInfo.category,
+        shape_name: buildingInfo.shapeName,
+        type: buildingInfo.type,
+        unitId: unitId,
+        rate: 100,
+        y: posY,
+        x: posX,
+        name: `${groupName}-${1}`,
+        heading: 0
       })
 
-      if (groupUnits.length > 0) {
-        country.static?.group.push({
-          heading: 0,
-          route: { points: [] },
-          groupId: groupId,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
-          units: groupUnits as any,
-          y: groupUnits[0]?.y ?? 0,
-          x: groupUnits[0]?.x ?? 0,
-          name: groupName,
-          dead: false
-        })
-      }
+      country.static?.group.push({
+        heading: 0,
+        route: {
+          points: [
+            {
+              alt: 0,
+              name: '',
+              type: '',
+              y: posY,
+              speed: 0,
+              x: posX,
+              formation_template: '',
+              action: ''
+            }
+          ]
+        },
+        groupId: groupId,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+        units: groupUnits as any,
+        y: posY,
+        x: posX,
+        name: groupName,
+        dead: false
+      })
     })
   })
 

@@ -1,3 +1,5 @@
+import { err, ok, Result } from 'neverthrow'
+
 import { isFunction, isPlainObject } from './utils'
 
 export interface StringifyOptions {
@@ -44,11 +46,11 @@ export interface StringifyOptions {
  * @param data the data so stringify
  * @param options.pretty pretty-print the result (default true)
  *
- * @returns stringified lua-table
+ * @returns Result containing stringified lua-table or an error
  */
-export function stringify(data: unknown, options?: StringifyOptions) {
+export function stringify(data: unknown, options?: StringifyOptions): Result<string, Error> {
   if (data == undefined || isFunction(data)) {
-    return 'nil'
+    return ok('nil')
   }
   return _stringify({
     data,
@@ -75,18 +77,18 @@ function _stringify({
   indent,
   mixedKeyTypes,
   nonPositiveIntegerKeys
-}: _stringifyArgs) {
+}: _stringifyArgs): Result<string, Error> {
   if (data === null) {
-    return 'nil'
+    return ok('nil')
   }
 
   if (typeof data === 'number' || typeof data === 'boolean') {
-    return data.toString()
+    return ok(data.toString())
   }
 
   if (typeof data === 'string') {
     const str = data.replaceAll('"', '\\"').replaceAll('\n', '\\n')
-    return `"${str}"`
+    return ok(`"${str}"`)
   }
 
   const space = indent == undefined ? '' : ' '
@@ -95,53 +97,62 @@ function _stringify({
     const lines: string[] = []
 
     if (Array.isArray(data)) {
-      data.forEach((value: unknown, index) => {
+      for (let index = 0; index < data.length; index++) {
+        const value = data[index]
         if (value !== undefined && !isFunction(value)) {
-          lines.push(
-            `[${index + 1}]${space}=${space}${_stringify({
-              data: value,
-              lvl: lvl + 1,
-              path: [...path, index.toString()],
-              indent,
-              mixedKeyTypes,
-              nonPositiveIntegerKeys
-            })}`
-          )
+          const valueResult = _stringify({
+            data: value,
+            lvl: lvl + 1,
+            path: [...path, index.toString()],
+            indent,
+            mixedKeyTypes,
+            nonPositiveIntegerKeys
+          })
+          if (valueResult.isErr()) {
+            return valueResult
+          }
+          lines.push(`[${index + 1}]${space}=${space}${valueResult.value}`)
         }
-      })
+      }
     } else {
       for (const [key, value] of Object.entries(data)) {
         if (value !== undefined && !isFunction(value)) {
           const tableKey = stringifyTableKey({ key, mixedKeyTypes, nonPositiveIntegerKeys })
-          lines.push(
-            `[${tableKey}]${space}=${space}${_stringify({
-              data: value,
-              lvl: lvl + 1,
-              path: [...path, key],
-              indent,
-              mixedKeyTypes,
-              nonPositiveIntegerKeys
-            })}`
-          )
+          const valueResult = _stringify({
+            data: value,
+            lvl: lvl + 1,
+            path: [...path, key],
+            indent,
+            mixedKeyTypes,
+            nonPositiveIntegerKeys
+          })
+          if (valueResult.isErr()) {
+            return valueResult
+          }
+          lines.push(`[${tableKey}]${space}=${space}${valueResult.value}`)
         }
       }
     }
 
     if (lines.length === 0) {
-      return `{${space}}`
+      return ok(`{${space}}`)
     }
 
-    return [
-      '{',
-      nl(indent, lvl + 1),
-      lines.join(`,${nl(indent, lvl + 1)}`),
-      indent == undefined ? '' : ',',
-      nl(indent, lvl),
-      '}'
-    ].join('')
+    return ok(
+      [
+        '{',
+        nl(indent, lvl + 1),
+        lines.join(`,${nl(indent, lvl + 1)}`),
+        indent == undefined ? '' : ',',
+        nl(indent, lvl),
+        '}'
+      ].join('')
+    )
   }
-  throw new Error(
-    `Encountered unknown data type at path '${path.join('.')}' (${Object.prototype.toString.call(data)})`
+  return err(
+    new Error(
+      `Encountered unknown data type at path '${path.join('.')}' (${Object.prototype.toString.call(data)})`
+    )
   )
 }
 

@@ -52,7 +52,11 @@ export const generateMiz = pub.campaign.generateMiz.handler(async ({ input, erro
   if (theatre == null) {
     throw errors.NOT_FOUND({ data: { message: 'Theatre not found', path: scenario.theatreName } })
   }
-  return generateMizFromCampaign(input, theatre, mizPath)
+  const result = generateMizFromCampaign(input, theatre, mizPath)
+  if (result.isErr()) {
+    throw errors.FAILED_TO_WRITE_FILE({ data: { path: mizPath, message: result.error.message } })
+  }
+  return undefined
 })
 
 export const campaign = {

@@ -1,3 +1,5 @@
+import { err, ok, Result } from 'neverthrow'
+
 import { analyzeKeys, errMsg, isLetter, isNumber, isWhiteSpace } from './utils'
 
 export interface ParseOptions {
@@ -63,11 +65,9 @@ export interface ParseOptions {
  * @param options.nonPositiveIntegerKeys allow numeric keys that are not positive integers
  * @param options.sparseArray allow sparse arrays (default true)
  *
- * @returns parsed data. type depends on given input
- *
- * @throws if input can't be parsed an error is thrown. Error message contains the reason for pasing failure
+ * @returns Result containing parsed data or an error. Type depends on given input
  */
-export function parse(input: string, options?: ParseOptions): unknown {
+export function parse(input: string, options?: ParseOptions): Result<unknown, Error> {
   const parser = new Parser(input, options)
   return parser.parse()
 }
@@ -83,26 +83,30 @@ class Parser {
     this.options = options ?? {}
   }
 
-  public parse(): unknown {
+  public parse(): Result<unknown, Error> {
     if (typeof this.input !== 'string') {
-      throw new Error(errMsg.notString())
+      return err(new Error(errMsg.notString()))
     }
     if (this.input.length === 0) {
-      throw new Error(errMsg.empty())
+      return err(new Error(errMsg.empty()))
     }
     this.skipWhiteSpace()
     if (this.isEnd()) {
-      throw new Error(errMsg.end())
+      return err(new Error(errMsg.end()))
     }
-    const value = this.tryValue()
+    const valueResult = this.tryValue()
+    if (valueResult.isErr()) {
+      return valueResult
+    }
+    const value = valueResult.value
     if (value === undefined) {
-      throw new Error(this.invalidMessage())
+      return err(new Error(this.invalidMessage()))
     }
     this.skipWhiteSpace()
     if (!this.isEnd()) {
-      throw new Error(this.invalidMessage())
+      return err(new Error(this.invalidMessage()))
     }
-    return value
+    return ok(value)
   }
 
   isEnd() {
@@ -137,27 +141,29 @@ class Parser {
     return { line, col }
   }
 
-  tryValue() {
-    let value: unknown
-    value = this.tryString()
-    if (value === undefined) {
-      value = this.tryNumber()
+  tryValue(): Result<unknown, Error> {
+    const stringResult = this.tryString()
+    if (stringResult.isOk()) {
+      return stringResult
     }
-    if (value === undefined) {
-      value = this.tryBoolean()
+    const numberResult = this.tryNumber()
+    if (numberResult.isOk()) {
+      return numberResult
     }
-    if (value === undefined) {
-      value = this.tryNil()
+    const booleanResult = this.tryBoolean()
+    if (booleanResult.isOk()) {
+      return booleanResult
     }
-    if (value === undefined) {
-      value = this.tryTable()
+    const nilResult = this.tryNil()
+    if (nilResult.isOk()) {
+      return nilResult
     }
-    return value
+    return this.tryTable()
   }
 
-  tryTable(): unknown {
+  tryTable(): Result<unknown, Error> {
     if (this.currentChar() !== '{') {
-      return undefined
+      return err(new Error(this.invalidMessage()))
     }
     this.pos++
 
@@ -169,22 +175,30 @@ class Parser {
         this.pos++
         return this.finalizeTable(arrEntries, entries)
       }
-      const value = this.tryValue()
-      if (value != undefined) {
-        arrEntries.push(value)
+      const valueResult = this.tryValue()
+      if (valueResult.isOk()) {
+        arrEntries.push(valueResult.value)
       } else {
-        let key = this.tryKey()
-        if (key === undefined) {
-          key = this.tryLiteral()
+        const keyResult = this.tryKey()
+        let key: string | number | undefined
+        if (keyResult.isOk()) {
+          key = keyResult.value
+        } else {
+          const literalResult = this.tryLiteral()
+          if (literalResult.isOk()) {
+            key = literalResult.value
+          } else {
+            return err(new Error(this.invalidMessage()))
+          }
         }
         if (key === undefined) {
-          throw new Error(this.invalidMessage())
+          return err(new Error(this.invalidMessage()))
         }
-        const value = this.tryValue()
-        if (value === undefined) {
-          throw new Error(this.invalidMessage())
+        const valueResult2 = this.tryValue()
+        if (valueResult2.isErr()) {
+          return valueResult2
         }
-        entries.set(key, value)
+        entries.set(key, valueResult2.value)
       }
       this.skipWhiteSpace()
       if (this.currentChar() === ',' || this.currentChar() === ';') {
@@ -194,46 +208,55 @@ class Parser {
         this.pos++
         return this.finalizeTable(arrEntries, entries)
       } else {
-        throw new Error(this.invalidMessage())
+        return err(new Error(this.invalidMessage()))
       }
     }
-    throw new Error(errMsg.end())
+    return err(new Error(errMsg.end()))
   }
 
-  tryKey(): string | number | undefined {
+  tryKey(): Result<string | number, Error> {
     if (this.currentChar() !== '[') {
-      return undefined
+      return err(new Error(this.invalidMessage()))
     }
     this.pos++
     this.skipWhiteSpace()
-    let key: string | number | undefined = this.tryString()
-    if (key == undefined) {
-      key = this.tryNumber()
+    const keyResult = this.tryString()
+    let key: string | number | undefined
+    if (keyResult.isOk()) {
+      key = keyResult.value
+    } else {
+      const numResult = this.tryNumber()
+      if (numResult.isOk()) {
+        key = numResult.value
+      }
     }
     if (key == undefined && this.options.booleanKeys) {
-      key = this.tryBoolean()?.toString()
+      const boolResult = this.tryBoolean()
+      if (boolResult.isOk()) {
+        key = boolResult.value.toString()
+      }
     }
     if (key == undefined) {
-      throw new Error(this.invalidMessage())
+      return err(new Error(this.invalidMessage()))
     }
     this.skipWhiteSpace()
     if (this.currentChar() !== ']') {
-      throw new Error(this.invalidMessage())
+      return err(new Error(this.invalidMessage()))
     }
     this.pos++
     this.skipWhiteSpace()
     if (this.currentChar() !== '=') {
-      throw new Error(this.invalidMessage())
+      return err(new Error(this.invalidMessage()))
     }
     this.pos++
     this.skipWhiteSpace()
-    return key
+    return ok(key)
   }
 
-  tryLiteral(): string | undefined {
+  tryLiteral(): Result<string, Error> {
     const char = this.currentChar()
     if (char !== '_' && !isLetter(char)) {
-      return undefined
+      return err(new Error(this.invalidMessage()))
     }
     const start = this.pos
     while (++this.pos < this.input.length) {
@@ -244,19 +267,19 @@ class Parser {
       const end = this.pos
       this.skipWhiteSpace()
       if (this.currentChar() !== '=') {
-        throw new Error(this.invalidMessage())
+        return err(new Error(this.invalidMessage()))
       }
       this.pos++
       this.skipWhiteSpace()
-      return this.input.slice(start, end)
+      return ok(this.input.slice(start, end))
     }
-    throw new Error(errMsg.end())
+    return err(new Error(errMsg.end()))
   }
 
-  tryString(): string | undefined {
+  tryString(): Result<string, Error> {
     const quote = this.currentChar()
     if (quote !== '"' && quote !== "'") {
-      return undefined
+      return err(new Error(this.invalidMessage()))
     }
     const start = this.pos + 1
     let escaped = false
@@ -272,21 +295,23 @@ class Parser {
       }
       if (char === quote) {
         this.pos++
-        return this.input
-          .slice(start, this.pos - 1)
-          .replaceAll('\\"', '"')
-          .replaceAll("\\'", "'")
-          .replaceAll('\\n', '\n')
-          .replaceAll('\\t', '\t')
+        return ok(
+          this.input
+            .slice(start, this.pos - 1)
+            .replaceAll('\\"', '"')
+            .replaceAll("\\'", "'")
+            .replaceAll('\\n', '\n')
+            .replaceAll('\\t', '\t')
+        )
       }
     }
-    throw new Error(errMsg.end())
+    return err(new Error(errMsg.end()))
   }
 
-  tryNumber(): number | undefined {
+  tryNumber(): Result<number, Error> {
     let char = this.currentChar()
     if (char !== '.' && char !== '-' && !isNumber(char)) {
-      return undefined
+      return err(new Error(this.invalidMessage()))
     }
     let pos = this.pos
     let decimal = char === '.'
@@ -307,30 +332,30 @@ class Parser {
     }
     const num = Number.parseFloat(this.input.slice(this.pos, pos))
     if (Number.isNaN(num)) {
-      return undefined
+      return err(new Error(this.invalidMessage()))
     }
     this.pos = pos
-    return num
+    return ok(num)
   }
 
-  tryBoolean(): boolean | undefined {
+  tryBoolean(): Result<boolean, Error> {
     if (this.input.slice(this.pos, this.pos + 4) === 'true') {
       this.pos += 4
-      return true
+      return ok(true)
     }
     if (this.input.slice(this.pos, this.pos + 5) === 'false') {
       this.pos += 5
-      return false
+      return ok(false)
     }
-    return undefined
+    return err(new Error(this.invalidMessage()))
   }
 
-  tryNil(): null | undefined {
+  tryNil(): Result<null, Error> {
     if (this.input.slice(this.pos, this.pos + 3) === 'nil') {
       this.pos += 3
-      return null
+      return ok(null)
     }
-    return undefined
+    return err(new Error(this.invalidMessage()))
   }
 
   /** skip whitespace and also comments */
@@ -362,42 +387,42 @@ class Parser {
   finalizeTable(
     arrEntries: unknown[],
     entries: Map<string | number, unknown>
-  ): unknown[] | Record<string, unknown> {
+  ): Result<unknown[] | Record<string, unknown>, Error> {
     arrEntries.forEach((v, i) => entries.set(i + 1, v))
     const keys = [...entries.keys()]
     const { hasStringKey, hasNumKeys, hasNonArrayNumKeys } = analyzeKeys(keys)
 
     if (hasNonArrayNumKeys && !this.options.nonPositiveIntegerKeys) {
-      throw new Error(errMsg.nonPosIntKeys())
+      return err(new Error(errMsg.nonPosIntKeys()))
     }
 
     if (hasStringKey) {
       if (hasNumKeys && !this.options.mixedKeyTypes) {
-        throw new Error(errMsg.mixed())
+        return err(new Error(errMsg.mixed()))
       }
-      return Object.fromEntries(entries.entries())
+      return ok(Object.fromEntries(entries.entries()))
     } else {
       if (!hasNumKeys) {
-        return this.options.emptyTables === 'array' ? [] : {}
+        return ok(this.options.emptyTables === 'array' ? [] : {})
       }
       if (hasNonArrayNumKeys) {
-        return Object.fromEntries(entries.entries())
+        return ok(Object.fromEntries(entries.entries()))
       }
       const arr: unknown[] = []
-      entries.forEach((v, i) => {
+      for (const [i, v] of entries.entries()) {
         if (typeof i === 'string') {
-          throw new Error(errMsg.error())
+          return err(new Error(errMsg.error()))
         }
         arr[i - 1] = v
-      })
+      }
       if (this.options.sparseArray === false) {
         for (let i = 0; i < arr.length; i++) {
           if (arr[i] == undefined) {
-            throw new Error(errMsg.sparse())
+            return err(new Error(errMsg.sparse()))
           }
         }
       }
-      return arr
+      return ok(arr)
     }
   }
 }

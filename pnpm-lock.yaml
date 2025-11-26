@@ -392,6 +392,10 @@ importers:
         version: 5.9.3
 
   packages/lua-table:
+    dependencies:
+      neverthrow:
+        specifier: ^8.2.0
+        version: 8.2.0
     devDependencies:
       '@kilcekru/ts-basics':
         specifier: ^4.0.0

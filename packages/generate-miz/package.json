@@ -16,8 +16,8 @@
     "@dcc/data": "workspace:*",
     "@dcc/lua-table": "workspace:*",
     "adm-zip": "^0.5.16",
-    "zod": "^4.1.12",
-    "neverthrow": "^8.2.0"
+    "neverthrow": "^8.2.0",
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@kilcekru/ts-basics": "^4.0.0",

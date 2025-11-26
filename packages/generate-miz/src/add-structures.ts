@@ -1,13 +1,13 @@
 import { schemas } from '@dcc/contracts'
 import { buildings, structures } from '@dcc/data'
-import { err, ok } from 'neverthrow'
+import { err, ok, Result } from 'neverthrow'
 import * as z from 'zod'
 
-export function addStructuresToMission(
+export function addStructures(
   mission: z.infer<typeof schemas.dcs.mission>,
   campaign: z.infer<typeof schemas.campaign.campaign>,
   theatre: z.infer<typeof schemas.theatre>
-) {
+): Result<void, Error> {
   const nextId = () => {
     mission.currentKey += 1
     return mission.currentKey

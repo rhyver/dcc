@@ -1,9 +1,10 @@
 import { schemas } from '@dcc/contracts'
 import * as luaTable from '@dcc/lua-table'
 import AdmZip from 'adm-zip'
+import { err, ok, Result } from 'neverthrow'
 import * as z from 'zod'
 
-import { addStructuresToMission } from './add-structures'
+import { addStructures } from './add-structures'
 import { dictionary, mapResource } from './l10n'
 import { options } from './options'
 import { warehouses } from './warehouses'
@@ -12,7 +13,7 @@ export function generateMizFromCampaign(
   campaign: z.infer<typeof schemas.campaign.campaign>,
   theatre: z.infer<typeof schemas.theatre>,
   path: string
-) {
+): Result<void, Error> {
   // eslint-disable-next-line no-console
   console.log('generate', campaign)
 
@@ -158,43 +159,59 @@ export function generateMizFromCampaign(
     }
   }
 
-  const structuresResult = addStructuresToMission(mission, campaign, theatre)
+  const structuresResult = addStructures(mission, campaign, theatre)
   if (structuresResult.isErr()) {
     return structuresResult
   }
 
-  const lua = luaTable.stringify(mission, { mixedKeyTypes: true })
+  const missionLuaResult = luaTable.stringify(mission, { mixedKeyTypes: true })
+  if (missionLuaResult.isErr()) {
+    return err(missionLuaResult.error)
+  }
+  const missionLua = missionLuaResult.value
+
+  const optionsLuaResult = luaTable.stringify(options(), { mixedKeyTypes: true })
+  if (optionsLuaResult.isErr()) {
+    return err(optionsLuaResult.error)
+  }
+  const optionsLua = optionsLuaResult.value
+
+  const warehousesLuaResult = luaTable.stringify(warehouses(theatre, campaign), {
+    mixedKeyTypes: true
+  })
+  if (warehousesLuaResult.isErr()) {
+    return err(warehousesLuaResult.error)
+  }
+  const warehousesLua = warehousesLuaResult.value
+
+  const dictionaryLuaResult = luaTable.stringify(dictionary(), { mixedKeyTypes: true })
+  if (dictionaryLuaResult.isErr()) {
+    return err(dictionaryLuaResult.error)
+  }
+  const dictionaryLua = dictionaryLuaResult.value
+
+  const mapResourceLuaResult = luaTable.stringify(mapResource(), { mixedKeyTypes: true })
+  if (mapResourceLuaResult.isErr()) {
+    return err(mapResourceLuaResult.error)
+  }
+  const mapResourceLua = mapResourceLuaResult.value
 
   const zip = new AdmZip()
-  zip.addFile('mission', Buffer.from('mission = ' + lua, 'utf-8'))
-  zip.addFile(
-    'options',
-    Buffer.from('options = ' + luaTable.stringify(options(), { mixedKeyTypes: true }), 'utf-8')
-  )
+  zip.addFile('mission', Buffer.from('mission = ' + missionLua, 'utf-8'))
+  zip.addFile('options', Buffer.from('options = ' + optionsLua, 'utf-8'))
   zip.addFile('theatre', Buffer.from(theatre.name, 'utf-8'))
-  zip.addFile(
-    'warehouses',
-    Buffer.from(
-      'warehouses = ' + luaTable.stringify(warehouses(theatre, campaign), { mixedKeyTypes: true }),
-      'utf-8'
-    )
-  )
-  zip.addFile(
-    'l10n/DEFAULT/dictionary',
-    Buffer.from(
-      'dictionary = ' + luaTable.stringify(dictionary(), { mixedKeyTypes: true }),
-      'utf-8'
-    )
-  )
-  zip.addFile(
-    'l10n/DEFAULT/mapResource',
-    Buffer.from(
-      'mapResource = ' + luaTable.stringify(mapResource(), { mixedKeyTypes: true }),
-      'utf-8'
-    )
-  )
-  zip.writeZip(path)
-
-  // eslint-disable-next-line no-console
-  console.log('🚀 mission saved to', path)
+  zip.addFile('warehouses', Buffer.from('warehouses = ' + warehousesLua, 'utf-8'))
+  zip.addFile('l10n/DEFAULT/dictionary', Buffer.from('dictionary = ' + dictionaryLua, 'utf-8'))
+  zip.addFile('l10n/DEFAULT/mapResource', Buffer.from('mapResource = ' + mapResourceLua, 'utf-8'))
+  try {
+    zip.writeZip(path)
+    // eslint-disable-next-line no-console
+    console.log('🚀 mission saved to', path)
+    return ok(undefined)
+  } catch (error) {
+    if (error instanceof Error) {
+      return err(error)
+    }
+    return err(new Error('Unknown error writing zip file'))
+  }
 }

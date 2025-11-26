@@ -166,27 +166,27 @@ export function Map() {
       </MaplibreMap>
       {selectedItem && (
         <div className="absolute top-4 right-4 w-80 z-10">
-          <Card>
+          <Card className="backdrop-blur-md bg-[#0b0014]/80 border-[#ff00aa]/30 text-[#e0e0ff] shadow-[0_0_15px_rgba(255,0,170,0.3)]">
             <CardHeader>
-              <CardTitle>{selectedItem.name}</CardTitle>
-              <CardDescription className="capitalize">
+              <CardTitle className="text-[#00ddff] retro-font">{selectedItem.name}</CardTitle>
+              <CardDescription className="capitalize text-secondary">
                 {selectedItem.coalition} {'type' in selectedItem ? selectedItem.type : 'Objective'}
               </CardDescription>
               <CardAction>
-                <Button variant="ghost" size="icon" onClick={() => setSelectedItem(null)}>
+                <Button variant="ghost" size="icon" onClick={() => setSelectedItem(null)} className="text-[#ff00aa] hover:bg-[#ff00aa]/20 hover:text-[#ff00aa]">
                   <X className="h-4 w-4" />
                 </Button>
               </CardAction>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 gap-2 text-sm">
-                <div className="text-muted-foreground">Latitude</div>
+                <div className="text-secondary/70">Latitude</div>
                 <div>{selectedItem.position.lat.toFixed(4)}</div>
-                <div className="text-muted-foreground">Longitude</div>
+                <div className="text-secondary/70">Longitude</div>
                 <div>{selectedItem.position.lng.toFixed(4)}</div>
                 {'structureType' in selectedItem && (
                   <>
-                    <div className="text-muted-foreground">Structure Type</div>
+                    <div className="text-secondary/70">Structure Type</div>
                     <div>{selectedItem.structureType}</div>
                   </>
                 )}

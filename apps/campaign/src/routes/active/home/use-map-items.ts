@@ -3,6 +3,7 @@ import { useSelector } from '@xstate/store/react'
 import { useMemo } from 'react'
 import * as z from 'zod'
 import { schemas } from '@dcc/contracts'
+import { samTemplates } from '@dcc/data'
 import { useQuery } from '@tanstack/react-query'
 import { orpc } from '@/lib/orpc'
 import { LOtoLL } from '@kilcekru/dcs-coordinates'
@@ -140,10 +141,41 @@ export function useMapItems(): {
       }
     }
 
+    const addSamMarkers = (
+      samGroups: Array<{ id: string; type: z.infer<typeof schemas.samType>; objectiveId: string }>,
+      coalition: z.infer<typeof schemas.coalition>
+    ) => {
+      for (const samGroup of samGroups) {
+        const objective = objectivesByName.get(samGroup.objectiveId)
+        if (objective == null) continue
+
+        const samTemplate = samTemplates[samGroup.type]
+        if (samTemplate == null) continue
+
+        const latLng = LOtoLL({
+          theatre: theatre.name as 'Caucasus',
+          x: objective.position.x,
+          z: objective.position.y
+        })
+
+        mapItems.push({
+          id: samGroup.id,
+          type: 'SAM',
+          name: samGroup.type,
+          coalition,
+          position: latLng,
+          range: samTemplate.range,
+          active: true
+        })
+      }
+    }
+
     _addObjectiveMarkers(playerCoalition.objectiveIds ?? [], 'player')
     _addObjectiveMarkers(opponentCoalition.objectiveIds ?? [], 'opponent')
     addStructureMarkers(playerCoalition.structures ?? [], 'player')
     addStructureMarkers(opponentCoalition.structures ?? [], 'opponent')
+    addSamMarkers(playerCoalition.samGroups ?? [], 'player')
+    addSamMarkers(opponentCoalition.samGroups ?? [], 'opponent')
 
     let frontline: GeoJSON.FeatureCollection<GeoJSON.LineString> | null = null
 

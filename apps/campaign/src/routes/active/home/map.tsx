@@ -10,6 +10,7 @@ import * as z from 'zod'
 import { schemas } from '@dcc/contracts'
 import MaplibreMap, { Marker as MaplibreMarker, Source, Layer } from 'react-map-gl/maplibre'
 import MilSymbol from 'milsymbol'
+import * as turf from '@turf/turf'
 import { getMilSymbolCode } from './unit-code'
 import { type ObjectiveMarker as ObjectiveMarkerType, useMapItems } from './use-map-items'
 import {
@@ -33,29 +34,49 @@ const Marker = memo(function Marker({
   onClick: () => void
   isSelected: boolean
 }) {
+  const isSam = item.type === 'SAM'
+  const color = item.coalition === 'player' ? '#00d4ff' : '#ff4444'
+
   const symbol = useMemo(() => {
+    if (isSam) return null
     const symbol = new MilSymbol.Symbol(getMilSymbolCode(item), {
       size: 20
     })
     return symbol.asSVG()
-  }, [item])
+  }, [item, isSam])
+
   return (
     <MaplibreMarker
       longitude={item.position.lng}
       latitude={item.position.lat}
-      color={item.coalition === 'player' ? 'blue' : 'red'}
+      anchor="center"
       onClick={(e) => {
         e.originalEvent.stopPropagation()
         onClick()
       }}
     >
-      <div
-        className={cn(
-          'transition-all',
-          isSelected && 'ring-2 ring-white rounded-full drop-shadow-md scale-110'
-        )}
-        dangerouslySetInnerHTML={{ __html: symbol }}
-      />
+      {isSam ? (
+        <div
+          className={cn(
+            'flex h-6 w-6 items-center justify-center rounded-sm border-2 bg-black/80 transition-all',
+            isSelected && 'ring-2 ring-white scale-125'
+          )}
+          style={{ borderColor: color }}
+          title={item.name}
+        >
+          <svg viewBox="0 0 24 24" className="h-4 w-4" fill={color}>
+            <path d="M12 2L8 8H4L12 22L20 8H16L12 2Z" />
+          </svg>
+        </div>
+      ) : (
+        <div
+          className={cn(
+            'transition-all',
+            isSelected && 'ring-2 ring-white rounded-full drop-shadow-md scale-110'
+          )}
+          dangerouslySetInnerHTML={{ __html: symbol! }}
+        />
+      )}
     </MaplibreMarker>
   )
 })
@@ -126,6 +147,32 @@ export function Map() {
   }, [theatreQuery.data])
   const { mapItems, objectiveMarkers, frontline } = useMapItems()
 
+  // Generate GeoJSON for SAM range circles
+  const samRangeGeoJson = useMemo(() => {
+    const features: GeoJSON.Feature<GeoJSON.Polygon>[] = []
+
+    for (const item of mapItems) {
+      if (item.type !== 'SAM') continue
+
+      // Create a circle with the SAM's range (range is in meters, turf expects km)
+      const circle = turf.circle(
+        [item.position.lng, item.position.lat],
+        item.range / 1000, // Convert meters to km
+        { steps: 64, units: 'kilometers' }
+      )
+
+      circle.properties = {
+        id: item.id,
+        coalition: item.coalition,
+        name: item.name
+      }
+
+      features.push(circle)
+    }
+
+    return turf.featureCollection(features)
+  }, [mapItems])
+
   // Only show the map if the view state is available
   if (initialViewState == null) return null
   return (
@@ -134,6 +181,55 @@ export function Map() {
         initialViewState={initialViewState}
         mapStyle="https://api.maptiler.com/maps/openstreetmap/style.json?key=dMqlZfgU5XToBXt4BGnm"
       >
+        {/* SAM Range Circles - rendered first so they appear below other markers */}
+        {samRangeGeoJson.features.length > 0 && (
+          <Source id="sam-ranges-source" type="geojson" data={samRangeGeoJson}>
+            {/* Player SAM range fill */}
+            <Layer
+              id="sam-range-fill-player"
+              type="fill"
+              filter={['==', ['get', 'coalition'], 'player']}
+              paint={{
+                'fill-color': '#00d4ff',
+                'fill-opacity': 0.1
+              }}
+            />
+            {/* Player SAM range outline */}
+            <Layer
+              id="sam-range-line-player"
+              type="line"
+              filter={['==', ['get', 'coalition'], 'player']}
+              paint={{
+                'line-color': '#00d4ff',
+                'line-width': 2,
+                'line-opacity': 0.6,
+                'line-dasharray': [4, 2]
+              }}
+            />
+            {/* Opponent SAM range fill */}
+            <Layer
+              id="sam-range-fill-opponent"
+              type="fill"
+              filter={['==', ['get', 'coalition'], 'opponent']}
+              paint={{
+                'fill-color': '#ff4444',
+                'fill-opacity': 0.1
+              }}
+            />
+            {/* Opponent SAM range outline */}
+            <Layer
+              id="sam-range-line-opponent"
+              type="line"
+              filter={['==', ['get', 'coalition'], 'opponent']}
+              paint={{
+                'line-color': '#ff4444',
+                'line-width': 2,
+                'line-opacity': 0.6,
+                'line-dasharray': [4, 2]
+              }}
+            />
+          </Source>
+        )}
         {frontline && (
           <Source id="frontline-source" type="geojson" data={frontline}>
             <Layer
@@ -173,7 +269,12 @@ export function Map() {
                 {selectedItem.coalition} {'type' in selectedItem ? selectedItem.type : 'Objective'}
               </CardDescription>
               <CardAction>
-                <Button variant="ghost" size="icon" onClick={() => setSelectedItem(null)} className="text-synthwave-pink hover:bg-synthwave-pink/20 hover:text-synthwave-pink">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setSelectedItem(null)}
+                  className="text-synthwave-pink hover:bg-synthwave-pink/20 hover:text-synthwave-pink"
+                >
                   <X className="h-4 w-4" />
                 </Button>
               </CardAction>
@@ -188,6 +289,16 @@ export function Map() {
                   <>
                     <div className="text-secondary/70">Structure Type</div>
                     <div>{selectedItem.structureType}</div>
+                  </>
+                )}
+                {'range' in selectedItem && (
+                  <>
+                    <div className="text-secondary/70">Range</div>
+                    <div>{(selectedItem.range / 1000).toFixed(1)} km</div>
+                    <div className="text-secondary/70">Status</div>
+                    <div className={selectedItem.active ? 'text-green-400' : 'text-red-400'}>
+                      {selectedItem.active ? 'Active' : 'Inactive'}
+                    </div>
                   </>
                 )}
               </div>

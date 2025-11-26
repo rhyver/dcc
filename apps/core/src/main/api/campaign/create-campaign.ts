@@ -9,6 +9,7 @@ import path from 'path'
 import { app } from 'electron'
 import { getTheatre } from '../data/get-theatre'
 import { assignObjectivesToCoalitions } from './assign-objectives-to-coalitions'
+import { assignSams } from './assign-sams'
 import { assignStructures } from './assign-structures'
 
 const stateFile = path.join(app.getPath('userData'), 'state.json')
@@ -41,13 +42,16 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
     }
   })
 
-  const getStructures = (objectiveIds: string[]) => {
-    const coalitionObjectives = objectiveIds.map((id) => {
+  const getObjectiveInfos = (objectiveIds: string[]) => {
+    return objectiveIds.map((id) => {
       const obj = objectiveMap.get(id)
       if (!obj) throw new Error(`Objective ${id} not found`) // Should be caught earlier but safe to check
       return { id: obj.name, position: obj.position }
     })
+  }
 
+  const getStructures = (objectiveIds: string[]) => {
+    const coalitionObjectives = getObjectiveInfos(objectiveIds)
     const assignments = assignStructures(coalitionObjectives)
 
     return assignments.map((assignment) => {
@@ -83,6 +87,47 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
   const playerStructures = getStructures(objectiveAssignments.player ?? [])
   const opponentStructures = getStructures(objectiveAssignments.opponent ?? [])
 
+  // Assign SAM groups to both coalitions
+  const playerObjectiveInfos = getObjectiveInfos(objectiveAssignments.player ?? [])
+  const opponentObjectiveInfos = getObjectiveInfos(objectiveAssignments.opponent ?? [])
+
+  // Get SAM types from templates (first SAM type defined in groundUnitTypes.SAM)
+  const playerSamType = playerTemplate.groundUnitTypes.SAM?.[0] as
+    | z.infer<typeof schemas.samType>
+    | undefined
+  const opponentSamType = opponentTemplate.groundUnitTypes.SAM?.[0] as
+    | z.infer<typeof schemas.samType>
+    | undefined
+
+  // Player SAMs: cover all player objectives, no restrictions
+  const playerSamAssignments = playerSamType
+    ? assignSams({
+        coalitionObjectives: playerObjectiveInfos,
+        samType: playerSamType
+      })
+    : []
+
+  // Opponent SAMs: cover all opponent objectives, but must NOT reach player objectives
+  const opponentSamAssignments = opponentSamType
+    ? assignSams({
+        coalitionObjectives: opponentObjectiveInfos,
+        samType: opponentSamType,
+        forbiddenObjectives: playerObjectiveInfos
+      })
+    : []
+
+  const playerSamGroups = playerSamAssignments.map((assignment) => ({
+    id: crypto.randomUUID(),
+    type: assignment.type,
+    objectiveId: assignment.objectiveId
+  }))
+
+  const opponentSamGroups = opponentSamAssignments.map((assignment) => ({
+    id: crypto.randomUUID(),
+    type: assignment.type,
+    objectiveId: assignment.objectiveId
+  }))
+
   const defaultState: z.infer<typeof schemas.campaign.campaign> = {
     version: '0.0.1',
     createdAt: new Date(),
@@ -98,7 +143,8 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
         groundUnitTypes: playerTemplate.groundUnitTypes,
         airdromeNames: scenario.start.player.airdromeNames,
         objectiveIds: objectiveAssignments.player ?? [],
-        structures: playerStructures
+        structures: playerStructures,
+        samGroups: playerSamGroups
       },
       opponent: {
         id: opponentFaction.id,
@@ -106,7 +152,8 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
         groundUnitTypes: opponentTemplate.groundUnitTypes,
         airdromeNames: scenario.start.opponent.airdromeNames,
         objectiveIds: objectiveAssignments.opponent ?? [],
-        structures: opponentStructures
+        structures: opponentStructures,
+        samGroups: opponentSamGroups
       }
     }
   }

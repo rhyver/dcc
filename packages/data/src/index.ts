@@ -1,5 +1,6 @@
 export * from './buildings'
 export * from './factions'
+export * from './sam-templates'
 export * from './scenarios'
 export * from './structures'
 export * from './templates'

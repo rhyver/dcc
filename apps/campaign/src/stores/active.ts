@@ -44,7 +44,8 @@ const initialState: z.infer<typeof schemas.campaign.campaign> = {
         AFAC: [],
         'Antiship Strike': []
       },
-      structures: []
+      structures: [],
+      samGroups: []
     },
     opponent: {
       id: 'russia-1996',
@@ -78,7 +79,8 @@ const initialState: z.infer<typeof schemas.campaign.campaign> = {
         AFAC: [],
         'Antiship Strike': []
       },
-      structures: []
+      structures: [],
+      samGroups: []
     }
   }
 }

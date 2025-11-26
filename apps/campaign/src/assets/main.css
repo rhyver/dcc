@@ -39,11 +39,17 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-synthwave-dark: var(--synthwave-dark);
+  --color-synthwave-pink: var(--synthwave-pink);
+  --color-synthwave-purple: var(--synthwave-purple);
+  --color-synthwave-cyan: var(--synthwave-cyan);
+  --color-synthwave-light: var(--synthwave-light);
+  --color-enemy-red: var(--enemy-red);
 }
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(0.1147 0.0577 310.98);
+  --background: var(--synthwave-dark);
   --foreground: oklch(0.9163 0.042 285.54);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
@@ -74,6 +80,12 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --synthwave-dark: #0b0014;
+  --synthwave-pink: #ff00aa;
+  --synthwave-purple: #9900ff;
+  --synthwave-cyan: #00ddff;
+  --synthwave-light: #e0e0ff;
+  --enemy-red: #ff4d4f;
 }
 
 .dark {
@@ -108,6 +120,12 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  --synthwave-dark: #0b0014;
+  --synthwave-pink: #ff00aa;
+  --synthwave-purple: #9900ff;
+  --synthwave-cyan: #00ddff;
+  --synthwave-light: #e0e0ff;
+  --enemy-red: #ff4d4f;
 }
 
 @layer base {

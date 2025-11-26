@@ -19,19 +19,19 @@ export function New() {
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
 
   return (
-    <div className="relative flex h-screen w-full items-center justify-center overflow-hidden bg-[#0b0014]">
+    <div className="relative flex h-screen w-full items-center justify-center overflow-hidden bg-synthwave-dark">
       {/* Grid background */}
       <div className="absolute inset-0 z-0 bg-cover opacity-20" />
 
       {/* Synthwave sun/horizon effect */}
-      <div className="absolute bottom-0 left-0 right-0 h-[40vh] bg-linear-to-t from-[#ff00aa] via-[#9900ff] to-transparent opacity-30" />
+      <div className="absolute bottom-0 left-0 right-0 h-[40vh] bg-linear-to-t from-synthwave-pink via-synthwave-purple to-transparent opacity-30" />
 
       {/* Animated grid lines */}
       <div
         className="absolute inset-0 z-0 bg-cover bg-center opacity-20"
         style={{
           backgroundImage:
-            'linear-gradient(to right, #ff00aa 1px, transparent 1px), linear-gradient(to bottom, #ff00aa 1px, transparent 1px)',
+            'linear-gradient(to right, var(--synthwave-pink) 1px, transparent 1px), linear-gradient(to bottom, var(--synthwave-pink) 1px, transparent 1px)',
           backgroundSize: '40px 40px'
         }}
       />
@@ -46,19 +46,19 @@ export function New() {
           transition={{ duration: 0.5 }}
         >
           <h1 className="retro-font text-6xl font-bold tracking-tighter text-white md:text-7xl lg:text-8xl">
-            <span className="text-transparent bg-clip-text bg-linear-to-r from-[#ff00aa] to-[#00ddff]">
+            <span className="text-transparent bg-clip-text bg-linear-to-r from-synthwave-pink to-synthwave-cyan">
               DIGITAL
             </span>
             <span className="ml-3 relative">
               CREW CHIEF
-              <span className="absolute inset-0 blur-[10px] text-[#ff00aa] opacity-70">
+              <span className="absolute inset-0 blur-[10px] text-synthwave-pink opacity-70">
                 CREW CHIEF
               </span>
             </span>
           </h1>
-          <h2 className="pixel-font text-lg text-[#00ddff] md:text-xl">
+          <h2 className="pixel-font text-lg text-synthwave-cyan md:text-xl">
             100% FLYING, 0% CONFIGURATION.
-            <span className="ml-2 inline-block h-5 w-2 animate-pulse bg-[#00ddff]"></span>
+            <span className="ml-2 inline-block h-5 w-2 animate-pulse bg-synthwave-cyan"></span>
           </h2>
         </motion.div>
 
@@ -76,8 +76,8 @@ export function New() {
                 className={cn(
                   'group relative flex w-full justify-start gap-3 border-l-4 px-4 py-6 text-left retro-font text-xl transition-all',
                   selectedOption === option.id
-                    ? 'border-[#ff00aa] bg-[#ff00aa]/10 text-white hover:bg-[#ff00aa]/20'
-                    : 'border-[#9900ff] bg-[#0b0014]/80 text-[#00ddff] hover:border-[#ff00aa] hover:bg-[#9900ff]/10 hover:text-white'
+                    ? 'border-synthwave-pink bg-synthwave-pink/10 text-white hover:bg-synthwave-pink/20'
+                    : 'border-synthwave-purple bg-synthwave-dark/80 text-synthwave-cyan hover:border-synthwave-pink hover:bg-synthwave-purple/10 hover:text-white'
                 )}
                 onClick={() => {
                   setSelectedOption(option.id)
@@ -91,13 +91,13 @@ export function New() {
                   className={cn(
                     'h-5 w-5 transition-colors',
                     selectedOption === option.id
-                      ? 'text-[#ff00aa]'
-                      : 'text-[#00ddff] group-hover:text-[#ff00aa]'
+                      ? 'text-synthwave-pink'
+                      : 'text-synthwave-cyan group-hover:text-synthwave-pink'
                   )}
                 />
                 {option.label}
                 {selectedOption === option.id && (
-                  <span className="absolute inset-0 blur-[20px] bg-[#ff00aa]/20 opacity-70"></span>
+                  <span className="absolute inset-0 blur-[20px] bg-synthwave-pink/20 opacity-70"></span>
                 )}
               </Button>
             </motion.div>
@@ -108,7 +108,7 @@ export function New() {
         <motion.div
           className="absolute bottom-0 right-0 h-[450px] w-[360px]"
           style={{
-            filter: 'drop-shadow(0 0 10px #ff00aa)'
+            filter: 'drop-shadow(0 0 10px var(--synthwave-pink))'
           }}
           initial={{ x: 100, opacity: 0 }}
           animate={{ x: 0, opacity: 0.6 }}

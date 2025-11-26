@@ -69,7 +69,7 @@ const ObjectiveCircleMarker = memo(function ObjectiveCircleMarker({
   onClick: () => void
   isSelected: boolean
 }) {
-  const color = marker.coalition === 'player' ? '#00ddff' : '#ff4d4f'
+  const color = marker.coalition === 'player' ? 'var(--synthwave-cyan)' : 'var(--enemy-red)'
   return (
     <MaplibreMarker
       longitude={marker.position.lng}
@@ -166,14 +166,14 @@ export function Map() {
       </MaplibreMap>
       {selectedItem && (
         <div className="absolute top-4 right-4 w-80 z-10">
-          <Card className="backdrop-blur-md bg-[#0b0014]/80 border-[#ff00aa]/30 text-[#e0e0ff] shadow-[0_0_15px_rgba(255,0,170,0.3)]">
+          <Card className="backdrop-blur-md bg-synthwave-dark/80 border-synthwave-pink/30 text-synthwave-light shadow-[0_0_15px_rgba(255,0,170,0.3)]">
             <CardHeader>
-              <CardTitle className="text-[#00ddff] retro-font">{selectedItem.name}</CardTitle>
+              <CardTitle className="text-synthwave-cyan retro-font">{selectedItem.name}</CardTitle>
               <CardDescription className="capitalize text-secondary">
                 {selectedItem.coalition} {'type' in selectedItem ? selectedItem.type : 'Objective'}
               </CardDescription>
               <CardAction>
-                <Button variant="ghost" size="icon" onClick={() => setSelectedItem(null)} className="text-[#ff00aa] hover:bg-[#ff00aa]/20 hover:text-[#ff00aa]">
+                <Button variant="ghost" size="icon" onClick={() => setSelectedItem(null)} className="text-synthwave-pink hover:bg-synthwave-pink/20 hover:text-synthwave-pink">
                   <X className="h-4 w-4" />
                 </Button>
               </CardAction>

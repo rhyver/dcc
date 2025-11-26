@@ -60,6 +60,14 @@ const generateMiz = base
     summary: 'Generate a MIZ file from the active campaign',
     tags: ['Campaign', 'Generate']
   })
+  .errors({
+    FAILED_TO_WRITE_FILE: {
+      data: z.object({
+        path: z.string(),
+        message: z.string()
+      })
+    }
+  })
   .input(campaignSchemas.campaign)
 
 export const campaign = {

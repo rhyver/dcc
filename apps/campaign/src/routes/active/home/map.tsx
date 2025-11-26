@@ -8,7 +8,7 @@ import { memo, useMemo, useState } from 'react'
 import { LOtoLL } from '@kilcekru/dcs-coordinates'
 import * as z from 'zod'
 import { schemas } from '@dcc/contracts'
-import MaplibreMap, { Marker as MaplibreMarker } from 'react-map-gl/maplibre'
+import MaplibreMap, { Marker as MaplibreMarker, Source, Layer } from 'react-map-gl/maplibre'
 import MilSymbol from 'milsymbol'
 import { getMilSymbolCode } from './unit-code'
 import { type ObjectiveMarker as ObjectiveMarkerType, useMapItems } from './use-map-items'
@@ -124,7 +124,7 @@ export function Map() {
       zoom: 7
     }
   }, [theatreQuery.data])
-  const { mapItems, objectiveMarkers } = useMapItems()
+  const { mapItems, objectiveMarkers, frontline } = useMapItems()
 
   // Only show the map if the view state is available
   if (initialViewState == null) return null
@@ -134,6 +134,19 @@ export function Map() {
         initialViewState={initialViewState}
         mapStyle="https://api.maptiler.com/maps/openstreetmap/style.json?key=dMqlZfgU5XToBXt4BGnm"
       >
+        {frontline && (
+          <Source id="frontline-source" type="geojson" data={frontline}>
+            <Layer
+              id="frontline-layer"
+              type="line"
+              paint={{
+                'line-color': 'blue',
+                'line-width': 2,
+                'line-dasharray': [2, 2]
+              }}
+            />
+          </Source>
+        )}
         {mapItems.map((item) => (
           <Marker
             key={item.id}

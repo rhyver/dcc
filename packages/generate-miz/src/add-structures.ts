@@ -13,7 +13,7 @@ export function addStructures(
     return mission.currentKey
   }
 
-  Object.entries(campaign.coalitions).forEach(([key, value]) => {
+  for (const [key, value] of Object.entries(campaign.coalitions)) {
     const missionCoalitionKey = key === 'player' ? 'blue' : key === 'opponent' ? 'red' : 'neutrals'
 
     const coalitionStructures = value.structures
@@ -95,7 +95,7 @@ export function addStructures(
         dead: false
       })
     })
-  })
+  }
 
   return ok()
 }

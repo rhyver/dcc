@@ -4,6 +4,36 @@ import type { z } from 'zod'
 import type { schemas } from '@dcc/contracts'
 
 // Mock campaign data for browser UI development
+const emptyAircraftTypes = {
+  DEAD: [],
+  AWACS: [],
+  CAP: [],
+  Escort: [],
+  'Pinpoint Strike': [],
+  CAS: [],
+  CSAR: [],
+  'Air Assault': [],
+  SEAD: [],
+  Intercept: [],
+  'Antiship Strike': [],
+  'Fighter Sweep': [],
+  'Ground Attack': [],
+  'Runway Attack': [],
+  Transport: [],
+  Refueling: [],
+  RescueHelo: [],
+  AFAC: []
+}
+
+const emptyGroundUnitTypes = {
+  SAM: [],
+  Vehicle: [],
+  Infantry: [],
+  'Shorad Vehicle': [],
+  'Shorad Infantry': [],
+  EWS: []
+}
+
 const createMockCampaign = (): z.infer<typeof schemas.campaign.campaign> => ({
   version: '1.0.0',
   id: 'mock-campaign-id',
@@ -15,16 +45,16 @@ const createMockCampaign = (): z.infer<typeof schemas.campaign.campaign> => ({
   coalitions: {
     player: {
       id: 'player',
-      aircraftTypes: {},
-      groundUnitTypes: {},
+      aircraftTypes: { ...emptyAircraftTypes },
+      groundUnitTypes: { ...emptyGroundUnitTypes },
       airdromeNames: [],
       objectiveIds: [],
       structures: []
     },
     opponent: {
       id: 'opponent',
-      aircraftTypes: {},
-      groundUnitTypes: {},
+      aircraftTypes: { ...emptyAircraftTypes },
+      groundUnitTypes: { ...emptyGroundUnitTypes },
       airdromeNames: [],
       objectiveIds: [],
       structures: []

@@ -98,7 +98,7 @@ function _stringify({
 
     if (Array.isArray(data)) {
       for (let index = 0; index < data.length; index++) {
-        const value = data[index]
+        const value = data[index] as unknown
         if (value !== undefined && !isFunction(value)) {
           const valueResult = _stringify({
             data: value,

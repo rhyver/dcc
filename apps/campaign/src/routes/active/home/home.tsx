@@ -142,28 +142,13 @@ export function Home() {
                 </ToggleGroupItem>
               </ToggleGroup>
 
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 border-synthwave-pink/50 bg-transparent hover:bg-synthwave-pink/10 text-synthwave-pink"
-                  onClick={() =>
-                    coreClient.campaign.saveActiveCampaign({
-                      ...activeStore.getSnapshot().context,
-                      timeMultiplier: 0
-                    })
-                  }
-                >
-                  Save
-                </Button>
-                <Button
-                  size="sm"
-                  className="h-8 bg-synthwave-pink hover:bg-synthwave-pink/80 text-white border-none shadow-[0_0_10px_rgba(255,0,170,0.5)]"
-                  onClick={() => coreClient.campaign.generateMiz(activeStore.getSnapshot().context)}
-                >
-                  Takeoff
-                </Button>
-              </div>
+              <Button
+                size="sm"
+                className="h-8 bg-synthwave-pink hover:bg-synthwave-pink/80 text-white border-none shadow-[0_0_10px_rgba(255,0,170,0.5)]"
+                onClick={() => coreClient.campaign.generateMiz(activeStore.getSnapshot().context)}
+              >
+                Takeoff
+              </Button>
             </div>
           </div>
         </Card>

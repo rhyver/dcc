@@ -39,6 +39,31 @@ export function writeFile(path: string, data: object) {
   )
 }
 
+export function ensureDirectory(path: string) {
+  return ResultAsync.fromPromise(
+    fs.mkdir(path, { recursive: true }),
+    (error) => {
+      if (error instanceof Error) {
+        return error
+      }
+      return new Error('Unknown error creating directory')
+    }
+  )
+}
+
+export function readDirectory(path: string) {
+  return ResultAsync.fromPromise(fs.readdir(path), (error) => {
+    if (error instanceof Error) {
+      const nodeError = error as NodeJS.ErrnoException
+      if (nodeError.code === 'ENOENT') {
+        return new NotFoundError(`Directory not found: ${path}`)
+      }
+      return error
+    }
+    return new Error('Unknown error reading directory')
+  })
+}
+
 export function parseJson(value: string) {
   const p = Result.fromThrowable(superjson.parse, (error) => {
     if (error instanceof Error) {

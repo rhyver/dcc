@@ -1,5 +1,6 @@
-import { campaign as campaignSchema } from './campaign'
+import { campaign as campaignSchema, campaignSummary } from './campaign'
 
 export const campaign = {
-  campaign: campaignSchema
+  campaign: campaignSchema,
+  campaignSummary
 }

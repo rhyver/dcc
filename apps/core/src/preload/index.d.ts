@@ -1,8 +1,15 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
 
+interface API {
+  onMenuSaveCampaign: (callback: () => void) => () => void
+  onMenuExportMission: (callback: () => void) => () => void
+  onMenuOpenCampaign: (callback: () => void) => () => void
+  onMenuReturnToMenu: (callback: () => void) => () => void
+}
+
 declare global {
   interface Window {
     electron: ElectronAPI
-    api: unknown
+    api: API
   }
 }

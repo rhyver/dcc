@@ -4,15 +4,21 @@ import { getTemplates } from '../data/get-templates'
 import { pub } from '../orpc'
 import * as z from 'zod'
 import { schemas } from '@dcc/contracts'
-import { writeFile } from '../../utils'
+import { writeFile, ensureDirectory } from '../../utils'
 import path from 'path'
 import { app } from 'electron'
 import { getTheatre } from '../data/get-theatre'
 import { assignObjectivesToCoalitions } from './assign-objectives-to-coalitions'
 import { assignSams } from './assign-sams'
 import { assignStructures } from './assign-structures'
+import { assignGroundGroups } from './assign-ground-groups'
 
 const stateFile = path.join(app.getPath('userData'), 'state.json')
+const campaignsDir = path.join(app.getPath('userData'), 'campaigns')
+
+async function setActiveCampaignId(id: string) {
+  await writeFile(stateFile, { activeCampaignId: id })
+}
 
 export const createCampaign = pub.campaign.createCampaign.handler(async ({ errors }) => {
   const scenarios = getScenarios()
@@ -46,7 +52,10 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
     return objectiveIds.map((id) => {
       const obj = objectiveMap.get(id)
       if (!obj) throw new Error(`Objective ${id} not found`) // Should be caught earlier but safe to check
-      return { id: obj.name, position: obj.position }
+
+      const targets = theatre.targets[obj.name] ?? []
+      const hasSamTarget = targets.some((t) => t.type === 'SAM')
+      return { id: obj.name, position: obj.position, hasSamTarget }
     })
   }
 
@@ -128,6 +137,30 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
     objectiveId: assignment.objectiveId
   }))
 
+  const playerGroundAssignments = assignGroundGroups({
+    coalitionObjectives: playerObjectiveInfos,
+    enemyObjectives: opponentObjectiveInfos,
+    template: playerTemplate
+  })
+
+  const opponentGroundAssignments = assignGroundGroups({
+    coalitionObjectives: opponentObjectiveInfos,
+    enemyObjectives: playerObjectiveInfos,
+    template: opponentTemplate
+  })
+
+  const playerGroundGroups = playerGroundAssignments.map((assignment) => ({
+    id: crypto.randomUUID(),
+    objectiveId: assignment.objectiveId,
+    units: assignment.units
+  }))
+
+  const opponentGroundGroups = opponentGroundAssignments.map((assignment) => ({
+    id: crypto.randomUUID(),
+    objectiveId: assignment.objectiveId,
+    units: assignment.units
+  }))
+
   const defaultState: z.infer<typeof schemas.campaign.campaign> = {
     version: '0.0.1',
     createdAt: new Date(),
@@ -144,7 +177,8 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
         airdromeNames: scenario.start.player.airdromeNames,
         objectiveIds: objectiveAssignments.player ?? [],
         structures: playerStructures,
-        samGroups: playerSamGroups
+        samGroups: playerSamGroups,
+        groundGroups: playerGroundGroups
       },
       opponent: {
         id: opponentFaction.id,
@@ -153,7 +187,8 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
         airdromeNames: scenario.start.opponent.airdromeNames,
         objectiveIds: objectiveAssignments.opponent ?? [],
         structures: opponentStructures,
-        samGroups: opponentSamGroups
+        samGroups: opponentSamGroups,
+        groundGroups: opponentGroundGroups
       }
     }
   }
@@ -162,11 +197,26 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
   if (!result.success) {
     console.log('result.error', result.error)
   }
-  const writeFileResult = await writeFile(stateFile, defaultState)
-  return writeFileResult.match(
-    () => defaultState,
-    (error) => {
-      throw errors.FAILED_TO_WRITE_FILE({ data: { path: stateFile, message: error.message } })
-    }
-  )
+
+  // Ensure campaigns directory exists
+  const dirResult = await ensureDirectory(campaignsDir)
+  if (dirResult.isErr()) {
+    throw errors.FAILED_TO_WRITE_FILE({
+      data: { path: campaignsDir, message: dirResult.error.message }
+    })
+  }
+
+  // Save campaign to campaigns directory
+  const campaignPath = path.join(campaignsDir, `${defaultState.id}.json`)
+  const writeFileResult = await writeFile(campaignPath, defaultState)
+  if (writeFileResult.isErr()) {
+    throw errors.FAILED_TO_WRITE_FILE({
+      data: { path: campaignPath, message: writeFileResult.error.message }
+    })
+  }
+
+  // Set as active campaign
+  await setActiveCampaignId(defaultState.id)
+
+  return defaultState
 })

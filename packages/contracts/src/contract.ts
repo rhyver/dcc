@@ -70,11 +70,49 @@ const generateMiz = base
   })
   .input(campaignSchemas.campaign)
 
+const listCampaigns = base
+  .route({
+    summary: 'List all saved campaigns',
+    tags: ['Campaign', 'List']
+  })
+  .errors({
+    FAILED_TO_READ_DIRECTORY: {
+      data: z.object({
+        path: z.string(),
+        message: z.string()
+      })
+    }
+  })
+  .output(z.array(campaignSchemas.campaignSummary))
+
+const openCampaign = base
+  .route({
+    summary: 'Open a specific campaign',
+    tags: ['Campaign', 'Open']
+  })
+  .input(z.object({ id: z.string() }))
+  .errors({
+    FAILED_TO_WRITE_FILE: {
+      data: z.object({
+        path: z.string(),
+        message: z.string()
+      })
+    },
+    INVALID_APP_STATE: {
+      data: z.object({
+        message: z.string()
+      })
+    }
+  })
+  .output(campaignSchemas.campaign)
+
 export const campaign = {
   getActiveCampaign,
   createCampaign,
   saveActiveCampaign,
-  generateMiz
+  generateMiz,
+  listCampaigns,
+  openCampaign
 }
 
 const getScenario = base

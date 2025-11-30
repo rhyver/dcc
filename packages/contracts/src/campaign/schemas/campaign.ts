@@ -17,6 +17,17 @@ const campaignSamGroup = z.object({
   objectiveId: z.string()
 })
 
+const campaignGroundGroup = z.object({
+  id: z.string(),
+  objectiveId: z.string(),
+  units: z.array(
+    z.object({
+      name: z.string(),
+      count: z.number()
+    })
+  )
+})
+
 const campaignCoalition = z.object({
   id: z.string(),
   aircraftTypes: z.record(task, z.array(z.string())),
@@ -24,7 +35,8 @@ const campaignCoalition = z.object({
   airdromeNames: z.array(z.string()),
   objectiveIds: z.array(z.string()),
   structures: z.array(campaignStructure),
-  samGroups: z.array(campaignSamGroup)
+  samGroups: z.array(campaignSamGroup),
+  groundGroups: z.array(campaignGroundGroup)
 })
 
 export const campaign = z.object({
@@ -36,4 +48,10 @@ export const campaign = z.object({
   timeMultiplier: z.number(),
   scenarioId: z.string(),
   coalitions: z.record(coalition, campaignCoalition)
+})
+
+export const campaignSummary = z.object({
+  id: z.string(),
+  name: z.string(),
+  createdAt: z.date()
 })

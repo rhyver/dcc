@@ -141,6 +141,63 @@ export function useMapItems(): {
       }
     }
 
+    const addGroundGroupMarkers = (
+      groundGroups: Array<{
+        id: string
+        objectiveId: string
+        units: Array<{ name: string; count: number }>
+      }>,
+      coalition: z.infer<typeof schemas.coalition>
+    ) => {
+      for (const group of groundGroups) {
+        const objective = objectivesByName.get(group.objectiveId)
+        if (objective == null) continue
+
+        const latLng = LOtoLL({
+          theatre: theatre.name as 'Caucasus',
+          x: objective.position.x,
+          z: objective.position.y
+        })
+
+        // Determine group type based on majority units or first unit
+        // Since we have Vehicle and Infantry groups, we can infer type
+        // For now, let's default to 'Vehicle' unless we detect infantry-heavy composition or explicit naming
+        // But actually, the group structure doesn't have 'type'.
+        // We can look at the units. If it has "Infantry" type units, it's infantry?
+        // The schema doesn't store "Group Type" (Vehicle vs Infantry) explicitly in the saved state, just units.
+        // However, the MapItem schema requires `groundGroupType` which is one of `groundUnitType`.
+
+        // Simple heuristic: Check the first unit's likely type or just default to Vehicle if unsure.
+        // In `assignGroundGroups`, we create groups based on template types.
+        // But we don't persist "Vehicle Group" vs "Infantry Group" string.
+        // Let's assume the first unit determines the icon for now.
+
+        // However, `groundUnitType` enum includes 'SAM', 'Vehicle', 'Infantry', etc.
+        // Let's guess based on unit name or just use 'Vehicle' as generic.
+        // Better: Check if any unit name contains 'Infantry' or 'Soldier'?
+        // Or just check if the template defined them as Infantry.
+
+        // For rendering, we need a valid `groundUnitType`.
+        // Let's try to deduce it.
+
+        const isInfantry = group.units.some(
+          (u) =>
+            u.name.toLowerCase().includes('infantry') || u.name.toLowerCase().includes('soldier')
+        )
+
+        const groupType = isInfantry ? 'Infantry' : 'Vehicle'
+
+        mapItems.push({
+          id: group.id,
+          type: 'Ground Group',
+          groundGroupType: groupType,
+          name: `${groupType} Group`, // or generate a better name
+          coalition,
+          position: latLng
+        })
+      }
+    }
+
     const addSamMarkers = (
       samGroups: Array<{ id: string; type: z.infer<typeof schemas.samType>; objectiveId: string }>,
       coalition: z.infer<typeof schemas.coalition>
@@ -170,10 +227,12 @@ export function useMapItems(): {
       }
     }
 
-    _addObjectiveMarkers(playerCoalition.objectiveIds ?? [], 'player')
-    _addObjectiveMarkers(opponentCoalition.objectiveIds ?? [], 'opponent')
+    //_addObjectiveMarkers(playerCoalition.objectiveIds ?? [], 'player')
+    //_addObjectiveMarkers(opponentCoalition.objectiveIds ?? [], 'opponent')
     addStructureMarkers(playerCoalition.structures ?? [], 'player')
     addStructureMarkers(opponentCoalition.structures ?? [], 'opponent')
+    addGroundGroupMarkers(playerCoalition.groundGroups ?? [], 'player')
+    addGroundGroupMarkers(opponentCoalition.groundGroups ?? [], 'opponent')
     addSamMarkers(playerCoalition.samGroups ?? [], 'player')
     addSamMarkers(opponentCoalition.samGroups ?? [], 'opponent')
 

@@ -2,7 +2,24 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
 // Custom APIs for renderer
-const api = {}
+const api = {
+  onMenuSaveCampaign: (callback: () => void) => {
+    ipcRenderer.on('menu-save-campaign', callback)
+    return () => ipcRenderer.removeListener('menu-save-campaign', callback)
+  },
+  onMenuExportMission: (callback: () => void) => {
+    ipcRenderer.on('menu-export-mission', callback)
+    return () => ipcRenderer.removeListener('menu-export-mission', callback)
+  },
+  onMenuOpenCampaign: (callback: () => void) => {
+    ipcRenderer.on('menu-open-campaign', callback)
+    return () => ipcRenderer.removeListener('menu-open-campaign', callback)
+  },
+  onMenuReturnToMenu: (callback: () => void) => {
+    ipcRenderer.on('menu-return-to-menu', callback)
+    return () => ipcRenderer.removeListener('menu-return-to-menu', callback)
+  }
+}
 
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise

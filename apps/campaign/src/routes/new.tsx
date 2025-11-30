@@ -1,4 +1,4 @@
-import { LogOut, Settings, BookOpen, Plane } from 'lucide-react'
+import { LogOut, Settings, BookOpen, Plane, FolderOpen } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useState } from 'react'
 
@@ -7,11 +7,19 @@ import { Button } from '@/components/ui/button'
 import { coreClient } from '@/lib/orpc'
 import { useNavigate } from 'react-router'
 
-const menuOptions = [
-  { id: 'campaign', label: 'DYNAMIC CAMPAIGN', icon: BookOpen },
-  { id: 'quickMission', label: 'QUICK MISSION', icon: Plane },
-  { id: 'settings', label: 'SETTINGS', icon: Settings },
-  { id: 'exit', label: 'EXIT', icon: LogOut }
+type MenuOption = {
+  id: string
+  label: string
+  icon: typeof BookOpen
+  disabled?: boolean
+}
+
+const menuOptions: MenuOption[] = [
+  { id: 'campaign', label: 'NEW CAMPAIGN', icon: BookOpen },
+  { id: 'loadCampaign', label: 'LOAD CAMPAIGN', icon: FolderOpen },
+  { id: 'quickMission', label: 'QUICK MISSION', icon: Plane, disabled: true },
+  { id: 'settings', label: 'SETTINGS', icon: Settings, disabled: true },
+  { id: 'exit', label: 'EXIT', icon: LogOut, disabled: true }
 ]
 
 export function New() {
@@ -77,15 +85,22 @@ export function New() {
                   'group relative flex w-full justify-start gap-3 border-l-4 px-4 py-6 text-left retro-font text-xl transition-all',
                   selectedOption === option.id
                     ? 'border-synthwave-pink bg-synthwave-pink/10 text-white hover:bg-synthwave-pink/20'
-                    : 'border-synthwave-purple bg-synthwave-dark/80 text-synthwave-cyan hover:border-synthwave-pink hover:bg-synthwave-purple/10 hover:text-white'
+                    : 'border-synthwave-purple bg-synthwave-dark/80 text-synthwave-cyan hover:border-synthwave-pink hover:bg-synthwave-purple/10 hover:text-white',
+                  option.disabled && 'opacity-50 cursor-not-allowed'
                 )}
                 onClick={() => {
+                  if (option.disabled) return
                   setSelectedOption(option.id)
                   window.setTimeout(async () => {
-                    await coreClient.campaign.createCampaign()
-                    navigate('/')
+                    if (option.id === 'campaign') {
+                      await coreClient.campaign.createCampaign()
+                      navigate('/')
+                    } else if (option.id === 'loadCampaign') {
+                      navigate('/load')
+                    }
                   }, 200)
                 }}
+                disabled={option.disabled}
               >
                 <option.icon
                   className={cn(

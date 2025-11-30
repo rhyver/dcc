@@ -5,7 +5,7 @@ import * as z from 'zod'
 import { getDistance, Position } from './utils'
 
 type SamType = z.infer<typeof schemas.samType>
-type ObjectiveInfo = { id: string; position: Position }
+type ObjectiveInfo = { id: string; position: Position; hasSamTarget: boolean }
 
 type SamAssignment = {
   objectiveId: string
@@ -73,9 +73,13 @@ export function assignSams({
   }
 
   const range = samTemplate.range
+  const minSpacing = range * 0.8
 
   // Filter candidate positions: objectives where placing a SAM would NOT reach forbidden objectives
+  // and the objective has a SAM target
   const validCandidates = coalitionObjectives.filter((candidate) => {
+    if (!candidate.hasSamTarget) return false
+
     // Check if this position would reach any forbidden objective
     const reachesForbidden = forbiddenObjectives.some(
       (forbidden) => getDistance(candidate.position, forbidden.position) <= range
@@ -99,9 +103,15 @@ export function assignSams({
   let uncovered = coalitionObjectives.filter((obj) => !coveredObjectives.has(obj.id))
 
   while (uncovered.length > 0) {
-    const availableCandidates = shuffledCandidates.filter(
-      (c) => !assignments.some((a) => a.objectiveId === c.id)
-    )
+    const availableCandidates = shuffledCandidates.filter((c) => {
+      if (assignments.some((a) => a.objectiveId === c.id)) return false
+
+      // Check minimum spacing from existing assignments
+      return !assignments.some((a) => {
+        const assignedObj = coalitionObjectives.find((obj) => obj.id === a.objectiveId)
+        return assignedObj && getDistance(c.position, assignedObj.position) < minSpacing
+      })
+    })
 
     if (availableCandidates.length === 0) {
       // No more positions available, cannot achieve full coverage
@@ -150,6 +160,14 @@ export function assignSams({
   )
 
   for (const candidate of remainingCandidates) {
+    // Check spacing against updated assignments
+    const isTooClose = assignments.some((a) => {
+      const assignedObj = coalitionObjectives.find((obj) => obj.id === a.objectiveId)
+      return assignedObj && getDistance(candidate.position, assignedObj.position) < minSpacing
+    })
+
+    if (isTooClose) continue
+
     // 20% chance to add an extra SAM at this position
     if (Math.random() < 0.2) {
       // Only add if it would cover at least one objective

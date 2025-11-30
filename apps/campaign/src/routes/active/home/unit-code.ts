@@ -65,9 +65,15 @@ function getUnitCode(item: z.infer<typeof schemas.MapItem>): SidcUnitCodeKey {
       }
     }
     case 'Ground Group': {
+      // The groundGroupType is one of 'SAM' | 'Vehicle' | 'Infantry' | 'Shorad Vehicle' | 'Shorad Infantry' | 'EWS'
+      // We map these to SIDC codes
       switch (item.groundGroupType) {
         case 'Infantry':
+        case 'Shorad Infantry':
           return 'infantry'
+        case 'Vehicle':
+        case 'Shorad Vehicle':
+        case 'EWS':
         default:
           return 'armor'
       }
@@ -87,6 +93,7 @@ function getDomain(item: z.infer<typeof schemas.MapItem>): 'air' | 'ground' | 's
     case 'Airdrome':
     case 'SAM':
     case 'Downed Pilot':
+    case 'Ground Group':
       return 'ground'
     case 'Flight Group':
       return 'air'
@@ -100,5 +107,6 @@ export function getMilSymbolCode(item: z.infer<typeof schemas.MapItem>): string 
   const domain = getDomain(item)
   const unitCode = getUnitCode(item)
   const domainCode = domain === 'air' ? 'A' : domain === 'sea' ? 'S' : 'G'
+  console.log(item, domain, unitCode, domainCode)
   return `S${hostileCode}${domainCode}-${sidcUnitCode[unitCode]}`
 }

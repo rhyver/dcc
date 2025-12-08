@@ -1,5 +1,6 @@
 import { activeStore } from '@/stores/active'
 import { useSelector } from '@xstate/store/react'
+import { logicTick } from '@/logic'
 import { useEffect, useRef } from 'react'
 import { addMilliseconds, differenceInMilliseconds } from 'date-fns'
 
@@ -16,6 +17,7 @@ export function useTick() {
   const timeMultiplier = useSelector(activeStore, (state) => state.context.timeMultiplier)
 
   const prevTickDateRef = useRef<Date | null>(null)
+  const prevLogicTickDateRef = useRef<Date | null>(null)
   function getTickDelta() {
     const now = new Date()
     if (prevTickDateRef.current == null) {
@@ -26,16 +28,36 @@ export function useTick() {
     prevTickDateRef.current = now
     return delta
   }
+  function getLogicTickDelta() {
+    const now = new Date()
+    if (prevLogicTickDateRef.current == null) {
+      prevLogicTickDateRef.current = now
+      return 0
+    }
+    const delta = differenceInMilliseconds(now, prevLogicTickDateRef.current)
+    if (delta >= 1000) {
+      prevLogicTickDateRef.current = now
+    }
+    return delta
+  }
+
+  const tickDisabled = time == null || timeMultiplier === 0
 
   useEffect(() => {
-    if (time == null || timeMultiplier === 0) {
+    if (tickDisabled) {
       return
     }
     prevTickDateRef.current = new Date()
     const interval = setInterval(() => {
       const delta = getTickDelta()
+      const logicDelta = getLogicTickDelta()
+      if (logicDelta >= 1000) {
+        logicTick(logicDelta)
+      }
       updateTime(delta)
     }, 16)
-    return () => clearInterval(interval)
-  }, [time, timeMultiplier])
+    return () => {
+      clearInterval(interval)
+    }
+  }, [tickDisabled])
 }

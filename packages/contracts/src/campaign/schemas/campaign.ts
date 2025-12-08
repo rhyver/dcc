@@ -1,5 +1,6 @@
 import * as z from 'zod'
 
+import { flightGroup } from '../../schemas'
 import { coalition } from '../../schemas/coalition'
 import { groundUnitType } from '../../schemas/ground-unit-type'
 import { samType } from '../../schemas/sam'
@@ -36,7 +37,8 @@ const campaignCoalition = z.object({
   objectiveIds: z.array(z.string()),
   structures: z.array(campaignStructure),
   samGroups: z.array(campaignSamGroup),
-  groundGroups: z.array(campaignGroundGroup)
+  groundGroups: z.array(campaignGroundGroup),
+  flightGroups: z.array(flightGroup)
 })
 
 export const campaign = z.object({

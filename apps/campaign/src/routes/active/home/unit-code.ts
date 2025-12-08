@@ -107,6 +107,5 @@ export function getMilSymbolCode(item: z.infer<typeof schemas.MapItem>): string 
   const domain = getDomain(item)
   const unitCode = getUnitCode(item)
   const domainCode = domain === 'air' ? 'A' : domain === 'sea' ? 'S' : 'G'
-  console.log(item, domain, unitCode, domainCode)
   return `S${hostileCode}${domainCode}-${sidcUnitCode[unitCode]}`
 }

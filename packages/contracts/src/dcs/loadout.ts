@@ -1,6 +1,6 @@
 import * as z from 'zod'
 
-import { task } from '../schemas'
+import { task } from '../schemas/task'
 
 export const pylon = z.object({
   CLSID: z.string(),

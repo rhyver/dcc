@@ -40,15 +40,12 @@ export function writeFile(path: string, data: object) {
 }
 
 export function ensureDirectory(path: string) {
-  return ResultAsync.fromPromise(
-    fs.mkdir(path, { recursive: true }),
-    (error) => {
-      if (error instanceof Error) {
-        return error
-      }
-      return new Error('Unknown error creating directory')
+  return ResultAsync.fromPromise(fs.mkdir(path, { recursive: true }), (error) => {
+    if (error instanceof Error) {
+      return error
     }
-  )
+    return new Error('Unknown error creating directory')
+  })
 }
 
 export function readDirectory(path: string) {

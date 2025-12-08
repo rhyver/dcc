@@ -1,6 +1,7 @@
 import * as z from 'zod'
 
-import { era, task } from '../schemas'
+import { era } from '../schemas/era'
+import { task } from '../schemas/task'
 import { aircraftName } from './aircraft-name'
 import { loadout } from './loadout'
 

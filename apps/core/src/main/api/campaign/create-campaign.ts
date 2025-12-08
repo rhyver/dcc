@@ -178,7 +178,8 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
         objectiveIds: objectiveAssignments.player ?? [],
         structures: playerStructures,
         samGroups: playerSamGroups,
-        groundGroups: playerGroundGroups
+        groundGroups: playerGroundGroups,
+        flightGroups: []
       },
       opponent: {
         id: opponentFaction.id,
@@ -188,7 +189,8 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
         objectiveIds: objectiveAssignments.opponent ?? [],
         structures: opponentStructures,
         samGroups: opponentSamGroups,
-        groundGroups: opponentGroundGroups
+        groundGroups: opponentGroundGroups,
+        flightGroups: []
       }
     }
   }

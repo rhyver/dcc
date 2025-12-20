@@ -13,3 +13,5 @@ export const contract = {
   campaign: campaignContract,
   data: dataContract
 }
+
+export * from './config'

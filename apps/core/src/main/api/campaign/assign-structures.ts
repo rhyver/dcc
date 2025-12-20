@@ -1,29 +1,17 @@
 import { getDistance, Position } from './utils'
+import { config } from '@dcc/contracts'
 
-export const StructureType = {
-  PowerPlant: 'Power Plant',
-  AmmoDepot: 'Ammo Depot',
-  FuelStorage: 'Fuel Storage',
-  Hospital: 'Hospital',
-  Barrack: 'Barrack',
-  Depot: 'Depot',
-  Farp: 'Farp'
-} as const
+export const StructureType = [
+  'power',
+  'ammo',
+  'fuel',
+  'hospital',
+  'barrack',
+  'depot',
+  'farp'
+] as const
 
-export type StructureType = (typeof StructureType)[keyof typeof StructureType]
-
-const StructureRanges: Record<StructureType, number> = {
-  [StructureType.PowerPlant]: 50_000,
-  [StructureType.AmmoDepot]: 50_000,
-  [StructureType.FuelStorage]: 50_000,
-  [StructureType.Hospital]: 50_000,
-  [StructureType.Barrack]: 60_000, // frontline.barrack from config (using larger value if conflict, user said 50k in structureRange.frontline.barrack but 60k in deploymentScore.frontline.barrack? User config says structureRange: barrack: 50_000. I will use 50_000)
-  [StructureType.Depot]: 60_000,
-  [StructureType.Farp]: 50_000
-}
-
-// Correcting Barrack range based on structureRange config provided
-StructureRanges[StructureType.Barrack] = 50_000
+export type StructureType = (typeof StructureType)[number]
 
 type ObjectiveInfo = {
   id: string
@@ -41,14 +29,14 @@ export function assignStructures(objectives: ObjectiveInfo[]): StructureAssignme
   const coveredObjectives = new Map<StructureType, Set<string>>() // type -> Set<objectiveId>
 
   // Initialize coverage sets
-  Object.values(StructureType).forEach((type) => {
+  StructureType.forEach((type) => {
     coveredObjectives.set(type, new Set())
   })
 
   const requiredTypes = Object.values(StructureType)
 
   for (const type of requiredTypes) {
-    const range = StructureRanges[type]
+    const range = config.structureRanges[type]
     const coveredSet = coveredObjectives.get(type)!
 
     // Helper to check if an objective is covered by currently assigned structures of this type

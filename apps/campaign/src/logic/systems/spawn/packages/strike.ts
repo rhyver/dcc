@@ -111,6 +111,7 @@ export function spawnStrike(
     homeBasePosition,
     target: selectedTarget,
     targetPosition,
+    runwayAngle: theatre.airdromeDetails[selectedHomeBase]?.runwayAngle,
     aircraftType
   })
 }

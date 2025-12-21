@@ -6,10 +6,11 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { Map } from './map'
+import { Map, type SelectedItem } from './map'
 import { activeStore } from '@/stores/active'
 import { Clock } from './clock'
 import { coreClient } from '@/lib/orpc'
+import { cn } from '@/lib/utils'
 
 const campaignData = {
   description:
@@ -23,6 +24,7 @@ const campaignData = {
 export function Home() {
   const [mapZoom, setMapZoom] = React.useState(1)
   const [isBriefingOpen, setIsBriefingOpen] = React.useState(false)
+  const [selectedItem, setSelectedItem] = React.useState<SelectedItem>(null)
   const timeMultiplier = useSelector(activeStore, (state) => state.context.timeMultiplier)
   const flightGroups = useSelector(
     activeStore,
@@ -93,7 +95,7 @@ export function Home() {
           {/* Horizon glow */}
           <div className="absolute bottom-0 left-0 right-0 h-[30vh] bg-linear-to-t from-synthwave-pink via-synthwave-purple to-transparent opacity-30" />
 
-          <Map />
+          <Map selectedItem={selectedItem} onSelect={setSelectedItem} />
         </div>
       </div>
 
@@ -222,7 +224,13 @@ export function Home() {
                   {flightGroups.map((group) => (
                     <div
                       key={group.id}
-                      className="flex items-center justify-between p-2 rounded bg-synthwave-pink/5 border border-synthwave-pink/10"
+                      className={cn(
+                        'flex items-center justify-between p-2 rounded cursor-pointer transition-colors',
+                        selectedItem?.id === group.id
+                          ? 'bg-synthwave-pink/20 border border-synthwave-pink'
+                          : 'bg-synthwave-pink/5 border border-synthwave-pink/10 hover:bg-synthwave-pink/10'
+                      )}
+                      onClick={() => setSelectedItem(selectedItem?.id === group.id ? null : group)}
                     >
                       <div className="flex flex-col gap-0.5">
                         <span className="text-sm font-medium text-primary">{group.callsign}</span>

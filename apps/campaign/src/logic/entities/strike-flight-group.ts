@@ -16,6 +16,7 @@ export class StrikeFlightGroup extends FlightGroup {
         objectiveId: string
       }
       targetPosition: z.infer<typeof schemas.position>
+      runwayAngle?: number
       aircraftType: z.infer<typeof schemas.dcs.aircraftName>
     }
   ): void {
@@ -34,7 +35,8 @@ export class StrikeFlightGroup extends FlightGroup {
     const flightplan = this.createFlightPlan(
       params.homeBasePosition,
       params.targetPosition,
-      draft.time
+      draft.time,
+      params.runwayAngle
     )
 
     // Create the flight group data
@@ -64,14 +66,68 @@ export class StrikeFlightGroup extends FlightGroup {
   static createFlightPlan(
     home: z.infer<typeof schemas.position>,
     target: z.infer<typeof schemas.position>,
-    startTime: Date
+    startTime: Date,
+    runwayAngle?: number
   ): z.infer<typeof schemas.flightplan> {
     const waypoints: z.infer<typeof schemas.waypoint>[] = []
     const dx = target.x - home.x
     const dy = target.y - home.y
     const distance = Math.sqrt(dx * dx + dy * dy)
+
     const ux = dx / distance
     const uy = dy / distance
+
+    // If runway angle is provided, adjust ux/uy for Ascend/Descent to align with runway
+    let ascendUx = ux
+    let ascendUy = uy
+    let descentUx = ux
+    let descentUy = uy
+
+    if (runwayAngle !== undefined) {
+      // DCS coordinates: x=North, z=East (but here x, y).
+      // If we assume x=North, y=East:
+      // runwayAngle is degrees from North (CW).
+      // Angle 0 -> (1, 0)
+      // Angle 90 -> (0, 1)
+      const rad = (runwayAngle * Math.PI) / 180
+      const rx = Math.cos(rad)
+      const ry = Math.sin(rad)
+
+      // Determine if we should use angle or angle+180
+      // Dot product with target vector
+      const dot = rx * ux + ry * uy
+
+      // If dot > 0, runway is roughly pointing towards target.
+      // Ascend: fly along runway heading (rx, ry)
+      // Descent: fly into runway heading?
+      // Usually landing is INTO wind/runway heading.
+      // So if runway heading is H, you land flying H.
+      // You approach from -H.
+      // So Descent point should be at home - (rx, ry) * dist?
+
+      // Wait, if runway is 09 (East), you land flying East.
+      // You approach from West. Descent point is West of airfield.
+      // West is -East. So `home - vector`.
+
+      // But which runway end to use? 09 or 27?
+      // Pick the one aligned with takeoff towards target.
+      // If dot > 0: Runway points to target.
+      // Takeoff: Along (rx, ry).
+      // Landing: Along (rx, ry). Approach from -(rx, ry).
+
+      if (dot > 0) {
+        ascendUx = rx
+        ascendUy = ry
+        descentUx = rx // Descent point is BEHIND runway start, so home - descentVector * dist
+        descentUy = ry
+      } else {
+        // Runway points away. Use reciprocal (angle + 180).
+        ascendUx = -rx
+        ascendUy = -ry
+        descentUx = -rx
+        descentUy = -ry
+      }
+    }
 
     // 1. TakeOff
     waypoints.push({
@@ -86,8 +142,8 @@ export class StrikeFlightGroup extends FlightGroup {
     waypoints.push({
       name: 'Ascend',
       position: {
-        x: home.x + ux * 20000,
-        y: home.y + uy * 20000
+        x: home.x + ascendUx * 20000,
+        y: home.y + ascendUy * 20000
       },
       altitude: 2000,
       speed: 200,
@@ -131,11 +187,16 @@ export class StrikeFlightGroup extends FlightGroup {
     })
 
     // 6. Descent (20km from home)
+    // Descent point is "Final Approach Fix" roughly.
+    // If landing direction is D, we should be at home - D * 20km.
+    // So we use SUBTRACTION here relative to landing direction?
+    // descentUx/Uy is the runway direction we selected (aligned with takeoff).
+    // Assuming same direction for landing.
     waypoints.push({
       name: 'Descent',
       position: {
-        x: home.x + ux * 20000,
-        y: home.y + uy * 20000
+        x: home.x - descentUx * 20000,
+        y: home.y - descentUy * 20000
       },
       altitude: 2000,
       speed: 200,

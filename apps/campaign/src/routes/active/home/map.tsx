@@ -4,11 +4,11 @@ import { useSelector } from '@xstate/store/react'
 import { activeStore } from '@/stores/active'
 import { useQuery } from '@tanstack/react-query'
 import { orpc } from '@/lib/orpc'
-import { memo, useMemo, useState } from 'react'
+import { memo, useMemo, useState, useEffect } from 'react'
 import { LOtoLL } from '@kilcekru/dcs-coordinates'
 import * as z from 'zod'
 import { schemas } from '@dcc/contracts'
-import MaplibreMap, { Marker as MaplibreMarker, Source, Layer } from 'react-map-gl/maplibre'
+import MaplibreMap, { Marker as MaplibreMarker, Source, Layer, useMap } from 'react-map-gl/maplibre'
 import MilSymbol from 'milsymbol'
 import * as turf from '@turf/turf'
 import { getMilSymbolCode } from './unit-code'
@@ -115,11 +115,78 @@ const ObjectiveCircleMarker = memo(function ObjectiveCircleMarker({
   )
 })
 
-export function Map() {
+export type SelectedItem =
+  | z.infer<typeof schemas.MapItem>
+  | ObjectiveMarkerType
+  | z.infer<typeof schemas.flightGroup>
+  | null
+
+const FlightPlanOverlay = memo(function FlightPlanOverlay({
+  flightplan,
+  theatreName
+}: {
+  flightplan: z.infer<typeof schemas.flightplan>
+  theatreName: string
+}) {
+  const { current: map } = useMap()
+  const [path, setPath] = useState('')
+
+  useEffect(() => {
+    if (!map) return
+
+    const updatePath = () => {
+      const points = flightplan.waypoints.map((wp) => {
+        const latLng = LOtoLL({
+          theatre: theatreName as 'Caucasus',
+          x: wp.position.x,
+          z: wp.position.y
+        })
+        const p = map.project([latLng.lng, latLng.lat])
+        return `${p.x},${p.y}`
+      })
+      setPath(`M ${points.join(' L ')}`)
+    }
+
+    updatePath()
+    map.on('move', updatePath)
+    map.on('zoom', updatePath)
+    map.on('rotate', updatePath)
+    map.on('resize', updatePath)
+
+    return () => {
+      map.off('move', updatePath)
+      map.off('zoom', updatePath)
+      map.off('rotate', updatePath)
+      map.off('resize', updatePath)
+    }
+  }, [map, flightplan, theatreName])
+
+  return (
+    <svg
+      className="absolute inset-0 w-full h-full pointer-events-none"
+      style={{ zIndex: 1000 }}
+    >
+      <path
+        d={path}
+        stroke="var(--synthwave-pink)"
+        strokeWidth="3"
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="drop-shadow-[0_0_5px_var(--synthwave-pink)]"
+      />
+    </svg>
+  )
+})
+
+export function Map({
+  selectedItem,
+  onSelect
+}: {
+  selectedItem: SelectedItem
+  onSelect: (item: SelectedItem) => void
+}) {
   const scenarioId = useSelector(activeStore, (state) => state.context.scenarioId)
-  const [selectedItem, setSelectedItem] = useState<
-    z.infer<typeof schemas.MapItem> | ObjectiveMarkerType | null
-  >(null)
 
   const scenarioQuery = useQuery(
     orpc.data.getScenario.queryOptions({
@@ -181,6 +248,12 @@ export function Map() {
         initialViewState={initialViewState}
         mapStyle="https://api.maptiler.com/maps/openstreetmap/style.json?key=dMqlZfgU5XToBXt4BGnm"
       >
+        {selectedItem && 'flightplan' in selectedItem && theatreQuery.data && (
+          <FlightPlanOverlay
+            flightplan={selectedItem.flightplan}
+            theatreName={theatreQuery.data.name}
+          />
+        )}
         {/* SAM Range Circles - rendered first so they appear below other markers */}
         {samRangeGeoJson.features.length > 0 && (
           <Source id="sam-ranges-source" type="geojson" data={samRangeGeoJson}>
@@ -247,7 +320,7 @@ export function Map() {
           <Marker
             key={item.id}
             item={item}
-            onClick={() => setSelectedItem(item)}
+            onClick={() => onSelect(item)}
             isSelected={selectedItem?.id === item.id}
           />
         ))}
@@ -255,7 +328,7 @@ export function Map() {
           <ObjectiveCircleMarker
             key={marker.id}
             marker={marker}
-            onClick={() => setSelectedItem(marker)}
+            onClick={() => onSelect(marker)}
             isSelected={selectedItem?.id === marker.id}
           />
         ))}
@@ -264,15 +337,22 @@ export function Map() {
         <div className="absolute top-4 right-4 w-80 z-10">
           <Card className="backdrop-blur-md bg-synthwave-dark/80 border-synthwave-pink/30 text-synthwave-light shadow-[0_0_15px_rgba(255,0,170,0.3)]">
             <CardHeader>
-              <CardTitle className="text-synthwave-cyan retro-font">{selectedItem.name}</CardTitle>
+              <CardTitle className="text-synthwave-cyan retro-font">
+                {'callsign' in selectedItem ? selectedItem.callsign : selectedItem.name}
+              </CardTitle>
               <CardDescription className="capitalize text-secondary">
-                {selectedItem.coalition} {'type' in selectedItem ? selectedItem.type : 'Objective'}
+                {'coalition' in selectedItem ? selectedItem.coalition : 'player'}{' '}
+                {'type' in selectedItem
+                  ? selectedItem.type
+                  : 'callsign' in selectedItem
+                    ? 'Flight Group'
+                    : 'Objective'}
               </CardDescription>
               <CardAction>
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => setSelectedItem(null)}
+                  onClick={() => onSelect(null)}
                   className="text-synthwave-pink hover:bg-synthwave-pink/20 hover:text-synthwave-pink"
                 >
                   <X className="h-4 w-4" />
@@ -281,14 +361,33 @@ export function Map() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 gap-2 text-sm">
-                <div className="text-secondary/70">Latitude</div>
-                <div>{selectedItem.position.lat.toFixed(4)}</div>
-                <div className="text-secondary/70">Longitude</div>
-                <div>{selectedItem.position.lng.toFixed(4)}</div>
+                {'lat' in selectedItem.position ? (
+                  <>
+                    <div className="text-secondary/70">Latitude</div>
+                    <div>{selectedItem.position.lat.toFixed(4)}</div>
+                    <div className="text-secondary/70">Longitude</div>
+                    <div>{selectedItem.position.lng.toFixed(4)}</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-secondary/70">Position X</div>
+                    <div>{selectedItem.position.x.toFixed(0)}</div>
+                    <div className="text-secondary/70">Position Y</div>
+                    <div>{selectedItem.position.y.toFixed(0)}</div>
+                  </>
+                )}
                 {'structureType' in selectedItem && (
                   <>
                     <div className="text-secondary/70">Structure Type</div>
                     <div>{selectedItem.structureType}</div>
+                  </>
+                )}
+                {'flightplan' in selectedItem && (
+                  <>
+                    <div className="text-secondary/70">Task</div>
+                    <div>{selectedItem.task}</div>
+                    <div className="text-secondary/70">Waypoints</div>
+                    <div>{selectedItem.flightplan.waypoints.length}</div>
                   </>
                 )}
                 {'range' in selectedItem && (

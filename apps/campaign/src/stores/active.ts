@@ -107,6 +107,12 @@ export const activeStore = createStore({
     tick: (context, { delta, logic }: { delta: number; logic: (draft: typeof context) => void }) =>
       produce(context, (draft) => {
         logic(draft)
+      }),
+
+    removeAllFlightGroups: (context) =>
+      produce(context, (draft) => {
+        draft.coalitions.player.flightGroups = []
+        draft.coalitions.opponent.flightGroups = []
       })
   }
 })

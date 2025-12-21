@@ -1,4 +1,4 @@
-import { Info, Sun, Target, Wind, FastForward, Pause, Play } from 'lucide-react'
+import { Info, Sun, Target, Wind, FastForward, Pause, Play, Plane } from 'lucide-react'
 import React from 'react'
 import { useSelector } from '@xstate/store/react'
 
@@ -22,7 +22,12 @@ const campaignData = {
 
 export function Home() {
   const [mapZoom, setMapZoom] = React.useState(1)
+  const [isBriefingOpen, setIsBriefingOpen] = React.useState(false)
   const timeMultiplier = useSelector(activeStore, (state) => state.context.timeMultiplier)
+  const flightGroups = useSelector(
+    activeStore,
+    (state) => state.context.coalitions.player.flightGroups
+  )
   const timerState = timeMultiplier === 0 ? 'pause' : timeMultiplier === 1 ? 'play' : 'fast-forward'
 
   return (
@@ -150,42 +155,91 @@ export function Home() {
                 Takeoff
               </Button>
             </div>
+
+            {/* Briefing Toggle */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-between text-secondary hover:text-white hover:bg-synthwave-pink/10"
+              onClick={() => setIsBriefingOpen(!isBriefingOpen)}
+            >
+              <div className="flex items-center gap-2">
+                <Info className="h-4 w-4 text-synthwave-pink" />
+                <span className="retro-font text-xs">Mission Briefing</span>
+              </div>
+              <span className="text-[10px]">{isBriefingOpen ? '▼' : '▶'}</span>
+            </Button>
+
+            {/* Briefing Content */}
+            {isBriefingOpen && (
+              <div className="border-t border-synthwave-pink/10 pt-2 space-y-4 max-h-[400px] overflow-y-auto pr-1">
+                <div className="space-y-1 text-sm text-secondary/80">
+                  {campaignData.description}
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="retro-font text-xs font-medium uppercase text-primary">
+                      Primary Objectives
+                    </h4>
+                    <span className="text-xs text-secondary">
+                      {campaignData.objectives.length} Targets
+                    </span>
+                  </div>
+                  <ul className="space-y-2 text-sm">
+                    {campaignData.objectives.map((objective, index) => (
+                      <li
+                        key={index}
+                        className="flex items-start gap-2 p-2 rounded bg-synthwave-pink/5 border border-synthwave-pink/10"
+                      >
+                        <Target className="h-4 w-4 mt-0.5 text-synthwave-pink shrink-0" />
+                        <span>{objective}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
           </div>
         </Card>
 
-        {/* Content Area */}
-        <Card className="pointer-events-auto flex-1 overflow-hidden border-synthwave-pink/30 bg-synthwave-dark/80 text-synthwave-light shadow-[0_0_15px_rgba(255,0,170,0.3)] backdrop-blur-md flex flex-col">
+        {/* Active Flight Groups */}
+        <Card className="pointer-events-auto flex-1 overflow-hidden border-synthwave-pink/30 bg-synthwave-dark/80 text-synthwave-light shadow-[0_0_15px_rgba(255,0,170,0.3)] backdrop-blur-md flex flex-col min-h-0">
           <CardHeader className="pb-2 border-b border-synthwave-pink/10">
             <CardTitle className="flex items-center gap-2 text-lg font-medium text-white">
-              <Info className="h-4 w-4 text-synthwave-pink" />
-              <span className="retro-font">Campaign Briefing</span>
+              <Plane className="h-4 w-4 text-synthwave-pink" />
+              <span className="retro-font">Flight Groups</span>
             </CardTitle>
           </CardHeader>
           <ScrollArea className="flex-1">
-            <CardContent className="pt-4">
-              <div className="space-y-1 text-sm text-secondary/80">{campaignData.description}</div>
-
-              <div className="mt-6">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="retro-font text-xs font-medium uppercase text-primary">
-                    Primary Objectives
-                  </h4>
-                  <span className="text-xs text-secondary">
-                    {campaignData.objectives.length} Targets
-                  </span>
+            <CardContent>
+              {flightGroups.length === 0 ? (
+                <div className="text-sm text-secondary/60 text-center italic">
+                  No active flights
                 </div>
-                <ul className="space-y-2 text-sm">
-                  {campaignData.objectives.map((objective, index) => (
-                    <li
-                      key={index}
-                      className="flex items-start gap-2 p-2 rounded bg-synthwave-pink/5 border border-synthwave-pink/10"
+              ) : (
+                <div className="space-y-2">
+                  {flightGroups.map((group) => (
+                    <div
+                      key={group.id}
+                      className="flex items-center justify-between p-2 rounded bg-synthwave-pink/5 border border-synthwave-pink/10"
                     >
-                      <Target className="h-4 w-4 mt-0.5 text-synthwave-pink shrink-0" />
-                      <span>{objective}</span>
-                    </li>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-sm font-medium text-primary">{group.callsign}</span>
+                        <span className="text-xs text-secondary/80">{group.task}</span>
+                      </div>
+                      <div className="flex flex-col items-end gap-0.5">
+                        <span className="text-xs font-medium text-secondary">
+                          {group.aircrafts[0]?.aircraftName || 'Unknown'}
+                        </span>
+                        <span className="text-[10px] text-secondary/60">
+                          {group.aircrafts.length} Aircraft
+                        </span>
+                      </div>
+                    </div>
                   ))}
-                </ul>
-              </div>
+                </div>
+              )}
             </CardContent>
           </ScrollArea>
         </Card>

@@ -5,6 +5,7 @@ interface API {
   onMenuExportMission: (callback: () => void) => () => void
   onMenuOpenCampaign: (callback: () => void) => () => void
   onMenuReturnToMenu: (callback: () => void) => () => void
+  onMenuRemoveFlightGroups: (callback: () => void) => () => void
 }
 
 declare global {

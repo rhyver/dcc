@@ -24,15 +24,23 @@ export function ActiveLayout() {
       navigate('/new')
     }
 
+    const handleRemoveAllFlightGroups = () => {
+      activeStore.send({ type: 'removeAllFlightGroups' })
+    }
+
     // Register menu event listeners
     const unsubscribeSave = window.api?.onMenuSaveCampaign(handleSaveCampaign)
     const unsubscribeExport = window.api?.onMenuExportMission(handleExportMission)
     const unsubscribeReturn = window.api?.onMenuReturnToMenu(handleReturnToMenu)
+    const unsubscribeRemoveFlightGroups = window.api?.onMenuRemoveFlightGroups(
+      handleRemoveAllFlightGroups
+    )
 
     return () => {
       unsubscribeSave?.()
       unsubscribeExport?.()
       unsubscribeReturn?.()
+      unsubscribeRemoveFlightGroups?.()
     }
   }, [navigate])
 

@@ -106,6 +106,17 @@ function createMenu() {
       ]
     },
     {
+      label: 'Developer',
+      submenu: [
+        {
+          label: 'Remove All Flight Groups',
+          click: () => {
+            mainWindow?.webContents.send('menu-remove-flight-groups')
+          }
+        }
+      ]
+    },
+    {
       label: 'Window',
       submenu: [
         { role: 'minimize' as const },

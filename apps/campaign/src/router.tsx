@@ -1,4 +1,4 @@
-import { createHashRouter, redirect, Outlet } from 'react-router'
+import { createHashRouter, redirect, Outlet, useRouteError, Navigate } from 'react-router'
 import { Home } from './routes/active/home/home'
 import { ActiveLayout } from './routes/active/layout'
 import { coreClient } from './lib/orpc'
@@ -35,6 +35,20 @@ async function activeCampaignMiddleware() {
   activeStore.trigger.loadCampaign({ campaign: activeCampaign })
 }
 
+function ActiveCampaignErrorBoundary() {
+  const error = useRouteError() as { message: string; code?: string }
+
+  if (
+    error?.message === 'INVALID_APP_STATE' ||
+    error?.code === 'INVALID_APP_STATE' ||
+    (typeof error?.message === 'string' && error.message.includes('INVALID_APP_STATE'))
+  ) {
+    return <Navigate to="/new" />
+  }
+
+  throw error
+}
+
 export const router = createHashRouter([
   {
     Component: RootLayout,
@@ -43,6 +57,7 @@ export const router = createHashRouter([
         path: '/',
         Component: ActiveLayout,
         middleware: [activeCampaignMiddleware],
+        ErrorBoundary: ActiveCampaignErrorBoundary,
         children: [{ index: true, Component: Home }]
       },
       {

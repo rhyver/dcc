@@ -1,6 +1,7 @@
 import * as z from 'zod'
 
 import { aircraft } from './aircraft'
+import { flightplan } from './flightplan'
 import { position } from './position'
 import { task } from './task'
 
@@ -16,5 +17,7 @@ export const flightGroup = z.object({
   task,
   position,
   homeBase: z.string(),
-  target: structureTarget.optional()
+  callsign: z.string(),
+  target: structureTarget.optional(),
+  flightplan: flightplan
 })

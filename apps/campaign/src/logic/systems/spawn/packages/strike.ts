@@ -110,6 +110,7 @@ export function spawnStrike(
     homeBase: selectedHomeBase,
     homeBasePosition,
     target: selectedTarget,
+    targetPosition,
     aircraftType
   })
 }

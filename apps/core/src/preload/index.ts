@@ -18,6 +18,10 @@ const api = {
   onMenuReturnToMenu: (callback: () => void) => {
     ipcRenderer.on('menu-return-to-menu', callback)
     return () => ipcRenderer.removeListener('menu-return-to-menu', callback)
+  },
+  onMenuRemoveFlightGroups: (callback: () => void) => {
+    ipcRenderer.on('menu-remove-flight-groups', callback)
+    return () => ipcRenderer.removeListener('menu-remove-flight-groups', callback)
   }
 }
 

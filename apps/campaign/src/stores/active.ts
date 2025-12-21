@@ -102,6 +102,11 @@ export const activeStore = createStore({
     updateTimeMultiplier: (context, { timeMultiplier }: { timeMultiplier: number }) =>
       produce(context, (draft) => {
         draft.timeMultiplier = timeMultiplier
+      }),
+
+    tick: (context, { delta, logic }: { delta: number; logic: (draft: typeof context) => void }) =>
+      produce(context, (draft) => {
+        logic(draft)
       })
   }
 })

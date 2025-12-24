@@ -20,6 +20,10 @@ export function spawnStrike(
     return
   }
 
+  const targetedObjectiveIds = new Set(
+    strikeGroups.map((g) => g.target?.objectiveId).filter((id): id is string => !!id)
+  )
+
   // Get scenario and theatre data
   const scenario = scenarios.find((s) => s.id === draft.scenarioId)
   if (!scenario) {
@@ -70,6 +74,10 @@ export function spawnStrike(
     }
 
     for (const structure of enemyStructures) {
+      if (targetedObjectiveIds.has(structure.objectiveId)) {
+        continue
+      }
+
       const structureObjectivePos = getObjectivePosition(theatre, structure.objectiveId)
       if (!structureObjectivePos) {
         continue

@@ -16,8 +16,11 @@ export class FlightGroup {
       callsign?: string
       target?: z.infer<typeof schemas.flightGroup>['target']
       flightplan: z.infer<typeof schemas.flightplan>
+      tot?: Date
     }
   ): void {
+    const tot = params.tot ?? FlightGroup.calculateTot(params.flightplan)
+
     const newFlightGroupData: z.infer<typeof schemas.flightGroup> = {
       id: crypto.randomUUID(),
       aircrafts: params.aircrafts,
@@ -30,10 +33,45 @@ export class FlightGroup {
           Math.floor(Math.random() * 9) + 1
         }`,
       target: params.target,
-      flightplan: params.flightplan
+      flightplan: params.flightplan,
+      tot
     }
 
     draft.coalitions[coalition].flightGroups.push(newFlightGroupData)
+  }
+
+  static calculateTot(flightplan: z.infer<typeof schemas.flightplan>): Date | undefined {
+    if (!flightplan.waypoints.length) return undefined
+
+    const STARTUP_DELAY_MS = 10 * 60 * 1000 // 20 minutes
+
+    const start = new Date(flightplan.startTime)
+    let currentTime = start.getTime() + STARTUP_DELAY_MS
+    let currentPos = flightplan.waypoints[0]?.position
+
+    if (currentPos == null) return undefined
+
+    for (const waypoint of flightplan.waypoints) {
+      const dx = waypoint.position.x - currentPos.x
+      const dy = waypoint.position.y - currentPos.y
+      const distance = Math.sqrt(dx * dx + dy * dy)
+
+      // Time = distance / speed
+      // speed is in m/s (approx)
+      // distance is in meters
+      const speed = waypoint.speed
+      // Avoid division by zero
+      const timeSeconds = speed > 0 ? distance / speed : 0
+
+      currentTime += timeSeconds * 1000
+      currentPos = waypoint.position
+
+      if (waypoint.type === 'Task') {
+        return new Date(currentTime)
+      }
+    }
+
+    return undefined
   }
 
   static createFlightPlan(
@@ -194,6 +232,10 @@ export class FlightGroup {
     return this._data.target
   }
 
+  get tot() {
+    return this._data.tot
+  }
+
   // Setters mutate the wrapped data object (works with Immer drafts)
   setPosition(newPosition: z.infer<typeof schemas.position>) {
     this._data.position = newPosition
@@ -207,9 +249,56 @@ export class FlightGroup {
     this._data.target = target
   }
 
-  // Logic methods can be added here
-  updateLogic(_delta: number) {
-    // Example: Update flight group logic based on delta time
-    // This mutates the internal _data object which can be an Immer draft
+  move(currentTime: Date) {
+    const startTime = new Date(this._data.flightplan.startTime)
+    if (currentTime < startTime) {
+      return
+    }
+
+    const STARTUP_DELAY_MS = 10 * 60 * 1000 // 10 minutes
+
+    let elapsed = currentTime.getTime() - startTime.getTime()
+
+    if (elapsed < STARTUP_DELAY_MS) {
+      if (this._data.flightplan.waypoints.length > 0) {
+        this.setPosition(this._data.flightplan.waypoints[0]?.position ?? this._data.position)
+      }
+      return
+    }
+
+    elapsed -= STARTUP_DELAY_MS
+
+    const waypoints = this._data.flightplan.waypoints
+    for (let i = 0; i < waypoints.length - 1; i++) {
+      const startWp = waypoints[i]
+      const endWp = waypoints[i + 1]
+
+      if (!startWp || !endWp) {
+        continue
+      }
+
+      const dx = endWp.position.x - startWp.position.x
+      const dy = endWp.position.y - startWp.position.y
+      const dist = Math.sqrt(dx * dx + dy * dy)
+      const speed = endWp.speed
+
+      const timeSeconds = speed > 0 ? dist / speed : 0
+      const timeMs = timeSeconds * 1000
+
+      if (elapsed < timeMs) {
+        const ratio = elapsed / timeMs
+        this.setPosition({
+          x: startWp.position.x + dx * ratio,
+          y: startWp.position.y + dy * ratio
+        })
+        return
+      }
+
+      elapsed -= timeMs
+    }
+
+    if (waypoints.length > 0) {
+      this.setPosition(waypoints[waypoints.length - 1]?.position ?? this._data.position)
+    }
   }
 }

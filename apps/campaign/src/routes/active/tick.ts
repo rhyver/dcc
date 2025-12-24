@@ -1,6 +1,6 @@
 import { activeStore } from '@/stores/active'
 import { useSelector } from '@xstate/store/react'
-import { logicTick } from '@/logic'
+import { logicTick, fastTick } from '@/logic'
 import { useEffect, useRef } from 'react'
 import { addMilliseconds, differenceInMilliseconds } from 'date-fns'
 
@@ -55,6 +55,7 @@ export function useTick() {
         logicTick(logicDelta)
       }
       updateTime(delta)
+      fastTick(delta)
     }, 16)
     return () => {
       clearInterval(interval)

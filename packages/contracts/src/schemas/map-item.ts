@@ -1,6 +1,7 @@
 import * as z from 'zod'
 
 import { coalition } from './coalition'
+import { flightplan } from './flightplan'
 import { groundUnitType } from './ground-unit-type'
 import { structureType } from './structure-type'
 import { task } from './task'
@@ -21,7 +22,9 @@ export const AirdromeMapItem = mapItem.extend({
 
 export const FlightGroupMapItem = mapItem.extend({
   type: z.literal('Flight Group'),
-  task
+  task,
+  flightplan,
+  callsign: z.string().optional()
 })
 
 export const StructureMapItem = mapItem.extend({

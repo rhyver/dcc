@@ -1,5 +1,17 @@
 import { activeStore } from '@/stores/active'
 import { spawn } from './systems/spawn'
+import { updateFlightGroups } from './systems/update-flight-groups'
+
+export function fastTick(delta: number) {
+  activeStore.send({
+    type: 'tick',
+    delta,
+    logic: (draft) => {
+      updateFlightGroups(draft, 'player')
+      updateFlightGroups(draft, 'opponent')
+    }
+  })
+}
 
 export function logicTick(delta: number) {
   console.log('logic tick', delta)

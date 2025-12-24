@@ -39,6 +39,7 @@ export function useMapItems(): {
     })
   )
   const theatre = theatreQuery.data
+  const campaignTime = useSelector(activeStore, (state) => state.context.time)
 
   return useMemo(() => {
     if (theatre == null) {
@@ -227,6 +228,34 @@ export function useMapItems(): {
       }
     }
 
+    const addFlightGroupMarkers = (
+      flightGroups: z.infer<typeof schemas.flightGroup>[],
+      coalition: z.infer<typeof schemas.coalition>
+    ) => {
+      for (const group of flightGroups) {
+        // Check if group has taken off
+        const startTime = new Date(group.flightplan.startTime)
+        if (campaignTime < startTime) continue
+
+        const latLng = LOtoLL({
+          theatre: theatre.name as 'Caucasus',
+          x: group.position.x,
+          z: group.position.y
+        })
+
+        mapItems.push({
+          id: group.id,
+          type: 'Flight Group',
+          name: group.callsign || 'Flight Group',
+          callsign: group.callsign,
+          task: group.task,
+          flightplan: group.flightplan,
+          coalition,
+          position: latLng
+        })
+      }
+    }
+
     //_addObjectiveMarkers(playerCoalition.objectiveIds ?? [], 'player')
     //_addObjectiveMarkers(opponentCoalition.objectiveIds ?? [], 'opponent')
     addStructureMarkers(playerCoalition.structures ?? [], 'player')
@@ -235,6 +264,8 @@ export function useMapItems(): {
     addGroundGroupMarkers(opponentCoalition.groundGroups ?? [], 'opponent')
     addSamMarkers(playerCoalition.samGroups ?? [], 'player')
     addSamMarkers(opponentCoalition.samGroups ?? [], 'opponent')
+    addFlightGroupMarkers(playerCoalition.flightGroups ?? [], 'player')
+    addFlightGroupMarkers(opponentCoalition.flightGroups ?? [], 'opponent')
 
     let frontline: GeoJSON.FeatureCollection<GeoJSON.LineString> | null = null
 
@@ -332,5 +363,5 @@ export function useMapItems(): {
       objectiveMarkers,
       frontline
     }
-  }, [playerCoalition, opponentCoalition, theatre])
+  }, [playerCoalition, opponentCoalition, theatre, campaignTime])
 }

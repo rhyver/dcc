@@ -68,11 +68,15 @@ export class StrikeFlightGroup extends FlightGroup {
       type: 'Nav'
     }
 
+    const startTime = new Date(
+      draft.time.getTime() + Math.floor(Math.random() * (50 - 30 + 1) + 30) * 60 * 1000
+    )
+
     const flightplan = FlightGroup.createFlightPlan(
       params.homeBasePosition,
       params.targetPosition,
       [ingressWaypoint, targetWaypoint, egressWaypoint],
-      draft.time,
+      startTime,
       params.runwayAngle
     )
 

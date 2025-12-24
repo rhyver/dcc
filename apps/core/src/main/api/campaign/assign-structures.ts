@@ -1,14 +1,18 @@
 import { getDistance, Position } from './utils'
-import { config } from '@dcc/contracts'
+import { config, schemas } from '@dcc/contracts'
+import { structureTemplates } from '@dcc/data'
+import * as z from 'zod'
 
 export const StructureType = [
-  'power',
-  'ammo',
-  'fuel',
-  'hospital',
-  'barrack',
-  'depot',
-  'farp'
+  'Power Plant',
+  'Ammo Depot',
+  'Fuel Storage',
+  'Hospital',
+  'Barrack',
+  'Depot',
+  'Farp',
+  'Command Center',
+  'Prison'
 ] as const
 
 export type StructureType = (typeof StructureType)[number]
@@ -16,16 +20,32 @@ export type StructureType = (typeof StructureType)[number]
 type ObjectiveInfo = {
   id: string
   position: Position
+  targets: Array<{
+    name: string
+    type: string
+    position: Position
+  }>
 }
 
 type StructureAssignment = {
   objectiveId: string
   type: StructureType
+  position: Position
+  name: string
+  buildings: z.infer<typeof schemas.structureBuilding>[]
 }
 
 export function assignStructures(objectives: ObjectiveInfo[]): StructureAssignment[] {
   // State tracking
-  const assignments = new Map<string, StructureType>() // objectiveId -> assignedType
+  const assignments = new Map<
+    string,
+    {
+      type: StructureType
+      position: Position
+      name: string
+      buildings: z.infer<typeof schemas.structureBuilding>[]
+    }
+  >() // objectiveId -> assignment info
   const coveredObjectives = new Map<StructureType, Set<string>>() // type -> Set<objectiveId>
 
   // Initialize coverage sets
@@ -72,7 +92,19 @@ export function assignStructures(objectives: ObjectiveInfo[]): StructureAssignme
 
       if (bestCandidate) {
         // Assign structure
-        assignments.set(bestCandidate.id, type)
+        const structureTargets = bestCandidate.targets.filter((t) => t.type === 'Structure')
+        const target =
+          structureTargets.length > 0
+            ? structureTargets[Math.floor(Math.random() * structureTargets.length)]
+            : bestCandidate.targets[0]
+
+        const position = target ? target.position : bestCandidate.position
+        const name = target ? target.name : `Structure ${type} @ ${bestCandidate.id}`
+
+        const templates = structureTemplates[type]
+        const template = templates[Math.floor(Math.random() * templates.length)]
+
+        assignments.set(bestCandidate.id, { type, position, name, buildings: template.buildings })
 
         // Update coverage
         // We need to find ALL objectives this new structure covers, not just the currently uncovered ones, to maintain accurate state if we were tracking partials,
@@ -94,8 +126,11 @@ export function assignStructures(objectives: ObjectiveInfo[]): StructureAssignme
   }
 
   // Convert assignments map to array
-  return Array.from(assignments.entries()).map(([objectiveId, type]) => ({
+  return Array.from(assignments.entries()).map(([objectiveId, info]) => ({
     objectiveId,
-    type
+    type: info.type,
+    position: info.position,
+    name: info.name,
+    buildings: info.buildings
   }))
 }

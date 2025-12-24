@@ -55,7 +55,12 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
 
       const targets = theatre.targets[obj.name] ?? []
       const hasSamTarget = targets.some((t) => t.type === 'SAM')
-      return { id: obj.name, position: obj.position, hasSamTarget }
+      return {
+        id: obj.name,
+        position: obj.position,
+        hasSamTarget,
+        targets: targets.map((t) => ({ name: t.name, type: t.type, position: t.position }))
+      }
     })
   }
 
@@ -67,7 +72,10 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
       return {
         id: crypto.randomUUID(),
         type: assignment.type,
-        objectiveId: assignment.objectiveId
+        objectiveId: assignment.objectiveId,
+        position: assignment.position,
+        name: assignment.name,
+        buildings: assignment.buildings
       }
     })
   }

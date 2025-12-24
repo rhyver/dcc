@@ -3,6 +3,7 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { rpcHandler } from './api'
+import { readFile, parseJson } from './utils'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -112,6 +113,37 @@ function createMenu() {
           label: 'Remove All Flight Groups',
           click: () => {
             mainWindow?.webContents.send('menu-remove-flight-groups')
+          }
+        },
+        {
+          label: 'Open Save File',
+          click: async () => {
+            const stateFile = join(app.getPath('userData'), 'state.json')
+            const fileResult = await readFile(stateFile)
+
+            if (fileResult.isErr()) {
+              return
+            }
+
+            const parsedState = parseJson(fileResult.value)
+
+            if (parsedState.isErr()) {
+              return
+            }
+
+            const state = parsedState.value as { activeCampaignId?: string }
+
+            if (!state.activeCampaignId) {
+              return
+            }
+
+            const campaignPath = join(
+              app.getPath('userData'),
+              'campaigns',
+              `${state.activeCampaignId}.json`
+            )
+
+            await shell.openPath(campaignPath)
           }
         }
       ]

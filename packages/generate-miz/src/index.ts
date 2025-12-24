@@ -4,6 +4,7 @@ import AdmZip from 'adm-zip'
 import { err, ok, Result } from 'neverthrow'
 import * as z from 'zod'
 
+import { addFlightGroups } from './add-flight-groups'
 import { addStructures } from './add-structures'
 import { dictionary, mapResource } from './l10n'
 import { options } from './options'
@@ -15,7 +16,7 @@ export function generateMizFromCampaign(
   path: string
 ): Result<void, Error> {
   // eslint-disable-next-line no-console
-  console.log('generate', campaign)
+  console.log('generating miz file')
 
   const mission: z.infer<typeof schemas.dcs.mission> = {
     version: 23,
@@ -162,6 +163,11 @@ export function generateMizFromCampaign(
   const structuresResult = addStructures(mission, campaign, theatre)
   if (structuresResult.isErr()) {
     return structuresResult
+  }
+
+  const flightGroupsResult = addFlightGroups(mission, campaign, theatre)
+  if (flightGroupsResult.isErr()) {
+    return flightGroupsResult
   }
 
   const missionLuaResult = luaTable.stringify(mission, { mixedKeyTypes: true })

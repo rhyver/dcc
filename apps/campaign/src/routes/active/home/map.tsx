@@ -34,16 +34,12 @@ const Marker = memo(function Marker({
   onClick: () => void
   isSelected: boolean
 }) {
-  const isSam = item.type === 'SAM'
-  const color = item.coalition === 'player' ? '#00d4ff' : '#ff4444'
-
   const symbol = useMemo(() => {
-    if (isSam) return null
     const symbol = new MilSymbol.Symbol(getMilSymbolCode(item), {
       size: 20
     })
     return symbol.asSVG()
-  }, [item, isSam])
+  }, [item])
 
   return (
     <MaplibreMarker
@@ -55,28 +51,13 @@ const Marker = memo(function Marker({
         onClick()
       }}
     >
-      {isSam ? (
-        <div
-          className={cn(
-            'flex h-6 w-6 items-center justify-center rounded-sm border-2 bg-black/80 transition-all',
-            isSelected && 'ring-2 ring-white scale-125'
-          )}
-          style={{ borderColor: color }}
-          title={item.name}
-        >
-          <svg viewBox="0 0 24 24" className="h-4 w-4" fill={color}>
-            <path d="M12 2L8 8H4L12 22L20 8H16L12 2Z" />
-          </svg>
-        </div>
-      ) : (
-        <div
-          className={cn(
-            'transition-all',
-            isSelected && 'ring-2 ring-white rounded-full drop-shadow-md scale-110'
-          )}
-          dangerouslySetInnerHTML={{ __html: symbol! }}
-        />
-      )}
+      <div
+        className={cn(
+          'transition-all',
+          isSelected && 'ring-2 ring-white rounded-full drop-shadow-md scale-110'
+        )}
+        dangerouslySetInnerHTML={{ __html: symbol }}
+      />
     </MaplibreMarker>
   )
 })
@@ -162,10 +143,7 @@ const FlightPlanOverlay = memo(function FlightPlanOverlay({
   }, [map, flightplan, theatreName])
 
   return (
-    <svg
-      className="absolute inset-0 w-full h-full pointer-events-none"
-      style={{ zIndex: 1000 }}
-    >
+    <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1000 }}>
       <path
         d={path}
         stroke="var(--synthwave-pink)"

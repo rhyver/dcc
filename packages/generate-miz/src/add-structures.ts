@@ -1,5 +1,5 @@
 import { schemas } from '@dcc/contracts'
-import { buildings, structures } from '@dcc/data'
+import { buildings } from '@dcc/data'
 import { err, ok, Result } from 'neverthrow'
 import * as z from 'zod'
 
@@ -18,7 +18,12 @@ export function addStructures(
 
     const coalitionStructures = value.structures
 
-    if (!coalitionStructures || coalitionStructures.length === 0) return ok()
+    if (!coalitionStructures || coalitionStructures.length === 0) continue
+
+    // eslint-disable-next-line no-console
+    console.log(
+      `Adding ${coalitionStructures.length} structures for coalition ${missionCoalitionKey} (${key})`
+    )
 
     const countryList = mission.coalition[missionCoalitionKey].country
 
@@ -33,42 +38,41 @@ export function addStructures(
     }
 
     coalitionStructures.forEach((struct) => {
-      const structureDefArray = structures[struct.type as keyof typeof structures]
-      if (!structureDefArray || structureDefArray.length === 0) return
-
-      const structureDef = structureDefArray[0]
-      if (!structureDef) return
-
       const objective = theatre.objectives.find((o) => o.name === struct.objectiveId)
       if (!objective) return
 
       const groupId = nextId()
       const groupName = `Static ${struct.type}-${groupId}`
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const groupUnits: { x: number; y: number; [key: string]: any }[] = []
+      const groupUnits: { x: number; y: number; [key: string]: unknown }[] = []
 
-      const structureBuilding = structureDef.buildings[0]
-      if (!structureBuilding) return
-      const buildingInfo = buildings[structureBuilding.type]
-      if (!buildingInfo) return
-      if (!buildingInfo) return
+      const basePos = struct.position ?? objective.position
 
-      const unitId = nextId()
-      const posX = objective.position.x + structureBuilding.offset.x
-      const posY = objective.position.y + structureBuilding.offset.y
+      struct.buildings.forEach((building, index) => {
+        const buildingInfo = buildings[building.type]
+        if (!buildingInfo) return
 
-      groupUnits.push({
-        category: buildingInfo.category,
-        shape_name: buildingInfo.shapeName,
-        type: buildingInfo.type,
-        unitId: unitId,
-        rate: 100,
-        y: posY,
-        x: posX,
-        name: `${groupName}-${1}`,
-        heading: 0
+        const unitId = nextId()
+        const posX = basePos.x + building.offset.x
+        const posY = basePos.y + building.offset.y
+
+        groupUnits.push({
+          category: buildingInfo.category,
+          shape_name: buildingInfo.shapeName,
+          type: buildingInfo.type,
+          unitId: unitId,
+          rate: 100,
+          y: posY,
+          x: posX,
+          name: `${groupName}-${index + 1}`,
+          heading: 0
+        })
       })
+
+      if (groupUnits.length === 0) return
+
+      const firstUnit = groupUnits[0]
+      if (!firstUnit) return
 
       country.static?.group.push({
         heading: 0,
@@ -76,11 +80,11 @@ export function addStructures(
           points: [
             {
               alt: 0,
-              name: `${groupName}-${1}`,
+              name: firstUnit.name as string,
               type: '',
-              y: posY,
+              y: firstUnit.y,
               speed: 0,
-              x: posX,
+              x: firstUnit.x,
               formation_template: '',
               action: ''
             }
@@ -89,8 +93,8 @@ export function addStructures(
         groupId: groupId,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
         units: groupUnits as any,
-        y: posY,
-        x: posX,
+        y: firstUnit.y,
+        x: firstUnit.x,
         name: groupName,
         dead: false
       })

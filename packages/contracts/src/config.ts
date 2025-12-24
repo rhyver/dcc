@@ -10,12 +10,12 @@ export const config = {
     }
   },
   structureRanges: {
-    power: 50_000,
-    ammo: 50_000,
-    fuel: 50_000,
-    hospital: 50_000,
-    barrack: 50_000,
-    depot: 60_000,
-    farp: 50_000
+    'Power Plant': 50_000,
+    'Ammo Depot': 50_000,
+    'Fuel Storage': 50_000,
+    Hospital: 50_000,
+    Barrack: 50_000,
+    Depot: 60_000,
+    Farp: 50_000
   }
 }

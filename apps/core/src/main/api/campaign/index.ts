@@ -9,7 +9,8 @@ import {
   readFile,
   writeFile,
   readDirectory,
-  ensureDirectory
+  ensureDirectory,
+  deleteFile
 } from '../../utils'
 import { createCampaign } from './create-campaign'
 import { generateMizFromCampaign } from '@dcc/generate-miz'
@@ -165,6 +166,19 @@ const openCampaign = pub.campaign.openCampaign.handler(async ({ errors, input })
   return schemaParsedState.value
 })
 
+const deleteCampaign = pub.campaign.deleteCampaign.handler(async ({ errors, input }) => {
+  const campaignPath = getCampaignPath(input.id)
+  const result = await deleteFile(campaignPath)
+  if (result.isErr()) {
+    if (result.error instanceof NotFoundError) {
+      return
+    }
+    throw errors.FAILED_TO_DELETE_FILE({
+      data: { path: campaignPath, message: result.error.message }
+    })
+  }
+})
+
 export const generateMiz = pub.campaign.generateMiz.handler(async ({ input, errors }) => {
   const mizPath = path.join(app.getPath('downloads'), 'dcc_mission.miz')
   const scenarios = getScenarios()
@@ -189,5 +203,6 @@ export const campaign = {
   saveActiveCampaign,
   generateMiz,
   listCampaigns,
-  openCampaign
+  openCampaign,
+  deleteCampaign
 }

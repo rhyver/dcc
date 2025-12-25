@@ -61,6 +61,19 @@ export function readDirectory(path: string) {
   })
 }
 
+export function deleteFile(path: string) {
+  return ResultAsync.fromPromise(fs.unlink(path), (error) => {
+    if (error instanceof Error) {
+      const nodeError = error as NodeJS.ErrnoException
+      if (nodeError.code === 'ENOENT') {
+        return new NotFoundError(`File not found: ${path}`)
+      }
+      return error
+    }
+    return new Error('Unknown error deleting file')
+  })
+}
+
 export function parseJson(value: string) {
   const p = Result.fromThrowable(superjson.parse, (error) => {
     if (error instanceof Error) {

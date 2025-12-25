@@ -28,11 +28,14 @@ export function generateMizFromCampaign(
     sortie: 'DictKey_sortie_5',
     currentKey: 137,
     maxDictId: 5,
-    start_time: 28800,
+    start_time:
+      campaign.time.getHours() * 3600 +
+      campaign.time.getMinutes() * 60 +
+      campaign.time.getSeconds(),
     date: {
-      Day: 21,
-      Year: 2016,
-      Month: 6
+      Day: campaign.time.getDate(),
+      Year: campaign.time.getFullYear(),
+      Month: campaign.time.getMonth() + 1
     },
     map: {
       centerY: 635439.49844296,

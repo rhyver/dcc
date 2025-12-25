@@ -312,7 +312,7 @@ export function Map({
         ))}
       </MaplibreMap>
       {selectedItem && (
-        <div className="absolute top-4 right-4 w-80 z-10">
+        <div className="absolute top-4 right-4 w-80 z-[1100]">
           <Card className="backdrop-blur-md bg-synthwave-dark/80 border-synthwave-pink/30 text-synthwave-light shadow-[0_0_15px_rgba(255,0,170,0.3)]">
             <CardHeader>
               <CardTitle className="text-synthwave-cyan retro-font">

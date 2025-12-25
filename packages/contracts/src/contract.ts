@@ -106,13 +106,29 @@ const openCampaign = base
   })
   .output(campaignSchemas.campaign)
 
+const deleteCampaign = base
+  .route({
+    summary: 'Delete a specific campaign',
+    tags: ['Campaign', 'Delete']
+  })
+  .input(z.object({ id: z.string() }))
+  .errors({
+    FAILED_TO_DELETE_FILE: {
+      data: z.object({
+        path: z.string(),
+        message: z.string()
+      })
+    }
+  })
+
 export const campaign = {
   getActiveCampaign,
   createCampaign,
   saveActiveCampaign,
   generateMiz,
   listCampaigns,
-  openCampaign
+  openCampaign,
+  deleteCampaign
 }
 
 const getScenario = base

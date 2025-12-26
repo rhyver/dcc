@@ -52,9 +52,9 @@ export class StrikeFlightGroup extends FlightGroup {
     const targetWaypoint: z.infer<typeof schemas.waypoint> = {
       name: 'Target',
       position: params.targetPosition,
-      altitude: 4000,
       speed: 275,
-      type: 'Task'
+      type: 'Task',
+      altitude: 0
     }
 
     const egressWaypoint: z.infer<typeof schemas.waypoint> = {

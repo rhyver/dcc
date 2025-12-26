@@ -29,13 +29,13 @@ export function generateMizFromCampaign(
     currentKey: 137,
     maxDictId: 5,
     start_time:
-      campaign.time.getHours() * 3600 +
-      campaign.time.getMinutes() * 60 +
-      campaign.time.getSeconds(),
+      campaign.time.getUTCHours() * 3600 +
+      campaign.time.getUTCMinutes() * 60 +
+      campaign.time.getUTCSeconds(),
     date: {
-      Day: campaign.time.getDate(),
-      Year: campaign.time.getFullYear(),
-      Month: campaign.time.getMonth() + 1
+      Day: campaign.time.getUTCDate(),
+      Year: campaign.time.getUTCFullYear(),
+      Month: campaign.time.getUTCMonth() + 1
     },
     map: {
       centerY: 635439.49844296,
@@ -165,10 +165,11 @@ export function generateMizFromCampaign(
 
   const structuresResult = addStructures(mission, campaign, theatre)
   if (structuresResult.isErr()) {
-    return structuresResult
+    return err(structuresResult.error)
   }
+  const structureUnitMap = structuresResult.value
 
-  const flightGroupsResult = addFlightGroups(mission, campaign, theatre)
+  const flightGroupsResult = addFlightGroups(mission, campaign, theatre, structureUnitMap)
   if (flightGroupsResult.isErr()) {
     return flightGroupsResult
   }

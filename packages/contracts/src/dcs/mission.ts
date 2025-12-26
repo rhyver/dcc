@@ -102,6 +102,27 @@ const failure = z.object({
   mm: z.number()
 })
 
+export const task = z.object({
+  number: z.number(),
+  auto: z.boolean().optional(),
+  id: z.string(),
+  enabled: z.boolean(),
+  name: z.string().optional(),
+  params: z
+    .object({
+      action: z
+        .object({
+          id: z.string(),
+          params: z.record(z.string(), z.any()).optional()
+        })
+        .loose()
+        .optional(),
+      tasks: z.array(z.unknown()).optional()
+    })
+    .loose()
+    .optional()
+})
+
 // Static route point schema
 const staticRoutePoint = z
   .object({
@@ -135,7 +156,7 @@ const vehicleRoutePoint = z
   .loose()
 
 // Aircraft route point schema
-const aircraftRoutePoint = z
+export const aircraftRoutePoint = z
   .object({
     alt: z.number(),
     alt_type: z.string(),
@@ -150,7 +171,8 @@ const aircraftRoutePoint = z
     speed_locked: z.boolean(),
     formation_template: z.string().optional(),
     airdromeId: z.number().optional(),
-    properties: z.any().optional()
+    properties: z.any().optional(),
+    name: z.string().optional()
   })
   .loose()
 
@@ -224,7 +246,7 @@ const vehicleGroup = z
     hidden: z.boolean().optional(),
     visible: z.boolean().optional(),
     task: z.string().optional(),
-    tasks: z.any().optional(),
+    tasks: z.array(task).optional(),
     uncontrollable: z.boolean().optional(),
     start_time: z.number().optional(),
     route: z
@@ -237,7 +259,7 @@ const vehicleGroup = z
   .loose()
 
 // Aircraft (plane/helicopter) unit schema
-const aircraftUnit = z
+export const aircraftUnit = z
   .object({
     unitId: z.number(),
     name: z.string(),
@@ -272,8 +294,8 @@ const aircraftGroup = z
     y: z.number(),
     hidden: z.boolean().optional(),
     task: z.string().optional(),
-    tasks: z.any().optional(),
-    modulation: z.number().optional(),
+    tasks: z.array(task).optional(),
+    modulation: z.number().or(z.boolean()).optional(),
     uncontrollable: z.boolean().optional(),
     uncontrolled: z.boolean().optional(),
     start_time: z.number().optional(),

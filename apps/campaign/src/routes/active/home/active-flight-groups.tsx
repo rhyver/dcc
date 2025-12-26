@@ -14,7 +14,12 @@ interface ActiveFlightGroupsProps {
 
 function formatTime(date: Date | string) {
   const d = new Date(date)
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  return new Intl.DateTimeFormat('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'UTC'
+  }).format(d)
 }
 
 export function ActiveFlightGroups({ selectedItem, onSelect }: ActiveFlightGroupsProps) {

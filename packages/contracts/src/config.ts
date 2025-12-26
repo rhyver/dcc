@@ -2,8 +2,8 @@ export const config = {
   packages: {
     'Pinpoint Strike': {
       maxActive: {
-        player: 4,
-        opponent: 3
+        player: 2,
+        opponent: 2
       },
       maxDistance: 300_000,
       aircraftsPerGroup: 2

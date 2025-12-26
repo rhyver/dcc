@@ -14,12 +14,24 @@ Object.values(aircrafts).forEach((def) => {
 export function addFlightGroups(
   mission: z.infer<typeof schemas.dcs.mission>,
   campaign: z.infer<typeof schemas.campaign.campaign>,
-  theatre: z.infer<typeof schemas.theatre>
+  theatre: z.infer<typeof schemas.theatre>,
+  _structureUnitMap: Map<string, number[]>
 ): Result<void, Error> {
   const nextId = () => {
     mission.currentKey += 1
     return mission.currentKey
   }
+
+  const structureMap = new Map<
+    string,
+    (typeof campaign)['coalitions']['player']['structures'][number]
+  >()
+
+  Object.values(campaign.coalitions).forEach((coalition) => {
+    coalition.structures.forEach((structure) => {
+      structureMap.set(structure.id, structure)
+    })
+  })
 
   const usedParkingSlots = new Map<string, Set<string>>() // Airdrome Name -> Set of Slot IDs
 
@@ -87,49 +99,6 @@ export function addFlightGroups(
         })
       }
 
-      // Calculate start time in seconds from midnight
-      // Campaign time is likely irrelevant if we assume flight plan starts relative to mission start?
-      // Or we should use the campaign time.
-      // For now, let's assume flight plan start time is correct.
-      // We need to convert date to seconds of day.
-      const startTime =
-        fg.flightplan.startTime.getHours() * 3600 +
-        fg.flightplan.startTime.getMinutes() * 60 +
-        fg.flightplan.startTime.getSeconds()
-
-      const routePoints = fg.flightplan.waypoints.map((wp, index) => {
-        let action = 'Turning Point'
-        let type = 'Turning Point'
-
-        if (wp.type === 'TakeOff') {
-          action = 'From Parking Area'
-          type = 'TakeOffParking'
-        } else if (wp.type === 'Landing') {
-          action = 'Landing'
-          type = 'Land'
-        }
-
-        return {
-          alt: wp.altitude,
-          action,
-          alt_type: 'BARO', // Default to BARO
-          speed: wp.speed,
-          task: {
-            id: 'ComboTask',
-            params: {
-              tasks: []
-            }
-          },
-          type,
-          x: wp.position.x,
-          y: wp.position.y,
-          ETA: 0, // Should calculate?
-          ETA_locked: index === 0, // First waypoint must have locked time
-          speed_locked: true,
-          formation_template: ''
-        }
-      })
-
       // Get airdrome details if available
       const airdromeName = fg.homeBase
       const airdrome = theatre.airdromeDetails[airdromeName]
@@ -141,12 +110,11 @@ export function addFlightGroups(
       const airdromeUsedSlots = usedParkingSlots.get(airdromeName)
 
       // Add units
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const units: any[] = fg.aircrafts.map((ac, index) => {
+      const units: z.infer<typeof schemas.dcs.aircraftUnit>[] = fg.aircrafts.map((ac, index) => {
         const unitId = nextId()
 
         let parking = '1'
-        let parking_id = null
+        let parking_id = undefined
         let x = fg.position.x + index * 50
         let y = fg.position.y + index * 50
 
@@ -165,8 +133,8 @@ export function addFlightGroups(
           })
 
           if (slot) {
-            parking = slot.id
-            parking_id = null
+            parking = slot.crossroad_index.toString()
+            parking_id = slot.id
             x = slot.x
             y = slot.y
             airdromeUsedSlots.add(slot.id)
@@ -210,20 +178,126 @@ export function addFlightGroups(
         }
       })
 
+      // Calculate start time in seconds from midnight
+      // Campaign time is likely irrelevant if we assume flight plan starts relative to mission start?
+      // Or we should use the campaign time.
+      // For now, let's assume flight plan start time is correct.
+      // We need to convert date to seconds of day.
+      const startTime =
+        fg.flightplan.startTime.getUTCHours() * 3600 +
+        fg.flightplan.startTime.getUTCMinutes() * 60 +
+        fg.flightplan.startTime.getUTCSeconds()
+
+      const missionStartTime = mission.start_time
+
+      const startDelay = startTime - missionStartTime
+
+      let currentEta = startDelay + 10 * 60 // 10 minutes for startup
+      let lastWp: { x: number; y: number; speed: number } | undefined
+
+      const routePoints: z.infer<typeof schemas.dcs.aircraftRoutePoint>[] =
+        fg.flightplan.waypoints.map((wp, index) => {
+          let action = 'Turning Point'
+          let type = 'Turning Point'
+
+          if (wp.type === 'TakeOff') {
+            action = 'From Parking Area'
+            type = 'TakeOffParking'
+          } else if (wp.type === 'Landing') {
+            action = 'Landing'
+            type = 'Land'
+          }
+
+          let x = wp.position.x
+          let y = wp.position.y
+
+          if (type === 'TakeOffParking' && index === 0 && units[0]) {
+            x = units[0].x
+            y = units[0].y
+          }
+
+          // Calculate ETA
+          let eta = currentEta
+          if (lastWp) {
+            const dist = Math.hypot(x - lastWp.x, y - lastWp.y)
+            if (lastWp.speed > 0) {
+              eta += dist / lastWp.speed
+            }
+          }
+          currentEta = eta
+          lastWp = { x: x, y: y, speed: wp.speed }
+
+          const tasks: z.infer<typeof schemas.dcs.task>[] = []
+
+          if (wp.name === 'IP' && fg.target) {
+            const targetStructure = structureMap.get(fg.target.id)
+
+            if (targetStructure) {
+              targetStructure.buildings.forEach((building) => {
+                tasks.push({
+                  enabled: true,
+                  auto: false,
+                  id: 'Bombing',
+                  number: tasks.length + 1,
+                  params: {
+                    direction: 0,
+                    attackQtyLimit: false,
+                    attackQty: 1,
+                    expend: 'Auto',
+                    y: targetStructure.position.y + building.offset.y,
+                    directionEnabled: false,
+                    groupAttack: false,
+                    altitude: 6000,
+                    altitudeEnabled: false,
+                    weaponType: 4030478,
+                    x: targetStructure.position.x + building.offset.x
+                  }
+                })
+              })
+            }
+          }
+
+          const routePoint: z.infer<typeof schemas.dcs.aircraftRoutePoint> = {
+            alt: wp.altitude,
+            action,
+            alt_type: 'BARO', // Default to BARO
+            speed: wp.speed,
+            task: {
+              id: 'ComboTask',
+              params: {
+                tasks: tasks
+              }
+            },
+            type,
+            x: x,
+            y: y,
+            ETA: eta,
+            ETA_locked: index === 0, // First waypoint must have locked time,
+            speed_locked: true,
+            formation_template: '',
+            name: wp.name
+          }
+
+          if (type === 'TakeOffParking' && airdrome?.id) {
+            routePoint.airdromeId = airdrome.id
+          }
+
+          return routePoint
+        })
+
       const group = {
         groupId: groupId,
         name: groupName, // Group Name
-        start_time: startTime,
+        start_time: startDelay,
         task: fg.task,
         uncontrollable: false,
         units: units,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
         x: units[0]?.x ?? fg.position.x,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
         y: units[0]?.y ?? fg.position.y,
         route: {
           points: routePoints
         },
+        modulation: false,
         hidden: false,
         communication: true,
         frequency: 124.0

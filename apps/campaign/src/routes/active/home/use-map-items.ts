@@ -23,6 +23,7 @@ export function useMapItems(): {
   mapItems: z.infer<typeof schemas.MapItem>[]
   objectiveMarkers: ObjectiveMarker[]
   frontline: GeoJSON.FeatureCollection<GeoJSON.LineString> | null
+  flightGroups: z.infer<typeof schemas.flightGroup>[]
 } {
   const playerCoalition = useSelector(activeStore, (state) => state.context.coalitions.player)
   const opponentCoalition = useSelector(activeStore, (state) => state.context.coalitions.opponent)
@@ -46,7 +47,8 @@ export function useMapItems(): {
       return {
         mapItems: [],
         objectiveMarkers: [],
-        frontline: null
+        frontline: null,
+        flightGroups: []
       }
     }
     const mapItems: z.infer<typeof schemas.MapItem>[] = []
@@ -358,10 +360,16 @@ export function useMapItems(): {
       }
     }
 
+    const allFlightGroups = [
+      ...(playerCoalition.flightGroups ?? []),
+      ...(opponentCoalition.flightGroups ?? [])
+    ]
+
     return {
       mapItems,
       objectiveMarkers,
-      frontline
+      frontline,
+      flightGroups: allFlightGroups
     }
   }, [playerCoalition, opponentCoalition, theatre, campaignTime])
 }

@@ -113,6 +113,24 @@ export const activeStore = createStore({
       produce(context, (draft) => {
         draft.coalitions.player.flightGroups = []
         draft.coalitions.opponent.flightGroups = []
+      }),
+
+    setFlightGroupClientCount: (
+      context,
+      { flightGroupId, count }: { flightGroupId: string; count: number }
+    ) =>
+      produce(context, (draft) => {
+        const coalitions = [draft.coalitions.player, draft.coalitions.opponent]
+
+        for (const coalition of coalitions) {
+          const group = coalition.flightGroups.find((g) => g.id === flightGroupId)
+          if (group) {
+            group.aircrafts.forEach((aircraft, index) => {
+              aircraft.client = index < count
+            })
+            break
+          }
+        }
       })
   }
 })

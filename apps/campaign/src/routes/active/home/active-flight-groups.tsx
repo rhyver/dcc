@@ -1,4 +1,4 @@
-import { Plane, Clock, Crosshair } from 'lucide-react'
+import { Plane, Clock, Crosshair, User } from 'lucide-react'
 import { useSelector } from '@xstate/store/react'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -78,9 +78,13 @@ export function ActiveFlightGroups({ selectedItem, onSelect }: ActiveFlightGroup
                       <span className="text-xs font-medium text-secondary">
                         {group.aircrafts[0]?.aircraftName || 'Unknown'}
                       </span>
-                      <span className="text-[10px] text-secondary/60">
-                        {group.aircrafts.length} Aircraft
-                      </span>
+                      <div className="flex items-center gap-2 text-[10px] text-secondary/60">
+                        <span>{group.aircrafts.length} Aircraft</span>
+                        <div className="flex items-center gap-1" title="Client slots">
+                          <User className="h-3 w-3" />
+                          <span>{group.aircrafts.filter((a) => a.client).length}</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )

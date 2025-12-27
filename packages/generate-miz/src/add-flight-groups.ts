@@ -269,7 +269,7 @@ export function addFlightGroups(
             gun: 100
           },
           livery_id: 'default',
-          skill: 'High',
+          skill: ac.client ? 'Client' : 'High',
           speed: speed,
           type: aircraftDef.name,
           unitId: unitId,

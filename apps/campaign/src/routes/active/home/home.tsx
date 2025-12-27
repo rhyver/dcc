@@ -25,6 +25,9 @@ export function Home() {
   const [isBriefingOpen, setIsBriefingOpen] = React.useState(false)
   const [selectedItem, setSelectedItem] = React.useState<SelectedItem>(null)
   const timeMultiplier = useSelector(activeStore, (state) => state.context.timeMultiplier)
+  const hasClient = useSelector(activeStore, (state) =>
+    state.context.coalitions.player.flightGroups.some((fg) => fg.aircrafts.some((ac) => ac.client))
+  )
   const timerState = timeMultiplier === 0 ? 'pause' : timeMultiplier === 1 ? 'play' : 'fast-forward'
 
   return (
@@ -148,6 +151,7 @@ export function Home() {
                 size="sm"
                 className="h-8 bg-synthwave-pink hover:bg-synthwave-pink/80 text-white border-none shadow-[0_0_10px_rgba(255,0,170,0.5)]"
                 onClick={() => coreClient.campaign.generateMiz(activeStore.getSnapshot().context)}
+                disabled={!hasClient}
               >
                 Takeoff
               </Button>

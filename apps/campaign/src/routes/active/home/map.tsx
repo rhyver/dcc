@@ -13,17 +13,8 @@ import MilSymbol from 'milsymbol'
 import * as turf from '@turf/turf'
 import { getMilSymbolCode } from './unit-code'
 import { type ObjectiveMarker as ObjectiveMarkerType, useMapItems } from './use-map-items'
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardAction
-} from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { DetailsCard } from './details-card'
 
 const Marker = memo(function Marker({
   item,
@@ -54,7 +45,7 @@ const Marker = memo(function Marker({
       <div
         className={cn(
           'transition-all',
-          isSelected && 'ring-2 ring-white rounded-full drop-shadow-md scale-110'
+          isSelected && 'ring-2 ring-synthwave-pink rounded-full drop-shadow-md scale-110'
         )}
         dangerouslySetInnerHTML={{ __html: symbol }}
       />
@@ -190,7 +181,15 @@ export function Map({
       zoom: 7
     }
   }, [theatreQuery.data])
-  const { mapItems, objectiveMarkers, frontline } = useMapItems()
+  const { mapItems, objectiveMarkers, frontline, flightGroups } = useMapItems()
+
+  const liveSelectedItem = useMemo(() => {
+    if (!selectedItem) return null
+    if ('flightplan' in selectedItem) {
+      return flightGroups.find((fg) => fg.id === selectedItem.id) ?? selectedItem
+    }
+    return selectedItem
+  }, [selectedItem, flightGroups])
 
   // Generate GeoJSON for SAM range circles
   const samRangeGeoJson = useMemo(() => {
@@ -226,9 +225,9 @@ export function Map({
         initialViewState={initialViewState}
         mapStyle="https://api.maptiler.com/maps/openstreetmap/style.json?key=dMqlZfgU5XToBXt4BGnm"
       >
-        {selectedItem && 'flightplan' in selectedItem && theatreQuery.data && (
+        {liveSelectedItem && 'flightplan' in liveSelectedItem && theatreQuery.data && (
           <FlightPlanOverlay
-            flightplan={selectedItem.flightplan}
+            flightplan={liveSelectedItem.flightplan}
             theatreName={theatreQuery.data.name}
           />
         )}
@@ -299,7 +298,7 @@ export function Map({
             key={item.id}
             item={item}
             onClick={() => onSelect(item)}
-            isSelected={selectedItem?.id === item.id}
+            isSelected={liveSelectedItem?.id === item.id}
           />
         ))}
         {objectiveMarkers.map((marker) => (
@@ -307,82 +306,11 @@ export function Map({
             key={marker.id}
             marker={marker}
             onClick={() => onSelect(marker)}
-            isSelected={selectedItem?.id === marker.id}
+            isSelected={liveSelectedItem?.id === marker.id}
           />
         ))}
       </MaplibreMap>
-      {selectedItem && (
-        <div className="absolute top-4 right-4 w-80 z-[1100]">
-          <Card className="backdrop-blur-md bg-synthwave-dark/80 border-synthwave-pink/30 text-synthwave-light shadow-[0_0_15px_rgba(255,0,170,0.3)]">
-            <CardHeader>
-              <CardTitle className="text-synthwave-cyan retro-font">
-                {'callsign' in selectedItem ? selectedItem.callsign : selectedItem.name}
-              </CardTitle>
-              <CardDescription className="capitalize text-secondary">
-                {'coalition' in selectedItem ? selectedItem.coalition : 'player'}{' '}
-                {'type' in selectedItem
-                  ? selectedItem.type
-                  : 'callsign' in selectedItem
-                    ? 'Flight Group'
-                    : 'Objective'}
-              </CardDescription>
-              <CardAction>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => onSelect(null)}
-                  className="text-synthwave-pink hover:bg-synthwave-pink/20 hover:text-synthwave-pink"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </CardAction>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                {'lat' in selectedItem.position ? (
-                  <>
-                    <div className="text-secondary/70">Latitude</div>
-                    <div>{selectedItem.position.lat.toFixed(4)}</div>
-                    <div className="text-secondary/70">Longitude</div>
-                    <div>{selectedItem.position.lng.toFixed(4)}</div>
-                  </>
-                ) : (
-                  <>
-                    <div className="text-secondary/70">Position X</div>
-                    <div>{selectedItem.position.x.toFixed(0)}</div>
-                    <div className="text-secondary/70">Position Y</div>
-                    <div>{selectedItem.position.y.toFixed(0)}</div>
-                  </>
-                )}
-                {'structureType' in selectedItem && (
-                  <>
-                    <div className="text-secondary/70">Structure Type</div>
-                    <div>{selectedItem.structureType}</div>
-                  </>
-                )}
-                {'flightplan' in selectedItem && (
-                  <>
-                    <div className="text-secondary/70">Task</div>
-                    <div>{selectedItem.task}</div>
-                    <div className="text-secondary/70">Waypoints</div>
-                    <div>{selectedItem.flightplan.waypoints.length}</div>
-                  </>
-                )}
-                {'range' in selectedItem && (
-                  <>
-                    <div className="text-secondary/70">Range</div>
-                    <div>{(selectedItem.range / 1000).toFixed(1)} km</div>
-                    <div className="text-secondary/70">Status</div>
-                    <div className={selectedItem.active ? 'text-green-400' : 'text-red-400'}>
-                      {selectedItem.active ? 'Active' : 'Inactive'}
-                    </div>
-                  </>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      <DetailsCard selectedItem={liveSelectedItem} onClose={() => onSelect(null)} />
     </div>
   )
 }

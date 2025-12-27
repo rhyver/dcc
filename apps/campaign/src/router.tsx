@@ -4,6 +4,7 @@ import { ActiveLayout } from './routes/active/layout'
 import { coreClient } from './lib/orpc'
 import { New } from './routes/new'
 import { Load } from './routes/load'
+import { Settings } from './routes/settings'
 import { activeStore } from './stores/active'
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router'
@@ -67,6 +68,10 @@ export const router = createHashRouter([
       {
         path: '/load',
         Component: Load
+      },
+      {
+        path: '/settings',
+        Component: Settings
       }
     ]
   }

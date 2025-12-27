@@ -160,6 +160,9 @@ export function generateMizFromCampaign(
       conditions: {},
       customStartup: {},
       funcStartup: {}
+    },
+    triggers: {
+      zones: []
     }
   }
 
@@ -167,9 +170,8 @@ export function generateMizFromCampaign(
   if (structuresResult.isErr()) {
     return err(structuresResult.error)
   }
-  const structureUnitMap = structuresResult.value
 
-  const flightGroupsResult = addFlightGroups(mission, campaign, theatre, structureUnitMap)
+  const flightGroupsResult = addFlightGroups(mission, campaign, theatre)
   if (flightGroupsResult.isErr()) {
     return flightGroupsResult
   }

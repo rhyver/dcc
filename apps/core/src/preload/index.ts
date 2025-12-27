@@ -22,7 +22,8 @@ const api = {
   onMenuRemoveFlightGroups: (callback: () => void) => {
     ipcRenderer.on('menu-remove-flight-groups', callback)
     return () => ipcRenderer.removeListener('menu-remove-flight-groups', callback)
-  }
+  },
+  selectDirectory: () => ipcRenderer.invoke('dialog:openDirectory')
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

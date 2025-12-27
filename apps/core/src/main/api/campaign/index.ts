@@ -22,28 +22,44 @@ const campaignsDir = path.join(app.getPath('userData'), 'campaigns')
 console.log('stateFile', stateFile)
 console.log('campaignsDir', campaignsDir)
 
-// State file structure: { activeCampaignId: string | null }
-async function getActiveCampaignId() {
+// State file structure: { activeCampaignId: string | null, settings?: { missionExportPath?: string } }
+async function getState() {
   const file = await readFile(stateFile)
   if (file.isErr()) {
     if (file.error instanceof NotFoundError) {
-      return null
+      return {}
     }
     throw new Error((file.error as Error).message)
   }
   const parsedState = parseJson(file.value)
   if (parsedState.isErr()) {
-    return null
+    return {}
   }
-  const state = parsedState.value as { activeCampaignId?: string }
+  return parsedState.value as {
+    activeCampaignId?: string
+    settings?: { missionExportPath?: string }
+  }
+}
+
+async function saveState(state: {
+  activeCampaignId?: string
+  settings?: { missionExportPath?: string }
+}) {
+  const current = await getState()
+  const result = await writeFile(stateFile, { ...current, ...state })
+  if (result.isErr()) {
+    throw new Error(result.error.message)
+  }
+}
+
+async function getActiveCampaignId() {
+  const state = await getState()
   return state.activeCampaignId ?? null
 }
 
 async function setActiveCampaignId(id: string | null) {
-  const result = await writeFile(stateFile, { activeCampaignId: id })
-  if (result.isErr()) {
-    throw new Error(result.error.message)
-  }
+  const state = await getState()
+  await saveState({ ...state, activeCampaignId: id ?? undefined })
 }
 
 function getCampaignPath(id: string) {
@@ -174,13 +190,25 @@ const deleteCampaign = pub.campaign.deleteCampaign.handler(async ({ errors, inpu
       return
     }
     throw errors.FAILED_TO_DELETE_FILE({
-      data: { path: campaignPath, message: result.error.message }
+      data: { path: campaignPath, message: (result.error as Error).message }
     })
   }
 })
 
+const getSettings = pub.campaign.getSettings.handler(async () => {
+  const state = await getState()
+  return state.settings ?? {}
+})
+
+const saveSettings = pub.campaign.saveSettings.handler(async ({ input }) => {
+  const state = await getState()
+  await saveState({ ...state, settings: input })
+})
+
 export const generateMiz = pub.campaign.generateMiz.handler(async ({ input, errors }) => {
-  const mizPath = path.join(app.getPath('downloads'), 'dcc_mission.miz')
+  const state = await getState()
+  const downloadPath = state.settings?.missionExportPath ?? app.getPath('downloads')
+  const mizPath = path.join(downloadPath, 'dcc_mission.miz')
   const scenarios = getScenarios()
   const scenario = scenarios.find((s) => s.id === input.scenarioId)
   if (scenario == null) {
@@ -204,5 +232,7 @@ export const campaign = {
   generateMiz,
   listCampaigns,
   openCampaign,
-  deleteCampaign
+  deleteCampaign,
+  getSettings,
+  saveSettings
 }

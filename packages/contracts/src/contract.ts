@@ -121,6 +121,28 @@ const deleteCampaign = base
     }
   })
 
+const getSettings = base
+  .route({
+    summary: 'Get application settings',
+    tags: ['Campaign', 'Settings']
+  })
+  .output(campaignSchemas.settings)
+
+const saveSettings = base
+  .route({
+    summary: 'Save application settings',
+    tags: ['Campaign', 'Settings']
+  })
+  .input(campaignSchemas.settings)
+  .errors({
+    FAILED_TO_WRITE_FILE: {
+      data: z.object({
+        path: z.string(),
+        message: z.string()
+      })
+    }
+  })
+
 export const campaign = {
   getActiveCampaign,
   createCampaign,
@@ -128,7 +150,9 @@ export const campaign = {
   generateMiz,
   listCampaigns,
   openCampaign,
-  deleteCampaign
+  deleteCampaign,
+  getSettings,
+  saveSettings
 }
 
 const getScenario = base

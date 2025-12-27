@@ -6,6 +6,7 @@ interface API {
   onMenuOpenCampaign: (callback: () => void) => () => void
   onMenuReturnToMenu: (callback: () => void) => () => void
   onMenuRemoveFlightGroups: (callback: () => void) => () => void
+  selectDirectory: () => Promise<string | null>
 }
 
 declare global {

@@ -7,13 +7,11 @@ export function addStructures(
   mission: z.infer<typeof schemas.dcs.mission>,
   campaign: z.infer<typeof schemas.campaign.campaign>,
   theatre: z.infer<typeof schemas.theatre>
-): Result<Map<string, number[]>, Error> {
+): Result<void, Error> {
   const nextId = () => {
     mission.currentKey += 1
     return mission.currentKey
   }
-
-  const structureUnitMap = new Map<string, number[]>()
 
   for (const [key, value] of Object.entries(campaign.coalitions)) {
     const missionCoalitionKey = key === 'player' ? 'blue' : key === 'opponent' ? 'red' : 'neutrals'
@@ -47,7 +45,6 @@ export function addStructures(
       const groupName = `Static ${struct.type}-${groupId}`
 
       const groupUnits: { x: number; y: number; [key: string]: unknown }[] = []
-      const unitIds: number[] = []
 
       const basePos = struct.position ?? objective.position
 
@@ -56,7 +53,6 @@ export function addStructures(
         if (!buildingInfo) return
 
         const unitId = nextId()
-        unitIds.push(unitId)
         const posX = basePos.x + building.offset.x
         const posY = basePos.y + building.offset.y
 
@@ -74,8 +70,6 @@ export function addStructures(
       })
 
       if (groupUnits.length === 0) return
-
-      structureUnitMap.set(struct.id, unitIds)
 
       const firstUnit = groupUnits[0]
       if (!firstUnit) return
@@ -107,5 +101,5 @@ export function addStructures(
     })
   }
 
-  return ok(structureUnitMap)
+  return ok()
 }

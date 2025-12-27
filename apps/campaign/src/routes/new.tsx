@@ -18,7 +18,7 @@ const menuOptions: MenuOption[] = [
   { id: 'campaign', label: 'NEW CAMPAIGN', icon: BookOpen },
   { id: 'loadCampaign', label: 'LOAD CAMPAIGN', icon: FolderOpen },
   { id: 'quickMission', label: 'QUICK MISSION', icon: Plane, disabled: true },
-  { id: 'settings', label: 'SETTINGS', icon: Settings, disabled: true },
+  { id: 'settings', label: 'SETTINGS', icon: Settings },
   { id: 'exit', label: 'EXIT', icon: LogOut, disabled: true }
 ]
 
@@ -97,6 +97,8 @@ export function New() {
                       navigate('/')
                     } else if (option.id === 'loadCampaign') {
                       navigate('/load')
+                    } else if (option.id === 'settings') {
+                      navigate('/settings')
                     }
                   }, 200)
                 }}

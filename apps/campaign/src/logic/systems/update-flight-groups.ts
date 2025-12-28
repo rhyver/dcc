@@ -14,6 +14,8 @@ export function updateFlightGroups(
     if (group.isLanded(draft.time)) {
       finishedIds.add(group.id)
     }
+
+    group.processTarget(draft, coalition)
   }
 
   if (finishedIds.size > 0) {

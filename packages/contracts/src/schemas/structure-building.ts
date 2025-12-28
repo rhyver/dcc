@@ -5,5 +5,6 @@ import { position } from './position'
 
 export const structureBuilding = z.object({
   offset: position,
-  type: buildingType
+  type: buildingType,
+  alive: z.boolean().default(true)
 })

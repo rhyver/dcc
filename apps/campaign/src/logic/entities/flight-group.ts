@@ -344,4 +344,32 @@ export class FlightGroup {
       this.setPosition(waypoints[waypoints.length - 1]?.position ?? this._data.position)
     }
   }
+
+  processTarget(
+    draft: z.infer<typeof schemas.campaign.campaign>,
+    coalition: z.infer<typeof schemas.coalition>
+  ) {
+    if (!this._data.target || !this._data.tot || this._data.targetDestroyed) {
+      return
+    }
+
+    if (draft.time < this._data.tot) {
+      return
+    }
+
+    const enemyCoalition = coalition === 'player' ? 'opponent' : 'player'
+    const structure = draft.coalitions[enemyCoalition].structures.find(
+      (s) => s.id === this._data.target?.id
+    )
+
+    if (structure && structure.buildings.some((b) => b.alive)) {
+      structure.buildings.forEach((b) => {
+        if (Math.random() <= 0.7) {
+          b.alive = false
+        }
+      })
+    }
+
+    this._data.targetDestroyed = true
+  }
 }

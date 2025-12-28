@@ -19,6 +19,7 @@ export const flightGroup = z.object({
   homeBase: z.string(),
   callsign: z.string(),
   target: structureTarget.optional(),
+  targetDestroyed: z.boolean().optional(),
   tot: z.date().optional(),
   flightplan: flightplan
 })

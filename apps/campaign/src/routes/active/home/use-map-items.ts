@@ -118,10 +118,24 @@ export function useMapItems(): {
     }
 
     const addStructureMarkers = (
-      structures: Array<{ id: string; type: string; objectiveId: string }>,
+      structures: Array<{
+        id: string
+        type: string
+        objectiveId: string
+        buildings: Array<{ alive: boolean }>
+      }>,
       coalition: z.infer<typeof schemas.coalition>
     ) => {
       for (const structure of structures) {
+        // Check if any building is alive. If all are dead, we consider the structure destroyed.
+        const isDestroyed = structure.buildings.length > 0 && structure.buildings.every((b) => b.alive === false)
+
+        if (isDestroyed) {
+          // Skip rendering destroyed structures, or render them differently?
+          // For now, let's skip them to show effect.
+          continue
+        }
+
         const objective = objectivesByName.get(structure.objectiveId)
         if (objective == null) continue
         const latLng = LOtoLL({

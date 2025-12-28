@@ -1,6 +1,7 @@
 import { activeStore } from '@/stores/active'
 import { spawn } from './systems/spawn'
 import { updateFlightGroups } from './systems/update-flight-groups'
+import { removeDestroyedStructures } from './systems/remove-destroyed-structures'
 
 export function fastTick(delta: number) {
   activeStore.send({
@@ -9,6 +10,8 @@ export function fastTick(delta: number) {
     logic: (draft) => {
       updateFlightGroups(draft, 'player')
       updateFlightGroups(draft, 'opponent')
+      removeDestroyedStructures(draft, 'player')
+      removeDestroyedStructures(draft, 'opponent')
     }
   })
 }

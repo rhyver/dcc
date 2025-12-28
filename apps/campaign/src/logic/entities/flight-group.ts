@@ -249,6 +249,49 @@ export class FlightGroup {
     this._data.target = target
   }
 
+  isLanded(currentTime: Date): boolean {
+    const startTime = new Date(this._data.flightplan.startTime)
+    if (currentTime < startTime) {
+      return false
+    }
+
+    const STARTUP_DELAY_MS = 10 * 60 * 1000 // 10 minutes
+
+    let elapsed = currentTime.getTime() - startTime.getTime()
+
+    if (elapsed < STARTUP_DELAY_MS) {
+      return false
+    }
+
+    elapsed -= STARTUP_DELAY_MS
+
+    const waypoints = this._data.flightplan.waypoints
+    for (let i = 0; i < waypoints.length - 1; i++) {
+      const startWp = waypoints[i]
+      const endWp = waypoints[i + 1]
+
+      if (!startWp || !endWp) {
+        continue
+      }
+
+      const dx = endWp.position.x - startWp.position.x
+      const dy = endWp.position.y - startWp.position.y
+      const dist = Math.sqrt(dx * dx + dy * dy)
+      const speed = endWp.speed
+
+      const timeSeconds = speed > 0 ? dist / speed : 0
+      const timeMs = timeSeconds * 1000
+
+      if (elapsed < timeMs) {
+        return false
+      }
+
+      elapsed -= timeMs
+    }
+
+    return true
+  }
+
   move(currentTime: Date) {
     const startTime = new Date(this._data.flightplan.startTime)
     if (currentTime < startTime) {

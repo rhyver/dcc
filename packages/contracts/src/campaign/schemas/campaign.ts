@@ -53,6 +53,7 @@ export const campaign = z.object({
   createdAt: z.date(),
   time: z.date(),
   timeMultiplier: z.number(),
+  timeTarget: z.date().optional(),
   scenarioId: z.string(),
   coalitions: z.record(coalition, campaignCoalition)
 })

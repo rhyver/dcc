@@ -103,6 +103,10 @@ export const activeStore = createStore({
       produce(context, (draft) => {
         draft.timeMultiplier = timeMultiplier
       }),
+    setTimeTarget: (context, { timeTarget }: { timeTarget: Date | undefined }) =>
+      produce(context, (draft) => {
+        draft.timeTarget = timeTarget
+      }),
 
     tick: (context, { delta, logic }: { delta: number; logic: (draft: typeof context) => void }) =>
       produce(context, (draft) => {

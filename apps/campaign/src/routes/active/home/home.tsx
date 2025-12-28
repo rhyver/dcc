@@ -8,8 +8,8 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Map, type SelectedItem } from './map'
 import { activeStore } from '@/stores/active'
 import { Clock } from './clock'
-import { coreClient } from '@/lib/orpc'
 import { ActiveFlightGroups } from './active-flight-groups'
+import { TakeoffButton } from './takeoff-button'
 
 const campaignData = {
   description:
@@ -25,9 +25,6 @@ export function Home() {
   const [isBriefingOpen, setIsBriefingOpen] = React.useState(false)
   const [selectedItem, setSelectedItem] = React.useState<SelectedItem>(null)
   const timeMultiplier = useSelector(activeStore, (state) => state.context.timeMultiplier)
-  const hasClient = useSelector(activeStore, (state) =>
-    state.context.coalitions.player.flightGroups.some((fg) => fg.aircrafts.some((ac) => ac.client))
-  )
   const timerState = timeMultiplier === 0 ? 'pause' : timeMultiplier === 1 ? 'play' : 'fast-forward'
 
   return (
@@ -147,14 +144,7 @@ export function Home() {
                 </ToggleGroupItem>
               </ToggleGroup>
 
-              <Button
-                size="sm"
-                className="h-8 bg-synthwave-pink hover:bg-synthwave-pink/80 text-white border-none shadow-[0_0_10px_rgba(255,0,170,0.5)]"
-                onClick={() => coreClient.campaign.generateMiz(activeStore.getSnapshot().context)}
-                disabled={!hasClient}
-              >
-                Takeoff
-              </Button>
+              <TakeoffButton />
             </div>
 
             {/* Briefing Toggle */}

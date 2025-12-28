@@ -11,6 +11,16 @@ function updateTime(delta: number) {
       delta * activeStore.getSnapshot().context.timeMultiplier
     )
   })
+
+  const state = activeStore.getSnapshot().context
+  if (state.timeTarget && state.timeMultiplier > 0) {
+    const nextTime = addMilliseconds(state.time, delta * state.timeMultiplier)
+    if (nextTime >= state.timeTarget) {
+      activeStore.trigger.updateTime({ time: state.timeTarget })
+      activeStore.trigger.updateTimeMultiplier({ timeMultiplier: 1 })
+      activeStore.trigger.setTimeTarget({ timeTarget: undefined })
+    }
+  }
 }
 export function useTick() {
   const time = useSelector(activeStore, (state) => state.context.time)

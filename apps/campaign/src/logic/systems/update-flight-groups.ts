@@ -7,7 +7,18 @@ export function updateFlightGroups(
   coalition: z.infer<typeof schemas.coalition>
 ) {
   const groups = FlightGroup.getCoalitionFlightGroups(draft, coalition)
+  const finishedIds = new Set<string>()
+
   for (const group of groups) {
     group.move(draft.time)
+    if (group.isLanded(draft.time)) {
+      finishedIds.add(group.id)
+    }
+  }
+
+  if (finishedIds.size > 0) {
+    draft.coalitions[coalition].flightGroups = draft.coalitions[coalition].flightGroups.filter(
+      (g) => !finishedIds.has(g.id)
+    )
   }
 }

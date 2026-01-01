@@ -160,13 +160,17 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
   const playerGroundGroups = playerGroundAssignments.map((assignment) => ({
     id: crypto.randomUUID(),
     objectiveId: assignment.objectiveId,
-    units: assignment.units
+    units: assignment.units,
+    position: assignment.position,
+    state: 'idle' as const
   }))
 
   const opponentGroundGroups = opponentGroundAssignments.map((assignment) => ({
     id: crypto.randomUUID(),
     objectiveId: assignment.objectiveId,
-    units: assignment.units
+    units: assignment.units,
+    position: assignment.position,
+    state: 'idle' as const
   }))
 
   const defaultState: z.infer<typeof schemas.campaign.campaign> = {

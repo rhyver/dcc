@@ -5,7 +5,15 @@ import { getDistance, Position } from './utils'
 const NM_TO_METERS = 1852
 const THRESHOLD_DISTANCE = 20 * NM_TO_METERS
 
-type ObjectiveInfo = { id: string; position: Position }
+type ObjectiveInfo = {
+  id: string
+  position: Position
+  targets: Array<{
+    name: string
+    type: string
+    position: Position
+  }>
+}
 
 type GroundGroupUnit = {
   name: string
@@ -15,6 +23,7 @@ type GroundGroupUnit = {
 export type GroundGroupAssignment = {
   objectiveId: string
   units: GroundGroupUnit[]
+  position: Position
 }
 
 type AssignGroundGroupsParams = {
@@ -48,23 +57,30 @@ export function assignGroundGroups({
     }, Number.POSITIVE_INFINITY)
 
     if (nearestEnemyDistance <= THRESHOLD_DISTANCE) {
-      // Create groups
-      // 1. Vehicle Group
+      // Get Vehicle targets for positioning ground groups
+      const vehicleTargets = objective.targets.filter((t) => t.type === 'Vehicle')
+
+      // Create groups at different Vehicle target positions
+      // 1. Vehicle Group - use first Vehicle target or objective position
       if (vehicleTypes.length > 0) {
+        const vehicleTarget = vehicleTargets[0]
         assignments.push(
           createGroup({
             objectiveId: objective.id,
+            position: vehicleTarget?.position ?? objective.position,
             unitTypes: vehicleTypes,
             shoradTypes: shoradVehicleTypes
           })
         )
       }
 
-      // 2. Infantry Group
+      // 2. Infantry Group - use second Vehicle target or offset from first, or objective position
       if (infantryTypes.length > 0) {
+        const infantryTarget = vehicleTargets[1] ?? vehicleTargets[0]
         assignments.push(
           createGroup({
             objectiveId: objective.id,
+            position: infantryTarget?.position ?? objective.position,
             unitTypes: infantryTypes,
             shoradTypes: shoradInfantryTypes
           })
@@ -78,10 +94,12 @@ export function assignGroundGroups({
 
 function createGroup({
   objectiveId,
+  position,
   unitTypes,
   shoradTypes
 }: {
   objectiveId: string
+  position: Position
   unitTypes: string[]
   shoradTypes: string[]
 }): GroundGroupAssignment {
@@ -114,6 +132,7 @@ function createGroup({
 
   return {
     objectiveId,
-    units
+    units,
+    position
   }
 }

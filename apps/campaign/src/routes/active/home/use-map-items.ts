@@ -122,30 +122,31 @@ export function useMapItems(): {
         id: string
         type: string
         objectiveId: string
+        position: { x: number; y: number }
         buildings: Array<{ alive: boolean }>
       }>,
       coalition: z.infer<typeof schemas.coalition>
     ) => {
       for (const structure of structures) {
         // Check if any building is alive. If all are dead, we consider the structure destroyed.
-        const isDestroyed = structure.buildings.length > 0 && structure.buildings.every((b) => b.alive === false)
+        const isDestroyed =
+          structure.buildings.length > 0 && structure.buildings.every((b) => b.alive === false)
 
         if (isDestroyed) {
-          // Skip rendering destroyed structures, or render them differently?
-          // For now, let's skip them to show effect.
           continue
         }
 
-        const objective = objectivesByName.get(structure.objectiveId)
-        if (objective == null) continue
+        const structureTypeResult = schemas.structureType.safeParse(structure.type)
+        if (!structureTypeResult.success) {
+          continue
+        }
+
+        // Use the structure's actual position (from target data)
         const latLng = LOtoLL({
           theatre: theatre.name as 'Caucasus',
-          x: objective.position.x,
-          z: objective.position.y
+          x: structure.position.x,
+          z: structure.position.y
         })
-
-        const structureTypeResult = schemas.structureType.safeParse(structure.type)
-        if (!structureTypeResult.success) continue
 
         mapItems.push({
           id: structure.id,
@@ -161,19 +162,18 @@ export function useMapItems(): {
     const addGroundGroupMarkers = (
       groundGroups: Array<{
         id: string
-        objectiveId: string
+        objectiveId?: string
+        position: { x: number; y: number }
         units: Array<{ name: string; count: number }>
       }>,
       coalition: z.infer<typeof schemas.coalition>
     ) => {
       for (const group of groundGroups) {
-        const objective = objectivesByName.get(group.objectiveId)
-        if (objective == null) continue
-
+        // Use the group's actual position (from target data)
         const latLng = LOtoLL({
           theatre: theatre.name as 'Caucasus',
-          x: objective.position.x,
-          z: objective.position.y
+          x: group.position.x,
+          z: group.position.y
         })
 
         // Determine group type based on majority units or first unit

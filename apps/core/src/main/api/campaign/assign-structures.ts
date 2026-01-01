@@ -4,12 +4,12 @@ import { structureTemplates } from '@dcc/data'
 import * as z from 'zod'
 
 export const StructureType = [
+  'Barrack',
+  'Depot',
   'Power Plant',
   'Ammo Depot',
   'Fuel Storage',
   'Hospital',
-  'Barrack',
-  'Depot',
   'Farp',
   'Command Center',
   'Prison'

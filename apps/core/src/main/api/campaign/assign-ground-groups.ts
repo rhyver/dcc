@@ -59,28 +59,35 @@ export function assignGroundGroups({
     if (nearestEnemyDistance <= THRESHOLD_DISTANCE) {
       // Get Vehicle targets for positioning ground groups
       const vehicleTargets = objective.targets.filter((t) => t.type === 'Vehicle')
+      const targetPosition = vehicleTargets[0]?.position ?? objective.position
 
-      // Create groups at different Vehicle target positions
-      // 1. Vehicle Group - use first Vehicle target or objective position
-      if (vehicleTypes.length > 0) {
-        const vehicleTarget = vehicleTargets[0]
+      // Randomly choose either Vehicle or Infantry group (never both at same objective)
+      const canCreateVehicle = vehicleTypes.length > 0
+      const canCreateInfantry = infantryTypes.length > 0
+
+      let createVehicleGroup: boolean
+      if (canCreateVehicle && canCreateInfantry) {
+        // Both available - randomly pick one
+        createVehicleGroup = Math.random() < 0.5
+      } else {
+        // Only one type available
+        createVehicleGroup = canCreateVehicle
+      }
+
+      if (createVehicleGroup && canCreateVehicle) {
         assignments.push(
           createGroup({
             objectiveId: objective.id,
-            position: vehicleTarget?.position ?? objective.position,
+            position: targetPosition,
             unitTypes: vehicleTypes,
             shoradTypes: shoradVehicleTypes
           })
         )
-      }
-
-      // 2. Infantry Group - use second Vehicle target or offset from first, or objective position
-      if (infantryTypes.length > 0) {
-        const infantryTarget = vehicleTargets[1] ?? vehicleTargets[0]
+      } else if (canCreateInfantry) {
         assignments.push(
           createGroup({
             objectiveId: objective.id,
-            position: infantryTarget?.position ?? objective.position,
+            position: targetPosition,
             unitTypes: infantryTypes,
             shoradTypes: shoradInfantryTypes
           })

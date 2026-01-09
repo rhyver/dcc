@@ -280,21 +280,23 @@ export function addFlightGroups(
       })
 
       // Calculate start time in seconds from midnight
-      // Campaign time is likely irrelevant if we assume flight plan starts relative to mission start?
-      // Or we should use the campaign time.
-      // For now, let's assume flight plan start time is correct.
-      // We need to convert date to seconds of day.
-      const startTime =
+      const flightStartTimeSeconds =
         fg.flightplan.startTime.getUTCHours() * 3600 +
         fg.flightplan.startTime.getUTCMinutes() * 60 +
         fg.flightplan.startTime.getUTCSeconds()
 
       const missionStartTime = mission.start_time
 
-      const startDelay = startTime - missionStartTime
-
-      // For in-flight aircraft, ETA starts from 0; for ground aircraft, add 10 min startup delay
-      let currentEta = isInFlight ? 0 : startDelay + 10 * 60
+      // For in-flight aircraft, ETA starts from 0
+      // For ground aircraft that are scheduled to start after mission start, delay them
+      // For ground aircraft whose scheduled time has passed, start immediately (ETA = 0)
+      let currentEta = 0
+      if (!isInFlight) {
+        const startDelay = flightStartTimeSeconds - missionStartTime
+        // Only delay if the flight is scheduled for the future
+        // If startDelay <= 0, the flight should start immediately
+        currentEta = startDelay > 0 ? startDelay : 0
+      }
       let lastWp: { x: number; y: number; speed: number } | undefined
 
       // For in-flight aircraft, filter out waypoints that have already been passed

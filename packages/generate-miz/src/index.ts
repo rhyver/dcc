@@ -8,6 +8,7 @@ import { addFlightGroups } from './add-flight-groups'
 import { addStructures } from './add-structures'
 import { dictionary, mapResource } from './l10n'
 import { options } from './options'
+import stateLuaScript from './scripts/state.lua?raw'
 import { warehouses } from './warehouses'
 
 export function generateMizFromCampaign(
@@ -152,14 +153,44 @@ export function generateMizFromCampaign(
       isPilotControlVehicles: false
     },
     trig: {
-      actions: {},
+      actions: {
+        1: `a_do_script("config = { missionId = '${campaign.id}' }")`,
+        2: 'a_do_script_file(getValueResourceByKey("state"))'
+      },
       events: {},
       custom: {},
-      func: {},
-      flag: {},
-      conditions: {},
+      func: {
+        1: 'if true then return true end',
+        2: 'if true then return true end'
+      },
+      flag: {
+        1: true,
+        2: true
+      },
+      conditions: {
+        1: 'return(c_time_after(1))',
+        2: 'return(c_time_after(2))'
+      },
       customStartup: {},
       funcStartup: {}
+    },
+    trigrules: {
+      1: {
+        rules: { 1: { coalitionlist: 'all', seconds: 1, predicate: 'c_time_after' } },
+        eventlist: '',
+        predicate: 'triggerOnce',
+        comment: 'DCC Config',
+        actions: { 1: { predicate: 'a_do_script', text: `config = { missionId = '${campaign.id}' }` } },
+        colorItem: '0x00ffffff'
+      },
+      2: {
+        rules: { 1: { coalitionlist: 'all', seconds: 2, predicate: 'c_time_after' } },
+        eventlist: '',
+        predicate: 'triggerOnce',
+        comment: 'DCC State Script',
+        actions: { 1: { predicate: 'a_do_script_file', file: 'state' } },
+        colorItem: '0x00ffffff'
+      }
     },
     triggers: {
       zones: []
@@ -215,6 +246,7 @@ export function generateMizFromCampaign(
   zip.addFile('warehouses', Buffer.from('warehouses = ' + warehousesLua, 'utf-8'))
   zip.addFile('l10n/DEFAULT/dictionary', Buffer.from('dictionary = ' + dictionaryLua, 'utf-8'))
   zip.addFile('l10n/DEFAULT/mapResource', Buffer.from('mapResource = ' + mapResourceLua, 'utf-8'))
+  zip.addFile('l10n/DEFAULT/state.lua', Buffer.from(stateLuaScript, 'utf-8'))
   try {
     zip.writeZip(path)
     // eslint-disable-next-line no-console

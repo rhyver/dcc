@@ -1,6 +1,7 @@
 import { schemas } from '@dcc/contracts'
 import * as z from 'zod'
 import { FlightGroup } from '../entities/flight-group'
+import { isStrikeFlightGroup } from '../entities/strike-flight-group'
 
 export function updateFlightGroups(
   draft: z.infer<typeof schemas.campaign.campaign>,
@@ -9,13 +10,20 @@ export function updateFlightGroups(
   const groups = FlightGroup.getCoalitionFlightGroups(draft, coalition)
   const finishedIds = new Set<string>()
 
+  console.log('Updating flight groups', groups.length)
+
   for (const group of groups) {
     group.move(draft.time)
     if (group.isLanded(draft.time)) {
       finishedIds.add(group.id)
     }
 
-    group.processTarget(draft, coalition)
+    if (isStrikeFlightGroup(group)) {
+      console.log('Striking structure', group)
+      group.strikeStructure(draft, coalition)
+    } else {
+      console.log('Not a strike group', group.task)
+    }
   }
 
   if (finishedIds.size > 0) {

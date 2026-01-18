@@ -9,6 +9,7 @@ export function fastTick(delta: number) {
     type: 'tick',
     delta,
     logic: (draft) => {
+      console.log('fast tick', draft.time)
       updateFlightGroups(draft, 'player')
       updateFlightGroups(draft, 'opponent')
       removeDestroyedStructures(draft, 'player')

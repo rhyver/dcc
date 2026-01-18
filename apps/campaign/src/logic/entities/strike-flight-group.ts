@@ -97,4 +97,40 @@ export class StrikeFlightGroup extends FlightGroup {
       `Spawned strike group from ${params.homeBase} targeting ${params.target.type} at ${params.target.objectiveId}`
     )
   }
+
+  strikeStructure(
+    draft: z.infer<typeof schemas.campaign.campaign>,
+    coalition: z.infer<typeof schemas.coalition>
+  ) {
+    if (!this._data.target || !this._data.tot || this._data.targetDestroyed) {
+      console.log(this._data.tot)
+      return
+    }
+
+    if (draft.time < this._data.tot) {
+      console.log(draft.time, this._data.tot)
+      return
+    }
+
+    const enemyCoalition = coalition === 'player' ? 'opponent' : 'player'
+    const structure = draft.coalitions[enemyCoalition].structures.find(
+      (s) => s.id === this._data.target?.id
+    )
+
+    console.log('Striking structure', structure?.name)
+
+    if (structure && structure.buildings.some((b) => b.alive)) {
+      structure.buildings.forEach((b) => {
+        if (Math.random() <= 0.7) {
+          b.alive = false
+        }
+      })
+    }
+
+    this._data.targetDestroyed = true
+  }
+}
+
+export const isStrikeFlightGroup = (flightGroup: FlightGroup): flightGroup is StrikeFlightGroup => {
+  return flightGroup.task === 'Pinpoint Strike'
 }

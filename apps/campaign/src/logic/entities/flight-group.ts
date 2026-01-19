@@ -198,13 +198,6 @@ export class FlightGroup {
     }
   }
 
-  static getCoalitionFlightGroups(
-    draft: z.infer<typeof schemas.campaign.campaign>,
-    coalition: z.infer<typeof schemas.coalition>
-  ): FlightGroup[] {
-    return draft.coalitions[coalition].flightGroups.map((data) => new FlightGroup(data))
-  }
-
   constructor(protected _data: FlightGroupData) {}
 
   // Getters read from the wrapped data object

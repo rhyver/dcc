@@ -1,8 +1,8 @@
 import { schemas, config } from '@dcc/contracts'
 import * as z from 'zod'
 import { scenarios, theatres } from '@dcc/data'
-import { FlightGroup } from '../../../entities/flight-group'
 import { StrikeFlightGroup } from '../../../entities/strike-flight-group'
+import { FlightGroupFactory } from '../../../entities/flight-group-factory'
 import { getObjectivePosition } from '@/logic/utils/get-objective-position'
 import { calculateDistance } from '@/logic/utils/calculate-distance'
 
@@ -10,7 +10,7 @@ export function spawnStrike(
   draft: z.infer<typeof schemas.campaign.campaign>,
   coalition: z.infer<typeof schemas.coalition>
 ) {
-  const flightGroups = FlightGroup.getCoalitionFlightGroups(draft, coalition)
+  const flightGroups = FlightGroupFactory.getCoalitionFlightGroups(draft, coalition)
 
   const strikeGroups = flightGroups.filter((group) => group.task === 'Pinpoint Strike')
 

@@ -1,13 +1,13 @@
 import { schemas } from '@dcc/contracts'
 import * as z from 'zod'
-import { FlightGroup } from '../entities/flight-group'
 import { isStrikeFlightGroup } from '../entities/strike-flight-group'
+import { FlightGroupFactory } from '../entities/flight-group-factory'
 
 export function updateFlightGroups(
   draft: z.infer<typeof schemas.campaign.campaign>,
   coalition: z.infer<typeof schemas.coalition>
 ) {
-  const groups = FlightGroup.getCoalitionFlightGroups(draft, coalition)
+  const groups = FlightGroupFactory.getCoalitionFlightGroups(draft, coalition)
   const finishedIds = new Set<string>()
 
   console.log('Updating flight groups', groups.length)

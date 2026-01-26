@@ -129,10 +129,43 @@ export const activeStore = createStore({
         for (const coalition of coalitions) {
           const group = coalition.flightGroups.find((g) => g.id === flightGroupId)
           if (group) {
+            const hadClient = group.aircrafts.some((ac) => ac.client)
+            const willHaveClient = count > 0
+
+            // Store original start time before first client is added
+            if (!hadClient && willHaveClient && !group.flightplan.originalStartTime) {
+              group.flightplan.originalStartTime = group.flightplan.startTime
+            }
+
+            // Update client status
             group.aircrafts.forEach((aircraft, index) => {
               aircraft.client = index < count
             })
+
+            // Restore original start time when all clients removed
+            if (hadClient && !willHaveClient && group.flightplan.originalStartTime) {
+              group.flightplan.startTime = group.flightplan.originalStartTime
+              group.flightplan.originalStartTime = undefined
+            }
+
             break
+          }
+        }
+
+        // Sync start times for all groups with clients to the earliest one
+        const allFlightGroups = [...draft.coalitions.player.flightGroups, ...draft.coalitions.opponent.flightGroups]
+        const groupsWithClients = allFlightGroups.filter((g) => g.aircrafts.some((ac) => ac.client))
+
+        if (groupsWithClients.length > 1) {
+          // Find the earliest original start time among groups with clients
+          const earliestStartTime = groupsWithClients.reduce((earliest, g) => {
+            const originalTime = g.flightplan.originalStartTime ?? g.flightplan.startTime
+            return originalTime < earliest ? originalTime : earliest
+          }, groupsWithClients[0]!.flightplan.originalStartTime ?? groupsWithClients[0]!.flightplan.startTime)
+
+          // Apply the earliest start time to all groups with clients
+          for (const g of groupsWithClients) {
+            g.flightplan.startTime = earliestStartTime
           }
         }
       })

@@ -15,5 +15,6 @@ export const waypoint = z.object({
 export const flightplan = z.object({
   id: z.string(),
   startTime: z.date(),
+  originalStartTime: z.date().optional(),
   waypoints: z.array(waypoint)
 })

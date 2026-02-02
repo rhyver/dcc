@@ -183,17 +183,18 @@ export function Load() {
                         'group relative flex w-full flex-col items-start gap-2 border-l-4 px-6 py-6 text-left transition-all cursor-pointer',
                         // Base styles for unselected state (both normal and delete mode)
                         !isSelectedForDeletion &&
-                        selectedCampaignId !== campaign.id &&
-                        'border-synthwave-purple bg-synthwave-dark/80 text-synthwave-cyan hover:border-synthwave-pink hover:bg-synthwave-purple/10 hover:text-white',
+                          selectedCampaignId !== campaign.id &&
+                          'border-synthwave-purple bg-synthwave-dark/80 text-synthwave-cyan hover:border-synthwave-pink hover:bg-synthwave-purple/10 hover:text-white',
 
                         // Active campaign selection
                         selectedCampaignId === campaign.id &&
-                        !isDeleteMode &&
-                        'border-synthwave-pink bg-synthwave-pink/10 text-white hover:bg-synthwave-pink/20',
+                          !isDeleteMode &&
+                          'border-synthwave-pink bg-synthwave-pink/10 text-white hover:bg-synthwave-pink/20',
 
                         // Delete mode selected state
-                        isDeleteMode && isSelectedForDeletion &&
-                        'border-red-500 bg-red-500/10 text-white'
+                        isDeleteMode &&
+                          isSelectedForDeletion &&
+                          'border-red-500 bg-red-500/10 text-white'
                       )}
                       onClick={() => {
                         if (isDeleteMode) {

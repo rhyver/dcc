@@ -17,27 +17,30 @@ export class FlightGroup {
       target?: z.infer<typeof schemas.flightGroup>['target']
       flightplan: z.infer<typeof schemas.flightplan>
       tot?: Date
+      packageId?: string
     }
-  ): void {
+  ): string {
     const tot = params.tot ?? FlightGroup.calculateTot(params.flightplan)
+    const id = crypto.randomUUID()
 
     const newFlightGroupData: z.infer<typeof schemas.flightGroup> = {
-      id: crypto.randomUUID(),
+      id,
       aircrafts: params.aircrafts,
       task: params.task,
       position: params.position,
       homeBase: params.homeBase,
       callsign:
         params.callsign ??
-        `${callsigns[Math.floor(Math.random() * callsigns.length)] ?? 'Enfield'}-${
-          Math.floor(Math.random() * 9) + 1
+        `${callsigns[Math.floor(Math.random() * callsigns.length)] ?? 'Enfield'}-${Math.floor(Math.random() * 9) + 1
         }`,
       target: params.target,
       flightplan: params.flightplan,
-      tot
+      tot,
+      packageId: params.packageId
     }
 
     draft.coalitions[coalition].flightGroups.push(newFlightGroupData)
+    return id
   }
 
   static calculateTot(flightplan: z.infer<typeof schemas.flightplan>): Date | undefined {
@@ -198,7 +201,50 @@ export class FlightGroup {
     }
   }
 
-  constructor(protected _data: FlightGroupData) {}
+  static calculateStartTimeForTot(
+    home: z.infer<typeof schemas.position>,
+    missionWaypoints: z.infer<typeof schemas.waypoint>[],
+    desiredTot: Date
+  ): Date {
+    const STARTUP_DELAY_MS = 10 * 60 * 1000 // 10 minutes
+
+    // Calculate time from takeoff to ToT (the Task waypoint)
+    let timeToTotMs = 0
+    let currentPos = home
+
+    // Include the ascend waypoint time (20km at 200 m/s)
+    const ascendDistance = 20000
+    const ascendSpeed = 200
+    timeToTotMs += (ascendDistance / ascendSpeed) * 1000
+
+    // Update current position to ascend position (we don't have the exact position here,
+    // so we'll use the first mission waypoint as reference)
+    if (missionWaypoints.length > 0) {
+      currentPos = missionWaypoints[0]!.position
+    }
+
+    // Calculate time through mission waypoints until Task waypoint
+    for (const waypoint of missionWaypoints) {
+      const dx = waypoint.position.x - currentPos.x
+      const dy = waypoint.position.y - currentPos.y
+      const distance = Math.sqrt(dx * dx + dy * dy)
+      const speed = waypoint.speed
+      const timeSeconds = speed > 0 ? distance / speed : 0
+
+      timeToTotMs += timeSeconds * 1000
+      currentPos = waypoint.position
+
+      if (waypoint.type === 'Task') {
+        break
+      }
+    }
+
+    // Start time = desired ToT - time to reach ToT - startup delay
+    const startTime = new Date(desiredTot.getTime() - timeToTotMs - STARTUP_DELAY_MS)
+    return startTime
+  }
+
+  constructor(protected _data: FlightGroupData) { }
 
   // Getters read from the wrapped data object
   get id() {
@@ -227,6 +273,10 @@ export class FlightGroup {
 
   get tot() {
     return this._data.tot
+  }
+
+  get packageId() {
+    return this._data.packageId
   }
 
   // Setters mutate the wrapped data object (works with Immer drafts)

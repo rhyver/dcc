@@ -17,8 +17,9 @@ export class StrikeFlightGroup extends FlightGroup {
       targetPosition: z.infer<typeof schemas.position>
       runwayAngle?: number
       aircraftType: z.infer<typeof schemas.dcs.aircraftName>
+      packageId?: string
     }
-  ): void {
+  ): { flightGroupId: string; tot: Date } {
     // Create aircraft instances
     const numAircraft = config.packages['Pinpoint Strike'].aircraftsPerGroup
     const aircrafts: z.infer<typeof schemas.aircraft>[] = []
@@ -80,7 +81,7 @@ export class StrikeFlightGroup extends FlightGroup {
       params.runwayAngle
     )
 
-    FlightGroup.create(draft, coalition, {
+    const flightGroupId = FlightGroup.create(draft, coalition, {
       aircrafts,
       task: 'Pinpoint Strike',
       position: params.homeBasePosition,
@@ -90,12 +91,17 @@ export class StrikeFlightGroup extends FlightGroup {
         type: params.target.type,
         objectiveId: params.target.objectiveId
       },
-      flightplan
+      flightplan,
+      packageId: params.packageId
     })
+
+    const tot = FlightGroup.calculateTot(flightplan)
 
     console.log(
       `Spawned strike group from ${params.homeBase} targeting ${params.target.type} at ${params.target.objectiveId}`
     )
+
+    return { flightGroupId, tot: tot ?? startTime }
   }
 
   strikeStructure(

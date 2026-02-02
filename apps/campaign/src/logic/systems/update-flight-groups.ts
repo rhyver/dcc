@@ -1,6 +1,8 @@
 import { schemas } from '@dcc/contracts'
 import * as z from 'zod'
+import { scenarios, theatres } from '@dcc/data'
 import { isStrikeFlightGroup } from '../entities/strike-flight-group'
+import { isSeadFlightGroup } from '../entities/sead-flight-group'
 import { FlightGroupFactory } from '../entities/flight-group-factory'
 
 export function updateFlightGroups(
@@ -9,6 +11,10 @@ export function updateFlightGroups(
 ) {
   const groups = FlightGroupFactory.getCoalitionFlightGroups(draft, coalition)
   const finishedIds = new Set<string>()
+
+  // Get theatre for SEAD operations
+  const scenario = scenarios.find((s) => s.id === draft.scenarioId)
+  const theatre = scenario ? theatres.find((t) => t.name === scenario.theatreName) : undefined
 
   console.log('Updating flight groups', groups.length)
 
@@ -21,12 +27,31 @@ export function updateFlightGroups(
     if (isStrikeFlightGroup(group)) {
       console.log('Striking structure', group)
       group.strikeStructure(draft, coalition)
+    } else if (isSeadFlightGroup(group) && theatre) {
+      console.log('SEAD suppressing SAM', group)
+      group.suppressSam(draft, coalition, theatre)
     } else {
-      console.log('Not a strike group', group.task)
+      console.log('Not a strike/SEAD group', group.task)
     }
   }
 
+  // Clear suppression for SAMs targeted by finished SEAD flights
   if (finishedIds.size > 0) {
+    const enemyCoalition = coalition === 'player' ? 'opponent' : 'player'
+    const finishedSeadGroups = groups.filter((g) => finishedIds.has(g.id) && isSeadFlightGroup(g))
+
+    for (const seadGroup of finishedSeadGroups) {
+      if (seadGroup.target) {
+        const samGroup = draft.coalitions[enemyCoalition].samGroups.find(
+          (s) => s.id === seadGroup.target?.id
+        )
+        if (samGroup) {
+          samGroup.suppressed = false
+          console.log(`SAM ${samGroup.type} no longer suppressed - SEAD landed`)
+        }
+      }
+    }
+
     draft.coalitions[coalition].flightGroups = draft.coalitions[coalition].flightGroups.filter(
       (g) => !finishedIds.has(g.id)
     )

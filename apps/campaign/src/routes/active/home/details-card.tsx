@@ -87,9 +87,7 @@ export function DetailsCard({
                         type="single"
                         variant="outline"
                         size="sm"
-                        value={selectedItem.aircrafts
-                          .filter((a) => a.client)
-                          .length.toString()}
+                        value={selectedItem.aircrafts.filter((a) => a.client).length.toString()}
                         onValueChange={(val) => {
                           if (!val) return
                           activeStore.send({
@@ -99,17 +97,15 @@ export function DetailsCard({
                           })
                         }}
                       >
-                        {Array.from({ length: selectedItem.aircrafts.length + 1 }).map(
-                          (_, i) => (
-                            <ToggleGroupItem
-                              key={i}
-                              value={i.toString()}
-                              className="h-6 w-6 p-0 text-xs"
-                            >
-                              {i}
-                            </ToggleGroupItem>
-                          )
-                        )}
+                        {Array.from({ length: selectedItem.aircrafts.length + 1 }).map((_, i) => (
+                          <ToggleGroupItem
+                            key={i}
+                            value={i.toString()}
+                            className="h-6 w-6 p-0 text-xs"
+                          >
+                            {i}
+                          </ToggleGroupItem>
+                        ))}
                       </ToggleGroup>
                     </div>
                   </>
@@ -128,9 +124,7 @@ export function DetailsCard({
                       : 'text-red-400'
                   }
                 >
-                  {(selectedItem as unknown as { active: boolean }).active
-                    ? 'Active'
-                    : 'Inactive'}
+                  {(selectedItem as unknown as { active: boolean }).active ? 'Active' : 'Inactive'}
                 </div>
               </>
             )}
@@ -140,4 +134,3 @@ export function DetailsCard({
     </div>
   )
 }
-

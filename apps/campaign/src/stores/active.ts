@@ -47,7 +47,8 @@ const initialState: z.infer<typeof schemas.campaign.campaign> = {
       structures: [],
       samGroups: [],
       flightGroups: [],
-      groundGroups: []
+      groundGroups: [],
+      packages: []
     },
     opponent: {
       id: 'russia-1996',
@@ -84,7 +85,8 @@ const initialState: z.infer<typeof schemas.campaign.campaign> = {
       structures: [],
       samGroups: [],
       flightGroups: [],
-      groundGroups: []
+      groundGroups: [],
+      packages: []
     }
   }
 }
@@ -153,7 +155,10 @@ export const activeStore = createStore({
         }
 
         // Sync start times for all groups with clients to the earliest one
-        const allFlightGroups = [...draft.coalitions.player.flightGroups, ...draft.coalitions.opponent.flightGroups]
+        const allFlightGroups = [
+          ...draft.coalitions.player.flightGroups,
+          ...draft.coalitions.opponent.flightGroups
+        ]
         const groupsWithClients = allFlightGroups.filter((g) => g.aircrafts.some((ac) => ac.client))
 
         if (groupsWithClients.length > 1) {

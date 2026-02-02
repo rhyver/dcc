@@ -191,7 +191,8 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
         structures: playerStructures,
         samGroups: playerSamGroups,
         groundGroups: playerGroundGroups,
-        flightGroups: []
+        flightGroups: [],
+        packages: []
       },
       opponent: {
         id: opponentFaction.id,
@@ -202,7 +203,8 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
         structures: opponentStructures,
         samGroups: opponentSamGroups,
         groundGroups: opponentGroundGroups,
-        flightGroups: []
+        flightGroups: [],
+        packages: []
       }
     }
   }

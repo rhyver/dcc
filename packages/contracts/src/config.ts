@@ -7,6 +7,15 @@ export const config = {
       },
       maxDistance: 300_000,
       aircraftsPerGroup: 2
+    },
+    SEAD: {
+      maxActive: {
+        player: 2,
+        opponent: 2
+      },
+      maxDistance: 300_000,
+      aircraftsPerGroup: 2,
+      leadTime: 2 * 60 * 1000 // 2 minutes before strike ToT
     }
   },
   structureRanges: {

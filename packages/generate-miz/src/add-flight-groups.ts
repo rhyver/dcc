@@ -14,6 +14,35 @@ Object.values(aircrafts).forEach((def) => {
 const STARTUP_DELAY_MS = 10 * 60 * 1000 // 10 minutes in milliseconds
 
 /**
+ * Creates a SEADEscort task for SEAD flight groups.
+ * This is an "Escort" task that makes the SEAD aircraft follow the strike group
+ * while targeting Medium Range and Long Range SAMs.
+ */
+function createSEADEscortTask(targetGroupId: number, taskNumber: number): z.infer<typeof schemas.dcs.task> {
+  return {
+    enabled: true,
+    auto: false,
+    id: 'Escort',
+    number: taskNumber,
+    params: {
+      groupId: targetGroupId,
+      noTargetTypes: ['AAA', 'SR SAM'],
+      engagementDistMax: 74000,
+      targetTypes: ['MR SAM', 'LR SAM'],
+      value: 'MR SAM;LR SAM;',
+      lastWptIndexFlag: false,
+      lastWptIndexFlagChangedManually: true,
+      lastWptIndex: 0,
+      pos: {
+        y: 0,
+        x: -1000,
+        z: 200
+      }
+    }
+  }
+}
+
+/**
  * Calculate current position along the flight path based on elapsed time.
  * Returns null if the flight hasn't taken off yet.
  * Also returns the index of the next waypoint the aircraft is heading toward.
@@ -113,6 +142,33 @@ export function addFlightGroups(
     })
   })
 
+  // First pass: Pre-assign DCS group IDs to all flight groups
+  // This is needed so SEAD flights can reference their escort target's groupId
+  const flightGroupIdToGroupId = new Map<string, number>()
+  for (const [, value] of Object.entries(campaign.coalitions)) {
+    const flightGroups = value.flightGroups
+    if (!flightGroups) continue
+
+    for (const fg of flightGroups) {
+      const groupId = nextId()
+      flightGroupIdToGroupId.set(fg.id, groupId)
+    }
+  }
+
+  // Build a lookup for packages to find the primary (strike) flight group for SEAD escort
+  const packagePrimaryFlightGroupId = new Map<string, string>()
+  for (const [, value] of Object.entries(campaign.coalitions)) {
+    const packages = value.packages
+    if (!packages) continue
+
+    for (const pkg of packages) {
+      const primaryMember = pkg.members.find((m) => m.role === 'primary')
+      if (primaryMember) {
+        packagePrimaryFlightGroupId.set(pkg.id, primaryMember.flightGroupId)
+      }
+    }
+  }
+
   const usedParkingSlots = new Map<string, Set<string>>() // Airdrome Name -> Set of Slot IDs
 
   for (const [key, value] of Object.entries(campaign.coalitions)) {
@@ -153,7 +209,8 @@ export function addFlightGroups(
         return
       }
 
-      const groupId = nextId()
+      // Use the pre-assigned group ID
+      const groupId = flightGroupIdToGroupId.get(fg.id) ?? nextId()
       const groupName = fg.callsign // Or some unique name?
 
       const isHelicopter = aircraftDef.isHelicopter ?? false
@@ -382,7 +439,24 @@ export function addFlightGroups(
 
         const tasks: z.infer<typeof schemas.dcs.task>[] = []
 
-        if (wp.name === 'IP' && fg.target) {
+        // Add SEAD escort task for SEAD flight groups at the IP waypoint
+        // This makes the SEAD aircraft follow the strike group while engaging SAMs
+        if (wp.name === 'IP' && fg.task === 'SEAD' && fg.packageId) {
+          // Find the primary flight group in this package (the strike group to escort)
+          const primaryFlightGroupId = packagePrimaryFlightGroupId.get(fg.packageId)
+          if (primaryFlightGroupId) {
+            const primaryDcsGroupId = flightGroupIdToGroupId.get(primaryFlightGroupId)
+            if (primaryDcsGroupId) {
+              tasks.push(createSEADEscortTask(primaryDcsGroupId, tasks.length + 1))
+              // eslint-disable-next-line no-console
+              console.log(
+                `Added SEAD Escort task to ${fg.callsign} escorting group ID ${primaryDcsGroupId}`
+              )
+            }
+          }
+        }
+
+        if (wp.name === 'IP' && fg.target && fg.task === 'Pinpoint Strike') {
           const targetStructure = structureMap.get(fg.target.id)
 
           if (targetStructure) {

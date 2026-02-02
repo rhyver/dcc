@@ -1,6 +1,7 @@
 import { activeStore } from '@/stores/active'
 import { spawn } from './systems/spawn'
 import { updateFlightGroups } from './systems/update-flight-groups'
+import { updatePackages } from './systems/update-packages'
 import { removeDestroyedStructures } from './systems/remove-destroyed-structures'
 import { updateResources } from './systems/update-resources'
 
@@ -12,6 +13,8 @@ export function fastTick(delta: number) {
       console.log('fast tick', draft.time)
       updateFlightGroups(draft, 'player')
       updateFlightGroups(draft, 'opponent')
+      updatePackages(draft, 'player')
+      updatePackages(draft, 'opponent')
       removeDestroyedStructures(draft, 'player')
       removeDestroyedStructures(draft, 'opponent')
     }

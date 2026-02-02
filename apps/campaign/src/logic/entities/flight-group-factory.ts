@@ -1,6 +1,7 @@
 import { schemas } from '@dcc/contracts'
 import * as z from 'zod'
 import { FlightGroup } from './flight-group'
+import { SeadFlightGroup } from './sead-flight-group'
 import { StrikeFlightGroup } from './strike-flight-group'
 
 export const FlightGroupFactory = {
@@ -11,6 +12,9 @@ export const FlightGroupFactory = {
     return draft.coalitions[coalition].flightGroups.map((data) => {
       if (data.task === 'Pinpoint Strike') {
         return new StrikeFlightGroup(data)
+      }
+      if (data.task === 'SEAD') {
+        return new SeadFlightGroup(data)
       }
       return new FlightGroup(data)
     })

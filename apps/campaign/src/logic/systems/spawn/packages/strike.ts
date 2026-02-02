@@ -2,9 +2,11 @@ import { schemas, config } from '@dcc/contracts'
 import * as z from 'zod'
 import { scenarios, theatres } from '@dcc/data'
 import { StrikeFlightGroup } from '../../../entities/strike-flight-group'
+import { SeadFlightGroup } from '../../../entities/sead-flight-group'
 import { FlightGroupFactory } from '../../../entities/flight-group-factory'
 import { getObjectivePosition } from '@/logic/utils/get-objective-position'
 import { calculateDistance } from '@/logic/utils/calculate-distance'
+import { getClosestThreateningSam } from '@/logic/utils/threat-analyzer'
 
 export function spawnStrike(
   draft: z.infer<typeof schemas.campaign.campaign>,
@@ -113,13 +115,96 @@ export function spawnStrike(
 
   const aircraftType = selectedAircraftType as z.infer<typeof schemas.dcs.aircraftName>
 
-  // Use StrikeFlightGroup.spawn to create and add the flight group
-  StrikeFlightGroup.spawn(draft, coalition, {
-    homeBase: selectedHomeBase,
-    homeBasePosition,
-    target: selectedTarget,
-    targetPosition,
-    runwayAngle: theatre.airdromeDetails[selectedHomeBase]?.runwayAngle,
-    aircraftType
-  })
+  // Check for threatening SAMs
+  const enemySamGroups = draft.coalitions[enemyCoalition].samGroups
+  const threateningSam = getClosestThreateningSam(targetPosition, enemySamGroups, theatre)
+
+  // Check if SEAD aircraft are available
+  const availableSeadAircraftTypes = draft.coalitions[coalition].aircraftTypes['SEAD']
+  const seadGroups = flightGroups.filter((group) => group.task === 'SEAD')
+  const canSpawnSead =
+    availableSeadAircraftTypes &&
+    availableSeadAircraftTypes.length > 0 &&
+    seadGroups.length < config.packages.SEAD.maxActive[coalition]
+
+  if (threateningSam && canSpawnSead) {
+    // Create a strike package with SEAD support
+    const packageId = crypto.randomUUID()
+
+    // First spawn the strike to get its ToT
+    const { flightGroupId: strikeFlightGroupId, tot: strikeTot } = StrikeFlightGroup.spawn(
+      draft,
+      coalition,
+      {
+        homeBase: selectedHomeBase,
+        homeBasePosition,
+        target: selectedTarget,
+        targetPosition,
+        runwayAngle: theatre.airdromeDetails[selectedHomeBase]?.runwayAngle,
+        aircraftType,
+        packageId
+      }
+    )
+
+    // SEAD ToT = Strike ToT - lead time (2 minutes before)
+    const seadTot = new Date(strikeTot.getTime() - config.packages.SEAD.leadTime)
+
+    // Select SEAD aircraft type
+    const seadAircraftType = availableSeadAircraftTypes[
+      Math.floor(Math.random() * availableSeadAircraftTypes.length)
+    ] as z.infer<typeof schemas.dcs.aircraftName>
+
+    // Spawn SEAD flight targeting the threatening SAM
+    const seadFlightGroupId = SeadFlightGroup.spawn(draft, coalition, {
+      homeBase: selectedHomeBase,
+      homeBasePosition,
+      target: {
+        id: threateningSam.samGroup.id,
+        type: threateningSam.samGroup.type,
+        objectiveId: threateningSam.samGroup.objectiveId
+      },
+      targetPosition: threateningSam.position,
+      runwayAngle: theatre.airdromeDetails[selectedHomeBase]?.runwayAngle,
+      aircraftType: seadAircraftType,
+      tot: seadTot,
+      packageId
+    })
+
+    // Create the package
+    const missionPackage: z.infer<typeof schemas.missionPackage> = {
+      id: packageId,
+      type: 'SEAD Strike Package',
+      targetObjectiveId: selectedTarget.objectiveId,
+      members: [
+        {
+          flightGroupId: strikeFlightGroupId,
+          role: 'primary',
+          totOffset: 0
+        },
+        {
+          flightGroupId: seadFlightGroupId,
+          role: 'sead',
+          totOffset: -config.packages.SEAD.leadTime
+        }
+      ],
+      tot: strikeTot,
+      status: 'active'
+    }
+
+    draft.coalitions[coalition].packages.push(missionPackage)
+
+    console.log(
+      `Created SEAD Strike Package: Strike + SEAD targeting ${threateningSam.samGroup.type}`
+    )
+  } else {
+    // Spawn strike without SEAD support
+    StrikeFlightGroup.spawn(draft, coalition, {
+      homeBase: selectedHomeBase,
+      homeBasePosition,
+      target: selectedTarget,
+      targetPosition,
+      runwayAngle: theatre.airdromeDetails[selectedHomeBase]?.runwayAngle,
+      aircraftType
+    })
+  }
 }

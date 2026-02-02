@@ -4,7 +4,7 @@ import { getTemplates } from '../data/get-templates'
 import { pub } from '../orpc'
 import * as z from 'zod'
 import { schemas } from '@dcc/contracts'
-import { writeFile, ensureDirectory } from '../../utils'
+import { writeFile, ensureDirectory, readFile, parseJson } from '../../utils'
 import path from 'path'
 import { app } from 'electron'
 import { getTheatre } from '../data/get-theatre'
@@ -17,7 +17,16 @@ const stateFile = path.join(app.getPath('userData'), 'state.json')
 const campaignsDir = path.join(app.getPath('userData'), 'campaigns')
 
 async function setActiveCampaignId(id: string) {
-  await writeFile(stateFile, { activeCampaignId: id })
+  // Read existing state to preserve settings (e.g., missionExportPath)
+  let existingState: Record<string, unknown> = {}
+  const file = await readFile(stateFile)
+  if (file.isOk()) {
+    const parsed = parseJson(file.value)
+    if (parsed.isOk()) {
+      existingState = parsed.value as Record<string, unknown>
+    }
+  }
+  await writeFile(stateFile, { ...existingState, activeCampaignId: id })
 }
 
 export const createCampaign = pub.campaign.createCampaign.handler(async ({ errors }) => {

@@ -31,7 +31,8 @@ export class FlightGroup {
       homeBase: params.homeBase,
       callsign:
         params.callsign ??
-        `${callsigns[Math.floor(Math.random() * callsigns.length)] ?? 'Enfield'}-${Math.floor(Math.random() * 9) + 1
+        `${callsigns[Math.floor(Math.random() * callsigns.length)] ?? 'Enfield'}-${
+          Math.floor(Math.random() * 9) + 1
         }`,
       target: params.target,
       flightplan: params.flightplan,
@@ -244,7 +245,7 @@ export class FlightGroup {
     return startTime
   }
 
-  constructor(protected _data: FlightGroupData) { }
+  constructor(protected _data: FlightGroupData) {}
 
   // Getters read from the wrapped data object
   get id() {

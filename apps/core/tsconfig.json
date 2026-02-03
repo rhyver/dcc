@@ -1,8 +1,7 @@
 {
   "extends": "@electron-toolkit/tsconfig/tsconfig.node.json",
-  "include": ["src"],
+  "include": ["src", "../../packages/generate-miz/src/vite-env.d.ts"],
   "compilerOptions": {
     "types": ["electron-vite/node"]
   },
 }
-

@@ -120,7 +120,10 @@ export const activeStore = createStore({
         draft.campaignParams.hotStart = hotStart
       }),
 
-    tick: (context, { _, logic }: { delta: number; logic: (draft: typeof context) => void }) =>
+    tick: (
+      context,
+      { delta: _delta, logic }: { delta: number; logic: (draft: typeof context) => void }
+    ) =>
       produce(context, (draft) => {
         logic(draft)
       }),

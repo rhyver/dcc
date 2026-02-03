@@ -103,8 +103,13 @@ export function assignStructures(objectives: ObjectiveInfo[]): StructureAssignme
 
         const templates = structureTemplates[type]
         const template = templates[Math.floor(Math.random() * templates.length)]
+        const buildings = template.buildings.map((building) => ({
+          ...building,
+          alive: building.alive ?? true,
+          resources: building.resources ?? 0
+        }))
 
-        assignments.set(bestCandidate.id, { type, position, name, buildings: template.buildings })
+        assignments.set(bestCandidate.id, { type, position, name, buildings })
 
         // Update coverage
         // We need to find ALL objectives this new structure covers, not just the currently uncovered ones, to maintain accurate state if we were tracking partials,

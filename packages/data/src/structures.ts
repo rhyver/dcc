@@ -4,7 +4,7 @@ import * as z from 'zod'
 export const structures: Record<
   z.infer<typeof schemas.structureType>,
   Array<{
-    buildings: z.infer<typeof schemas.structureBuilding>[]
+    buildings: z.input<typeof schemas.structureBuilding>[]
   }>
 > = {
   'Ammo Depot': [

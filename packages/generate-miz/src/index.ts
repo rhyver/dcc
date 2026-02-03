@@ -180,7 +180,9 @@ export function generateMizFromCampaign(
         eventlist: '',
         predicate: 'triggerOnce',
         comment: 'DCC Config',
-        actions: { 1: { predicate: 'a_do_script', text: `config = { missionId = '${campaign.id}' }` } },
+        actions: {
+          1: { predicate: 'a_do_script', text: `config = { missionId = '${campaign.id}' }` }
+        },
         colorItem: '0x00ffffff'
       },
       2: {

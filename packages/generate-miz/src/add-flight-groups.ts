@@ -18,7 +18,10 @@ const STARTUP_DELAY_MS = 10 * 60 * 1000 // 10 minutes in milliseconds
  * This is an "Escort" task that makes the SEAD aircraft follow the strike group
  * while targeting Medium Range and Long Range SAMs.
  */
-function createSEADEscortTask(targetGroupId: number, taskNumber: number): z.infer<typeof schemas.dcs.task> {
+function createSEADEscortTask(
+  targetGroupId: number,
+  taskNumber: number
+): z.infer<typeof schemas.dcs.task> {
   return {
     enabled: true,
     auto: false,

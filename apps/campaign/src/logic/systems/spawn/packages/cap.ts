@@ -50,9 +50,7 @@ export function spawnCap(
   const enemyAirdromeNames = draft.coalitions[enemyCoalition].airdromeNames
 
   // Find airdrome pairs that are already covered by CAP
-  const coveredAirdromes = new Set(
-    capGroups.map((g) => g.homeBase)
-  )
+  const coveredAirdromes = new Set(capGroups.map((g) => g.homeBase))
 
   let selectedHomeBase: string | null = null
   let homeBasePosition: z.infer<typeof schemas.position> | null = null

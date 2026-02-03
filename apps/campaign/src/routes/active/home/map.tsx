@@ -134,7 +134,7 @@ const FlightPlanOverlay = memo(function FlightPlanOverlay({
   }, [map, flightplan, theatreName])
 
   return (
-    <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1000 }}>
+    <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 5 }}>
       <path
         d={path}
         stroke="var(--synthwave-pink)"
@@ -145,6 +145,40 @@ const FlightPlanOverlay = memo(function FlightPlanOverlay({
         className="drop-shadow-[0_0_5px_var(--synthwave-pink)]"
       />
     </svg>
+  )
+})
+
+const WaypointLabelMarker = memo(function WaypointLabelMarker({
+  waypoint,
+  theatreName
+}: {
+  waypoint: z.infer<typeof schemas.waypoint>
+  theatreName: string
+}) {
+  const latLng = useMemo(
+    () =>
+      LOtoLL({
+        theatre: theatreName as 'Caucasus',
+        x: waypoint.position.x,
+        z: waypoint.position.y
+      }),
+    [theatreName, waypoint.position.x, waypoint.position.y]
+  )
+
+  return (
+    <MaplibreMarker
+      longitude={latLng.lng}
+      latitude={latLng.lat}
+      anchor="top"
+      style={{ zIndex: 30 }}
+    >
+      <div
+        className="pointer-events-none relative z-30 rounded-full bg-synthwave-dark/80 px-2 py-0.5 text-xs text-synthwave-light ring-1 ring-synthwave-pink/40 shadow-[0_0_8px_rgba(255,0,170,0.35)]"
+        style={{ transform: 'translateY(5px)' }}
+      >
+        {waypoint.name}
+      </div>
+    </MaplibreMarker>
   )
 })
 
@@ -230,6 +264,17 @@ export function Map({
             flightplan={liveSelectedItem.flightplan}
             theatreName={theatreQuery.data.name}
           />
+        )}
+        {liveSelectedItem && 'flightplan' in liveSelectedItem && theatreQuery.data && (
+          <>
+            {liveSelectedItem.flightplan.waypoints.map((waypoint, index) => (
+              <WaypointLabelMarker
+                key={`${waypoint.name}-${index}`}
+                waypoint={waypoint}
+                theatreName={theatreQuery.data.name}
+              />
+            ))}
+          </>
         )}
         {/* SAM Range Circles - rendered first so they appear below other markers */}
         {samRangeGeoJson.features.length > 0 && (

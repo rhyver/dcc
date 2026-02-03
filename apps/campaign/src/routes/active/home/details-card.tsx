@@ -49,19 +49,12 @@ export function DetailsCard({
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-2 text-sm">
-            {'lat' in selectedItem.position ? (
+            {'lat' in selectedItem.position && (
               <>
                 <div className="text-secondary/70">Latitude</div>
                 <div>{(selectedItem.position as { lat: number }).lat.toFixed(4)}</div>
                 <div className="text-secondary/70">Longitude</div>
                 <div>{(selectedItem.position as { lng: number }).lng.toFixed(4)}</div>
-              </>
-            ) : (
-              <>
-                <div className="text-secondary/70">Position X</div>
-                <div>{selectedItem.position.x.toFixed(0)}</div>
-                <div className="text-secondary/70">Position Y</div>
-                <div>{selectedItem.position.y.toFixed(0)}</div>
               </>
             )}
             {'structureType' in selectedItem && (

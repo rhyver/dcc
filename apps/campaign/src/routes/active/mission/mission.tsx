@@ -1,15 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useSelector } from '@xstate/store/react'
 import { useQuery } from '@tanstack/react-query'
-import {
-  ArrowLeft,
-  CloudSun,
-  Clock,
-  Plane,
-  Sun,
-  Target,
-  Wind
-} from 'lucide-react'
+import { ArrowLeft, CloudSun, Clock, Plane, Sun, Target, Wind } from 'lucide-react'
 import { useNavigate } from 'react-router'
 
 import { activeStore } from '@/stores/active'
@@ -62,7 +54,10 @@ export function Mission() {
   const campaignTime = useSelector(activeStore, (state) => state.context.time)
   const timeMultiplier = useSelector(activeStore, (state) => state.context.timeMultiplier)
   const hotStart = useSelector(activeStore, (state) => state.context.campaignParams?.hotStart)
-  const playerPackages = useSelector(activeStore, (state) => state.context.coalitions.player.packages)
+  const playerPackages = useSelector(
+    activeStore,
+    (state) => state.context.coalitions.player.packages
+  )
   const playerFlightGroups = useSelector(
     activeStore,
     (state) => state.context.coalitions.player.flightGroups
@@ -117,12 +112,8 @@ export function Mission() {
             <div className="text-xs uppercase tracking-[0.2em] text-synthwave-pink/80">
               Mission Control
             </div>
-            <h1 className="retro-font text-2xl text-white">
-              {scenario?.name ?? 'Active Mission'}
-            </h1>
-            {scenario?.era && (
-              <div className="text-xs text-secondary/70">Era: {scenario.era}</div>
-            )}
+            <h1 className="retro-font text-2xl text-white">{scenario?.name ?? 'Active Mission'}</h1>
+            {scenario?.era && <div className="text-xs text-secondary/70">Era: {scenario.era}</div>}
           </div>
           <Button
             variant="outline"
@@ -204,7 +195,9 @@ export function Mission() {
                   <span className="retro-font">Current Mission</span>
                 </CardTitle>
                 <CardDescription className="text-secondary/70">
-                  {scenario?.theatreName ? `Theatre: ${scenario.theatreName}` : 'Theatre loading...'}
+                  {scenario?.theatreName
+                    ? `Theatre: ${scenario.theatreName}`
+                    : 'Theatre loading...'}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -224,7 +217,9 @@ export function Mission() {
                     <div className="space-y-2">
                       {missionPackages.map((pkg) => {
                         const objective = objectivesByName.get(pkg.targetObjectiveId)
-                        const objectiveLabel = objective ? `${objective.name} (${objective.type})` : pkg.targetObjectiveId
+                        const objectiveLabel = objective
+                          ? `${objective.name} (${objective.type})`
+                          : pkg.targetObjectiveId
                         return (
                           <div
                             key={pkg.id}
@@ -232,7 +227,9 @@ export function Mission() {
                           >
                             <div>
                               <div className="text-sm font-medium text-white">{pkg.type}</div>
-                              <div className="text-xs text-secondary/70">Target: {objectiveLabel}</div>
+                              <div className="text-xs text-secondary/70">
+                                Target: {objectiveLabel}
+                              </div>
                             </div>
                             <div className="text-xs text-secondary/70">
                               ToT {formatTime(pkg.tot)} UTC
@@ -253,7 +250,8 @@ export function Mission() {
                   <span className="retro-font">Client Flight Groups</span>
                 </CardTitle>
                 <CardDescription className="text-secondary/70">
-                  {clientFlightGroups.length} group{clientFlightGroups.length === 1 ? '' : 's'} ready
+                  {clientFlightGroups.length} group{clientFlightGroups.length === 1 ? '' : 's'}{' '}
+                  ready
                 </CardDescription>
               </CardHeader>
               <ScrollArea className="flex-1">
@@ -313,7 +311,12 @@ export function Mission() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-secondary/70">Time multiplier</span>
-                  <span className={cn('font-medium', timeMultiplier === 0 ? 'text-synthwave-pink' : 'text-white')}>
+                  <span
+                    className={cn(
+                      'font-medium',
+                      timeMultiplier === 0 ? 'text-synthwave-pink' : 'text-white'
+                    )}
+                  >
                     x{timeMultiplier}
                   </span>
                 </div>
@@ -364,7 +367,8 @@ export function Mission() {
                   <span className="font-medium text-white">
                     {weather
                       ? `${Math.round(
-                          (weather.cloudCover.baseCloudCover + weather.cloudCover.seasonEffect) * 100
+                          (weather.cloudCover.baseCloudCover + weather.cloudCover.seasonEffect) *
+                            100
                         )}%`
                       : '—'}
                   </span>

@@ -17,7 +17,7 @@ function updateTime(delta: number) {
     const nextTime = addMilliseconds(state.time, delta * state.timeMultiplier)
     if (nextTime >= state.timeTarget) {
       activeStore.trigger.updateTime({ time: state.timeTarget })
-      activeStore.trigger.updateTimeMultiplier({ timeMultiplier: 1 })
+      activeStore.trigger.updateTimeMultiplier({ timeMultiplier: 0 })
       activeStore.trigger.setTimeTarget({ timeTarget: undefined })
     }
   }

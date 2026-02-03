@@ -21,7 +21,8 @@ export const campaignSamGroup = z.object({
   id: z.string(),
   type: samType,
   objectiveId: z.string(),
-  suppressed: z.boolean().optional()
+  suppressed: z.boolean().optional(),
+  destroyed: z.boolean().optional()
 })
 
 const campaignCoalition = z.object({
@@ -45,6 +46,11 @@ export const campaign = z.object({
   time: z.date(),
   timeMultiplier: z.number(),
   timeTarget: z.date().optional(),
+  campaignParams: z
+    .object({
+      hotStart: z.boolean().optional()
+    })
+    .optional(),
   scenarioId: z.string(),
   coalitions: z.record(coalition, campaignCoalition)
 })

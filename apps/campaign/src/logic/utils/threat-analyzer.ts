@@ -19,6 +19,11 @@ export function findThreateningSams(
   const threateningSams: ThreateningSam[] = []
 
   for (const samGroup of enemySamGroups) {
+    // Skip destroyed or suppressed SAMs
+    if (samGroup.destroyed || samGroup.suppressed) {
+      continue
+    }
+
     const samPosition = getObjectivePosition(theatre, samGroup.objectiveId)
     if (!samPosition) {
       continue

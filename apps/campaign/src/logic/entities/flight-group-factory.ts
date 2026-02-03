@@ -3,6 +3,8 @@ import * as z from 'zod'
 import { FlightGroup } from './flight-group'
 import { SeadFlightGroup } from './sead-flight-group'
 import { StrikeFlightGroup } from './strike-flight-group'
+import { DeadFlightGroup } from './dead-flight-group'
+import { CapFlightGroup } from './cap-flight-group'
 
 export const FlightGroupFactory = {
   getCoalitionFlightGroups(
@@ -15,6 +17,12 @@ export const FlightGroupFactory = {
       }
       if (data.task === 'SEAD') {
         return new SeadFlightGroup(data)
+      }
+      if (data.task === 'DEAD') {
+        return new DeadFlightGroup(data)
+      }
+      if (data.task === 'CAP') {
+        return new CapFlightGroup(data)
       }
       return new FlightGroup(data)
     })

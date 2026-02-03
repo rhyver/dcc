@@ -10,6 +10,9 @@ const initialState: z.infer<typeof schemas.campaign.campaign> = {
   createdAt: new Date(),
   id: crypto.randomUUID(),
   version: '0.0.1',
+  campaignParams: {
+    hotStart: false
+  },
   scenarioId: 'red-bullet',
   coalitions: {
     player: {
@@ -108,6 +111,13 @@ export const activeStore = createStore({
     setTimeTarget: (context, { timeTarget }: { timeTarget: Date | undefined }) =>
       produce(context, (draft) => {
         draft.timeTarget = timeTarget
+      }),
+    setHotStart: (context, { hotStart }: { hotStart: boolean }) =>
+      produce(context, (draft) => {
+        if (!draft.campaignParams) {
+          draft.campaignParams = {}
+        }
+        draft.campaignParams.hotStart = hotStart
       }),
 
     tick: (context, { delta, logic }: { delta: number; logic: (draft: typeof context) => void }) =>

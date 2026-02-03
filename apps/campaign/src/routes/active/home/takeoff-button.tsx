@@ -1,11 +1,12 @@
 import { useSelector } from '@xstate/store/react'
 import { FastForward } from 'lucide-react'
+import { useNavigate } from 'react-router'
 
 import { Button } from '@/components/ui/button'
 import { activeStore } from '@/stores/active'
-import { coreClient } from '@/lib/orpc'
 
 export function TakeoffButton() {
+  const navigate = useNavigate()
   const clientFlightGroup = useSelector(activeStore, (state) =>
     state.context.coalitions.player.flightGroups.find((fg) => fg.aircrafts.some((ac) => ac.client))
   )
@@ -39,7 +40,10 @@ export function TakeoffButton() {
     <Button
       size="sm"
       className="h-8 bg-synthwave-pink hover:bg-synthwave-pink/80 text-white border-none shadow-[0_0_10px_rgba(255,0,170,0.5)]"
-      onClick={() => coreClient.campaign.generateMiz(activeStore.getSnapshot().context)}
+      onClick={() => {
+        if (!hasClient) return
+        navigate('/mission')
+      }}
       disabled={!hasClient}
     >
       Takeoff

@@ -16,6 +16,24 @@ export const config = {
       maxDistance: 300_000,
       aircraftsPerGroup: 2,
       leadTime: 2 * 60 * 1000 // 2 minutes before strike ToT
+    },
+    DEAD: {
+      maxActive: {
+        player: 1,
+        opponent: 1
+      },
+      maxDistance: 300_000,
+      aircraftsPerGroup: 2
+    },
+    CAP: {
+      maxActive: {
+        player: 2,
+        opponent: 2
+      },
+      maxDistance: 200_000,
+      aircraftsPerGroup: 2,
+      engagementRange: 80_000, // Radar + missile range for A2A engagement
+      patrolDuration: 60 * 60 * 1000 // 1 hour patrol time
     }
   },
   structureRanges: {

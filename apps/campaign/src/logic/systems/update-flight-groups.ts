@@ -3,6 +3,8 @@ import * as z from 'zod'
 import { scenarios, theatres } from '@dcc/data'
 import { isStrikeFlightGroup } from '../entities/strike-flight-group'
 import { isSeadFlightGroup } from '../entities/sead-flight-group'
+import { isDeadFlightGroup } from '../entities/dead-flight-group'
+import { isCapFlightGroup } from '../entities/cap-flight-group'
 import { FlightGroupFactory } from '../entities/flight-group-factory'
 
 export function updateFlightGroups(
@@ -30,8 +32,14 @@ export function updateFlightGroups(
     } else if (isSeadFlightGroup(group) && theatre) {
       console.log('SEAD suppressing SAM', group)
       group.suppressSam(draft, coalition, theatre)
+    } else if (isDeadFlightGroup(group) && theatre) {
+      console.log('DEAD attacking SAM', group)
+      group.destroySam(draft, coalition, theatre)
+    } else if (isCapFlightGroup(group)) {
+      console.log('CAP patrolling', group)
+      group.engageAirTargets(draft, coalition)
     } else {
-      console.log('Not a strike/SEAD group', group.task)
+      console.log('Not a strike/SEAD/DEAD/CAP group', group.task)
     }
   }
 

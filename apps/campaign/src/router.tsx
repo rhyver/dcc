@@ -1,5 +1,6 @@
 import { createHashRouter, redirect, Outlet, useRouteError, Navigate } from 'react-router'
 import { Home } from './routes/active/home/home'
+import { Mission } from './routes/active/mission/mission'
 import { ActiveLayout } from './routes/active/layout'
 import { coreClient } from './lib/orpc'
 import { New } from './routes/new'
@@ -59,7 +60,10 @@ export const router = createHashRouter([
         Component: ActiveLayout,
         middleware: [activeCampaignMiddleware],
         ErrorBoundary: ActiveCampaignErrorBoundary,
-        children: [{ index: true, Component: Home }]
+        children: [
+          { index: true, Component: Home },
+          { path: 'mission', Component: Mission }
+        ]
       },
       {
         path: '/new',

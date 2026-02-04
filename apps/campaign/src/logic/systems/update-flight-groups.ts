@@ -21,6 +21,11 @@ export function updateFlightGroups(
   console.log('Updating flight groups', groups.length)
 
   for (const group of groups) {
+    if (group.aircrafts.length === 0) {
+      finishedIds.add(group.id)
+      continue
+    }
+
     group.move(draft.time)
     if (group.isLanded(draft.time)) {
       finishedIds.add(group.id)

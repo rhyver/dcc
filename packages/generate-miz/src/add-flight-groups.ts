@@ -1,4 +1,4 @@
-import { schemas } from '@dcc/contracts'
+import { schemas, config } from '@dcc/contracts'
 import { aircrafts } from '@dcc/data'
 import { err, ok, Result } from 'neverthrow'
 import * as z from 'zod'
@@ -45,6 +45,36 @@ function createSEADEscortTask(
   }
 }
 
+function createCapOrbitTask(
+  racetrackStart: z.infer<typeof schemas.position>,
+  racetrackEnd: z.infer<typeof schemas.position>,
+  speed: number,
+  altitude: number,
+  durationMs: number,
+  taskNumber: number
+): z.infer<typeof schemas.dcs.task> {
+  return {
+    enabled: true,
+    auto: false,
+    id: 'Orbit',
+    number: taskNumber,
+    params: {
+      pattern: 'Race-Track',
+      point: {
+        x: racetrackStart.x,
+        y: racetrackStart.y
+      },
+      point2: {
+        x: racetrackEnd.x,
+        y: racetrackEnd.y
+      },
+      speed: speed,
+      altitude: altitude,
+      duration: Math.max(1, Math.round(durationMs / 1000))
+    }
+  }
+}
+
 /**
  * Calculate current position along the flight path based on elapsed time.
  * Returns null if the flight hasn't taken off yet.
@@ -52,12 +82,20 @@ function createSEADEscortTask(
  */
 function calculateInFlightPosition(
   flightplan: z.infer<typeof schemas.flightplan>,
-  campaignTime: Date
+  campaignTime: Date,
+  patrolDurationMs?: number
 ): {
   position: z.infer<typeof schemas.position>
   altitude: number
   heading: number
   nextWaypointIndex: number
+  capOrbit?: {
+    remainingMs: number
+    racetrackStart: z.infer<typeof schemas.position>
+    racetrackEnd: z.infer<typeof schemas.position>
+    speed: number
+    altitude: number
+  }
 } | null {
   const startTime = new Date(flightplan.startTime)
   if (campaignTime < startTime) {
@@ -73,6 +111,132 @@ function calculateInFlightPosition(
   elapsed -= STARTUP_DELAY_MS
 
   const waypoints = flightplan.waypoints
+
+  const getLegTimeMs = (
+    from: z.infer<typeof schemas.position>,
+    to: z.infer<typeof schemas.position>,
+    speed: number
+  ) => {
+    const dx = to.x - from.x
+    const dy = to.y - from.y
+    const dist = Math.sqrt(dx * dx + dy * dy)
+    return speed > 0 ? (dist / speed) * 1000 : 0
+  }
+
+  const getPositionAlong = (
+    from: z.infer<typeof schemas.position>,
+    to: z.infer<typeof schemas.position>,
+    ratio: number
+  ) => ({
+    x: from.x + (to.x - from.x) * ratio,
+    y: from.y + (to.y - from.y) * ratio
+  })
+
+  const getHeading = (from: z.infer<typeof schemas.position>, to: z.infer<typeof schemas.position>) =>
+    Math.atan2(to.x - from.x, to.y - from.y)
+
+  const racetrackStartIndex =
+    patrolDurationMs && patrolDurationMs > 0
+      ? waypoints.findIndex((wp, idx) => wp.type === 'Task' && waypoints[idx + 1]?.type === 'RaceTrack End')
+      : -1
+
+  if (racetrackStartIndex !== -1) {
+    const racetrackEndIndex = racetrackStartIndex + 1
+    const racetrackStart = waypoints[racetrackStartIndex]
+    const racetrackEnd = waypoints[racetrackEndIndex]
+
+    if (racetrackStart && racetrackEnd) {
+      let timeToRacetrackStartMs = 0
+      for (let i = 0; i < racetrackStartIndex; i++) {
+        const startWp = waypoints[i]
+        const endWp = waypoints[i + 1]
+        if (!startWp || !endWp) continue
+        timeToRacetrackStartMs += getLegTimeMs(startWp.position, endWp.position, endWp.speed)
+      }
+
+      if (elapsed >= timeToRacetrackStartMs) {
+        const legTimeMs = getLegTimeMs(
+          racetrackStart.position,
+          racetrackEnd.position,
+          racetrackEnd.speed
+        )
+        const patrolMs = patrolDurationMs ?? 0
+
+        if (elapsed < timeToRacetrackStartMs + patrolMs) {
+          const timeInPatrol = elapsed - timeToRacetrackStartMs
+          const cycleTime = legTimeMs * 2
+          const cyclePos = cycleTime > 0 ? timeInPatrol % cycleTime : 0
+
+          const forwardLeg = cyclePos <= legTimeMs
+          const legElapsed = forwardLeg ? cyclePos : cyclePos - legTimeMs
+          const ratio = legTimeMs > 0 ? legElapsed / legTimeMs : 0
+          const from = forwardLeg ? racetrackStart : racetrackEnd
+          const to = forwardLeg ? racetrackEnd : racetrackStart
+
+          const position = getPositionAlong(from.position, to.position, ratio)
+          const altitude = from.altitude + (to.altitude - from.altitude) * ratio
+          const heading = getHeading(from.position, to.position)
+          const remainingMs = Math.max(0, patrolMs - timeInPatrol)
+
+          return {
+            position,
+            altitude,
+            heading,
+            nextWaypointIndex: racetrackEndIndex,
+            capOrbit: {
+              remainingMs,
+              racetrackStart: racetrackStart.position,
+              racetrackEnd: racetrackEnd.position,
+              speed: racetrackEnd.speed,
+              altitude: racetrackStart.altitude
+            }
+          }
+        }
+
+        let remainingMs = elapsed - timeToRacetrackStartMs - patrolMs
+        const patrolEndCycleTime = legTimeMs * 2
+        const patrolEndCyclePos = patrolEndCycleTime > 0 ? patrolMs % patrolEndCycleTime : 0
+        const patrolForwardLeg = patrolEndCyclePos <= legTimeMs
+        const patrolLegElapsed = patrolForwardLeg ? patrolEndCyclePos : patrolEndCyclePos - legTimeMs
+        const patrolRatio = legTimeMs > 0 ? patrolLegElapsed / legTimeMs : 0
+        const patrolFrom = patrolForwardLeg ? racetrackStart : racetrackEnd
+        const patrolTo = patrolForwardLeg ? racetrackEnd : racetrackStart
+        let currentPos = getPositionAlong(patrolFrom.position, patrolTo.position, patrolRatio)
+        let currentAlt = patrolFrom.altitude + (patrolTo.altitude - patrolFrom.altitude) * patrolRatio
+
+        for (let i = racetrackEndIndex; i < waypoints.length - 1; i++) {
+          const endWp = waypoints[i + 1]
+          if (!endWp) continue
+
+          const timeMs = getLegTimeMs(currentPos, endWp.position, endWp.speed)
+          if (remainingMs < timeMs) {
+            const ratio = timeMs > 0 ? remainingMs / timeMs : 0
+            const position = getPositionAlong(currentPos, endWp.position, ratio)
+            const altitude = currentAlt + (endWp.altitude - currentAlt) * ratio
+            const heading = getHeading(currentPos, endWp.position)
+            return {
+              position,
+              altitude,
+              heading,
+              nextWaypointIndex: i + 1
+            }
+          }
+
+          remainingMs -= timeMs
+          currentPos = endWp.position
+          currentAlt = endWp.altitude
+        }
+
+        return {
+          position: currentPos,
+          altitude: currentAlt,
+          heading: 0,
+          nextWaypointIndex: waypoints.length - 1
+        }
+      }
+    }
+  }
+
   for (let i = 0; i < waypoints.length - 1; i++) {
     const startWp = waypoints[i]
     const endWp = waypoints[i + 1]
@@ -250,7 +414,11 @@ export function addFlightGroups(
       const airdromeUsedSlots = usedParkingSlots.get(airdromeName)
 
       // Check if the flight group is already in the air
-      const inFlightState = calculateInFlightPosition(fg.flightplan, campaign.time)
+      const inFlightState = calculateInFlightPosition(
+        fg.flightplan,
+        campaign.time,
+        fg.task === 'CAP' ? config.packages.CAP.patrolDuration : undefined
+      )
       const isInFlight = inFlightState !== null
 
       if (isInFlight) {
@@ -376,6 +544,19 @@ export function addFlightGroups(
       // For in-flight aircraft, add current position as the first waypoint
       if (isInFlight && inFlightState) {
         const nextWp = waypointsToUse[0]
+        const currentTasks: z.infer<typeof schemas.dcs.task>[] = []
+        if (fg.task === 'CAP' && inFlightState.capOrbit && inFlightState.capOrbit.remainingMs > 0) {
+          currentTasks.push(
+            createCapOrbitTask(
+              inFlightState.capOrbit.racetrackStart,
+              inFlightState.capOrbit.racetrackEnd,
+              inFlightState.capOrbit.speed,
+              inFlightState.capOrbit.altitude,
+              inFlightState.capOrbit.remainingMs,
+              currentTasks.length + 1
+            )
+          )
+        }
         routePoints.push({
           alt: inFlightState.altitude,
           action: 'Turning Point',
@@ -384,7 +565,7 @@ export function addFlightGroups(
           task: {
             id: 'ComboTask',
             params: {
-              tasks: []
+              tasks: currentTasks
             }
           },
           type: 'Turning Point',
@@ -441,6 +622,7 @@ export function addFlightGroups(
         lastWp = { x: x, y: y, speed: wp.speed }
 
         const tasks: z.infer<typeof schemas.dcs.task>[] = []
+        const nextWp = waypointsToUse[index + 1]
 
         // Add SEAD escort task for SEAD flight groups at the IP waypoint
         // This makes the SEAD aircraft follow the strike group while engaging SAMs
@@ -457,6 +639,24 @@ export function addFlightGroups(
               )
             }
           }
+        }
+
+        if (
+          fg.task === 'CAP' &&
+          wp.type === 'Task' &&
+          nextWp?.type === 'RaceTrack End' &&
+          config.packages.CAP.patrolDuration > 0
+        ) {
+          tasks.push(
+            createCapOrbitTask(
+              wp.position,
+              nextWp.position,
+              nextWp.speed,
+              wp.altitude,
+              config.packages.CAP.patrolDuration,
+              tasks.length + 1
+            )
+          )
         }
 
         if (wp.name === 'IP' && fg.target && fg.task === 'Pinpoint Strike') {

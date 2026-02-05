@@ -13,6 +13,7 @@ export function dictionary(): z.infer<typeof schemas.dcs.l10n>['dictionary'] {
 
 export function mapResource(): z.infer<typeof schemas.dcs.l10n>['mapResource'] {
   return {
+    mist: 'mist.lua',
     state: 'state.lua'
   }
 }

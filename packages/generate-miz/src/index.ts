@@ -8,6 +8,7 @@ import { addFlightGroups } from './add-flight-groups'
 import { addStructures } from './add-structures'
 import { dictionary, mapResource } from './l10n'
 import { options } from './options'
+import mistLuaScript from './scripts/mist_4_5_126.lua?raw'
 import stateLuaScript from './scripts/state.lua?raw'
 import { warehouses } from './warehouses'
 
@@ -155,21 +156,25 @@ export function generateMizFromCampaign(
     trig: {
       actions: {
         1: `a_do_script("config = { missionId = '${campaign.id}' }")`,
-        2: 'a_do_script_file(getValueResourceByKey("state"))'
+        2: 'a_do_script_file(getValueResourceByKey("mist"))',
+        3: 'a_do_script_file(getValueResourceByKey("state"))'
       },
       events: {},
       custom: {},
       func: {
         1: 'if true then return true end',
-        2: 'if true then return true end'
+        2: 'if true then return true end',
+        3: 'if true then return true end'
       },
       flag: {
         1: true,
-        2: true
+        2: true,
+        3: true
       },
       conditions: {
         1: 'return(c_time_after(1))',
-        2: 'return(c_time_after(2))'
+        2: 'return(c_time_after(2))',
+        3: 'return(c_time_after(3))'
       },
       customStartup: {},
       funcStartup: {}
@@ -187,6 +192,14 @@ export function generateMizFromCampaign(
       },
       2: {
         rules: { 1: { coalitionlist: 'all', seconds: 2, predicate: 'c_time_after' } },
+        eventlist: '',
+        predicate: 'triggerOnce',
+        comment: 'MIST Script',
+        actions: { 1: { predicate: 'a_do_script_file', file: 'mist' } },
+        colorItem: '0x00ffffff'
+      },
+      3: {
+        rules: { 1: { coalitionlist: 'all', seconds: 3, predicate: 'c_time_after' } },
         eventlist: '',
         predicate: 'triggerOnce',
         comment: 'DCC State Script',
@@ -248,6 +261,7 @@ export function generateMizFromCampaign(
   zip.addFile('warehouses', Buffer.from('warehouses = ' + warehousesLua, 'utf-8'))
   zip.addFile('l10n/DEFAULT/dictionary', Buffer.from('dictionary = ' + dictionaryLua, 'utf-8'))
   zip.addFile('l10n/DEFAULT/mapResource', Buffer.from('mapResource = ' + mapResourceLua, 'utf-8'))
+  zip.addFile('l10n/DEFAULT/mist.lua', Buffer.from(mistLuaScript, 'utf-8'))
   zip.addFile('l10n/DEFAULT/state.lua', Buffer.from(stateLuaScript, 'utf-8'))
   try {
     zip.writeZip(path)

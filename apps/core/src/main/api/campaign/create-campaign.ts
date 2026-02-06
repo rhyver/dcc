@@ -189,7 +189,7 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
     name: scenario.name,
     time: scenario.date,
     timeMultiplier: 0,
-    scenarioId: 'red-bullet',
+    scenarioId: scenario.id,
     coalitions: {
       player: {
         id: playerFaction.id,
@@ -220,7 +220,7 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
 
   const result = schemas.campaign.campaign.safeParse(defaultState)
   if (!result.success) {
-    console.log('result.error', result.error)
+    throw errors.INVALID_APP_STATE({ data: { message: result.error.message } })
   }
 
   // Ensure campaigns directory exists

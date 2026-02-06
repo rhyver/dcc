@@ -23,17 +23,27 @@ export class FlightGroup {
     const tot = params.tot ?? FlightGroup.calculateTot(params.flightplan)
     const id = crypto.randomUUID()
 
+    const existingCallsigns = new Set([
+      ...draft.coalitions.player.flightGroups.map((fg) => fg.callsign),
+      ...draft.coalitions.opponent.flightGroups.map((fg) => fg.callsign)
+    ])
+
+    let callsign = params.callsign
+    if (callsign == null) {
+      do {
+        callsign = `${callsigns[Math.floor(Math.random() * callsigns.length)] ?? 'Enfield'}-${
+          Math.floor(Math.random() * 9) + 1
+        }`
+      } while (existingCallsigns.has(callsign))
+    }
+
     const newFlightGroupData: z.infer<typeof schemas.flightGroup> = {
       id,
       aircrafts: params.aircrafts,
       task: params.task,
       position: params.position,
       homeBase: params.homeBase,
-      callsign:
-        params.callsign ??
-        `${callsigns[Math.floor(Math.random() * callsigns.length)] ?? 'Enfield'}-${
-          Math.floor(Math.random() * 9) + 1
-        }`,
+      callsign,
       target: params.target,
       flightplan: params.flightplan,
       tot,

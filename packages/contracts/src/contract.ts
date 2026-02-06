@@ -70,6 +70,26 @@ const generateMiz = base
   })
   .input(campaignSchemas.campaign)
 
+const loadMissionState = base
+  .route({
+    summary: 'Load mission state from dcc_state.json',
+    tags: ['Campaign', 'State']
+  })
+  .errors({
+    FAILED_TO_READ_FILE: {
+      data: z.object({
+        path: z.string(),
+        message: z.string()
+      })
+    },
+    INVALID_STATE_FILE: {
+      data: z.object({
+        message: z.string()
+      })
+    }
+  })
+  .output(schemas.missionState)
+
 const listCampaigns = base
   .route({
     summary: 'List all saved campaigns',
@@ -148,6 +168,7 @@ export const campaign = {
   createCampaign,
   saveActiveCampaign,
   generateMiz,
+  loadMissionState,
   listCampaigns,
   openCampaign,
   deleteCampaign,

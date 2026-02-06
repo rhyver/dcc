@@ -1,14 +1,15 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSelector } from '@xstate/store/react'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, CloudSun, Clock, Plane, Sun, Target, Wind } from 'lucide-react'
+import { ArrowLeft, Clock, CloudSun, Plane, Sun, Target, Wind } from 'lucide-react'
 import { useNavigate } from 'react-router'
+import { produce } from 'immer'
+import { schemas } from '@dcc/contracts'
+import * as z from 'zod'
 
 import { activeStore } from '@/stores/active'
 import { coreClient, orpc } from '@/lib/orpc'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Toggle } from '@/components/ui/toggle'
 import { cn } from '@/lib/utils'
 
@@ -24,32 +25,56 @@ function formatTime(date: Date | string) {
   }).format(d)
 }
 
-function formatDateTime(date: Date | string) {
-  const d = new Date(date)
-  return new Intl.DateTimeFormat('en-CA', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-    timeZone: 'UTC'
-  })
-    .format(d)
-    .replace(', ', ' ')
-}
-
 function formatWindDirection(degrees: number) {
   const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'] as const
   const index = Math.round(degrees / 45) % directions.length
   return `${degrees.toFixed(0)}° ${directions[index]}`
 }
 
+type Campaign = z.infer<typeof schemas.campaign.campaign>
+type MissionState = z.infer<typeof schemas.missionState>
+
+function applyMissionStateUpdate(campaign: Campaign, missionState: MissionState): Campaign {
+  const lostUnitNames = new Set(missionState.lostUnits?.map((unit) => unit.name) ?? [])
+  const groupPositions = missionState.groupPositions
+
+  return produce(campaign, (draft) => {
+    const applyToCoalition = (
+      coalition: 'player' | 'opponent',
+      groups?: Array<{ name: string; x: number; y: number }>
+    ) => {
+      if (!groups) {
+        return
+      }
+
+      const groupByName = new Map(groups.map((group) => [group.name, group]))
+
+      for (const flightGroup of draft.coalitions[coalition].flightGroups) {
+        const missionGroup = groupByName.get(flightGroup.callsign)
+        if (missionGroup) {
+          flightGroup.position.x = missionGroup.x
+          flightGroup.position.y = missionGroup.y
+        }
+
+        if (lostUnitNames.size > 0) {
+          flightGroup.aircrafts = flightGroup.aircrafts.filter(
+            (aircraft) => !lostUnitNames.has(aircraft.unitName)
+          )
+        }
+      }
+    }
+
+    applyToCoalition('player', groupPositions?.blue?.aircraft)
+    applyToCoalition('opponent', groupPositions?.red?.aircraft)
+  })
+}
+
 export function Mission() {
   const navigate = useNavigate()
   const [isGenerating, setIsGenerating] = useState(false)
   const [isGenerated, setIsGenerated] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [toast, setToast] = useState<{ message: string; tone: 'error' } | null>(null)
   const scenarioId = useSelector(activeStore, (state) => state.context.scenarioId)
   const campaignTime = useSelector(activeStore, (state) => state.context.time)
   const timeMultiplier = useSelector(activeStore, (state) => state.context.timeMultiplier)
@@ -93,288 +118,280 @@ export function Mission() {
   const weather = theatreQuery.data?.info.weather
   const scenario = scenarioQuery.data
 
+  const handleGenerate = async () => {
+    if (isGenerating) return
+    setIsGenerating(true)
+    try {
+      await coreClient.campaign.generateMiz(activeStore.getSnapshot().context)
+      setIsGenerated(true)
+    } catch (error) {
+      console.error('Failed to generate mission', error)
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!toast) {
+      return
+    }
+
+    const timeout = window.setTimeout(() => {
+      setToast(null)
+    }, 4000)
+
+    return () => window.clearTimeout(timeout)
+  }, [toast])
+
+  const handleSubmitMissionState = async () => {
+    if (isSubmitting) return
+    setIsSubmitting(true)
+    try {
+      const missionState = await coreClient.campaign.loadMissionState()
+      const currentCampaign = activeStore.getSnapshot().context
+
+      if (missionState.missionId !== currentCampaign.id) {
+        const message = `Mission state mismatch. Expected ${currentCampaign.id}, got ${missionState.missionId}.`
+        console.error(message)
+        setToast({ message, tone: 'error' })
+        return
+      }
+
+      const updatedCampaign = applyMissionStateUpdate(currentCampaign, missionState)
+      activeStore.send({ type: 'loadCampaign', campaign: updatedCampaign })
+      await coreClient.campaign.saveActiveCampaign(updatedCampaign)
+      navigate('/')
+    } catch (error) {
+      console.error('Failed to submit mission state', error)
+      const message =
+        error instanceof Error ? error.message : 'Mission state submission failed. Please try again.'
+      setToast({ message, tone: 'error' })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   return (
-    <div className="relative min-h-screen overflow-hidden bg-background text-synthwave-light">
+    <div className="min-h-screen bg-[#0b0014]">
+      {toast && (
+        <div className="fixed right-6 top-6 z-50 rounded border border-red-500/40 bg-red-950/80 px-4 py-2 text-sm text-red-100 shadow-[0_0_20px_rgba(255,0,0,0.25)] backdrop-blur">
+          {toast.message}
+        </div>
+      )}
+      {/* Grid background */}
       <div
-        className="absolute inset-0"
+        className="fixed inset-0"
         style={{
           backgroundImage:
-            'linear-gradient(to right, var(--synthwave-pink) 1px, transparent 1px), linear-gradient(to bottom, var(--synthwave-pink) 1px, transparent 1px)',
-          backgroundSize: '50px 50px',
-          opacity: 0.15
+            'linear-gradient(to right, rgba(255,0,170,0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,0,170,0.1) 1px, transparent 1px)',
+          backgroundSize: '40px 40px'
         }}
       />
-      <div className="absolute inset-x-0 bottom-0 h-[40vh] bg-linear-to-t from-synthwave-pink/40 via-synthwave-purple/20 to-transparent" />
+      {/* Horizon glow */}
+      <div className="fixed inset-x-0 bottom-0 h-[30vh] bg-gradient-to-t from-[#ff00aa]/30 via-[#9900ff]/10 to-transparent" />
 
-      <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-4 px-6 py-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="relative z-10 p-6 h-screen flex flex-col gap-4">
+        {/* Header */}
+        <div className="flex items-center justify-between">
           <div>
-            <div className="text-xs uppercase tracking-[0.2em] text-synthwave-pink/80">
+            <div className="text-[10px] tracking-[0.3em] text-[#ff00aa]/60 uppercase">
               Mission Control
             </div>
-            <h1 className="retro-font text-2xl text-white">{scenario?.name ?? 'Active Mission'}</h1>
-            {scenario?.era && <div className="text-xs text-secondary/70">Era: {scenario.era}</div>}
+            <h1
+              className="text-3xl font-bold text-white"
+              style={{ fontFamily: 'system-ui', fontWeight: 800 }}
+            >
+              {scenario?.name ?? 'Active Mission'}
+            </h1>
           </div>
           <Button
             variant="outline"
             size="sm"
-            className="border-synthwave-pink/40 text-synthwave-pink hover:bg-synthwave-pink/10"
+            className="border-[#ff00aa]/40 text-[#ff00aa] hover:bg-[#ff00aa]/10 bg-transparent"
             onClick={() => navigate('/')}
           >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to map
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back
           </Button>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+        {/* Main Content */}
+        <div className="flex-1 grid grid-cols-3 gap-4 min-h-0">
+          {/* Left Column - Status & Packages */}
           <div className="flex flex-col gap-4">
-            <Card className="border-synthwave-pink/30 bg-synthwave-dark/80 text-synthwave-light shadow-[0_0_15px_rgba(255,0,170,0.3)] backdrop-blur-md">
-              <CardHeader className="border-b border-synthwave-pink/10">
-                <CardTitle className="flex items-center gap-2 text-lg font-medium text-white">
-                  <Target className="h-4 w-4 text-synthwave-pink" />
-                  <span className="retro-font">
-                    {isGenerated ? 'Mission generated' : 'Ready for Takeoff'}
-                  </span>
-                </CardTitle>
-                <CardDescription className="text-secondary/70">
-                  {isGenerated
-                    ? 'You can now start the mission in DCS.'
-                    : 'Generate the mission file before you start.'}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex flex-wrap items-center justify-between gap-3">
+            {/* Status Card */}
+            <div className="border border-[#ff00aa]/30 bg-[#ff00aa]/5 rounded-lg p-4 backdrop-blur-sm shadow-[0_0_20px_rgba(255,0,170,0.2)]">
+              <div className="flex items-center gap-2 mb-3">
+                <Target className="h-4 w-4 text-[#ff00aa]" />
+                <span className="text-sm font-semibold text-white">Status</span>
+              </div>
+              <div className="text-2xl font-bold text-white mb-4">
+                {isGenerated ? '✓ Ready' : '○ Pending'}
+              </div>
+              <div className="flex items-center gap-2">
                 <Toggle
                   pressed={!!hotStart}
                   onPressedChange={(pressed) =>
                     activeStore.send({ type: 'setHotStart', hotStart: pressed })
                   }
-                  variant="outline"
-                  size="sm"
                   className={cn(
-                    'h-8 border-synthwave-pink/40 text-synthwave-pink hover:bg-synthwave-pink/10',
-                    hotStart && 'bg-synthwave-pink/20 text-white'
+                    'h-8 text-xs border border-[#ff00aa]/40',
+                    hotStart && 'bg-[#ff00aa]/20 text-white'
                   )}
                 >
                   Hot Start
                 </Toggle>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="border-synthwave-pink/40 text-synthwave-pink hover:bg-synthwave-pink/10"
-                    onClick={() => navigate('/')}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="bg-synthwave-pink hover:bg-synthwave-pink/80 text-white border-none shadow-[0_0_10px_rgba(255,0,170,0.5)]"
-                    onClick={async () => {
-                      if (isGenerating) return
-                      setIsGenerating(true)
-                      try {
-                        await coreClient.campaign.generateMiz(activeStore.getSnapshot().context)
-                        setIsGenerated(true)
-                      } catch (error) {
-                        console.error('Failed to generate mission', error)
-                      } finally {
-                        setIsGenerating(false)
-                      }
-                    }}
-                    disabled={isGenerating}
-                  >
-                    {isGenerating ? 'Generating...' : 'Generate Mission'}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border-synthwave-pink/30 bg-synthwave-dark/80 text-synthwave-light shadow-[0_0_15px_rgba(255,0,170,0.3)] backdrop-blur-md">
-              <CardHeader className="border-b border-synthwave-pink/10">
-                <CardTitle className="flex items-center gap-2 text-lg font-medium text-white">
-                  <Target className="h-4 w-4 text-synthwave-pink" />
-                  <span className="retro-font">Current Mission</span>
-                </CardTitle>
-                <CardDescription className="text-secondary/70">
-                  {scenario?.theatreName
-                    ? `Theatre: ${scenario.theatreName}`
-                    : 'Theatre loading...'}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {scenario?.briefing && (
-                  <div
-                    className="text-sm text-secondary/80 leading-relaxed"
-                    dangerouslySetInnerHTML={{ __html: scenario.briefing }}
-                  />
-                )}
-                <div className="space-y-2">
-                  <div className="text-xs uppercase tracking-[0.2em] text-synthwave-pink/70">
-                    Packages
-                  </div>
-                  {missionPackages.length === 0 ? (
-                    <div className="text-sm text-secondary/60 italic">No active packages.</div>
-                  ) : (
-                    <div className="space-y-2">
-                      {missionPackages.map((pkg) => {
-                        const objective = objectivesByName.get(pkg.targetObjectiveId)
-                        const objectiveLabel = objective
-                          ? `${objective.name} (${objective.type})`
-                          : pkg.targetObjectiveId
-                        return (
-                          <div
-                            key={pkg.id}
-                            className="flex flex-wrap items-center justify-between gap-2 rounded border border-synthwave-pink/20 bg-synthwave-pink/5 px-3 py-2"
-                          >
-                            <div>
-                              <div className="text-sm font-medium text-white">{pkg.type}</div>
-                              <div className="text-xs text-secondary/70">
-                                Target: {objectiveLabel}
-                              </div>
-                            </div>
-                            <div className="text-xs text-secondary/70">
-                              ToT {formatTime(pkg.tot)} UTC
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                <button
+                  onClick={isGenerated ? handleSubmitMissionState : handleGenerate}
+                  disabled={isGenerating || isSubmitting}
+                  className="flex-1 h-8 text-sm font-medium bg-[#ff00aa] text-white rounded hover:bg-[#ff00aa]/80 disabled:opacity-50 transition-colors shadow-[0_0_15px_rgba(255,0,170,0.5)]"
+                >
+                  {isGenerating
+                    ? 'Generating...'
+                    : isSubmitting
+                      ? 'Submitting...'
+                      : isGenerated
+                        ? 'Submit Mission State'
+                        : 'Generate'}
+                </button>
+              </div>
+            </div>
 
-            <Card className="border-synthwave-pink/30 bg-synthwave-dark/80 text-synthwave-light shadow-[0_0_15px_rgba(255,0,170,0.3)] backdrop-blur-md flex min-h-0 flex-1 flex-col">
-              <CardHeader className="border-b border-synthwave-pink/10">
-                <CardTitle className="flex items-center gap-2 text-lg font-medium text-white">
-                  <Plane className="h-4 w-4 text-synthwave-pink" />
-                  <span className="retro-font">Client Flight Groups</span>
-                </CardTitle>
-                <CardDescription className="text-secondary/70">
-                  {clientFlightGroups.length} group{clientFlightGroups.length === 1 ? '' : 's'}{' '}
-                  ready
-                </CardDescription>
-              </CardHeader>
-              <ScrollArea className="flex-1">
-                <CardContent className="space-y-2">
-                  {clientFlightGroups.length === 0 ? (
-                    <div className="text-sm text-secondary/60 italic">
-                      No flight groups have client slots assigned.
+            {/* Packages */}
+            <div className="flex-1 border border-[#ff00aa]/30 bg-[#ff00aa]/5 rounded-lg p-4 backdrop-blur-sm min-h-0 flex flex-col">
+              <div className="text-[10px] tracking-[0.2em] text-[#ff00aa]/60 uppercase mb-2">
+                Packages
+              </div>
+              <div className="flex-1 overflow-auto space-y-2">
+                {missionPackages.map((pkg) => {
+                  const objective = objectivesByName.get(pkg.targetObjectiveId)
+                  return (
+                    <div
+                      key={pkg.id}
+                      className="border border-[#ff00aa]/20 rounded bg-[#ff00aa]/5 px-3 py-2"
+                    >
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-white">{pkg.type}</span>
+                        <span className="text-xs text-[#00ddff] tabular-nums">
+                          {formatTime(pkg.tot)}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-white/50">
+                        {objective?.name ?? pkg.targetObjectiveId}
+                      </div>
                     </div>
-                  ) : (
-                    clientFlightGroups.map((group) => {
-                      const clientCount = group.aircrafts.filter((ac) => ac.client).length
-                      return (
-                        <div
-                          key={group.id}
-                          className="rounded border border-synthwave-pink/20 bg-synthwave-pink/5 px-3 py-2"
-                        >
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div>
-                              <div className="text-sm font-medium text-white">{group.callsign}</div>
-                              <div className="text-xs text-secondary/70">Task: {group.task}</div>
-                            </div>
-                            <div className="text-xs text-secondary/70">
-                              {clientCount}/{group.aircrafts.length} clients
-                            </div>
-                          </div>
-                          <div className="mt-2 flex flex-wrap gap-3 text-[11px] text-secondary/70">
-                            <div>Aircraft: {group.aircrafts[0]?.aircraftName ?? 'Unknown'}</div>
-                            <div>Start {formatTime(group.flightplan.startTime)} UTC</div>
-                            {group.tot && <div>ToT {formatTime(group.tot)} UTC</div>}
-                          </div>
-                        </div>
-                      )
-                    })
-                  )}
-                </CardContent>
-              </ScrollArea>
-            </Card>
+                  )
+                })}
+              </div>
+            </div>
           </div>
 
-          <div className="flex flex-col gap-4">
-            <Card className="border-synthwave-pink/30 bg-synthwave-dark/80 text-synthwave-light shadow-[0_0_15px_rgba(255,0,170,0.3)] backdrop-blur-md">
-              <CardHeader className="border-b border-synthwave-pink/10">
-                <CardTitle className="flex items-center gap-2 text-lg font-medium text-white">
-                  <Clock className="h-4 w-4 text-synthwave-pink" />
-                  <span className="retro-font">Mission Time</span>
-                </CardTitle>
-                <CardDescription className="text-secondary/70">
-                  Current campaign clock
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-secondary/70">UTC</span>
-                  <span className="font-medium text-white">
-                    {campaignTime ? formatDateTime(campaignTime) : '—'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-secondary/70">Time multiplier</span>
-                  <span
-                    className={cn(
-                      'font-medium',
-                      timeMultiplier === 0 ? 'text-synthwave-pink' : 'text-white'
-                    )}
+          {/* Center Column - Flight Groups */}
+          <div className="border border-[#ff00aa]/30 bg-[#ff00aa]/5 rounded-lg p-4 backdrop-blur-sm min-h-0 flex flex-col">
+            <div className="flex items-center gap-2 mb-3">
+              <Plane className="h-4 w-4 text-[#ff00aa]" />
+              <span className="text-sm font-semibold text-white">Client Flights</span>
+              <span className="text-xs text-white/40 ml-auto">{clientFlightGroups.length} groups</span>
+            </div>
+            <div className="flex-1 overflow-auto space-y-2">
+              {clientFlightGroups.map((group) => {
+                const clientCount = group.aircrafts.filter((ac) => ac.client).length
+                return (
+                  <div
+                    key={group.id}
+                    className="border border-[#9900ff]/30 rounded bg-[#9900ff]/10 px-3 py-2"
                   >
-                    x{timeMultiplier}
-                  </span>
-                </div>
-                {scenario?.date && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-secondary/70">Scenario start</span>
-                    <span className="font-medium text-white">{formatDateTime(scenario.date)}</span>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-bold text-white">{group.callsign}</span>
+                      <span className="text-[10px] text-[#00ddff]">
+                        {clientCount}/{group.aircrafts.length}
+                      </span>
+                    </div>
+                    <div className="flex gap-3 mt-1 text-[10px] text-white/50">
+                      <span>{group.aircrafts[0]?.aircraftName}</span>
+                      <span className="text-[#ff00aa]">{group.task}</span>
+                    </div>
+                    <div className="text-[10px] text-white/40 mt-1">
+                      Start {formatTime(group.flightplan.startTime)}{' '}
+                      {group.tot && `• ToT ${formatTime(group.tot)}`}
+                    </div>
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                )
+              })}
+            </div>
+          </div>
 
-            <Card className="border-synthwave-pink/30 bg-synthwave-dark/80 text-synthwave-light shadow-[0_0_15px_rgba(255,0,170,0.3)] backdrop-blur-md">
-              <CardHeader className="border-b border-synthwave-pink/10">
-                <CardTitle className="flex items-center gap-2 text-lg font-medium text-white">
-                  <CloudSun className="h-4 w-4 text-synthwave-pink" />
-                  <span className="retro-font">Weather</span>
-                </CardTitle>
-                <CardDescription className="text-secondary/70">
-                  {scenario?.theatreName ?? 'Theatre weather'}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-2 text-secondary/70">
-                    <Sun className="h-4 w-4" />
-                    Temperature
-                  </span>
-                  <span className="font-medium text-white">
-                    {weather
-                      ? `${weather.temperature.mean.toFixed(0)}°C ± ${weather.temperature.amplitude.toFixed(0)}°`
-                      : '—'}
-                  </span>
+          {/* Right Column - Time & Weather */}
+          <div className="flex flex-col gap-4">
+            {/* Time */}
+            <div className="border border-[#00ddff]/30 bg-[#00ddff]/5 rounded-lg p-4 backdrop-blur-sm">
+              <div className="flex items-center gap-2 mb-2">
+                <Clock className="h-4 w-4 text-[#00ddff]" />
+                <span className="text-sm font-semibold text-white">Mission Time</span>
+              </div>
+              <div className="text-4xl font-bold text-[#00ddff] tabular-nums">
+                {campaignTime ? formatTime(campaignTime) : '--:--'}
+              </div>
+              <div className="flex justify-between mt-2 text-xs text-white/50">
+                <span>UTC</span>
+                <span className={timeMultiplier === 0 ? 'text-[#ff00aa]' : ''}>
+                  x{timeMultiplier}
+                </span>
+              </div>
+            </div>
+
+            {/* Weather */}
+            <div className="flex-1 border border-[#9900ff]/30 bg-[#9900ff]/5 rounded-lg p-4 backdrop-blur-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <CloudSun className="h-4 w-4 text-[#9900ff]" />
+                <span className="text-sm font-semibold text-white">Weather</span>
+              </div>
+              {weather ? (
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="flex items-center gap-2 text-xs text-white/50">
+                      <Sun className="h-3 w-3" /> Temp
+                    </span>
+                    <span className="text-sm text-white">
+                      {weather.temperature.mean.toFixed(0)}°C
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="flex items-center gap-2 text-xs text-white/50">
+                      <Wind className="h-3 w-3" /> Wind
+                    </span>
+                    <span className="text-sm text-white">
+                      {(weather.wind.speed * KNOTS_PER_MS).toFixed(0)} kt
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-white/50">Direction</span>
+                    <span className="text-sm text-white">
+                      {formatWindDirection(weather.wind.direction)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-white/50">Clouds</span>
+                    <span className="text-sm text-white">
+                      {Math.round(
+                        (weather.cloudCover.baseCloudCover + weather.cloudCover.seasonEffect) * 100
+                      )}
+                      %
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-2 text-secondary/70">
-                    <Wind className="h-4 w-4" />
-                    Wind
-                  </span>
-                  <span className="font-medium text-white">
-                    {weather
-                      ? `${formatWindDirection(weather.wind.direction)} · ${weather.wind.speed.toFixed(1)} m/s (${(weather.wind.speed * KNOTS_PER_MS).toFixed(1)} kt)`
-                      : '—'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-secondary/70">Cloud cover</span>
-                  <span className="font-medium text-white">
-                    {weather
-                      ? `${Math.round(
-                          (weather.cloudCover.baseCloudCover + weather.cloudCover.seasonEffect) *
-                            100
-                        )}%`
-                      : '—'}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
+              ) : (
+                <div className="text-xs text-white/40">Loading...</div>
+              )}
+            </div>
+
+            {/* Theatre Info */}
+            <div className="border border-[#ff00aa]/20 rounded-lg p-3 bg-black/30">
+              <div className="text-[10px] text-white/40 uppercase tracking-wider">Theatre</div>
+              <div className="text-sm text-white">{scenario?.theatreName ?? '—'}</div>
+              {scenario?.era && (
+                <div className="text-[10px] text-[#ff00aa]/60 mt-1">{scenario.era}</div>
+              )}
+            </div>
           </div>
         </div>
       </div>

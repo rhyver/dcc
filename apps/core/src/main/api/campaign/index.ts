@@ -19,8 +19,23 @@ import { getTheatre } from '../data/get-theatre'
 
 const stateFile = path.join(app.getPath('userData'), 'state.json')
 const campaignsDir = path.join(app.getPath('userData'), 'campaigns')
+const missionStateFileName = 'dcc_state.json'
 console.log('stateFile', stateFile)
 console.log('campaignsDir', campaignsDir)
+
+const savedGamesVariants = ['DCS', 'DCS.openbeta', 'DCS.openbeta_server', 'DCS_server']
+
+function getMissionStateSearchPaths(settings?: { missionExportPath?: string }) {
+  const paths: string[] = []
+  if (settings?.missionExportPath) {
+    paths.push(path.join(settings.missionExportPath, missionStateFileName))
+  }
+  const savedGamesRoot = path.join(app.getPath('home'), 'Saved Games')
+  for (const variant of savedGamesVariants) {
+    paths.push(path.join(savedGamesRoot, variant, 'Missions', missionStateFileName))
+  }
+  return paths
+}
 
 // State file structure: { activeCampaignId: string | null, settings?: { missionExportPath?: string } }
 async function getState() {
@@ -225,11 +240,57 @@ export const generateMiz = pub.campaign.generateMiz.handler(async ({ input, erro
   return undefined
 })
 
+export const loadMissionState = pub.campaign.loadMissionState.handler(async ({ errors }) => {
+  const state = await getState()
+  const searchPaths = getMissionStateSearchPaths(state.settings)
+
+  let filePath: string | null = null
+  let fileContents: string | null = null
+
+  for (const candidate of searchPaths) {
+    const file = await readFile(candidate)
+    if (file.isOk()) {
+      filePath = candidate
+      fileContents = file.value
+      break
+    }
+    if (file.isErr() && !(file.error instanceof NotFoundError)) {
+      throw errors.FAILED_TO_READ_FILE({
+        data: { path: candidate, message: (file.error as Error).message }
+      })
+    }
+  }
+
+  if (!filePath || fileContents == null) {
+    const fallbackPath = searchPaths[0] ?? missionStateFileName
+    throw errors.FAILED_TO_READ_FILE({
+      data: { path: fallbackPath, message: 'dcc_state.json not found in known locations.' }
+    })
+  }
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(fileContents)
+  } catch (error) {
+    throw errors.INVALID_STATE_FILE({
+      data: { message: (error as Error).message }
+    })
+  }
+
+  const schemaParsedState = neverthrowParse(schemas.missionState, parsed)
+  if (schemaParsedState.isErr()) {
+    throw errors.INVALID_STATE_FILE({ data: { message: schemaParsedState.error.message } })
+  }
+
+  return schemaParsedState.value
+})
+
 export const campaign = {
   getActiveCampaign,
   createCampaign,
   saveActiveCampaign,
   generateMiz,
+  loadMissionState,
   listCampaigns,
   openCampaign,
   deleteCampaign,

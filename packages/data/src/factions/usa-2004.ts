@@ -9,7 +9,7 @@ export const USA2004: z.infer<typeof schemas.faction> = {
   playable: true,
   aircraftTypes: {
     DEAD: [],
-    AWACS: [],
+    AWACS: ['E-3A'],
     CAP: ['F-16C_50'],
     Escort: ['F-16C_50'],
     'Pinpoint Strike': ['F-16C_50'],

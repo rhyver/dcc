@@ -4,6 +4,7 @@ import AdmZip from 'adm-zip'
 import { err, ok, Result } from 'neverthrow'
 import * as z from 'zod'
 
+import { addAwacsGroups } from './add-awacs-groups'
 import { addFlightGroups } from './add-flight-groups'
 import { addGroundGroups } from './add-ground-groups'
 import { addStructures } from './add-structures'
@@ -226,6 +227,11 @@ export function generateMizFromCampaign(
   const flightGroupsResult = addFlightGroups(mission, campaign, theatre)
   if (flightGroupsResult.isErr()) {
     return flightGroupsResult
+  }
+
+  const awacsResult = addAwacsGroups(mission, campaign, theatre)
+  if (awacsResult.isErr()) {
+    return awacsResult
   }
 
   const missionLuaResult = luaTable.stringify(mission, { mixedKeyTypes: true })

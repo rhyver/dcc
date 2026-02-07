@@ -4,6 +4,7 @@ import * as z from 'zod'
 import { FlightGroup } from './flight-group'
 import { calculateDistance } from '../utils/calculate-distance'
 import { getObjectivePosition } from '../utils/get-objective-position'
+import { buildAttackMissionWaypoints, spawnPlannedFlightGroup } from './flight-group-spawn'
 
 export class SeadFlightGroup extends FlightGroup {
   static spawn(
@@ -24,56 +25,11 @@ export class SeadFlightGroup extends FlightGroup {
       packageId?: string
     }
   ): string {
-    // Create aircraft instances
     const numAircraft = config.packages.SEAD.aircraftsPerGroup
-    const aircrafts: z.infer<typeof schemas.aircraft>[] = []
-
-    for (let i = 0; i < numAircraft; i++) {
-      aircrafts.push({
-        id: crypto.randomUUID(),
-        unitName: `${params.aircraftType} ${i + 1}`,
-        aircraftName: params.aircraftType
-      })
-    }
-
-    const dx = params.targetPosition.x - params.homeBasePosition.x
-    const dy = params.targetPosition.y - params.homeBasePosition.y
-    const distance = Math.sqrt(dx * dx + dy * dy)
-    const ux = dx / distance
-    const uy = dy / distance
-    const ipDistance = Math.max(20000, distance - 20000)
-
-    const ingressWaypoint: z.infer<typeof schemas.waypoint> = {
-      name: 'IP',
-      position: {
-        x: params.homeBasePosition.x + ux * ipDistance,
-        y: params.homeBasePosition.y + uy * ipDistance
-      },
-      altitude: 6000,
-      speed: 250,
-      type: 'Nav'
-    }
-
-    const targetWaypoint: z.infer<typeof schemas.waypoint> = {
-      name: 'Target',
-      position: params.targetPosition,
-      speed: 275,
-      type: 'Task',
-      altitude: 0
-    }
-
-    const egressWaypoint: z.infer<typeof schemas.waypoint> = {
-      name: 'Egress',
-      position: {
-        x: params.homeBasePosition.x + ux * ipDistance,
-        y: params.homeBasePosition.y + uy * ipDistance
-      },
-      altitude: 6000,
-      speed: 250,
-      type: 'Nav'
-    }
-
-    const missionWaypoints = [ingressWaypoint, targetWaypoint, egressWaypoint]
+    const missionWaypoints = buildAttackMissionWaypoints(
+      params.homeBasePosition,
+      params.targetPosition
+    )
 
     // Calculate start time from desired ToT
     const startTime = FlightGroup.calculateStartTimeForTot(
@@ -82,26 +38,25 @@ export class SeadFlightGroup extends FlightGroup {
       params.tot
     )
 
-    const flightplan = FlightGroup.createFlightPlan(
-      params.homeBasePosition,
-      params.targetPosition,
+    const { flightGroupId } = spawnPlannedFlightGroup({
+      draft,
+      coalition,
+      task: 'SEAD',
+      aircraftType: params.aircraftType,
+      aircraftCount: numAircraft,
+      homeBase: params.homeBase,
+      homeBasePosition: params.homeBasePosition,
+      destination: params.targetPosition,
       missionWaypoints,
       startTime,
-      params.runwayAngle
-    )
-
-    const flightGroupId = FlightGroup.create(draft, coalition, {
-      aircrafts,
-      task: 'SEAD',
-      position: params.homeBasePosition,
-      homeBase: params.homeBase,
+      runwayAngle: params.runwayAngle,
       target: {
         id: params.target.id,
         type: params.target.type,
         objectiveId: params.target.objectiveId
       },
-      flightplan,
-      packageId: params.packageId
+      packageId: params.packageId,
+      tot: params.tot
     })
 
     console.log(

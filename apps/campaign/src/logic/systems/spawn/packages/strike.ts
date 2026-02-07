@@ -1,12 +1,16 @@
 import { schemas, config } from '@dcc/contracts'
 import * as z from 'zod'
-import { scenarios, theatres } from '@dcc/data'
 import { StrikeFlightGroup } from '../../../entities/strike-flight-group'
 import { SeadFlightGroup } from '../../../entities/sead-flight-group'
 import { FlightGroupFactory } from '../../../entities/flight-group-factory'
 import { getObjectivePosition } from '@/logic/utils/get-objective-position'
-import { calculateDistance } from '@/logic/utils/calculate-distance'
 import { getClosestThreateningSam } from '@/logic/utils/threat-analyzer'
+import {
+  getCoalitionAirdromes,
+  pickRandomAircraftType,
+  resolveSpawnContext,
+  selectHomeBaseAndTarget
+} from './common'
 
 export function spawnStrike(
   draft: z.infer<typeof schemas.campaign.campaign>,
@@ -26,22 +30,11 @@ export function spawnStrike(
     strikeGroups.map((g) => g.target?.objectiveId).filter((id): id is string => !!id)
   )
 
-  // Get scenario and theatre data
-  const scenario = scenarios.find((s) => s.id === draft.scenarioId)
-  if (!scenario) {
-    console.error('Scenario not found:', draft.scenarioId)
+  const context = resolveSpawnContext(draft, coalition)
+  if (!context) {
     return
   }
-
-  const theatre = theatres.find((t) => t.name === scenario.theatreName)
-  if (!theatre) {
-    console.error('Theatre not found:', scenario.theatreName)
-    return
-  }
-
-  // Determine enemy coalition
-  const enemyCoalition: z.infer<typeof schemas.coalition> =
-    coalition === 'player' ? 'opponent' : 'player'
+  const { theatre, enemyCoalition } = context
 
   // Get available aircraft types for strike missions
   const availableAircraftTypes = draft.coalitions[coalition].aircraftTypes['Pinpoint Strike']
@@ -51,73 +44,52 @@ export function spawnStrike(
   }
 
   // Find a suitable home base and target within range
-  const homeBaseNames = draft.coalitions[coalition].airdromeNames
+  const homeBases = getCoalitionAirdromes(draft, theatre, coalition)
   const enemyStructures = draft.coalitions[enemyCoalition].structures
+  const availableTargets: Array<{
+    target: (typeof enemyStructures)[number]
+    position: z.infer<typeof schemas.position>
+  }> = []
 
-  let selectedHomeBase: string | null = null
-  let selectedTarget: {
-    id: string
-    type: string
-    objectiveId: string
-  } | null = null
-  let homeBasePosition: z.infer<typeof schemas.position> | null = null
-  let targetPosition: z.infer<typeof schemas.position> | null = null
-
-  // Iterate through home bases and targets to find a suitable pair
-  homeBaseLoop: for (const homeBaseName of homeBaseNames) {
-    const airdromeDetail = theatre.airdromeDetails[homeBaseName]
-    if (!airdromeDetail) {
+  for (const structure of enemyStructures) {
+    if (targetedObjectiveIds.has(structure.objectiveId)) {
       continue
     }
-
-    const homePos: z.infer<typeof schemas.position> = {
-      x: airdromeDetail.x,
-      y: airdromeDetail.y
+    const position = getObjectivePosition(theatre, structure.objectiveId)
+    if (!position) {
+      continue
     }
-
-    for (const structure of enemyStructures) {
-      if (targetedObjectiveIds.has(structure.objectiveId)) {
-        continue
-      }
-
-      const structureObjectivePos = getObjectivePosition(theatre, structure.objectiveId)
-      if (!structureObjectivePos) {
-        continue
-      }
-
-      const distance = calculateDistance(homePos, structureObjectivePos)
-
-      if (distance <= config.packages['Pinpoint Strike'].maxDistance) {
-        selectedHomeBase = homeBaseName
-        selectedTarget = structure
-        homeBasePosition = homePos
-        targetPosition = structureObjectivePos
-        break homeBaseLoop
-      }
-    }
+    availableTargets.push({ target: structure, position })
   }
 
+  const selectedAssignment = selectHomeBaseAndTarget({
+    homeBases,
+    targets: availableTargets,
+    maxDistance: config.packages['Pinpoint Strike'].maxDistance
+  })
+
   // If no suitable pair found, return
-  if (!selectedHomeBase || !selectedTarget || !homeBasePosition || !targetPosition) {
+  if (!selectedAssignment) {
     console.log('No suitable home base and target pair found within range')
     return
   }
+  const selectedTarget = selectedAssignment.target
 
   // Select a random aircraft type
-  const selectedAircraftType =
-    availableAircraftTypes[Math.floor(Math.random() * availableAircraftTypes.length)]
-
-  // Validate that the aircraft type is valid
+  const selectedAircraftType = pickRandomAircraftType(availableAircraftTypes)
   if (!selectedAircraftType) {
     console.log('No valid aircraft type selected')
     return
   }
-
-  const aircraftType = selectedAircraftType as z.infer<typeof schemas.dcs.aircraftName>
+  const aircraftType = selectedAircraftType
 
   // Check for threatening SAMs
   const enemySamGroups = draft.coalitions[enemyCoalition].samGroups
-  const threateningSam = getClosestThreateningSam(targetPosition, enemySamGroups, theatre)
+  const threateningSam = getClosestThreateningSam(
+    selectedAssignment.targetPosition,
+    enemySamGroups,
+    theatre
+  )
 
   // Check if SEAD aircraft are available
   const availableSeadAircraftTypes = draft.coalitions[coalition].aircraftTypes['SEAD']
@@ -136,11 +108,11 @@ export function spawnStrike(
       draft,
       coalition,
       {
-        homeBase: selectedHomeBase,
-        homeBasePosition,
+        homeBase: selectedAssignment.homeBase.name,
+        homeBasePosition: selectedAssignment.homeBase.position,
         target: selectedTarget,
-        targetPosition,
-        runwayAngle: theatre.airdromeDetails[selectedHomeBase]?.runwayAngle,
+        targetPosition: selectedAssignment.targetPosition,
+        runwayAngle: selectedAssignment.homeBase.runwayAngle,
         aircraftType,
         packageId
       }
@@ -156,15 +128,15 @@ export function spawnStrike(
 
     // Spawn SEAD flight targeting the threatening SAM
     const seadFlightGroupId = SeadFlightGroup.spawn(draft, coalition, {
-      homeBase: selectedHomeBase,
-      homeBasePosition,
+      homeBase: selectedAssignment.homeBase.name,
+      homeBasePosition: selectedAssignment.homeBase.position,
       target: {
         id: threateningSam.samGroup.id,
         type: threateningSam.samGroup.type,
         objectiveId: threateningSam.samGroup.objectiveId
       },
       targetPosition: threateningSam.position,
-      runwayAngle: theatre.airdromeDetails[selectedHomeBase]?.runwayAngle,
+      runwayAngle: selectedAssignment.homeBase.runwayAngle,
       aircraftType: seadAircraftType,
       tot: seadTot,
       packageId
@@ -199,11 +171,11 @@ export function spawnStrike(
   } else {
     // Spawn strike without SEAD support
     StrikeFlightGroup.spawn(draft, coalition, {
-      homeBase: selectedHomeBase,
-      homeBasePosition,
+      homeBase: selectedAssignment.homeBase.name,
+      homeBasePosition: selectedAssignment.homeBase.position,
       target: selectedTarget,
-      targetPosition,
-      runwayAngle: theatre.airdromeDetails[selectedHomeBase]?.runwayAngle,
+      targetPosition: selectedAssignment.targetPosition,
+      runwayAngle: selectedAssignment.homeBase.runwayAngle,
       aircraftType
     })
   }

@@ -4,6 +4,7 @@ import * as z from 'zod'
 import { FlightGroup } from './flight-group'
 import { calculateDistance } from '../utils/calculate-distance'
 import { getObjectivePosition } from '../utils/get-objective-position'
+import { buildAttackMissionWaypoints, spawnPlannedFlightGroup } from './flight-group-spawn'
 
 export class DeadFlightGroup extends FlightGroup {
   static spawn(
@@ -23,83 +24,36 @@ export class DeadFlightGroup extends FlightGroup {
       packageId?: string
     }
   ): { flightGroupId: string; tot: Date } {
-    // Create aircraft instances
     const numAircraft = config.packages.DEAD.aircraftsPerGroup
-    const aircrafts: z.infer<typeof schemas.aircraft>[] = []
-
-    for (let i = 0; i < numAircraft; i++) {
-      aircrafts.push({
-        id: crypto.randomUUID(),
-        unitName: `${params.aircraftType} ${i + 1}`,
-        aircraftName: params.aircraftType
-      })
-    }
-
-    const dx = params.targetPosition.x - params.homeBasePosition.x
-    const dy = params.targetPosition.y - params.homeBasePosition.y
-    const distance = Math.sqrt(dx * dx + dy * dy)
-    const ux = dx / distance
-    const uy = dy / distance
-    const ipDistance = Math.max(20000, distance - 20000)
-
-    const ingressWaypoint: z.infer<typeof schemas.waypoint> = {
-      name: 'IP',
-      position: {
-        x: params.homeBasePosition.x + ux * ipDistance,
-        y: params.homeBasePosition.y + uy * ipDistance
-      },
-      altitude: 6000,
-      speed: 250,
-      type: 'Nav'
-    }
-
-    const targetWaypoint: z.infer<typeof schemas.waypoint> = {
-      name: 'Target',
-      position: params.targetPosition,
-      speed: 275,
-      type: 'Task',
-      altitude: 0
-    }
-
-    const egressWaypoint: z.infer<typeof schemas.waypoint> = {
-      name: 'Egress',
-      position: {
-        x: params.homeBasePosition.x + ux * ipDistance,
-        y: params.homeBasePosition.y + uy * ipDistance
-      },
-      altitude: 6000,
-      speed: 250,
-      type: 'Nav'
-    }
+    const missionWaypoints = buildAttackMissionWaypoints(
+      params.homeBasePosition,
+      params.targetPosition
+    )
 
     // Start 30-50 minutes in the future
     const startTime = new Date(
       draft.time.getTime() + Math.floor(Math.random() * (50 - 30 + 1) + 30) * 60 * 1000
     )
 
-    const flightplan = FlightGroup.createFlightPlan(
-      params.homeBasePosition,
-      params.targetPosition,
-      [ingressWaypoint, targetWaypoint, egressWaypoint],
-      startTime,
-      params.runwayAngle
-    )
-
-    const flightGroupId = FlightGroup.create(draft, coalition, {
-      aircrafts,
+    const { flightGroupId, tot } = spawnPlannedFlightGroup({
+      draft,
+      coalition,
       task: 'DEAD',
-      position: params.homeBasePosition,
+      aircraftType: params.aircraftType,
+      aircraftCount: numAircraft,
       homeBase: params.homeBase,
+      homeBasePosition: params.homeBasePosition,
+      destination: params.targetPosition,
+      missionWaypoints,
+      startTime,
+      runwayAngle: params.runwayAngle,
       target: {
         id: params.target.id,
         type: params.target.type,
         objectiveId: params.target.objectiveId
       },
-      flightplan,
       packageId: params.packageId
     })
-
-    const tot = FlightGroup.calculateTot(flightplan)
 
     console.log(
       `Spawned DEAD group from ${params.homeBase} targeting ${params.target.type} at ${params.target.objectiveId}`

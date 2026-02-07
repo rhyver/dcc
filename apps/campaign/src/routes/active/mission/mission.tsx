@@ -164,7 +164,9 @@ export function Mission() {
     } catch (error) {
       console.error('Failed to submit mission state', error)
       const message =
-        error instanceof Error ? error.message : 'Mission state submission failed. Please try again.'
+        error instanceof Error
+          ? error.message
+          : 'Mission state submission failed. Please try again.'
       setToast({ message, tone: 'error' })
     } finally {
       setIsSubmitting(false)
@@ -290,7 +292,9 @@ export function Mission() {
             <div className="flex items-center gap-2 mb-3">
               <Plane className="h-4 w-4 text-[#ff00aa]" />
               <span className="text-sm font-semibold text-white">Client Flights</span>
-              <span className="text-xs text-white/40 ml-auto">{clientFlightGroups.length} groups</span>
+              <span className="text-xs text-white/40 ml-auto">
+                {clientFlightGroups.length} groups
+              </span>
             </div>
             <div className="flex-1 overflow-auto space-y-2">
               {clientFlightGroups.map((group) => {

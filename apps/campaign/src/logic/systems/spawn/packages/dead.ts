@@ -1,10 +1,14 @@
 import { schemas, config } from '@dcc/contracts'
 import * as z from 'zod'
-import { scenarios, theatres } from '@dcc/data'
 import { DeadFlightGroup } from '../../../entities/dead-flight-group'
 import { FlightGroupFactory } from '../../../entities/flight-group-factory'
 import { getObjectivePosition } from '@/logic/utils/get-objective-position'
-import { calculateDistance } from '@/logic/utils/calculate-distance'
+import {
+  getCoalitionAirdromes,
+  pickRandomAircraftType,
+  resolveSpawnContext,
+  selectHomeBaseAndTarget
+} from './common'
 
 export function spawnDead(
   draft: z.infer<typeof schemas.campaign.campaign>,
@@ -25,22 +29,11 @@ export function spawnDead(
     deadGroups.map((g) => g.target?.id).filter((id): id is string => !!id)
   )
 
-  // Get scenario and theatre data
-  const scenario = scenarios.find((s) => s.id === draft.scenarioId)
-  if (!scenario) {
-    console.error('Scenario not found:', draft.scenarioId)
+  const context = resolveSpawnContext(draft, coalition)
+  if (!context) {
     return
   }
-
-  const theatre = theatres.find((t) => t.name === scenario.theatreName)
-  if (!theatre) {
-    console.error('Theatre not found:', scenario.theatreName)
-    return
-  }
-
-  // Determine enemy coalition
-  const enemyCoalition: z.infer<typeof schemas.coalition> =
-    coalition === 'player' ? 'opponent' : 'player'
+  const { theatre, enemyCoalition } = context
 
   // Get available aircraft types for DEAD missions
   const availableAircraftTypes = draft.coalitions[coalition].aircraftTypes['DEAD']
@@ -59,77 +52,54 @@ export function spawnDead(
     return
   }
 
-  // Find a suitable home base and SAM target within range
-  const homeBaseNames = draft.coalitions[coalition].airdromeNames
+  const homeBases = getCoalitionAirdromes(draft, theatre, coalition)
+  const availableTargets: Array<{
+    target: { id: string; type: z.infer<typeof schemas.samType>; objectiveId: string }
+    position: z.infer<typeof schemas.position>
+  }> = []
 
-  let selectedHomeBase: string | null = null
-  let selectedTarget: {
-    id: string
-    type: string
-    objectiveId: string
-  } | null = null
-  let homeBasePosition: z.infer<typeof schemas.position> | null = null
-  let targetPosition: z.infer<typeof schemas.position> | null = null
-
-  // Iterate through home bases and SAM targets to find a suitable pair
-  homeBaseLoop: for (const homeBaseName of homeBaseNames) {
-    const airdromeDetail = theatre.airdromeDetails[homeBaseName]
-    if (!airdromeDetail) {
+  for (const samGroup of enemySamGroups) {
+    const samPosition = getObjectivePosition(theatre, samGroup.objectiveId)
+    if (!samPosition) {
       continue
     }
-
-    const homePos: z.infer<typeof schemas.position> = {
-      x: airdromeDetail.x,
-      y: airdromeDetail.y
-    }
-
-    for (const samGroup of enemySamGroups) {
-      const samPosition = getObjectivePosition(theatre, samGroup.objectiveId)
-      if (!samPosition) {
-        continue
-      }
-
-      const distance = calculateDistance(homePos, samPosition)
-
-      if (distance <= config.packages.DEAD.maxDistance) {
-        selectedHomeBase = homeBaseName
-        selectedTarget = {
-          id: samGroup.id,
-          type: samGroup.type,
-          objectiveId: samGroup.objectiveId
-        }
-        homeBasePosition = homePos
-        targetPosition = samPosition
-        break homeBaseLoop
-      }
-    }
+    availableTargets.push({
+      target: {
+        id: samGroup.id,
+        type: samGroup.type,
+        objectiveId: samGroup.objectiveId
+      },
+      position: samPosition
+    })
   }
 
+  const selectedAssignment = selectHomeBaseAndTarget({
+    homeBases,
+    targets: availableTargets,
+    maxDistance: config.packages.DEAD.maxDistance
+  })
+
   // If no suitable pair found, return
-  if (!selectedHomeBase || !selectedTarget || !homeBasePosition || !targetPosition) {
+  if (!selectedAssignment) {
     console.log('No suitable home base and SAM target pair found within range')
     return
   }
 
   // Select a random aircraft type
-  const selectedAircraftType =
-    availableAircraftTypes[Math.floor(Math.random() * availableAircraftTypes.length)]
-
-  // Validate that the aircraft type is valid
+  const selectedAircraftType = pickRandomAircraftType(availableAircraftTypes)
   if (!selectedAircraftType) {
     console.log('No valid aircraft type selected')
     return
   }
-
-  const aircraftType = selectedAircraftType as z.infer<typeof schemas.dcs.aircraftName>
+  const aircraftType = selectedAircraftType
 
   // Spawn DEAD flight
   DeadFlightGroup.spawn(draft, coalition, {
-    homeBase: selectedHomeBase,
-    homeBasePosition,
-    target: selectedTarget,
-    targetPosition,
-    runwayAngle: theatre.airdromeDetails[selectedHomeBase]?.runwayAngle,
+    homeBase: selectedAssignment.homeBase.name,
+    homeBasePosition: selectedAssignment.homeBase.position,
+    target: selectedAssignment.target,
+    targetPosition: selectedAssignment.targetPosition,
+    runwayAngle: selectedAssignment.homeBase.runwayAngle,
     aircraftType
   })
 }

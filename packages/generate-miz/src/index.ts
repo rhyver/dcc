@@ -5,6 +5,7 @@ import { err, ok, Result } from 'neverthrow'
 import * as z from 'zod'
 
 import { addFlightGroups } from './add-flight-groups'
+import { addGroundGroups } from './add-ground-groups'
 import { addStructures } from './add-structures'
 import { dictionary, mapResource } from './l10n'
 import { options } from './options'
@@ -215,6 +216,11 @@ export function generateMizFromCampaign(
   const structuresResult = addStructures(mission, campaign, theatre)
   if (structuresResult.isErr()) {
     return err(structuresResult.error)
+  }
+
+  const groundGroupsResult = addGroundGroups(mission, campaign, theatre)
+  if (groundGroupsResult.isErr()) {
+    return err(groundGroupsResult.error)
   }
 
   const flightGroupsResult = addFlightGroups(mission, campaign, theatre)

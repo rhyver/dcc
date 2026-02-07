@@ -8,6 +8,30 @@ import {
   resolveSpawnContext,
   selectCapPatrolAssignment
 } from './common'
+import { getNodeSupply } from '../../update-supply'
+
+/**
+ * Get sortie rate multiplier based on airbase supply status
+ */
+function getAirbaseSpawnModifier(
+  draft: z.infer<typeof schemas.campaign.campaign>,
+  coalition: z.infer<typeof schemas.coalition>,
+  airbaseName: string
+): number {
+  const supply = getNodeSupply(draft, coalition, airbaseName)
+  if (!supply) return 1.0
+
+  switch (supply.status) {
+    case 'abundant':
+    case 'adequate':
+    case 'low':
+      return 1.0
+    case 'critical':
+      return 0.5   // Half sortie rate
+    case 'depleted':
+      return 0     // No sorties
+  }
+}
 
 export function spawnCap(
   draft: z.infer<typeof schemas.campaign.campaign>,
@@ -52,6 +76,13 @@ export function spawnCap(
   // If no suitable airdrome found, return
   if (!selectedPatrolAssignment) {
     console.log('No suitable home base found for CAP')
+    return
+  }
+
+  // Check airbase supply status
+  const spawnModifier = getAirbaseSpawnModifier(draft, coalition, selectedPatrolAssignment.homeBase.name)
+  if (Math.random() > spawnModifier) {
+    console.log(`Skipping CAP spawn due to supply status at ${selectedPatrolAssignment.homeBase.name}`)
     return
   }
 

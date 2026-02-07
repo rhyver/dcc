@@ -4,6 +4,7 @@ import { updateFlightGroups } from './systems/update-flight-groups'
 import { updatePackages } from './systems/update-packages'
 import { removeDestroyedStructures } from './systems/remove-destroyed-structures'
 import { updateResources } from './systems/update-resources'
+import { updateSupply } from './systems/update-supply'
 
 export function fastTick(delta: number) {
   activeStore.send({
@@ -31,6 +32,8 @@ export function logicTick(delta: number) {
     logic: (draft) => {
       updateResources(draft, 'player')
       updateResources(draft, 'opponent')
+      updateSupply(draft, 'player')
+      updateSupply(draft, 'opponent')
       spawn(draft, 'player')
       spawn(draft, 'opponent')
     }

@@ -6,6 +6,7 @@ local missionState = {
     missionEnded = false,
     ejectedPilots = {},
     lostUnits = {},
+    cargoDeliveries = {},
     groupPositions = {
         blue = {
             aircraft = {},
@@ -223,6 +224,31 @@ function ev:onEvent(event)
             x = position.x,
             y = position.z
         }
+    end
+
+    -- LANDING (for cargo deliveries)
+    if event.id == world.event.S_EVENT_LAND then
+        debugLog('S_EVENT_LAND')
+        local initiator = event.initiator
+
+        if not initiator then return end
+        if not initiator:isExist() then return end
+
+        local group = initiator:getGroup()
+        if not group then return end
+
+        local groupName = group:getName()
+
+        -- Check if this is a transport flight (contains "Transport" in name)
+        if groupName and string.match(groupName, "Transport") then
+            local position = initiator:getPosition().p
+            missionState.cargoDeliveries[groupName] = {
+                time = timer.getTime(),
+                x = position.x,
+                y = position.z
+            }
+            debugLog('Transport landed: '..groupName)
+        end
     end
 
     -- EJECTION

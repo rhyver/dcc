@@ -92,6 +92,22 @@ export function buildCapMissionWaypoints(
   ]
 }
 
+export function buildTransportMissionWaypoints(
+  homeBasePosition: Position,
+  destinationPosition: Position
+): Waypoint[] {
+  // Helicopters fly direct at low altitude - no climb/descent phases needed
+  return [
+    {
+      name: 'Direct',
+      position: destinationPosition,
+      altitude: 300,     // Low cruise altitude
+      speed: 100,        // Helicopter cruise speed
+      type: 'Nav'
+    }
+  ]
+}
+
 export function createAircrafts(aircraftType: AircraftName, count: number): Aircraft[] {
   const aircrafts: Aircraft[] = []
   for (let i = 0; i < count; i++) {

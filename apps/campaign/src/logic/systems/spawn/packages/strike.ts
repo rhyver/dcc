@@ -11,6 +11,30 @@ import {
   resolveSpawnContext,
   selectHomeBaseAndTarget
 } from './common'
+import { getNodeSupply } from '../../update-supply'
+
+/**
+ * Get sortie rate multiplier based on airbase supply status
+ */
+function getAirbaseSpawnModifier(
+  draft: z.infer<typeof schemas.campaign.campaign>,
+  coalition: z.infer<typeof schemas.coalition>,
+  airbaseName: string
+): number {
+  const supply = getNodeSupply(draft, coalition, airbaseName)
+  if (!supply) return 1.0
+
+  switch (supply.status) {
+    case 'abundant':
+    case 'adequate':
+    case 'low':
+      return 1.0
+    case 'critical':
+      return 0.5   // Half sortie rate
+    case 'depleted':
+      return 0     // No sorties
+  }
+}
 
 export function spawnStrike(
   draft: z.infer<typeof schemas.campaign.campaign>,
@@ -75,6 +99,13 @@ export function spawnStrike(
   }
   const selectedTarget = selectedAssignment.target
 
+  // Check airbase supply status
+  const spawnModifier = getAirbaseSpawnModifier(draft, coalition, selectedAssignment.homeBase.name)
+  if (Math.random() > spawnModifier) {
+    console.log(`Skipping strike spawn due to supply status at ${selectedAssignment.homeBase.name}`)
+    return
+  }
+
   // Select a random aircraft type
   const selectedAircraftType = pickRandomAircraftType(availableAircraftTypes)
   if (!selectedAircraftType) {
@@ -88,7 +119,9 @@ export function spawnStrike(
   const threateningSam = getClosestThreateningSam(
     selectedAssignment.targetPosition,
     enemySamGroups,
-    theatre
+    theatre,
+    draft,
+    enemyCoalition
   )
 
   // Check if SEAD aircraft are available

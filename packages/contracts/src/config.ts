@@ -34,6 +34,18 @@ export const config = {
       aircraftsPerGroup: 2,
       engagementRange: 80_000, // Radar + missile range for A2A engagement
       patrolDuration: 60 * 60 * 1000 // 1 hour patrol time
+    },
+    Transport: {
+      maxActive: {
+        player: 3,
+        opponent: 3
+      },
+      maxDistance: 400_000,              // 400km strategic range
+      tacticalMaxDistance: 80_000,       // 80km for CH-47
+      c130CargoCapacity: 5000,
+      ch47CargoCapacity: 1500,
+      emergencyCargoCapacity: 750,
+      aircraftsPerGroup: 1
     }
   },
   structureRanges: {

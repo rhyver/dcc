@@ -1,6 +1,7 @@
 import * as z from 'zod'
 
 import { position } from './position'
+import { supply } from './supply'
 
 export const airdromeStand = position.extend({
   id: z.string(),
@@ -18,5 +19,6 @@ export const airdromeDetails = position.extend({
   standlist: z.record(z.string(), airdromeStand),
   frequency: z.number().optional(),
   frequencyList: z.tuple([z.number(), z.number(), z.number(), z.number()]).optional(), // TODO
-  runwayAngle: z.number()
+  runwayAngle: z.number(),
+  supply: supply.optional()
 })

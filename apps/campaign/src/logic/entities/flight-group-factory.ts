@@ -5,6 +5,7 @@ import { SeadFlightGroup } from './sead-flight-group'
 import { StrikeFlightGroup } from './strike-flight-group'
 import { DeadFlightGroup } from './dead-flight-group'
 import { CapFlightGroup } from './cap-flight-group'
+import { TransportFlightGroup } from './transport-flight-group'
 
 export const FlightGroupFactory = {
   getCoalitionFlightGroups(
@@ -23,6 +24,9 @@ export const FlightGroupFactory = {
       }
       if (data.task === 'CAP') {
         return new CapFlightGroup(data)
+      }
+      if (data.task === 'Transport') {
+        return new TransportFlightGroup(data)
       }
       return new FlightGroup(data)
     })

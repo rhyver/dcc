@@ -57,6 +57,16 @@ export const missionState = z
         })
       )
       .default([]),
+    cargoDeliveries: z
+      .record(
+        z.string(),
+        z.object({
+          time: z.number(),
+          x: z.number(),
+          y: z.number()
+        })
+      )
+      .default({}),
     groupPositions: missionStateGroupPositions.optional()
   })
   .passthrough()

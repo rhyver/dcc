@@ -51,7 +51,8 @@ const initialState: z.infer<typeof schemas.campaign.campaign> = {
       samGroups: [],
       flightGroups: [],
       groundGroups: [],
-      packages: []
+      packages: [],
+      supplyNodes: {}
     },
     opponent: {
       id: 'russia-1996',
@@ -89,7 +90,8 @@ const initialState: z.infer<typeof schemas.campaign.campaign> = {
       samGroups: [],
       flightGroups: [],
       groundGroups: [],
-      packages: []
+      packages: [],
+      supplyNodes: {}
     }
   }
 }

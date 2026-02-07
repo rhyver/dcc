@@ -182,6 +182,56 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
     state: 'idle' as const
   }))
 
+  // Initialize supply nodes for airdromes and objectives
+  const initializeSupplyNodes = (airdromeNames: string[], objectiveIds: string[]) => {
+    const supplyNodes: Record<string, z.infer<typeof schemas.supply>> = {}
+
+    // Rear airdromes (depots) - high capacity, produce supply
+    for (const airdromeName of airdromeNames.slice(0, Math.ceil(airdromeNames.length / 2))) {
+      supplyNodes[airdromeName] = {
+        current: 10000,
+        max: 10000,
+        productionRate: 20,
+        consumptionRate: 0,
+        status: 'abundant'
+      }
+    }
+
+    // Forward airdromes - moderate capacity, no production
+    for (const airdromeName of airdromeNames.slice(Math.ceil(airdromeNames.length / 2))) {
+      supplyNodes[airdromeName] = {
+        current: 5000,
+        max: 10000,
+        productionRate: 0,
+        consumptionRate: 0,
+        status: 'adequate'
+      }
+    }
+
+    // Objectives/FARPs - low capacity, no production
+    for (const objectiveId of objectiveIds) {
+      supplyNodes[objectiveId] = {
+        current: 500,
+        max: 1000,
+        productionRate: 0,
+        consumptionRate: 0,
+        status: 'adequate'
+      }
+    }
+
+    return supplyNodes
+  }
+
+  const playerSupplyNodes = initializeSupplyNodes(
+    scenario.start.player.airdromeNames,
+    objectiveAssignments.player ?? []
+  )
+
+  const opponentSupplyNodes = initializeSupplyNodes(
+    scenario.start.opponent.airdromeNames,
+    objectiveAssignments.opponent ?? []
+  )
+
   const defaultState: z.infer<typeof schemas.campaign.campaign> = {
     version: '0.0.1',
     createdAt: new Date(),
@@ -201,7 +251,8 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
         samGroups: playerSamGroups,
         groundGroups: playerGroundGroups,
         flightGroups: [],
-        packages: []
+        packages: [],
+        supplyNodes: playerSupplyNodes
       },
       opponent: {
         id: opponentFaction.id,
@@ -213,14 +264,15 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
         samGroups: opponentSamGroups,
         groundGroups: opponentGroundGroups,
         flightGroups: [],
-        packages: []
+        packages: [],
+        supplyNodes: opponentSupplyNodes
       }
     }
   }
 
   const result = schemas.campaign.campaign.safeParse(defaultState)
   if (!result.success) {
-    throw errors.INVALID_APP_STATE({ data: { message: result.error.message } })
+    throw errors.NOT_FOUND({ data: { message: `Invalid campaign state: ${result.error.message}`, path: 'campaign' } })
   }
 
   // Ensure campaigns directory exists

@@ -7,6 +7,7 @@ import { position } from '../../schemas/position'
 import { samType } from '../../schemas/sam'
 import { structureBuilding } from '../../schemas/structure-building'
 import { task } from '../../schemas/task'
+import { supply } from '../../schemas/supply'
 
 const campaignStructure = z.object({
   id: z.string(),
@@ -35,7 +36,8 @@ const campaignCoalition = z.object({
   samGroups: z.array(campaignSamGroup),
   groundGroups: z.array(groundGroup),
   flightGroups: z.array(flightGroup),
-  packages: z.array(missionPackage)
+  packages: z.array(missionPackage),
+  supplyNodes: z.record(z.string(), supply).optional()
 })
 
 export const campaign = z.object({

@@ -22,5 +22,11 @@ export const flightGroup = z.object({
   targetDestroyed: z.boolean().optional(),
   tot: z.date().optional(),
   flightplan: flightplan,
-  packageId: z.string().optional()
+  packageId: z.string().optional(),
+  // Transport-specific fields
+  cargoAmount: z.number().min(0).optional(),
+  sourceNode: z.string().optional(),
+  destinationNode: z.string().optional(),
+  cargoStatus: z.enum(['loaded', 'in-transit', 'delivered', 'lost']).optional(),
+  transportType: z.enum(['strategic', 'tactical', 'emergency']).optional()
 })

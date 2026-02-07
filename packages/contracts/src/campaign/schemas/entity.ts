@@ -20,6 +20,7 @@ export const entityTypeSchema = z.enum([
   'SAM',
   'StrikeFlightGroup',
   'Structure',
+  'TransportFlightGroup',
   'UnitCamp',
   'Building',
   'Flightplan'

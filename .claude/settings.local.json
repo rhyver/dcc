@@ -2,7 +2,14 @@
   "permissions": {
     "allow": [
       "Bash(ls:*)",
-      "Bash(pnpm tsc:*)"
+      "Bash(pnpm tsc:*)",
+      "Bash(pnpm --filter @dcc/contracts tsc:*)",
+      "Bash(pnpm --filter @dcc/generate-miz tsc:*)",
+      "Bash(pnpm --filter @dcc/campaign lint:*)",
+      "Bash(pnpm --filter @dcc/contracts lint:*)",
+      "Bash(pnpm --filter @dcc/generate-miz lint:*)",
+      "Bash(npx eslint:*)",
+      "Bash(pnpm --filter @dcc/campaign tsc:*)"
     ]
   }
 }

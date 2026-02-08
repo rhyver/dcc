@@ -5,11 +5,14 @@ import { calculateDistance } from '../utils/calculate-distance'
 const RESOURCE_GAIN_RATE = 10
 const BONUS_RADIUS = 5000 // 5km
 const BONUS_AMOUNT = 5
+const RESOURCE_GENERATION_FACTOR = 0.1
 
 export function updateResources(
   draft: z.infer<typeof schemas.campaign.campaign>,
-  coalition: z.infer<typeof schemas.coalition>
+  coalition: z.infer<typeof schemas.coalition>,
+  delta: number
 ) {
+  const timeFactor = (delta * draft.timeMultiplier) / 1000
   const structures = draft.coalitions[coalition].structures
   // Optimization: Pre-filter bonus structures or spatial index if needed.
   // For now simple O(N^2) loop where N is small (structures) is fine.
@@ -44,7 +47,7 @@ export function updateResources(
         }
       }
 
-      building.resources = (building.resources || 0) + gain
+      building.resources = (building.resources || 0) + gain * timeFactor * RESOURCE_GENERATION_FACTOR
     }
   }
 }

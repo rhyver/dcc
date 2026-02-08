@@ -159,6 +159,45 @@ export function addGroundGroups(
         const firstUnit = units[0]
         if (!firstUnit) continue
 
+        // Build route waypoints
+        const isInfantry = gg.units.every((u) => /infantry|soldier/i.test(u.name))
+        const routePoints = [
+          {
+            alt: 0,
+            alt_type: 'BARO',
+            type: 'Turning Point',
+            y: firstUnit.y,
+            x: firstUnit.x,
+            speed: 0,
+            action: 'Off Road',
+            ETA: 0,
+            ETA_locked: true,
+            speed_locked: true,
+            formation_template: ''
+          }
+        ]
+
+        // Add attack waypoint for groups with a target objective
+        if (gg.targetObjectiveId) {
+          const targetObj = theatre.objectives.find((o) => o.name === gg.targetObjectiveId)
+          if (targetObj) {
+            const speed = isInfantry ? 4 : 12
+            routePoints.push({
+              alt: 0,
+              alt_type: 'BARO',
+              type: 'Turning Point',
+              y: targetObj.position.y,
+              x: targetObj.position.x,
+              speed,
+              action: 'Off Road',
+              ETA: 0,
+              ETA_locked: false,
+              speed_locked: true,
+              formation_template: ''
+            })
+          }
+        }
+
         country.vehicle.group.push({
           groupId: groupId,
           name: groupName,
@@ -168,21 +207,7 @@ export function addGroundGroups(
           hidden: false,
           start_time: 0,
           route: {
-            points: [
-              {
-                alt: 0,
-                alt_type: 'BARO',
-                type: 'Turning Point',
-                y: firstUnit.y,
-                x: firstUnit.x,
-                speed: 0,
-                action: 'Off Road',
-                ETA: 0,
-                ETA_locked: true,
-                speed_locked: true,
-                formation_template: ''
-              }
-            ]
+            points: routePoints
           }
         })
       }

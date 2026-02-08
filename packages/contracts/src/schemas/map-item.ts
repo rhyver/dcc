@@ -29,7 +29,8 @@ export const FlightGroupMapItem = mapItem.extend({
 
 export const StructureMapItem = mapItem.extend({
   type: z.literal('Structure'),
-  structureType: structureType
+  structureType: structureType,
+  resources: z.number().optional()
 })
 
 export const GroundGroupMapItem = mapItem.extend({

@@ -4,6 +4,7 @@ import { updateFlightGroups } from './systems/update-flight-groups'
 import { updatePackages } from './systems/update-packages'
 import { removeDestroyedStructures } from './systems/remove-destroyed-structures'
 import { updateResources } from './systems/update-resources'
+import { updateGroundGroups } from './systems/update-ground-groups'
 import { updateSupply } from './systems/update-supply'
 
 export function fastTick(delta: number) {
@@ -18,6 +19,8 @@ export function fastTick(delta: number) {
       updatePackages(draft, 'opponent')
       removeDestroyedStructures(draft, 'player')
       removeDestroyedStructures(draft, 'opponent')
+      updateGroundGroups(draft, 'player', delta, { capture: false })
+      updateGroundGroups(draft, 'opponent', delta, { capture: false })
     }
   })
 }
@@ -30,10 +33,12 @@ export function logicTick(delta: number) {
     type: 'tick',
     delta,
     logic: (draft) => {
-      updateResources(draft, 'player')
-      updateResources(draft, 'opponent')
+      updateResources(draft, 'player', delta)
+      updateResources(draft, 'opponent', delta)
       updateSupply(draft, 'player')
       updateSupply(draft, 'opponent')
+      updateGroundGroups(draft, 'player', delta)
+      updateGroundGroups(draft, 'opponent', delta)
       spawn(draft, 'player')
       spawn(draft, 'opponent')
     }

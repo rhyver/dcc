@@ -10,6 +10,7 @@ export class GroundGroup {
     params: {
       position: z.infer<typeof schemas.position>
       objectiveId?: string
+      targetObjectiveId?: string
       units: GroundGroupData['units']
       state?: GroundGroupData['state']
     }
@@ -18,6 +19,7 @@ export class GroundGroup {
       id: crypto.randomUUID(),
       position: params.position,
       objectiveId: params.objectiveId,
+      targetObjectiveId: params.targetObjectiveId,
       units: params.units,
       state: params.state ?? 'idle'
     }
@@ -41,6 +43,10 @@ export class GroundGroup {
 
   get state() {
     return this._data.state
+  }
+
+  get targetObjectiveId() {
+    return this._data.targetObjectiveId
   }
 
   setPosition(pos: z.infer<typeof schemas.position>) {

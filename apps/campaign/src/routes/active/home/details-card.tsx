@@ -63,6 +63,12 @@ export function DetailsCard({
                 <div>{String(selectedItem.structureType)}</div>
               </>
             )}
+            {'resources' in selectedItem && selectedItem.resources != null && (
+              <>
+                <div className="text-secondary/70">Resources</div>
+                <div>{Math.floor(selectedItem.resources as number)}</div>
+              </>
+            )}
             {'flightplan' in selectedItem && (
               <>
                 <div className="text-secondary/70">Task</div>

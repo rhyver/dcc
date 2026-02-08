@@ -123,7 +123,7 @@ export function useMapItems(): {
         type: string
         objectiveId: string
         position: { x: number; y: number }
-        buildings: Array<{ alive: boolean }>
+        buildings: Array<{ alive: boolean; resources?: number }>
       }>,
       coalition: z.infer<typeof schemas.coalition>
     ) => {
@@ -148,13 +148,22 @@ export function useMapItems(): {
           z: structure.position.y
         })
 
+        const isResourceStructure =
+          structureTypeResult.data === 'Barrack' || structureTypeResult.data === 'Depot'
+        const totalResources = isResourceStructure
+          ? structure.buildings
+              .filter((b) => b.alive)
+              .reduce((sum, b) => sum + (b.resources || 0), 0)
+          : undefined
+
         mapItems.push({
           id: structure.id,
           type: 'Structure',
           structureType: structureTypeResult.data,
           name: structure.type,
           coalition,
-          position: latLng
+          position: latLng,
+          resources: totalResources && totalResources > 0 ? totalResources : undefined
         })
       }
     }

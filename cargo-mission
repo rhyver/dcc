@@ -41,8 +41,8 @@ mission =
 	["requiredModules"] = {},
 	["date"] = 
 	{
-		["Day"] = 1,
 		["Year"] = 2022,
+		["Day"] = 1,
 		["Month"] = 6,
 	}, -- end of ["date"]
 	["trig"] = 
@@ -52,6 +52,7 @@ mission =
 			[1] = "a_do_script(\"config = { missionId = 'e875d97a-8fa0-4cd8-8950-f6e686269a3d' }\"); mission.trig.func[1]=nil;",
 			[2] = "a_do_script_file(getValueResourceByKey(\"mist\")); mission.trig.func[2]=nil;",
 			[3] = "a_do_script_file(getValueResourceByKey(\"state\")); mission.trig.func[3]=nil;",
+			[4] = "a_out_text_delay(getValueDictByKey(\"DictKey_ActionText_6\"), 10, false, 0);",
 		}, -- end of ["actions"]
 		["events"] = {},
 		["custom"] = {},
@@ -66,17 +67,22 @@ mission =
 			[1] = true,
 			[2] = true,
 			[3] = true,
+			[4] = true,
 		}, -- end of ["flag"]
 		["conditions"] = 
 		{
 			[1] = "return(c_time_after(1) )",
 			[2] = "return(c_time_after(2) )",
 			[3] = "return(c_time_after(3) )",
+			[4] = "return(c_cargo_unhooked_in_zone(\"ANY_BLUE\", 329) )",
 		}, -- end of ["conditions"]
 		["customStartup"] = {},
-		["funcStartup"] = {},
+		["funcStartup"] = 
+		{
+			[4] = "if mission.trig.conditions[4]() then mission.trig.actions[4]() end",
+		}, -- end of ["funcStartup"]
 	}, -- end of ["trig"]
-	["maxDictId"] = 5,
+	["maxDictId"] = 6,
 	["result"] = 
 	{
 		["offline"] = 
@@ -157,22 +163,43 @@ mission =
 			["thickness"] = 0,
 		}, -- end of ["fog"]
 		["name_cn"] = "夏季 晴天+无风",
+		["name_es"] = "Verano. Despejado",
 		["visibility"] = 
 		{
 			["distance"] = 80000,
 		}, -- end of ["visibility"]
-		["name_es"] = "Verano. Despejado",
 	}, -- end of ["weather"]
 	["theatre"] = "Caucasus",
 	["triggers"] = 
 	{
-		["zones"] = {},
+		["zones"] = 
+		{
+			[1] = 
+			{
+				["radius"] = 609.6,
+				["zoneId"] = 329,
+				["color"] = 
+				{
+					[1] = 1,
+					[2] = 1,
+					[3] = 1,
+					[4] = 0.15,
+				}, -- end of ["color"]
+				["properties"] = {},
+				["hidden"] = false,
+				["y"] = 644622.15411946,
+				["x"] = -316271.92990204,
+				["name"] = "Cargo",
+				["heading"] = 0,
+				["type"] = 0,
+			}, -- end of [1]
+		}, -- end of ["zones"]
 	}, -- end of ["triggers"]
 	["map"] = 
 	{
-		["centerY"] = 635734.23031644,
-		["zoom"] = 316.36578491061,
-		["centerX"] = -318179.26923803,
+		["centerY"] = 645445.44355895,
+		["zoom"] = 6366.0352524984,
+		["centerX"] = -316239.7277493,
 	}, -- end of ["map"]
 	["coalitions"] = 
 	{
@@ -286,17 +313,6 @@ mission =
 	["pictureFileNameB"] = {},
 	["coalition"] = 
 	{
-		["neutrals"] = 
-		{
-			["bullseye"] = 
-			{
-				["y"] = 0,
-				["x"] = 0,
-			}, -- end of ["bullseye"]
-			["nav_points"] = {},
-			["name"] = "neutrals",
-			["country"] = {},
-		}, -- end of ["neutrals"]
 		["blue"] = 
 		{
 			["bullseye"] = 
@@ -344,10 +360,10 @@ mission =
 													{
 														[1] = 
 														{
-															["enabled"] = true,
+															["number"] = 1,
 															["auto"] = false,
 															["id"] = "CargoTransportationPlane",
-															["number"] = 1,
+															["enabled"] = true,
 															["params"] = 
 															{
 																["y"] = 635012.9375,
@@ -359,10 +375,10 @@ mission =
 														}, -- end of [1]
 														[2] = 
 														{
-															["enabled"] = true,
+															["number"] = 2,
 															["auto"] = false,
 															["id"] = "CargoTransportationPlane",
-															["number"] = 2,
+															["enabled"] = true,
 															["params"] = 
 															{
 																["y"] = 635012.9375,
@@ -431,10 +447,10 @@ mission =
 													{
 														[1] = 
 														{
-															["enabled"] = true,
+															["number"] = 1,
 															["auto"] = false,
 															["id"] = "CargoUnloadPlane",
-															["number"] = 1,
+															["enabled"] = true,
 															["params"] = 
 															{
 																["groupId"] = 933,
@@ -443,10 +459,10 @@ mission =
 														}, -- end of [1]
 														[2] = 
 														{
-															["enabled"] = true,
+															["number"] = 2,
 															["auto"] = false,
 															["id"] = "CargoUnloadPlane",
-															["number"] = 2,
+															["enabled"] = true,
 															["params"] = 
 															{
 																["groupId"] = 934,
@@ -548,8 +564,8 @@ mission =
 										["callsign"] = 
 										{
 											["_1"] = 1,
-											["name"] = "Enfield11",
 											["_3"] = 1,
+											["name"] = "Enfield11",
 											["_2"] = 1,
 										}, -- end of ["callsign"]
 									}, -- end of [1]
@@ -592,10 +608,10 @@ mission =
 													{
 														[1] = 
 														{
-															["number"] = 1,
+															["enabled"] = true,
 															["auto"] = false,
 															["id"] = "CargoTransportationPlane",
-															["enabled"] = true,
+															["number"] = 1,
 															["params"] = 
 															{
 																["y"] = 635727.5,
@@ -607,10 +623,10 @@ mission =
 														}, -- end of [1]
 														[2] = 
 														{
-															["number"] = 2,
+															["enabled"] = true,
 															["auto"] = false,
 															["id"] = "CargoTransportationPlane",
-															["enabled"] = true,
+															["number"] = 2,
 															["params"] = 
 															{
 																["y"] = 635727.5,
@@ -679,10 +695,10 @@ mission =
 													{
 														[1] = 
 														{
-															["number"] = 1,
+															["enabled"] = true,
 															["auto"] = false,
 															["id"] = "CargoUnloadPlane",
-															["enabled"] = true,
+															["number"] = 1,
 															["params"] = 
 															{
 																["groupId"] = 931,
@@ -691,10 +707,10 @@ mission =
 														}, -- end of [1]
 														[2] = 
 														{
-															["enabled"] = true,
+															["number"] = 2,
 															["auto"] = false,
 															["id"] = "CargoUnloadPlane",
-															["number"] = 2,
+															["enabled"] = true,
 															["params"] = 
 															{
 																["groupId"] = 932,
@@ -791,29 +807,7 @@ mission =
 										{
 											[1] = 
 											{
-												["channels"] = 
-												{
-													[1] = 31.5,
-													[2] = 45.7,
-													[4] = 38,
-													[8] = 50,
-													[16] = 51.5,
-													[17] = 50,
-													[9] = 55.5,
-													[18] = 79,
-													[5] = 30,
-													[10] = 39.9,
-													[20] = 34.9,
-													[11] = 41.5,
-													[3] = 57,
-													[6] = 32,
-													[12] = 75.7,
-													[13] = 33,
-													[7] = 40,
-													[14] = 38,
-													[19] = 51.5,
-													[15] = 42,
-												}, -- end of ["channels"]
+												["channelsNames"] = {},
 												["modulations"] = 
 												{
 													[1] = 1,
@@ -834,13 +828,37 @@ mission =
 													[13] = 1,
 													[7] = 1,
 													[14] = 1,
-													[19] = 1,
 													[15] = 1,
+													[19] = 1,
 												}, -- end of ["modulations"]
-												["channelsNames"] = {},
+												["channels"] = 
+												{
+													[1] = 31.5,
+													[2] = 45.7,
+													[4] = 38,
+													[8] = 50,
+													[16] = 51.5,
+													[17] = 50,
+													[9] = 55.5,
+													[18] = 79,
+													[5] = 30,
+													[10] = 39.9,
+													[20] = 34.9,
+													[11] = 41.5,
+													[3] = 57,
+													[6] = 32,
+													[12] = 75.7,
+													[13] = 33,
+													[7] = 40,
+													[14] = 38,
+													[15] = 42,
+													[19] = 51.5,
+												}, -- end of ["channels"]
 											}, -- end of [1]
 											[2] = 
 											{
+												["channelsNames"] = {},
+												["modulations"] = {},
 												["channels"] = 
 												{
 													[1] = 225,
@@ -861,14 +879,14 @@ mission =
 													[13] = 269,
 													[7] = 270,
 													[14] = 260,
-													[19] = 253,
 													[15] = 263,
+													[19] = 253,
 												}, -- end of ["channels"]
-												["modulations"] = {},
-												["channelsNames"] = {},
 											}, -- end of [2]
 											[3] = 
 											{
+												["channelsNames"] = {},
+												["modulations"] = {},
 												["channels"] = 
 												{
 													[7] = 30.035,
@@ -882,8 +900,6 @@ mission =
 													[3] = 30.015,
 													[6] = 30.03,
 												}, -- end of ["channels"]
-												["modulations"] = {},
-												["channelsNames"] = {},
 											}, -- end of [3]
 										}, -- end of ["Radio"]
 										["unitId"] = 915,
@@ -905,8 +921,8 @@ mission =
 										["callsign"] = 
 										{
 											["_1"] = 1,
-											["name"] = "Enfield11",
 											["_3"] = 1,
+											["name"] = "Enfield11",
 											["_2"] = 1,
 										}, -- end of ["callsign"]
 									}, -- end of [1]
@@ -1095,6 +1111,7 @@ mission =
 							[2] = 
 							{
 								["visible"] = false,
+								["tasks"] = {},
 								["route"] = 
 								{
 									["points"] = 
@@ -1111,6 +1128,14 @@ mission =
 											["ETA_locked"] = true,
 											["speed"] = 0,
 											["action"] = "Off Road",
+											["task"] = 
+											{
+												["id"] = "ComboTask",
+												["params"] = 
+												{
+													["tasks"] = {},
+												}, -- end of ["params"]
+											}, -- end of ["task"]
 											["speed_locked"] = true,
 										}, -- end of [1]
 									}, -- end of ["points"]
@@ -2326,10 +2351,10 @@ mission =
 													{
 														[1] = 
 														{
-															["enabled"] = true,
+															["number"] = 1,
 															["auto"] = false,
 															["id"] = "Orbit",
-															["number"] = 1,
+															["enabled"] = true,
 															["params"] = 
 															{
 																["altitude"] = 7000,
@@ -2445,9 +2470,9 @@ mission =
 										["speed"] = 200,
 										["AddPropAircraft"] = 
 										{
-											["VoiceCallsignLabel"] = "ED",
-											["VoiceCallsignNumber"] = "11",
 											["STN_L16"] = "02012",
+											["VoiceCallsignNumber"] = "11",
+											["VoiceCallsignLabel"] = "ED",
 										}, -- end of ["AddPropAircraft"]
 										["type"] = "F-16C_50",
 										["unitId"] = 906,
@@ -2507,8 +2532,8 @@ mission =
 										["callsign"] = 
 										{
 											["_1"] = 1,
-											["name"] = "Enfield11",
 											["_3"] = 1,
+											["name"] = "Enfield11",
 											["_2"] = 1,
 										}, -- end of ["callsign"]
 										["datalinks"] = 
@@ -2529,13 +2554,13 @@ mission =
 													{
 														[1] = 
 														{
-															["missionUnitId"] = 906,
 															["TDOA"] = true,
+															["missionUnitId"] = 906,
 														}, -- end of [1]
 														[2] = 
 														{
-															["missionUnitId"] = 907,
 															["TDOA"] = true,
+															["missionUnitId"] = 907,
 														}, -- end of [2]
 													}, -- end of ["teamMembers"]
 													["donors"] = {},
@@ -2553,9 +2578,9 @@ mission =
 										["speed"] = 200,
 										["AddPropAircraft"] = 
 										{
-											["VoiceCallsignLabel"] = "ED",
-											["VoiceCallsignNumber"] = "11",
 											["STN_L16"] = "02013",
+											["VoiceCallsignNumber"] = "11",
+											["VoiceCallsignLabel"] = "ED",
 										}, -- end of ["AddPropAircraft"]
 										["type"] = "F-16C_50",
 										["unitId"] = 907,
@@ -2615,8 +2640,8 @@ mission =
 										["callsign"] = 
 										{
 											["_1"] = 1,
-											["name"] = "Enfield11",
 											["_3"] = 1,
+											["name"] = "Enfield11",
 											["_2"] = 1,
 										}, -- end of ["callsign"]
 										["datalinks"] = 
@@ -2637,13 +2662,13 @@ mission =
 													{
 														[1] = 
 														{
-															["missionUnitId"] = 906,
 															["TDOA"] = true,
+															["missionUnitId"] = 906,
 														}, -- end of [1]
 														[2] = 
 														{
-															["missionUnitId"] = 907,
 															["TDOA"] = true,
+															["missionUnitId"] = 907,
 														}, -- end of [2]
 													}, -- end of ["teamMembers"]
 													["donors"] = {},
@@ -2738,20 +2763,20 @@ mission =
 													{
 														[1] = 
 														{
-															["enabled"] = true,
+															["number"] = 1,
 															["auto"] = false,
 															["id"] = "Bombing",
-															["number"] = 1,
+															["enabled"] = true,
 															["params"] = 
 															{
 																["direction"] = 0,
 																["attackQtyLimit"] = false,
 																["attackQty"] = 1,
 																["expend"] = "Auto",
-																["y"] = 629942.68576557,
+																["altitude"] = 6000,
 																["directionEnabled"] = false,
 																["groupAttack"] = false,
-																["altitude"] = 6000,
+																["y"] = 629942.68576557,
 																["altitudeEnabled"] = false,
 																["weaponType"] = 4030478,
 																["x"] = -252519.53429651,
@@ -2759,20 +2784,20 @@ mission =
 														}, -- end of [1]
 														[2] = 
 														{
-															["enabled"] = true,
+															["number"] = 2,
 															["auto"] = false,
 															["id"] = "Bombing",
-															["number"] = 2,
+															["enabled"] = true,
 															["params"] = 
 															{
 																["direction"] = 0,
 																["attackQtyLimit"] = false,
 																["attackQty"] = 1,
 																["expend"] = "Auto",
-																["y"] = 630012.68576557,
+																["altitude"] = 6000,
 																["directionEnabled"] = false,
 																["groupAttack"] = false,
-																["altitude"] = 6000,
+																["y"] = 630012.68576557,
 																["altitudeEnabled"] = false,
 																["weaponType"] = 4030478,
 																["x"] = -252519.53429651,
@@ -2780,20 +2805,20 @@ mission =
 														}, -- end of [2]
 														[3] = 
 														{
-															["enabled"] = true,
+															["number"] = 3,
 															["auto"] = false,
 															["id"] = "Bombing",
-															["number"] = 3,
+															["enabled"] = true,
 															["params"] = 
 															{
 																["direction"] = 0,
 																["attackQtyLimit"] = false,
 																["attackQty"] = 1,
 																["expend"] = "Auto",
-																["y"] = 629867.68576557,
+																["altitude"] = 6000,
 																["directionEnabled"] = false,
 																["groupAttack"] = false,
-																["altitude"] = 6000,
+																["y"] = 629867.68576557,
 																["altitudeEnabled"] = false,
 																["weaponType"] = 4030478,
 																["x"] = -252589.53429651,
@@ -2801,20 +2826,20 @@ mission =
 														}, -- end of [3]
 														[4] = 
 														{
-															["enabled"] = true,
+															["number"] = 4,
 															["auto"] = false,
 															["id"] = "Bombing",
-															["number"] = 4,
+															["enabled"] = true,
 															["params"] = 
 															{
 																["direction"] = 0,
 																["attackQtyLimit"] = false,
 																["attackQty"] = 1,
 																["expend"] = "Auto",
-																["y"] = 629867.68576557,
+																["altitude"] = 6000,
 																["directionEnabled"] = false,
 																["groupAttack"] = false,
-																["altitude"] = 6000,
+																["y"] = 629867.68576557,
 																["altitudeEnabled"] = false,
 																["weaponType"] = 4030478,
 																["x"] = -252642.53429651,
@@ -2941,9 +2966,9 @@ mission =
 										["speed"] = 150,
 										["AddPropAircraft"] = 
 										{
-											["VoiceCallsignLabel"] = "ED",
-											["VoiceCallsignNumber"] = "11",
 											["STN_L16"] = "02014",
+											["VoiceCallsignNumber"] = "11",
+											["VoiceCallsignLabel"] = "ED",
 										}, -- end of ["AddPropAircraft"]
 										["type"] = "F-16C_50",
 										["unitId"] = 908,
@@ -3012,8 +3037,8 @@ mission =
 										["callsign"] = 
 										{
 											["_1"] = 1,
-											["name"] = "Enfield11",
 											["_3"] = 1,
+											["name"] = "Enfield11",
 											["_2"] = 1,
 										}, -- end of ["callsign"]
 										["datalinks"] = 
@@ -3034,13 +3059,13 @@ mission =
 													{
 														[1] = 
 														{
-															["missionUnitId"] = 908,
 															["TDOA"] = true,
+															["missionUnitId"] = 908,
 														}, -- end of [1]
 														[2] = 
 														{
-															["missionUnitId"] = 909,
 															["TDOA"] = true,
+															["missionUnitId"] = 909,
 														}, -- end of [2]
 													}, -- end of ["teamMembers"]
 													["donors"] = {},
@@ -3059,9 +3084,9 @@ mission =
 										["speed"] = 150,
 										["AddPropAircraft"] = 
 										{
-											["VoiceCallsignLabel"] = "ED",
-											["VoiceCallsignNumber"] = "11",
 											["STN_L16"] = "02015",
+											["VoiceCallsignNumber"] = "11",
+											["VoiceCallsignLabel"] = "ED",
 										}, -- end of ["AddPropAircraft"]
 										["type"] = "F-16C_50",
 										["unitId"] = 909,
@@ -3130,8 +3155,8 @@ mission =
 										["callsign"] = 
 										{
 											["_1"] = 1,
-											["name"] = "Enfield11",
 											["_3"] = 1,
+											["name"] = "Enfield11",
 											["_2"] = 1,
 										}, -- end of ["callsign"]
 										["datalinks"] = 
@@ -3152,13 +3177,13 @@ mission =
 													{
 														[1] = 
 														{
-															["missionUnitId"] = 908,
 															["TDOA"] = true,
+															["missionUnitId"] = 908,
 														}, -- end of [1]
 														[2] = 
 														{
-															["missionUnitId"] = 909,
 															["TDOA"] = true,
+															["missionUnitId"] = 909,
 														}, -- end of [2]
 													}, -- end of ["teamMembers"]
 													["donors"] = {},
@@ -3253,10 +3278,10 @@ mission =
 													{
 														[1] = 
 														{
-															["enabled"] = true,
+															["number"] = 1,
 															["auto"] = false,
 															["id"] = "Escort",
-															["number"] = 1,
+															["enabled"] = true,
 															["params"] = 
 															{
 																["groupId"] = 894,
@@ -3265,13 +3290,13 @@ mission =
 																	[1] = "AAA",
 																	[2] = "SR SAM",
 																}, -- end of ["noTargetTypes"]
+																["lastWptIndexFlagChangedManually"] = true,
+																["engagementDistMax"] = 74000,
 																["targetTypes"] = 
 																{
 																	[1] = "MR SAM",
 																	[2] = "LR SAM",
 																}, -- end of ["targetTypes"]
-																["engagementDistMax"] = 74000,
-																["lastWptIndexFlagChangedManually"] = true,
 																["value"] = "MR SAM;LR SAM;",
 																["lastWptIndexFlag"] = false,
 																["lastWptIndex"] = 0,
@@ -3404,9 +3429,9 @@ mission =
 										["speed"] = 150,
 										["AddPropAircraft"] = 
 										{
-											["VoiceCallsignLabel"] = "ED",
-											["VoiceCallsignNumber"] = "11",
 											["STN_L16"] = "02016",
+											["VoiceCallsignNumber"] = "11",
+											["VoiceCallsignLabel"] = "ED",
 										}, -- end of ["AddPropAircraft"]
 										["type"] = "F-16C_50",
 										["unitId"] = 910,
@@ -3475,8 +3500,8 @@ mission =
 										["callsign"] = 
 										{
 											["_1"] = 1,
-											["name"] = "Enfield11",
 											["_3"] = 1,
+											["name"] = "Enfield11",
 											["_2"] = 1,
 										}, -- end of ["callsign"]
 										["datalinks"] = 
@@ -3497,13 +3522,13 @@ mission =
 													{
 														[1] = 
 														{
-															["missionUnitId"] = 910,
 															["TDOA"] = true,
+															["missionUnitId"] = 910,
 														}, -- end of [1]
 														[2] = 
 														{
-															["missionUnitId"] = 911,
 															["TDOA"] = true,
+															["missionUnitId"] = 911,
 														}, -- end of [2]
 													}, -- end of ["teamMembers"]
 													["donors"] = {},
@@ -3522,9 +3547,9 @@ mission =
 										["speed"] = 150,
 										["AddPropAircraft"] = 
 										{
-											["VoiceCallsignLabel"] = "ED",
-											["VoiceCallsignNumber"] = "11",
 											["STN_L16"] = "02017",
+											["VoiceCallsignNumber"] = "11",
+											["VoiceCallsignLabel"] = "ED",
 										}, -- end of ["AddPropAircraft"]
 										["type"] = "F-16C_50",
 										["unitId"] = 911,
@@ -3593,8 +3618,8 @@ mission =
 										["callsign"] = 
 										{
 											["_1"] = 1,
-											["name"] = "Enfield11",
 											["_3"] = 1,
+											["name"] = "Enfield11",
 											["_2"] = 1,
 										}, -- end of ["callsign"]
 										["datalinks"] = 
@@ -3615,13 +3640,13 @@ mission =
 													{
 														[1] = 
 														{
-															["missionUnitId"] = 910,
 															["TDOA"] = true,
+															["missionUnitId"] = 910,
 														}, -- end of [1]
 														[2] = 
 														{
-															["missionUnitId"] = 911,
 															["TDOA"] = true,
+															["missionUnitId"] = 911,
 														}, -- end of [2]
 													}, -- end of ["teamMembers"]
 													["donors"] = {},
@@ -3710,20 +3735,20 @@ mission =
 													{
 														[1] = 
 														{
-															["enabled"] = true,
+															["number"] = 1,
 															["auto"] = false,
 															["id"] = "Bombing",
-															["number"] = 1,
+															["enabled"] = true,
 															["params"] = 
 															{
 																["direction"] = 0,
 																["attackQtyLimit"] = false,
 																["attackQty"] = 1,
 																["expend"] = "Auto",
-																["y"] = 713215.27242757,
+																["altitude"] = 6000,
 																["directionEnabled"] = false,
 																["groupAttack"] = false,
-																["altitude"] = 6000,
+																["y"] = 713215.27242757,
 																["altitudeEnabled"] = false,
 																["weaponType"] = 4030478,
 																["x"] = -136498.46639661,
@@ -3731,20 +3756,20 @@ mission =
 														}, -- end of [1]
 														[2] = 
 														{
-															["enabled"] = true,
+															["number"] = 2,
 															["auto"] = false,
 															["id"] = "Bombing",
-															["number"] = 2,
+															["enabled"] = true,
 															["params"] = 
 															{
 																["direction"] = 0,
 																["attackQtyLimit"] = false,
 																["attackQty"] = 1,
 																["expend"] = "Auto",
-																["y"] = 713285.27242757,
+																["altitude"] = 6000,
 																["directionEnabled"] = false,
 																["groupAttack"] = false,
-																["altitude"] = 6000,
+																["y"] = 713285.27242757,
 																["altitudeEnabled"] = false,
 																["weaponType"] = 4030478,
 																["x"] = -136498.46639661,
@@ -3752,20 +3777,20 @@ mission =
 														}, -- end of [2]
 														[3] = 
 														{
-															["enabled"] = true,
+															["number"] = 3,
 															["auto"] = false,
 															["id"] = "Bombing",
-															["number"] = 3,
+															["enabled"] = true,
 															["params"] = 
 															{
 																["direction"] = 0,
 																["attackQtyLimit"] = false,
 																["attackQty"] = 1,
 																["expend"] = "Auto",
-																["y"] = 713140.27242757,
+																["altitude"] = 6000,
 																["directionEnabled"] = false,
 																["groupAttack"] = false,
-																["altitude"] = 6000,
+																["y"] = 713140.27242757,
 																["altitudeEnabled"] = false,
 																["weaponType"] = 4030478,
 																["x"] = -136568.46639661,
@@ -3773,20 +3798,20 @@ mission =
 														}, -- end of [3]
 														[4] = 
 														{
-															["enabled"] = true,
+															["number"] = 4,
 															["auto"] = false,
 															["id"] = "Bombing",
-															["number"] = 4,
+															["enabled"] = true,
 															["params"] = 
 															{
 																["direction"] = 0,
 																["attackQtyLimit"] = false,
 																["attackQty"] = 1,
 																["expend"] = "Auto",
-																["y"] = 713140.27242757,
+																["altitude"] = 6000,
 																["directionEnabled"] = false,
 																["groupAttack"] = false,
-																["altitude"] = 6000,
+																["y"] = 713140.27242757,
 																["altitudeEnabled"] = false,
 																["weaponType"] = 4030478,
 																["x"] = -136621.46639661,
@@ -3913,9 +3938,9 @@ mission =
 										["speed"] = 150,
 										["AddPropAircraft"] = 
 										{
-											["VoiceCallsignLabel"] = "ED",
-											["VoiceCallsignNumber"] = "11",
 											["STN_L16"] = "02021",
+											["VoiceCallsignNumber"] = "11",
+											["VoiceCallsignLabel"] = "ED",
 										}, -- end of ["AddPropAircraft"]
 										["type"] = "F-16C_50",
 										["unitId"] = 913,
@@ -3984,8 +4009,8 @@ mission =
 										["callsign"] = 
 										{
 											["_1"] = 1,
-											["name"] = "Enfield11",
 											["_3"] = 1,
+											["name"] = "Enfield11",
 											["_2"] = 1,
 										}, -- end of ["callsign"]
 										["datalinks"] = 
@@ -4006,13 +4031,13 @@ mission =
 													{
 														[1] = 
 														{
-															["missionUnitId"] = 913,
 															["TDOA"] = true,
+															["missionUnitId"] = 913,
 														}, -- end of [1]
 														[2] = 
 														{
-															["missionUnitId"] = 914,
 															["TDOA"] = true,
+															["missionUnitId"] = 914,
 														}, -- end of [2]
 													}, -- end of ["teamMembers"]
 													["donors"] = {},
@@ -4031,9 +4056,9 @@ mission =
 										["speed"] = 150,
 										["AddPropAircraft"] = 
 										{
-											["VoiceCallsignLabel"] = "ED",
-											["VoiceCallsignNumber"] = "11",
 											["STN_L16"] = "02022",
+											["VoiceCallsignNumber"] = "11",
+											["VoiceCallsignLabel"] = "ED",
 										}, -- end of ["AddPropAircraft"]
 										["type"] = "F-16C_50",
 										["unitId"] = 914,
@@ -4102,8 +4127,8 @@ mission =
 										["callsign"] = 
 										{
 											["_1"] = 1,
-											["name"] = "Enfield11",
 											["_3"] = 1,
+											["name"] = "Enfield11",
 											["_2"] = 1,
 										}, -- end of ["callsign"]
 										["datalinks"] = 
@@ -4124,13 +4149,13 @@ mission =
 													{
 														[1] = 
 														{
-															["missionUnitId"] = 913,
 															["TDOA"] = true,
+															["missionUnitId"] = 913,
 														}, -- end of [1]
 														[2] = 
 														{
-															["missionUnitId"] = 914,
 															["TDOA"] = true,
+															["missionUnitId"] = 914,
 														}, -- end of [2]
 													}, -- end of ["teamMembers"]
 													["donors"] = {},
@@ -4171,10 +4196,10 @@ mission =
 													{
 														[1] = 
 														{
-															["enabled"] = true,
+															["number"] = 1,
 															["auto"] = false,
 															["id"] = "WrappedAction",
-															["number"] = 1,
+															["enabled"] = true,
 															["params"] = 
 															{
 																["action"] = 
@@ -4189,10 +4214,10 @@ mission =
 														}, -- end of [1]
 														[2] = 
 														{
-															["enabled"] = true,
+															["number"] = 2,
 															["auto"] = false,
 															["id"] = "WrappedAction",
-															["number"] = 2,
+															["enabled"] = true,
 															["params"] = 
 															{
 																["action"] = 
@@ -4207,10 +4232,10 @@ mission =
 														}, -- end of [2]
 														[3] = 
 														{
-															["enabled"] = true,
+															["number"] = 3,
 															["auto"] = false,
 															["id"] = "WrappedAction",
-															["number"] = 3,
+															["enabled"] = true,
 															["params"] = 
 															{
 																["action"] = 
@@ -4225,18 +4250,18 @@ mission =
 														}, -- end of [3]
 														[4] = 
 														{
-															["enabled"] = true,
+															["number"] = 4,
 															["auto"] = false,
 															["id"] = "AWACS",
-															["number"] = 4,
+															["enabled"] = true,
 															["params"] = {},
 														}, -- end of [4]
 														[5] = 
 														{
-															["enabled"] = true,
+															["number"] = 5,
 															["auto"] = false,
 															["id"] = "Orbit",
-															["number"] = 5,
+															["enabled"] = true,
 															["params"] = 
 															{
 																["altitude"] = 6096,
@@ -4324,8 +4349,8 @@ mission =
 										["callsign"] = 
 										{
 											["_1"] = 1,
-											["name"] = "AWACS-blue11",
 											["_3"] = 1,
+											["name"] = "AWACS-blue11",
 											["_2"] = 1,
 										}, -- end of ["callsign"]
 									}, -- end of [1]
@@ -5408,6 +5433,17 @@ mission =
 				}, -- end of [1]
 			}, -- end of ["country"]
 		}, -- end of ["blue"]
+		["neutrals"] = 
+		{
+			["bullseye"] = 
+			{
+				["y"] = 0,
+				["x"] = 0,
+			}, -- end of ["bullseye"]
+			["nav_points"] = {},
+			["name"] = "neutrals",
+			["country"] = {},
+		}, -- end of ["neutrals"]
 		["red"] = 
 		{
 			["bullseye"] = 
@@ -8514,10 +8550,10 @@ mission =
 													{
 														[1] = 
 														{
-															["enabled"] = true,
+															["number"] = 1,
 															["auto"] = false,
 															["id"] = "Orbit",
-															["number"] = 1,
+															["enabled"] = true,
 															["params"] = 
 															{
 																["altitude"] = 7000,
@@ -9147,10 +9183,10 @@ mission =
 													{
 														[1] = 
 														{
-															["enabled"] = true,
+															["number"] = 1,
 															["auto"] = false,
 															["id"] = "Escort",
-															["number"] = 1,
+															["enabled"] = true,
 															["params"] = 
 															{
 																["groupId"] = 901,
@@ -9159,13 +9195,13 @@ mission =
 																	[1] = "AAA",
 																	[2] = "SR SAM",
 																}, -- end of ["noTargetTypes"]
+																["lastWptIndexFlagChangedManually"] = true,
+																["engagementDistMax"] = 74000,
 																["targetTypes"] = 
 																{
 																	[1] = "MR SAM",
 																	[2] = "LR SAM",
 																}, -- end of ["targetTypes"]
-																["engagementDistMax"] = 74000,
-																["lastWptIndexFlagChangedManually"] = true,
 																["value"] = "MR SAM;LR SAM;",
 																["lastWptIndexFlag"] = false,
 																["lastWptIndex"] = 0,
@@ -9517,10 +9553,10 @@ mission =
 													{
 														[1] = 
 														{
-															["enabled"] = true,
+															["number"] = 1,
 															["auto"] = false,
 															["id"] = "Orbit",
-															["number"] = 1,
+															["enabled"] = true,
 															["params"] = 
 															{
 																["altitude"] = 7000,
@@ -10154,10 +10190,10 @@ mission =
 													{
 														[1] = 
 														{
-															["enabled"] = true,
+															["number"] = 1,
 															["auto"] = false,
 															["id"] = "Escort",
-															["number"] = 1,
+															["enabled"] = true,
 															["params"] = 
 															{
 																["groupId"] = 904,
@@ -10166,13 +10202,13 @@ mission =
 																	[1] = "AAA",
 																	[2] = "SR SAM",
 																}, -- end of ["noTargetTypes"]
+																["lastWptIndexFlagChangedManually"] = true,
+																["engagementDistMax"] = 74000,
 																["targetTypes"] = 
 																{
 																	[1] = "MR SAM",
 																	[2] = "LR SAM",
 																}, -- end of ["targetTypes"]
-																["engagementDistMax"] = 74000,
-																["lastWptIndexFlagChangedManually"] = true,
 																["value"] = "MR SAM;LR SAM;",
 																["lastWptIndexFlag"] = false,
 																["lastWptIndex"] = 0,
@@ -10477,10 +10513,10 @@ mission =
 													{
 														[1] = 
 														{
-															["enabled"] = true,
+															["number"] = 1,
 															["auto"] = false,
 															["id"] = "WrappedAction",
-															["number"] = 1,
+															["enabled"] = true,
 															["params"] = 
 															{
 																["action"] = 
@@ -10495,10 +10531,10 @@ mission =
 														}, -- end of [1]
 														[2] = 
 														{
-															["enabled"] = true,
+															["number"] = 2,
 															["auto"] = false,
 															["id"] = "WrappedAction",
-															["number"] = 2,
+															["enabled"] = true,
 															["params"] = 
 															{
 																["action"] = 
@@ -10513,10 +10549,10 @@ mission =
 														}, -- end of [2]
 														[3] = 
 														{
-															["enabled"] = true,
+															["number"] = 3,
 															["auto"] = false,
 															["id"] = "WrappedAction",
-															["number"] = 3,
+															["enabled"] = true,
 															["params"] = 
 															{
 																["action"] = 
@@ -10531,18 +10567,18 @@ mission =
 														}, -- end of [3]
 														[4] = 
 														{
-															["enabled"] = true,
+															["number"] = 4,
 															["auto"] = false,
 															["id"] = "AWACS",
-															["number"] = 4,
+															["enabled"] = true,
 															["params"] = {},
 														}, -- end of [4]
 														[5] = 
 														{
-															["enabled"] = true,
+															["number"] = 5,
 															["auto"] = false,
 															["id"] = "Orbit",
-															["number"] = 5,
+															["enabled"] = true,
 															["params"] = 
 															{
 																["altitude"] = 6096,
@@ -16470,14 +16506,13 @@ mission =
 			{
 				[1] = 
 				{
-					["coalitionlist"] = "all",
-					["predicate"] = "c_time_after",
 					["seconds"] = 1,
+					["predicate"] = "c_time_after",
+					["coalitionlist"] = "all",
 				}, -- end of [1]
 			}, -- end of ["rules"]
 			["eventlist"] = "",
 			["comment"] = "DCC Config",
-			["predicate"] = "triggerOnce",
 			["actions"] = 
 			{
 				[1] = 
@@ -16486,6 +16521,7 @@ mission =
 					["predicate"] = "a_do_script",
 				}, -- end of [1]
 			}, -- end of ["actions"]
+			["predicate"] = "triggerOnce",
 			["colorItem"] = "0x00ffffff",
 		}, -- end of [1]
 		[2] = 
@@ -16494,14 +16530,13 @@ mission =
 			{
 				[1] = 
 				{
-					["coalitionlist"] = "all",
-					["predicate"] = "c_time_after",
 					["seconds"] = 2,
+					["predicate"] = "c_time_after",
+					["coalitionlist"] = "all",
 				}, -- end of [1]
 			}, -- end of ["rules"]
 			["eventlist"] = "",
 			["comment"] = "MIST Script",
-			["predicate"] = "triggerOnce",
 			["actions"] = 
 			{
 				[1] = 
@@ -16510,6 +16545,7 @@ mission =
 					["file"] = "mist",
 				}, -- end of [1]
 			}, -- end of ["actions"]
+			["predicate"] = "triggerOnce",
 			["colorItem"] = "0x00ffffff",
 		}, -- end of [2]
 		[3] = 
@@ -16518,14 +16554,13 @@ mission =
 			{
 				[1] = 
 				{
-					["coalitionlist"] = "all",
-					["predicate"] = "c_time_after",
 					["seconds"] = 3,
+					["predicate"] = "c_time_after",
+					["coalitionlist"] = "all",
 				}, -- end of [1]
 			}, -- end of ["rules"]
 			["eventlist"] = "",
 			["comment"] = "DCC State Script",
-			["predicate"] = "triggerOnce",
 			["actions"] = 
 			{
 				[1] = 
@@ -16534,10 +16569,38 @@ mission =
 					["file"] = "state",
 				}, -- end of [1]
 			}, -- end of ["actions"]
+			["predicate"] = "triggerOnce",
 			["colorItem"] = "0x00ffffff",
 		}, -- end of [3]
+		[4] = 
+		{
+			["rules"] = 
+			{
+				[1] = 
+				{
+					["predicate"] = "c_cargo_unhooked_in_zone",
+					["cargo"] = "ANY_BLUE",
+					["zone"] = 329,
+				}, -- end of [1]
+			}, -- end of ["rules"]
+			["comment"] = "Cargo Message",
+			["eventlist"] = "",
+			["actions"] = 
+			{
+				[1] = 
+				{
+					["seconds"] = 10,
+					["start_delay"] = 0,
+					["KeyDict_text"] = "DictKey_ActionText_6",
+					["text"] = "DictKey_ActionText_6",
+					["predicate"] = "a_out_text_delay",
+					["clearview"] = false,
+				}, -- end of [1]
+			}, -- end of ["actions"]
+			["predicate"] = "triggerStart",
+		}, -- end of [4]
 	}, -- end of ["trigrules"]
-	["currentKey"] = 14470,
+	["currentKey"] = 19863,
 	["failures"] = {},
 	["forcedOptions"] = {},
 	["start_time"] = 34385,

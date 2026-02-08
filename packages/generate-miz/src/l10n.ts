@@ -7,7 +7,8 @@ export function dictionary(): z.infer<typeof schemas.dcs.l10n>['dictionary'] {
     DictKey_sortie_5: '',
     DictKey_descriptionText_1: '',
     DictKey_descriptionBlueTask_3: '',
-    DictKey_descriptionRedTask_2: ''
+    DictKey_descriptionRedTask_2: '',
+    DictKey_ActionText_6: 'Cargo delivered.'
   }
 }
 

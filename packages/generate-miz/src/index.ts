@@ -14,6 +14,105 @@ import mistLuaScript from './scripts/mist_4_5_126.lua?raw'
 import stateLuaScript from './scripts/state.lua?raw'
 import { warehouses } from './warehouses'
 
+function addTransportCargoTriggers(
+  mission: z.infer<typeof schemas.dcs.mission>,
+  campaign: z.infer<typeof schemas.campaign.campaign>
+): void {
+  const nextMissionKey = () => {
+    mission.currentKey += 1
+    return mission.currentKey
+  }
+
+  const zones = mission.triggers?.zones ?? []
+  if (!mission.triggers) {
+    mission.triggers = { zones }
+  } else {
+    mission.triggers.zones = zones
+  }
+
+  if (!mission.trig) {
+    mission.trig = {
+      actions: {},
+      events: {},
+      custom: {},
+      func: {},
+      flag: {},
+      conditions: {},
+      customStartup: {},
+      funcStartup: {}
+    }
+  }
+
+  const trig = mission.trig
+  const trigrules = mission.trigrules ?? {}
+  mission.trigrules = trigrules
+
+  let trigIndex =
+    Math.max(
+      0,
+      ...Object.keys(trig.actions ?? {}).map((key) => Number.parseInt(key, 10))
+    ) + 1
+  let ruleIndex = Math.max(0, ...Object.keys(trigrules).map((key) => Number.parseInt(key, 10))) + 1
+
+  Object.values(campaign.coalitions).forEach((coalition) => {
+    coalition.flightGroups.forEach((fg) => {
+      if (fg.task !== 'Transport') return
+
+      const directWp = fg.flightplan.waypoints.find((wp) => wp.name === 'Direct')
+      if (!directWp) return
+
+      const zoneId = nextMissionKey()
+
+      zones.push({
+        radius: 609.6,
+        zoneId: zoneId,
+        color: { 1: 1, 2: 1, 3: 1, 4: 0.15 },
+        properties: {},
+        hidden: false,
+        y: directWp.position.y,
+        x: directWp.position.x,
+        name: 'Cargo',
+        heading: 0,
+        type: 0
+      })
+
+      const actionIndex = trigIndex
+      trigIndex += 1
+
+      trig.actions[actionIndex] =
+        'a_out_text_delay(getValueDictByKey("DictKey_ActionText_6"), 10, false, 0);'
+      trig.conditions[actionIndex] = `return(c_cargo_unhooked_in_zone("ANY_BLUE", ${zoneId}) )`
+      trig.flag[actionIndex] = true
+      trig.funcStartup[actionIndex] = `if mission.trig.conditions[${actionIndex}]() then mission.trig.actions[${actionIndex}]() end`
+
+      trigrules[ruleIndex] = {
+        rules: {
+          1: {
+            predicate: 'c_cargo_unhooked_in_zone',
+            cargo: 'ANY_BLUE',
+            zone: zoneId
+          }
+        },
+        eventlist: '',
+        comment: 'Cargo Message',
+        actions: {
+          1: {
+            seconds: 10,
+            start_delay: 0,
+            KeyDict_text: 'DictKey_ActionText_6',
+            text: 'DictKey_ActionText_6',
+            predicate: 'a_out_text_delay',
+            clearview: false
+          }
+        },
+        predicate: 'triggerStart'
+      }
+
+      ruleIndex += 1
+    })
+  })
+}
+
 export function generateMizFromCampaign(
   campaign: z.infer<typeof schemas.campaign.campaign>,
   theatre: z.infer<typeof schemas.theatre>,
@@ -31,7 +130,7 @@ export function generateMizFromCampaign(
     descriptionNeutralsTask: 'DictKey_descriptionNeutralsTask_4',
     sortie: 'DictKey_sortie_5',
     currentKey: 137,
-    maxDictId: 5,
+    maxDictId: 6,
     start_time:
       campaign.time.getUTCHours() * 3600 +
       campaign.time.getUTCMinutes() * 60 +
@@ -228,6 +327,8 @@ export function generateMizFromCampaign(
   if (flightGroupsResult.isErr()) {
     return flightGroupsResult
   }
+
+  addTransportCargoTriggers(mission, campaign)
 
   const awacsResult = addAwacsGroups(mission, campaign, theatre)
   if (awacsResult.isErr()) {

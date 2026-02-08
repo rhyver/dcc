@@ -507,6 +507,75 @@ export function addFlightGroups(
         }
       })
 
+      const isTransportHelicopter = fg.task === 'Transport' && isHelicopter
+      const transportCargo: { groupId: number; unitId: number; x: number; y: number }[] = []
+
+      if (isTransportHelicopter) {
+        if (!country.static) {
+          country.static = { group: [] }
+        }
+
+        const baseX = units[0]?.x ?? fg.position.x
+        const baseY = units[0]?.y ?? fg.position.y
+        const cargoCount = Math.max(1, Math.min(4, Math.ceil((fg.cargoAmount ?? 1) / 200)))
+
+        for (let i = 0; i < cargoCount; i += 1) {
+          const offset = 12 + i * 6
+          const cargoX = baseX + (i % 2 === 0 ? offset : -offset)
+          const cargoY = baseY + (i % 2 === 0 ? offset : -offset)
+          const cargoGroupId = nextId()
+          const cargoUnitId = nextId()
+          const cargoGroupName = `Static CDS Barrels-${cargoGroupId}`
+          const cargoUnitName = `${cargoGroupName}-1`
+
+          country.static.group.push({
+            heading: 0,
+            route: {
+              points: [
+                {
+                  alt: 0,
+                  type: '',
+                  name: '',
+                  y: cargoY,
+                  speed: 0,
+                  x: cargoX,
+                  formation_template: '',
+                  action: ''
+                }
+              ]
+            },
+            groupId: cargoGroupId,
+            units: [
+              {
+                tasks: {},
+                mass: 400,
+                category: 'Cargos',
+                canCargo: true,
+                shape_name: 'cds_barrels',
+                type: 'cds_barrels',
+                unitId: cargoUnitId,
+                rate: 1200,
+                y: cargoY,
+                x: cargoX,
+                name: cargoUnitName,
+                heading: 0
+              }
+            ],
+            y: cargoY,
+            x: cargoX,
+            name: cargoGroupName,
+            dead: false
+          })
+
+          transportCargo.push({
+            groupId: cargoGroupId,
+            unitId: cargoUnitId,
+            x: cargoX,
+            y: cargoY
+          })
+        }
+      }
+
       // Calculate start time in seconds from midnight
       const flightStartTimeSeconds =
         fg.flightplan.startTime.getUTCHours() * 3600 +
@@ -657,6 +726,39 @@ export function addFlightGroups(
               tasks.length + 1
             )
           )
+        }
+
+        if (isTransportHelicopter && wp.type === 'TakeOff' && units[0]) {
+          transportCargo.forEach((cargo) => {
+            tasks.push({
+              enabled: true,
+              auto: false,
+              id: 'CargoTransportationPlane',
+              number: tasks.length + 1,
+              params: {
+                y: cargo.y,
+                x: cargo.x,
+                unitIdTransport: units[0].unitId,
+                groupId: cargo.groupId,
+                unitId: cargo.unitId
+              }
+            })
+          })
+        }
+
+        if (isTransportHelicopter && wp.name === 'Direct') {
+          transportCargo.forEach((cargo) => {
+            tasks.push({
+              enabled: true,
+              auto: false,
+              id: 'CargoUnloadPlane',
+              number: tasks.length + 1,
+              params: {
+                groupId: cargo.groupId,
+                unitId: cargo.unitId
+              }
+            })
+          })
         }
 
         if (wp.name === 'IP' && fg.target && fg.task === 'Pinpoint Strike') {

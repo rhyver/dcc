@@ -4,7 +4,7 @@ import { useSelector } from '@xstate/store/react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { activeStore } from '@/stores/active'
-import { cn } from '@/lib/utils'
+import { cn, getAircraftDisplayName } from '@/lib/utils'
 import { type SelectedItem } from './map'
 
 interface ActiveFlightGroupsProps {
@@ -36,7 +36,7 @@ export function ActiveFlightGroups({ selectedItem, onSelect }: ActiveFlightGroup
           <span className="retro-font">Flight Groups</span>
         </CardTitle>
       </CardHeader>
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 min-h-0 overflow-hidden">
         <CardContent>
           {flightGroups.length === 0 ? (
             <div className="text-sm text-secondary/60 text-center italic">No active flights</div>
@@ -76,7 +76,7 @@ export function ActiveFlightGroups({ selectedItem, onSelect }: ActiveFlightGroup
                     </div>
                     <div className="flex flex-col items-end gap-0.5">
                       <span className="text-xs font-medium text-secondary">
-                        {group.aircrafts[0]?.aircraftName || 'Unknown'}
+                        {group.aircrafts[0] ? getAircraftDisplayName(group.aircrafts[0].aircraftName) : 'Unknown'}
                       </span>
                       <div className="flex items-center gap-2 text-[10px] text-secondary/60">
                         <span>{group.aircrafts.length} Aircraft</span>

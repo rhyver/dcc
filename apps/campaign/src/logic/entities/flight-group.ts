@@ -93,7 +93,8 @@ export class FlightGroup {
     destination: z.infer<typeof schemas.position>,
     missionWaypoints: z.infer<typeof schemas.waypoint>[],
     startTime: Date,
-    runwayAngle?: number
+    runwayAngle?: number,
+    isHelicopter?: boolean
   ): z.infer<typeof schemas.flightplan> {
     const waypoints: z.infer<typeof schemas.waypoint>[] = []
     const dx = destination.x - home.x
@@ -160,48 +161,52 @@ export class FlightGroup {
       name: 'TakeOff',
       position: home,
       altitude: 0,
-      speed: 150,
+      speed: isHelicopter ? 50 : 150,
       type: 'TakeOff'
     })
 
-    // 2. Ascend / Join (20km out)
-    waypoints.push({
-      name: 'Ascend',
-      position: {
-        x: home.x + ascendUx * 20000,
-        y: home.y + ascendUy * 20000
-      },
-      altitude: 2000,
-      speed: 200,
-      type: 'Nav'
-    })
+    if (!isHelicopter) {
+      // 2. Ascend / Join (20km out)
+      waypoints.push({
+        name: 'Ascend',
+        position: {
+          x: home.x + ascendUx * 20000,
+          y: home.y + ascendUy * 20000
+        },
+        altitude: 2000,
+        speed: 200,
+        type: 'Nav'
+      })
+    }
 
     // 3. Mission Waypoints
     waypoints.push(...missionWaypoints)
 
-    // 4. Descent (20km from home)
-    // Descent point is "Final Approach Fix" roughly.
-    // If landing direction is D, we should be at home - D * 20km.
-    // So we use SUBTRACTION here relative to landing direction?
-    // descentUx/Uy is the runway direction we selected (aligned with takeoff).
-    // Assuming same direction for landing.
-    waypoints.push({
-      name: 'Descent',
-      position: {
-        x: home.x - descentUx * 20000,
-        y: home.y - descentUy * 20000
-      },
-      altitude: 2000,
-      speed: 200,
-      type: 'Nav'
-    })
+    if (!isHelicopter) {
+      // 4. Descent (20km from home)
+      // Descent point is "Final Approach Fix" roughly.
+      // If landing direction is D, we should be at home - D * 20km.
+      // So we use SUBTRACTION here relative to landing direction?
+      // descentUx/Uy is the runway direction we selected (aligned with takeoff).
+      // Assuming same direction for landing.
+      waypoints.push({
+        name: 'Descent',
+        position: {
+          x: home.x - descentUx * 20000,
+          y: home.y - descentUy * 20000
+        },
+        altitude: 2000,
+        speed: 200,
+        type: 'Nav'
+      })
+    }
 
-    // 7. Landing
+    // 5. Landing
     waypoints.push({
       name: 'Landing',
       position: home,
       altitude: 0,
-      speed: 150,
+      speed: isHelicopter ? 50 : 150,
       type: 'Landing'
     })
 
@@ -215,7 +220,8 @@ export class FlightGroup {
   static calculateStartTimeForTot(
     home: z.infer<typeof schemas.position>,
     missionWaypoints: z.infer<typeof schemas.waypoint>[],
-    desiredTot: Date
+    desiredTot: Date,
+    isHelicopter?: boolean
   ): Date {
     const STARTUP_DELAY_MS = 10 * 60 * 1000 // 10 minutes
 
@@ -223,10 +229,12 @@ export class FlightGroup {
     let timeToTotMs = 0
     let currentPos = home
 
-    // Include the ascend waypoint time (20km at 200 m/s)
-    const ascendDistance = 20000
-    const ascendSpeed = 200
-    timeToTotMs += (ascendDistance / ascendSpeed) * 1000
+    if (!isHelicopter) {
+      // Include the ascend waypoint time (20km at 200 m/s)
+      const ascendDistance = 20000
+      const ascendSpeed = 200
+      timeToTotMs += (ascendDistance / ascendSpeed) * 1000
+    }
 
     // Update current position to ascend position (we don't have the exact position here,
     // so we'll use the first mission waypoint as reference)

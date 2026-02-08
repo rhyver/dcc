@@ -1,7 +1,10 @@
 import { schemas } from '@dcc/contracts'
+import { aircrafts } from '@dcc/data'
 import * as z from 'zod'
 
 import { FlightGroup } from './flight-group'
+
+const aircraftMap = new Map(Object.values(aircrafts).map((def) => [def.name, def]))
 
 type Campaign = z.infer<typeof schemas.campaign.campaign>
 type Coalition = z.infer<typeof schemas.coalition>
@@ -151,18 +154,20 @@ export function spawnPlannedFlightGroup({
   packageId?: string
   tot?: Date
 }): { flightGroupId: string; tot: Date; flightplan: z.infer<typeof schemas.flightplan> } {
-  const aircrafts = createAircrafts(aircraftType, aircraftCount)
+  const isHelicopter = aircraftMap.get(aircraftType)?.isHelicopter ?? false
+  const acList = createAircrafts(aircraftType, aircraftCount)
 
   const flightplan = FlightGroup.createFlightPlan(
     homeBasePosition,
     destination,
     missionWaypoints,
     startTime,
-    runwayAngle
+    runwayAngle,
+    isHelicopter
   )
 
   const flightGroupId = FlightGroup.create(draft, coalition, {
-    aircrafts,
+    aircrafts: acList,
     task,
     position: homeBasePosition,
     homeBase,

@@ -95,7 +95,7 @@ export function Home() {
       </div>
 
       {/* Sidebar - Floating Left Panel */}
-      <div className="absolute top-4 left-4 bottom-4 w-[380px] z-10 flex flex-col gap-3 pointer-events-none">
+      <div className="absolute top-4 left-4 bottom-4 w-[380px] z-10 flex flex-col gap-3 pointer-events-none overflow-hidden">
         {/* Controls - Now at the top */}
         <Card className="pointer-events-auto border-synthwave-pink/30 bg-synthwave-dark/80 text-synthwave-light shadow-[0_0_15px_rgba(255,0,170,0.3)] backdrop-blur-md p-3">
           <div className="flex flex-col gap-2">

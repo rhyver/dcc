@@ -11,7 +11,7 @@ import { activeStore } from '@/stores/active'
 import { coreClient, orpc } from '@/lib/orpc'
 import { Button } from '@/components/ui/button'
 import { Toggle } from '@/components/ui/toggle'
-import { cn } from '@/lib/utils'
+import { cn, getAircraftDisplayName } from '@/lib/utils'
 
 const KNOTS_PER_MS = 1.94384
 
@@ -311,7 +311,7 @@ export function Mission() {
                       </span>
                     </div>
                     <div className="flex gap-3 mt-1 text-[10px] text-white/50">
-                      <span>{group.aircrafts[0]?.aircraftName}</span>
+                      <span>{group.aircrafts[0] ? getAircraftDisplayName(group.aircrafts[0].aircraftName) : 'Unknown'}</span>
                       <span className="text-[#ff00aa]">{group.task}</span>
                     </div>
                     <div className="text-[10px] text-white/40 mt-1">

@@ -3,14 +3,15 @@ import { scenarios, theatres } from '@dcc/data'
 import * as z from 'zod'
 import { GroundGroup } from '../../entities/ground-group'
 import { calculateDistance } from '@/logic/utils/calculate-distance'
+import { INFANTRY_COST, VEHICLE_COST } from './ground-group-costs'
 
-const INFANTRY_COST = 500 // Adjusted cost to be higher than per-tick gain
-const VEHICLE_COST = 1000
+const MAX_SPAWNS_PER_TICK = 3
 
 export function spawnGroundGroups(
   draft: z.infer<typeof schemas.campaign.campaign>,
   coalition: z.infer<typeof schemas.coalition>
 ): void {
+  let spawnsThisTick = 0
   const scenario = scenarios.find((s) => s.id === draft.scenarioId)
   if (!scenario) return
 
@@ -22,15 +23,25 @@ export function spawnGroundGroups(
 
   const structures = draft.coalitions[coalition].structures
   const coalitionData = draft.coalitions[coalition]
+  const reservedTargetObjectives = new Set(
+    draft.coalitions[coalition].groundGroups
+      .map((group) => group.targetObjectiveId)
+      .filter((targetObjectiveId): targetObjectiveId is string => targetObjectiveId != null)
+  )
 
   for (const structure of structures) {
+    if (spawnsThisTick >= MAX_SPAWNS_PER_TICK) break
+
     // Only Barrack and Depot structures can spawn ground groups
     if (structure.type !== 'Barrack' && structure.type !== 'Depot') continue
 
-    for (const building of structure.buildings) {
-      if (!building.alive) continue
+    const aliveBuildings = structure.buildings.filter((building) => building.alive)
+    if (aliveBuildings.length === 0) continue
 
-      if (structure.type === 'Barrack' && (building.resources || 0) >= INFANTRY_COST) {
+    for (let i = 0; i < aliveBuildings.length; i++) {
+      if (spawnsThisTick >= MAX_SPAWNS_PER_TICK) break
+
+      if (structure.type === 'Barrack' && (structure.resources || 0) >= INFANTRY_COST) {
         const infantryTypes = coalitionData.groundUnitTypes['Infantry']
         const unitName =
           infantryTypes && infantryTypes.length > 0
@@ -40,7 +51,8 @@ export function spawnGroundGroups(
         const targetObjectiveId = findNearestEnemyObjective(
           structure.position,
           enemyObjectiveIds,
-          theatre
+          theatre,
+          reservedTargetObjectives
         )
 
         GroundGroup.create(draft, coalition, {
@@ -50,8 +62,12 @@ export function spawnGroundGroups(
           state: targetObjectiveId ? 'moving' : 'idle',
           targetObjectiveId
         })
-        building.resources -= INFANTRY_COST
-      } else if (structure.type === 'Depot' && (building.resources || 0) >= VEHICLE_COST) {
+        if (targetObjectiveId != null) {
+          reservedTargetObjectives.add(targetObjectiveId)
+        }
+        structure.resources = (structure.resources || 0) - INFANTRY_COST
+        spawnsThisTick++
+      } else if (structure.type === 'Depot' && (structure.resources || 0) >= VEHICLE_COST) {
         const vehicleTypes = coalitionData.groundUnitTypes['Vehicle']
         const unitName =
           vehicleTypes && vehicleTypes.length > 0
@@ -61,7 +77,8 @@ export function spawnGroundGroups(
         const targetObjectiveId = findNearestEnemyObjective(
           structure.position,
           enemyObjectiveIds,
-          theatre
+          theatre,
+          reservedTargetObjectives
         )
 
         GroundGroup.create(draft, coalition, {
@@ -71,7 +88,11 @@ export function spawnGroundGroups(
           state: targetObjectiveId ? 'moving' : 'idle',
           targetObjectiveId
         })
-        building.resources -= VEHICLE_COST
+        if (targetObjectiveId != null) {
+          reservedTargetObjectives.add(targetObjectiveId)
+        }
+        structure.resources = (structure.resources || 0) - VEHICLE_COST
+        spawnsThisTick++
       }
     }
   }
@@ -80,12 +101,15 @@ export function spawnGroundGroups(
 function findNearestEnemyObjective(
   position: z.infer<typeof schemas.position>,
   enemyObjectiveIds: string[],
-  theatre: z.infer<typeof schemas.theatre>
+  theatre: z.infer<typeof schemas.theatre>,
+  reservedTargetObjectives: ReadonlySet<string>
 ): string | undefined {
   let nearestId: string | undefined
   let nearestDist = Infinity
 
   for (const objId of enemyObjectiveIds) {
+    if (reservedTargetObjectives.has(objId)) continue
+
     const objective = theatre.objectives.find((o) => o.name === objId)
     if (!objective) continue
 

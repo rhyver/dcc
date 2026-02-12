@@ -84,6 +84,7 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
         objectiveId: assignment.objectiveId,
         position: assignment.position,
         name: assignment.name,
+        resources: assignment.resources,
         buildings: assignment.buildings
       }
     })
@@ -272,7 +273,9 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
 
   const result = schemas.campaign.campaign.safeParse(defaultState)
   if (!result.success) {
-    throw errors.NOT_FOUND({ data: { message: `Invalid campaign state: ${result.error.message}`, path: 'campaign' } })
+    throw errors.NOT_FOUND({
+      data: { message: `Invalid campaign state: ${result.error.message}`, path: 'campaign' }
+    })
   }
 
   // Ensure campaigns directory exists

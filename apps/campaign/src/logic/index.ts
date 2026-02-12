@@ -33,12 +33,12 @@ export function logicTick(delta: number) {
     type: 'tick',
     delta,
     logic: (draft) => {
-      updateResources(draft, 'player', delta)
-      updateResources(draft, 'opponent', delta)
+      updateResources(draft, 'player')
+      updateResources(draft, 'opponent')
       updateSupply(draft, 'player')
       updateSupply(draft, 'opponent')
-      updateGroundGroups(draft, 'player', delta)
-      updateGroundGroups(draft, 'opponent', delta)
+      updateGroundGroups(draft, 'player', delta, { move: false })
+      updateGroundGroups(draft, 'opponent', delta, { move: false })
       spawn(draft, 'player')
       spawn(draft, 'opponent')
     }

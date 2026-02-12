@@ -69,6 +69,12 @@ export function DetailsCard({
                 <div>{Math.floor(selectedItem.resources as number)}</div>
               </>
             )}
+            {'spawnCost' in selectedItem && selectedItem.spawnCost != null && (
+              <>
+                <div className="text-secondary/70">Needed to Spawn</div>
+                <div>{Math.floor(selectedItem.spawnCost as number)}</div>
+              </>
+            )}
             {'flightplan' in selectedItem && (
               <>
                 <div className="text-secondary/70">Task</div>

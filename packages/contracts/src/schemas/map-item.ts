@@ -30,7 +30,8 @@ export const FlightGroupMapItem = mapItem.extend({
 export const StructureMapItem = mapItem.extend({
   type: z.literal('Structure'),
   structureType: structureType,
-  resources: z.number().optional()
+  resources: z.number().optional(),
+  spawnCost: z.number().optional()
 })
 
 export const GroundGroupMapItem = mapItem.extend({

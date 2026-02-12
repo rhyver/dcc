@@ -8,6 +8,7 @@ import { useQuery } from '@tanstack/react-query'
 import { orpc } from '@/lib/orpc'
 import { LOtoLL } from '@kilcekru/dcs-coordinates'
 import * as turf from '@turf/turf'
+import { getGroundGroupSpawnCost } from '@/logic/systems/spawn/ground-group-costs'
 
 export type ObjectiveMarker = {
   id: string
@@ -123,7 +124,8 @@ export function useMapItems(): {
         type: string
         objectiveId: string
         position: { x: number; y: number }
-        buildings: Array<{ alive: boolean; resources?: number }>
+        resources: number
+        buildings: Array<{ alive: boolean }>
       }>,
       coalition: z.infer<typeof schemas.coalition>
     ) => {
@@ -150,11 +152,11 @@ export function useMapItems(): {
 
         const isResourceStructure =
           structureTypeResult.data === 'Barrack' || structureTypeResult.data === 'Depot'
-        const totalResources = isResourceStructure
-          ? structure.buildings
-              .filter((b) => b.alive)
-              .reduce((sum, b) => sum + (b.resources || 0), 0)
-          : undefined
+        const totalResources = isResourceStructure ? structure.resources : undefined
+        const spawnCost =
+          structureTypeResult.data === 'Barrack' || structureTypeResult.data === 'Depot'
+            ? getGroundGroupSpawnCost(structureTypeResult.data)
+            : undefined
 
         mapItems.push({
           id: structure.id,
@@ -163,7 +165,8 @@ export function useMapItems(): {
           name: structure.type,
           coalition,
           position: latLng,
-          resources: totalResources && totalResources > 0 ? totalResources : undefined
+          resources: totalResources,
+          spawnCost
         })
       }
     }

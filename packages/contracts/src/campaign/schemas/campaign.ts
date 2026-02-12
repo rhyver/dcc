@@ -6,17 +6,42 @@ import { groundUnitType } from '../../schemas/ground-unit-type'
 import { position } from '../../schemas/position'
 import { samType } from '../../schemas/sam'
 import { structureBuilding } from '../../schemas/structure-building'
-import { task } from '../../schemas/task'
 import { supply } from '../../schemas/supply'
+import { task } from '../../schemas/task'
 
-const campaignStructure = z.object({
-  id: z.string(),
-  type: z.string(),
-  objectiveId: z.string(),
-  position,
-  name: z.string(),
-  buildings: z.array(structureBuilding)
-})
+const campaignStructure = z.preprocess(
+  (input) => {
+    if (input == null || typeof input !== 'object') return input
+
+    const rawStructure = input as { resources?: unknown; buildings?: unknown[] }
+    if (rawStructure.resources != null) return input
+    if (!Array.isArray(rawStructure.buildings)) return input
+
+    // Backward compatibility for old saves where resources were stored on buildings.
+    let migratedResources = 0
+    for (const building of rawStructure.buildings) {
+      if (building == null || typeof building !== 'object') continue
+      const rawResources = (building as { resources?: unknown }).resources
+      if (typeof rawResources === 'number') {
+        migratedResources += rawResources
+      }
+    }
+
+    return {
+      ...rawStructure,
+      resources: migratedResources
+    }
+  },
+  z.object({
+    id: z.string(),
+    type: z.string(),
+    objectiveId: z.string(),
+    position,
+    name: z.string(),
+    resources: z.number().default(0),
+    buildings: z.array(structureBuilding)
+  })
+)
 
 export const campaignSamGroup = z.object({
   id: z.string(),

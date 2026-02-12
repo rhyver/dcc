@@ -32,6 +32,7 @@ type StructureAssignment = {
   type: StructureType
   position: Position
   name: string
+  resources: number
   buildings: z.infer<typeof schemas.structureBuilding>[]
 }
 
@@ -43,6 +44,7 @@ export function assignStructures(objectives: ObjectiveInfo[]): StructureAssignme
       type: StructureType
       position: Position
       name: string
+      resources: number
       buildings: z.infer<typeof schemas.structureBuilding>[]
     }
   >() // objectiveId -> assignment info
@@ -105,11 +107,10 @@ export function assignStructures(objectives: ObjectiveInfo[]): StructureAssignme
         const template = templates[Math.floor(Math.random() * templates.length)]
         const buildings = template.buildings.map((building) => ({
           ...building,
-          alive: building.alive ?? true,
-          resources: building.resources ?? 0
+          alive: building.alive ?? true
         }))
 
-        assignments.set(bestCandidate.id, { type, position, name, buildings })
+        assignments.set(bestCandidate.id, { type, position, name, resources: 0, buildings })
 
         // Update coverage
         // We need to find ALL objectives this new structure covers, not just the currently uncovered ones, to maintain accurate state if we were tracking partials,
@@ -136,6 +137,7 @@ export function assignStructures(objectives: ObjectiveInfo[]): StructureAssignme
     type: info.type,
     position: info.position,
     name: info.name,
+    resources: info.resources,
     buildings: info.buildings
   }))
 }

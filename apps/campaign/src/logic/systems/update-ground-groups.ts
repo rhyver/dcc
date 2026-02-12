@@ -16,6 +16,7 @@ function isInfantryGroup(units: { name: string; count: number }[]): boolean {
 
 type UpdateGroundGroupsOptions = {
   capture?: boolean
+  move?: boolean
 }
 
 export function updateGroundGroups(
@@ -31,6 +32,7 @@ export function updateGroundGroups(
   if (!theatre) return
 
   const captureEnabled = options.capture ?? true
+  const moveEnabled = options.move ?? true
   const enemyCoalition: Coalition = coalition === 'player' ? 'opponent' : 'player'
   const groundGroups = draft.coalitions[coalition].groundGroups
 
@@ -84,13 +86,15 @@ export function updateGroundGroups(
     }
 
     // Movement logic
-    const campaignDeltaS = (delta * draft.timeMultiplier) / 1000
-    const speed = isInfantryGroup(gg.units) ? INFANTRY_SPEED : VEHICLE_SPEED
-    const ratio = Math.min((speed * campaignDeltaS) / distance, 1)
+    if (moveEnabled) {
+      const campaignDeltaS = (delta * draft.timeMultiplier) / 1000
+      const speed = isInfantryGroup(gg.units) ? INFANTRY_SPEED : VEHICLE_SPEED
+      const ratio = Math.min((speed * campaignDeltaS) / distance, 1)
 
-    const dx = targetObjective.position.x - gg.position.x
-    const dy = targetObjective.position.y - gg.position.y
-    gg.position.x += dx * ratio
-    gg.position.y += dy * ratio
+      const dx = targetObjective.position.x - gg.position.x
+      const dy = targetObjective.position.y - gg.position.y
+      gg.position.x += dx * ratio
+      gg.position.y += dy * ratio
+    }
   }
 }

@@ -222,8 +222,8 @@ export function Map({
     if ('flightplan' in selectedItem) {
       return flightGroups.find((fg) => fg.id === selectedItem.id) ?? selectedItem
     }
-    return selectedItem
-  }, [selectedItem, flightGroups])
+    return mapItems.find((item) => item.id === selectedItem.id) ?? selectedItem
+  }, [selectedItem, flightGroups, mapItems])
 
   // Generate GeoJSON for SAM range circles
   const samRangeGeoJson = useMemo(() => {

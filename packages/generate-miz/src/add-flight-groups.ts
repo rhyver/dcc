@@ -728,22 +728,25 @@ export function addFlightGroups(
           )
         }
 
-        if (isTransportHelicopter && wp.type === 'TakeOff' && units[0]) {
-          transportCargo.forEach((cargo) => {
-            tasks.push({
-              enabled: true,
-              auto: false,
-              id: 'CargoTransportationPlane',
-              number: tasks.length + 1,
-              params: {
-                y: cargo.y,
-                x: cargo.x,
-                unitIdTransport: units[0].unitId,
-                groupId: cargo.groupId,
-                unitId: cargo.unitId
-              }
+        if (isTransportHelicopter && wp.type === 'TakeOff') {
+          const transportUnit = units[0]
+          if (transportUnit) {
+            transportCargo.forEach((cargo) => {
+              tasks.push({
+                enabled: true,
+                auto: false,
+                id: 'CargoTransportationPlane',
+                number: tasks.length + 1,
+                params: {
+                  y: cargo.y,
+                  x: cargo.x,
+                  unitIdTransport: transportUnit.unitId,
+                  groupId: cargo.groupId,
+                  unitId: cargo.unitId
+                }
+              })
             })
-          })
+          }
         }
 
         if (isTransportHelicopter && wp.name === 'Direct') {

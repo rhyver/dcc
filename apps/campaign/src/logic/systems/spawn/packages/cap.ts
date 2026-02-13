@@ -27,9 +27,9 @@ function getAirbaseSpawnModifier(
     case 'low':
       return 1.0
     case 'critical':
-      return 0.5   // Half sortie rate
+      return 0.5 // Half sortie rate
     case 'depleted':
-      return 0     // No sorties
+      return 0 // No sorties
   }
 }
 
@@ -80,9 +80,15 @@ export function spawnCap(
   }
 
   // Check airbase supply status
-  const spawnModifier = getAirbaseSpawnModifier(draft, coalition, selectedPatrolAssignment.homeBase.name)
+  const spawnModifier = getAirbaseSpawnModifier(
+    draft,
+    coalition,
+    selectedPatrolAssignment.homeBase.name
+  )
   if (Math.random() > spawnModifier) {
-    console.log(`Skipping CAP spawn due to supply status at ${selectedPatrolAssignment.homeBase.name}`)
+    console.log(
+      `Skipping CAP spawn due to supply status at ${selectedPatrolAssignment.homeBase.name}`
+    )
     return
   }
 

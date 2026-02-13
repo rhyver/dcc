@@ -1,4 +1,4 @@
-import { schemas, config } from '@dcc/contracts'
+import { schemas } from '@dcc/contracts'
 import * as z from 'zod'
 import { FlightGroup } from './flight-group'
 import { buildTransportMissionWaypoints, spawnPlannedFlightGroup } from './flight-group-spawn'
@@ -39,7 +39,7 @@ export class TransportFlightGroup extends FlightGroup {
       coalition,
       task: 'Transport',
       aircraftType: params.aircraftType,
-      aircraftCount: 1,  // Transport flies solo
+      aircraftCount: 1, // Transport flies solo
       homeBase: params.homeBase,
       homeBasePosition: params.homeBasePosition,
       destination: params.destinationPosition,
@@ -50,7 +50,7 @@ export class TransportFlightGroup extends FlightGroup {
 
     // Extend with transport-specific fields
     const flightGroup = draft.coalitions[coalition].flightGroups.find(
-      fg => fg.id === result.flightGroupId
+      (fg) => fg.id === result.flightGroupId
     )
     if (flightGroup) {
       flightGroup.cargoAmount = params.cargoAmount
@@ -102,6 +102,8 @@ export class TransportFlightGroup extends FlightGroup {
   }
 }
 
-export const isTransportFlightGroup = (flightGroup: FlightGroup): flightGroup is TransportFlightGroup => {
+export const isTransportFlightGroup = (
+  flightGroup: FlightGroup
+): flightGroup is TransportFlightGroup => {
   return flightGroup.task === 'Transport'
 }

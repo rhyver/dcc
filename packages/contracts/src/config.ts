@@ -40,8 +40,8 @@ export const config = {
         player: 3,
         opponent: 3
       },
-      maxDistance: 400_000,              // 400km strategic range
-      tacticalMaxDistance: 80_000,       // 80km for CH-47
+      maxDistance: 400_000, // 400km strategic range
+      tacticalMaxDistance: 80_000, // 80km for CH-47
       c130CargoCapacity: 5000,
       ch47CargoCapacity: 1500,
       emergencyCargoCapacity: 750,

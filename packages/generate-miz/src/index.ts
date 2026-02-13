@@ -14,6 +14,30 @@ import mistLuaScript from './scripts/mist_4_5_126.lua?raw'
 import stateLuaScript from './scripts/state.lua?raw'
 import { warehouses } from './warehouses'
 
+type TriggerValue = string | number | boolean
+
+type MissionTriggerTables = {
+  actions: Record<number, string>
+  events: Record<number, unknown>
+  custom: Record<number, unknown>
+  func: Record<number, string>
+  flag: Record<number, boolean>
+  conditions: Record<number, string>
+  customStartup: Record<number, unknown>
+  funcStartup: Record<number, string>
+}
+
+type MissionTriggerRule = {
+  rules: Record<number, Record<string, TriggerValue>>
+  eventlist: string
+  comment: string
+  actions: Record<number, Record<string, TriggerValue>>
+  predicate: string
+  colorItem?: string
+}
+
+type MissionTriggerRules = Record<number, MissionTriggerRule>
+
 function addTransportCargoTriggers(
   mission: z.infer<typeof schemas.dcs.mission>,
   campaign: z.infer<typeof schemas.campaign.campaign>
@@ -43,15 +67,14 @@ function addTransportCargoTriggers(
     }
   }
 
-  const trig = mission.trig
-  const trigrules = mission.trigrules ?? {}
+  const trig = mission.trig as MissionTriggerTables
+  const rawTrigrules: unknown = mission.trigrules
+  const trigrules: MissionTriggerRules =
+    rawTrigrules && typeof rawTrigrules === 'object' ? (rawTrigrules as MissionTriggerRules) : {}
   mission.trigrules = trigrules
 
   let trigIndex =
-    Math.max(
-      0,
-      ...Object.keys(trig.actions ?? {}).map((key) => Number.parseInt(key, 10))
-    ) + 1
+    Math.max(0, ...Object.keys(trig.actions).map((key) => Number.parseInt(key, 10))) + 1
   let ruleIndex = Math.max(0, ...Object.keys(trigrules).map((key) => Number.parseInt(key, 10))) + 1
 
   Object.values(campaign.coalitions).forEach((coalition) => {
@@ -83,7 +106,8 @@ function addTransportCargoTriggers(
         'a_out_text_delay(getValueDictByKey("DictKey_ActionText_6"), 10, false, 0);'
       trig.conditions[actionIndex] = `return(c_cargo_unhooked_in_zone("ANY_BLUE", ${zoneId}) )`
       trig.flag[actionIndex] = true
-      trig.funcStartup[actionIndex] = `if mission.trig.conditions[${actionIndex}]() then mission.trig.actions[${actionIndex}]() end`
+      trig.funcStartup[actionIndex] =
+        `if mission.trig.conditions[${actionIndex}]() then mission.trig.actions[${actionIndex}]() end`
 
       trigrules[ruleIndex] = {
         rules: {

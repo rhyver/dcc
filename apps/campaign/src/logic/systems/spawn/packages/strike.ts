@@ -30,9 +30,9 @@ function getAirbaseSpawnModifier(
     case 'low':
       return 1.0
     case 'critical':
-      return 0.5   // Half sortie rate
+      return 0.5 // Half sortie rate
     case 'depleted':
-      return 0     // No sorties
+      return 0 // No sorties
   }
 }
 

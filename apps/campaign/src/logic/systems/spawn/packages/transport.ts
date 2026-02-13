@@ -2,14 +2,14 @@ import { schemas, config } from '@dcc/contracts'
 import * as z from 'zod'
 import { TransportFlightGroup } from '../../../entities/transport-flight-group'
 import { FlightGroupFactory } from '../../../entities/flight-group-factory'
-import { getCoalitionAirdromes, pickRandomAircraftType, resolveSpawnContext, type AirdromeSelection } from './common'
-import { getNodeSupply } from '../../update-supply'
+import { pickRandomAircraftType, resolveSpawnContext } from './common'
 import { calculateDistance } from '@/logic/utils/calculate-distance'
 
 type Campaign = z.infer<typeof schemas.campaign.campaign>
 type Coalition = z.infer<typeof schemas.coalition>
 type Position = z.infer<typeof schemas.position>
 type Supply = z.infer<typeof schemas.supply>
+type AircraftName = z.infer<typeof schemas.dcs.aircraftName>
 
 type SupplyNode = {
   id: string
@@ -17,12 +17,10 @@ type SupplyNode = {
   position: Position
   supply: Supply
   runwayAngle?: number
+  urgency?: number
 }
 
-export function spawnTransport(
-  draft: Campaign,
-  coalition: Coalition
-): void {
+export function spawnTransport(draft: Campaign, coalition: Coalition): void {
   // Check max active limit
   const flightGroups = FlightGroupFactory.getCoalitionFlightGroups(draft, coalition)
   const transportGroups = flightGroups.filter((group) => group.task === 'Transport')
@@ -51,15 +49,14 @@ export function spawnTransport(
 
   // Determine transport type and cargo capacity
   const isStrategic = source.type === 'airdrome' && targetNode.type === 'airdrome'
-  const isTactical = targetNode.type === 'objective'
   const isEmergency = targetNode.supply.status === 'critical'
 
-  let aircraftType: string
+  let aircraftType: AircraftName
   let cargoCapacity: number
   let transportType: 'strategic' | 'tactical' | 'emergency'
 
   if (isEmergency) {
-    aircraftType = 'CH-47D'  // Fast emergency resupply
+    aircraftType = 'CH-47D' // Fast emergency resupply
     cargoCapacity = config.packages.Transport.emergencyCargoCapacity
     transportType = 'emergency'
   } else if (isStrategic) {
@@ -95,7 +92,7 @@ export function spawnTransport(
     sourceNode: source.id,
     destinationNode: targetNode.id,
     runwayAngle: source.runwayAngle,
-    aircraftType: aircraftType as any,
+    aircraftType,
     cargoAmount,
     transportType
   })
@@ -114,7 +111,7 @@ function findNodesNeedingResupply(
   // Check objectives
   for (const objId of draft.coalitions[coalition].objectiveIds) {
     const supply = supplyNodes[objId]
-    const obj = theatre.objectives.find(o => o.name === objId)
+    const obj = theatre.objectives.find((o) => o.name === objId)
 
     if (supply && obj && supply.status !== 'abundant') {
       nodes.push({
@@ -122,8 +119,8 @@ function findNodesNeedingResupply(
         type: 'objective',
         position: obj.position,
         supply,
-        urgency: 1 - (supply.current / supply.max)
-      } as any)
+        urgency: 1 - supply.current / supply.max
+      })
     }
   }
 
@@ -139,12 +136,12 @@ function findNodesNeedingResupply(
         position: { x: ad.x, y: ad.y },
         supply,
         runwayAngle: ad.runwayAngle,
-        urgency: 1 - (supply.current / supply.max)
-      } as any)
+        urgency: 1 - supply.current / supply.max
+      })
     }
   }
 
-  return nodes.sort((a: any, b: any) => b.urgency - a.urgency)
+  return nodes.sort((a, b) => (b.urgency ?? 0) - (a.urgency ?? 0))
 }
 
 function findNearestSupplySource(

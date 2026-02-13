@@ -76,7 +76,9 @@ export function ActiveFlightGroups({ selectedItem, onSelect }: ActiveFlightGroup
                     </div>
                     <div className="flex flex-col items-end gap-0.5">
                       <span className="text-xs font-medium text-secondary">
-                        {group.aircrafts[0] ? getAircraftDisplayName(group.aircrafts[0].aircraftName) : 'Unknown'}
+                        {group.aircrafts[0]
+                          ? getAircraftDisplayName(group.aircrafts[0].aircraftName)
+                          : 'Unknown'}
                       </span>
                       <div className="flex items-center gap-2 text-[10px] text-secondary/60">
                         <span>{group.aircrafts.length} Aircraft</span>

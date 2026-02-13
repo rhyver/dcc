@@ -1,4 +1,4 @@
-import { schemas, config } from '@dcc/contracts'
+import { config, schemas } from '@dcc/contracts'
 import { aircrafts } from '@dcc/data'
 import { err, ok, Result } from 'neverthrow'
 import * as z from 'zod'
@@ -132,12 +132,16 @@ function calculateInFlightPosition(
     y: from.y + (to.y - from.y) * ratio
   })
 
-  const getHeading = (from: z.infer<typeof schemas.position>, to: z.infer<typeof schemas.position>) =>
-    Math.atan2(to.x - from.x, to.y - from.y)
+  const getHeading = (
+    from: z.infer<typeof schemas.position>,
+    to: z.infer<typeof schemas.position>
+  ) => Math.atan2(to.x - from.x, to.y - from.y)
 
   const racetrackStartIndex =
     patrolDurationMs && patrolDurationMs > 0
-      ? waypoints.findIndex((wp, idx) => wp.type === 'Task' && waypoints[idx + 1]?.type === 'RaceTrack End')
+      ? waypoints.findIndex(
+          (wp, idx) => wp.type === 'Task' && waypoints[idx + 1]?.type === 'RaceTrack End'
+        )
       : -1
 
   if (racetrackStartIndex !== -1) {
@@ -197,12 +201,15 @@ function calculateInFlightPosition(
         const patrolEndCycleTime = legTimeMs * 2
         const patrolEndCyclePos = patrolEndCycleTime > 0 ? patrolMs % patrolEndCycleTime : 0
         const patrolForwardLeg = patrolEndCyclePos <= legTimeMs
-        const patrolLegElapsed = patrolForwardLeg ? patrolEndCyclePos : patrolEndCyclePos - legTimeMs
+        const patrolLegElapsed = patrolForwardLeg
+          ? patrolEndCyclePos
+          : patrolEndCyclePos - legTimeMs
         const patrolRatio = legTimeMs > 0 ? patrolLegElapsed / legTimeMs : 0
         const patrolFrom = patrolForwardLeg ? racetrackStart : racetrackEnd
         const patrolTo = patrolForwardLeg ? racetrackEnd : racetrackStart
         let currentPos = getPositionAlong(patrolFrom.position, patrolTo.position, patrolRatio)
-        let currentAlt = patrolFrom.altitude + (patrolTo.altitude - patrolFrom.altitude) * patrolRatio
+        let currentAlt =
+          patrolFrom.altitude + (patrolTo.altitude - patrolFrom.altitude) * patrolRatio
 
         for (let i = racetrackEndIndex; i < waypoints.length - 1; i++) {
           const endWp = waypoints[i + 1]

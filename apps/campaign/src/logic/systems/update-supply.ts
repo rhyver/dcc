@@ -14,7 +14,7 @@ export function updateSupply(draft: Campaign, coalition: Coalition): void {
   if (!supplyNodes) return
 
   // Update each supply node
-  for (const [nodeId, supply] of Object.entries(supplyNodes)) {
+  for (const supply of Object.values(supplyNodes)) {
     updateNodeSupply(supply)
   }
 }
@@ -30,7 +30,7 @@ function updateNodeSupply(supply: Supply): void {
   // Update status based on percentage
   const percentage = supply.current / supply.max
   if (percentage > 0.75) supply.status = 'abundant'
-  else if (percentage > 0.50) supply.status = 'adequate'
+  else if (percentage > 0.5) supply.status = 'adequate'
   else if (percentage > 0.25) supply.status = 'low'
   else if (percentage > 0.05) supply.status = 'critical'
   else supply.status = 'depleted'
@@ -39,12 +39,16 @@ function updateNodeSupply(supply: Supply): void {
 /**
  * Calculate consumption rate based on hosted units
  */
-export function calculateConsumptionRate(draft: Campaign, nodeId: string, coalition: Coalition): number {
+export function calculateConsumptionRate(
+  draft: Campaign,
+  nodeId: string,
+  coalition: Coalition
+): number {
   let rate = 0
 
   // Ground units: 2 points per unit per tick
   const groundGroups = draft.coalitions[coalition].groundGroups.filter(
-    g => g.objectiveId === nodeId
+    (g) => g.objectiveId === nodeId
   )
   for (const group of groundGroups) {
     rate += group.units.reduce((sum, unit) => sum + unit.count * 2, 0)
@@ -52,7 +56,7 @@ export function calculateConsumptionRate(draft: Campaign, nodeId: string, coalit
 
   // SAM sites: 5 points per tick when active
   const samGroups = draft.coalitions[coalition].samGroups.filter(
-    sam => sam.objectiveId === nodeId
+    (sam) => sam.objectiveId === nodeId
   )
   rate += samGroups.length * 5
 
@@ -62,6 +66,10 @@ export function calculateConsumptionRate(draft: Campaign, nodeId: string, coalit
 /**
  * Get supply for a node (objective or airdrome)
  */
-export function getNodeSupply(draft: Campaign, coalition: Coalition, nodeId: string): Supply | undefined {
+export function getNodeSupply(
+  draft: Campaign,
+  coalition: Coalition,
+  nodeId: string
+): Supply | undefined {
   return draft.coalitions[coalition].supplyNodes?.[nodeId]
 }

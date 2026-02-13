@@ -311,7 +311,11 @@ export function Mission() {
                       </span>
                     </div>
                     <div className="flex gap-3 mt-1 text-[10px] text-white/50">
-                      <span>{group.aircrafts[0] ? getAircraftDisplayName(group.aircrafts[0].aircraftName) : 'Unknown'}</span>
+                      <span>
+                        {group.aircrafts[0]
+                          ? getAircraftDisplayName(group.aircrafts[0].aircraftName)
+                          : 'Unknown'}
+                      </span>
                       <span className="text-[#ff00aa]">{group.task}</span>
                     </div>
                     <div className="text-[10px] text-white/40 mt-1">

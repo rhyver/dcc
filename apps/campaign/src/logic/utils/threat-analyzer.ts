@@ -19,11 +19,11 @@ function getSupplyRangeMultiplier(supplyStatus: SupplyStatus | undefined): numbe
     case 'adequate':
       return 1.0
     case 'low':
-      return 0.75   // 25% reduction
+      return 0.75 // 25% reduction
     case 'critical':
-      return 0.50   // 50% reduction
+      return 0.5 // 50% reduction
     case 'depleted':
-      return 0      // SAMs offline
+      return 0 // SAMs offline
   }
 }
 
@@ -94,6 +94,12 @@ export function getClosestThreateningSam(
   campaign?: Campaign,
   coalition?: Coalition
 ): ThreateningSam | null {
-  const threateningSams = findThreateningSams(targetPosition, enemySamGroups, theatre, campaign, coalition)
+  const threateningSams = findThreateningSams(
+    targetPosition,
+    enemySamGroups,
+    theatre,
+    campaign,
+    coalition
+  )
   return threateningSams[0] ?? null
 }

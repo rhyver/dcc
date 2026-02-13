@@ -104,8 +104,8 @@ export function buildTransportMissionWaypoints(
     {
       name: 'Direct',
       position: destinationPosition,
-      altitude: 300,     // Low cruise altitude
-      speed: 100,        // Helicopter cruise speed
+      altitude: 300, // Low cruise altitude
+      speed: 100, // Helicopter cruise speed
       type: 'Nav'
     }
   ]

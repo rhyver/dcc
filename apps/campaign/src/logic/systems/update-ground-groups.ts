@@ -5,13 +5,332 @@ import { calculateDistance } from '@/logic/utils/calculate-distance'
 
 type Campaign = z.infer<typeof schemas.campaign.campaign>
 type Coalition = z.infer<typeof schemas.coalition>
+type GroundGroup = z.infer<typeof schemas.groundGroup>
+type SupplyStatus = z.infer<typeof schemas.supplyStatus>
 
 const INFANTRY_SPEED = 4 // m/s (~14 km/h)
 const VEHICLE_SPEED = 12 // m/s (~43 km/h)
 const CAPTURE_DISTANCE = 2000 // meters
+const BATTLE_RADIUS = 5000 // meters
+const CAPTURE_HOLD_MS = 60_000
+const BASE_ATTRITION_PER_SECOND = 0.4
+const DEFENDER_BONUS = 1.2
 
 function isInfantryGroup(units: { name: string; count: number }[]): boolean {
   return units.every((u) => /infantry|soldier/i.test(u.name))
+}
+
+function isInfantryUnit(name: string): boolean {
+  return /infantry|soldier|rifle|manpad/i.test(name)
+}
+
+function getUnitWeight(name: string): number {
+  if (isInfantryUnit(name)) return 1
+  if (/shorad|aaa|sam/i.test(name)) return 2
+  return 3
+}
+
+function getUnitCount(group: GroundGroup): number {
+  return group.units.reduce((sum, unit) => sum + unit.count, 0)
+}
+
+function getGroupPower(group: GroundGroup): number {
+  return group.units.reduce((sum, unit) => sum + unit.count * getUnitWeight(unit.name), 0)
+}
+
+function getSupplyCombatMultiplier(status: SupplyStatus | undefined): number {
+  switch (status) {
+    case 'abundant':
+      return 1.1
+    case 'adequate':
+      return 1.0
+    case 'low':
+      return 0.8
+    case 'critical':
+      return 0.6
+    case 'depleted':
+      return 0.35
+    default:
+      return 1.0
+  }
+}
+
+function clearCombatState(group: GroundGroup): void {
+  if (group.state === 'combat') {
+    group.state = 'moving'
+  }
+  group.combatStartedAt = undefined
+  group.initialStrength = undefined
+}
+
+function clearCaptureState(group: GroundGroup): void {
+  group.captureStartedAt = undefined
+}
+
+function setCombatState(group: GroundGroup, nowIso: string): void {
+  group.state = 'combat'
+  group.combatStartedAt = group.combatStartedAt ?? nowIso
+  group.initialStrength = group.initialStrength ?? getUnitCount(group)
+}
+
+function moveGroupTowardsObjective(
+  group: GroundGroup,
+  targetPosition: z.infer<typeof schemas.position>,
+  delta: number,
+  timeMultiplier: number
+): void {
+  const distance = calculateDistance(group.position, targetPosition)
+  if (distance === 0) return
+
+  const campaignDeltaS = (delta * timeMultiplier) / 1000
+  const speed = isInfantryGroup(group.units) ? INFANTRY_SPEED : VEHICLE_SPEED
+  const ratio = Math.min((speed * campaignDeltaS) / distance, 1)
+  const dx = targetPosition.x - group.position.x
+  const dy = targetPosition.y - group.position.y
+
+  group.position.x += dx * ratio
+  group.position.y += dy * ratio
+}
+
+function applyCasualties(group: GroundGroup, expectedLosses: number): number {
+  if (expectedLosses <= 0 || group.units.length === 0) return 0
+
+  let casualties = Math.floor(expectedLosses)
+  if (Math.random() < expectedLosses - casualties) {
+    casualties += 1
+  }
+  if (casualties <= 0) return 0
+
+  let applied = 0
+  while (casualties > 0 && group.units.length > 0) {
+    let maxIdx = 0
+    for (let i = 1; i < group.units.length; i++) {
+      if (group.units[i]!.count > group.units[maxIdx]!.count) {
+        maxIdx = i
+      }
+    }
+
+    const unit = group.units[maxIdx]
+    if (!unit || unit.count <= 0) break
+
+    unit.count -= 1
+    casualties -= 1
+    applied += 1
+
+    if (unit.count <= 0) {
+      group.units.splice(maxIdx, 1)
+    }
+  }
+
+  return applied
+}
+
+function distributeCasualties(groups: GroundGroup[], expectedLosses: number): void {
+  if (expectedLosses <= 0 || groups.length === 0) return
+
+  const powers = groups.map((group) => Math.max(getGroupPower(group), 1))
+  const totalPower = powers.reduce((sum, power) => sum + power, 0)
+  if (totalPower <= 0) return
+
+  groups.forEach((group, idx) => {
+    const groupExpectedLosses = expectedLosses * (powers[idx]! / totalPower)
+    applyCasualties(group, groupExpectedLosses)
+  })
+}
+
+function cleanupDestroyedGroups(draft: Campaign, coalition: Coalition): void {
+  draft.coalitions[coalition].groundGroups = draft.coalitions[coalition].groundGroups.filter(
+    (group) => getUnitCount(group) > 0
+  )
+}
+
+function getCombatPower(
+  draft: Campaign,
+  coalition: Coalition,
+  groups: GroundGroup[],
+  fallbackObjectiveId: string,
+  defenderSide: boolean
+): number {
+  const supplyNodes = draft.coalitions[coalition].supplyNodes
+
+  return groups.reduce((sum, group) => {
+    const supplyObjectiveId = group.objectiveId ?? fallbackObjectiveId
+    const supplyStatus = supplyNodes?.[supplyObjectiveId]?.status
+    const supplyMultiplier = getSupplyCombatMultiplier(supplyStatus)
+    const defenderMultiplier = defenderSide ? DEFENDER_BONUS : 1
+    return sum + getGroupPower(group) * supplyMultiplier * defenderMultiplier
+  }, 0)
+}
+
+function resolveObjectiveBattle(
+  draft: Campaign,
+  coalition: Coalition,
+  enemyCoalition: Coalition,
+  theatre: z.infer<typeof schemas.theatre>,
+  targetObjectiveId: string,
+  delta: number
+): void {
+  const targetObjective = theatre.objectives.find(
+    (objective) => objective.name === targetObjectiveId
+  )
+  if (!targetObjective) return
+
+  const nowIso = draft.time.toISOString()
+  const enemyObjectiveIds = draft.coalitions[enemyCoalition].objectiveIds
+  const ownGroundGroups = draft.coalitions[coalition].groundGroups
+
+  const attackers = ownGroundGroups.filter(
+    (group) => group.targetObjectiveId === targetObjectiveId && group.state !== 'idle'
+  )
+  if (attackers.length === 0) return
+
+  if (!enemyObjectiveIds.includes(targetObjectiveId)) {
+    for (const attacker of attackers) {
+      clearCombatState(attacker)
+      clearCaptureState(attacker)
+      attacker.state = 'idle'
+      attacker.targetObjectiveId = undefined
+    }
+    return
+  }
+
+  const nearestAttackerDistance = Math.min(
+    ...attackers.map((attacker) => calculateDistance(attacker.position, targetObjective.position))
+  )
+
+  const defendersInRange = draft.coalitions[enemyCoalition].groundGroups.filter(
+    (group) =>
+      getUnitCount(group) > 0 &&
+      calculateDistance(group.position, targetObjective.position) <= BATTLE_RADIUS
+  )
+
+  if (defendersInRange.length > 0 && nearestAttackerDistance <= BATTLE_RADIUS) {
+    attackers.forEach((attacker) => {
+      setCombatState(attacker, nowIso)
+      clearCaptureState(attacker)
+    })
+    defendersInRange.forEach((defender) => setCombatState(defender, nowIso))
+
+    const deltaS = (delta * draft.timeMultiplier) / 1000
+    const attackerPower = getCombatPower(draft, coalition, attackers, targetObjectiveId, false)
+    const defenderPower = getCombatPower(
+      draft,
+      enemyCoalition,
+      defendersInRange,
+      targetObjectiveId,
+      true
+    )
+
+    const expectedAttackerLosses = BASE_ATTRITION_PER_SECOND * deltaS * (defenderPower / 10)
+    const expectedDefenderLosses = BASE_ATTRITION_PER_SECOND * deltaS * (attackerPower / 10)
+
+    distributeCasualties(attackers, expectedAttackerLosses)
+    distributeCasualties(defendersInRange, expectedDefenderLosses)
+
+    cleanupDestroyedGroups(draft, coalition)
+    cleanupDestroyedGroups(draft, enemyCoalition)
+
+    return
+  }
+
+  for (const attacker of attackers) {
+    clearCombatState(attacker)
+  }
+
+  if (nearestAttackerDistance > CAPTURE_DISTANCE) {
+    for (const attacker of attackers) {
+      clearCaptureState(attacker)
+    }
+    return
+  }
+
+  let nearestAttacker: GroundGroup | undefined
+  let nearestDistance = Number.POSITIVE_INFINITY
+  for (const attacker of attackers) {
+    const distance = calculateDistance(attacker.position, targetObjective.position)
+    if (distance < nearestDistance) {
+      nearestDistance = distance
+      nearestAttacker = attacker
+    }
+  }
+  if (!nearestAttacker) return
+
+  for (const attacker of attackers) {
+    if (attacker.id !== nearestAttacker.id) {
+      clearCaptureState(attacker)
+    }
+  }
+
+  if (!nearestAttacker.captureStartedAt) {
+    nearestAttacker.captureStartedAt = nowIso
+    return
+  }
+
+  const captureStartedAt = Date.parse(nearestAttacker.captureStartedAt)
+  if (!Number.isFinite(captureStartedAt)) {
+    nearestAttacker.captureStartedAt = nowIso
+    return
+  }
+
+  if (draft.time.getTime() - captureStartedAt < CAPTURE_HOLD_MS) {
+    return
+  }
+
+  const enemyObjectiveIndex = enemyObjectiveIds.indexOf(targetObjectiveId)
+  if (enemyObjectiveIndex !== -1) {
+    enemyObjectiveIds.splice(enemyObjectiveIndex, 1)
+  }
+  draft.coalitions[coalition].objectiveIds.push(targetObjectiveId)
+
+  draft.coalitions[enemyCoalition].structures = draft.coalitions[enemyCoalition].structures.filter(
+    (structure) => structure.objectiveId !== targetObjectiveId
+  )
+
+  draft.coalitions[enemyCoalition].samGroups = draft.coalitions[enemyCoalition].samGroups.filter(
+    (samGroup) => samGroup.objectiveId !== targetObjectiveId
+  )
+
+  draft.coalitions[enemyCoalition].groundGroups = draft.coalitions[
+    enemyCoalition
+  ].groundGroups.filter(
+    (group) => !(group.objectiveId === targetObjectiveId && group.state === 'idle')
+  )
+
+  draft.coalitions[coalition].groundGroups = draft.coalitions[coalition].groundGroups.filter(
+    (group) => group.id !== nearestAttacker.id
+  )
+
+  for (const attacker of draft.coalitions[coalition].groundGroups) {
+    if (attacker.targetObjectiveId !== targetObjectiveId) continue
+    clearCombatState(attacker)
+    clearCaptureState(attacker)
+    attacker.state = 'idle'
+    attacker.objectiveId = targetObjectiveId
+    attacker.targetObjectiveId = undefined
+  }
+}
+
+function processObjectiveBattlesAndCaptures(
+  draft: Campaign,
+  coalition: Coalition,
+  enemyCoalition: Coalition,
+  theatre: z.infer<typeof schemas.theatre>,
+  delta: number
+): void {
+  const targetObjectiveIds = Array.from(
+    new Set(
+      draft.coalitions[coalition].groundGroups
+        .map((group) => {
+          if (group.state === 'idle') return undefined
+          return group.targetObjectiveId
+        })
+        .filter((targetObjectiveId): targetObjectiveId is string => targetObjectiveId != null)
+    )
+  )
+
+  for (const targetObjectiveId of targetObjectiveIds) {
+    resolveObjectiveBattle(draft, coalition, enemyCoalition, theatre, targetObjectiveId, delta)
+  }
 }
 
 type UpdateGroundGroupsOptions = {
@@ -34,67 +353,39 @@ export function updateGroundGroups(
   const captureEnabled = options.capture ?? true
   const moveEnabled = options.move ?? true
   const enemyCoalition: Coalition = coalition === 'player' ? 'opponent' : 'player'
+  if (captureEnabled && !moveEnabled) {
+    processObjectiveBattlesAndCaptures(draft, coalition, enemyCoalition, theatre, delta)
+  }
+
   const groundGroups = draft.coalitions[coalition].groundGroups
+  const enemyObjectiveIds = draft.coalitions[enemyCoalition].objectiveIds
 
-  for (let i = groundGroups.length - 1; i >= 0; i--) {
-    const gg = groundGroups[i]!
-    if (gg.state === 'idle' || !gg.targetObjectiveId) continue
+  for (const group of groundGroups) {
+    if (group.state === 'idle' || !group.targetObjectiveId) continue
 
-    const targetObjective = theatre.objectives.find((o) => o.name === gg.targetObjectiveId)
-    if (!targetObjective) continue
-
-    // Check if target is still enemy-owned
-    const enemyObjectiveIds = draft.coalitions[enemyCoalition].objectiveIds
-    if (!enemyObjectiveIds.includes(gg.targetObjectiveId)) {
-      // Target no longer enemy-owned, stop moving
-      gg.state = 'idle'
-      gg.targetObjectiveId = undefined
+    const targetObjective = theatre.objectives.find(
+      (objective) => objective.name === group.targetObjectiveId
+    )
+    if (!targetObjective) {
+      clearCombatState(group)
+      clearCaptureState(group)
+      group.state = 'idle'
+      group.targetObjectiveId = undefined
       continue
     }
 
-    const distance = calculateDistance(gg.position, targetObjective.position)
-
-    // Capture logic
-    if (captureEnabled && distance <= CAPTURE_DISTANCE) {
-      const targetId = gg.targetObjectiveId
-
-      // Transfer objective ownership
-      const enemyIdx = enemyObjectiveIds.indexOf(targetId)
-      if (enemyIdx !== -1) {
-        enemyObjectiveIds.splice(enemyIdx, 1)
-      }
-      draft.coalitions[coalition].objectiveIds.push(targetId)
-
-      // Remove enemy structures at this objective
-      draft.coalitions[enemyCoalition].structures = draft.coalitions[
-        enemyCoalition
-      ].structures.filter((s) => s.objectiveId !== targetId)
-
-      // Remove enemy SAM groups at this objective
-      draft.coalitions[enemyCoalition].samGroups = draft.coalitions[
-        enemyCoalition
-      ].samGroups.filter((s) => s.objectiveId !== targetId)
-
-      // Remove enemy idle ground groups defending this objective
-      draft.coalitions[enemyCoalition].groundGroups = draft.coalitions[
-        enemyCoalition
-      ].groundGroups.filter((g) => !(g.objectiveId === targetId && g.state === 'idle'))
-
-      // Remove the attacking group (becomes garrison conceptually)
-      groundGroups.splice(i, 1)
+    if (!enemyObjectiveIds.includes(group.targetObjectiveId)) {
+      clearCombatState(group)
+      clearCaptureState(group)
+      group.state = 'idle'
+      group.targetObjectiveId = undefined
       continue
     }
 
-    // Movement logic
+    if (group.state === 'combat') continue
+
     if (moveEnabled) {
-      const campaignDeltaS = (delta * draft.timeMultiplier) / 1000
-      const speed = isInfantryGroup(gg.units) ? INFANTRY_SPEED : VEHICLE_SPEED
-      const ratio = Math.min((speed * campaignDeltaS) / distance, 1)
-
-      const dx = targetObjective.position.x - gg.position.x
-      const dy = targetObjective.position.y - gg.position.y
-      gg.position.x += dx * ratio
-      gg.position.y += dy * ratio
+      moveGroupTowardsObjective(group, targetObjective.position, delta, draft.timeMultiplier)
     }
   }
 }

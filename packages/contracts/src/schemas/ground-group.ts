@@ -8,6 +8,9 @@ export const groundGroup = z.object({
   targetObjectiveId: z.string().optional(),
   position: position,
   state: z.enum(['idle', 'moving', 'combat']).default('idle'),
+  combatStartedAt: z.string().optional(),
+  captureStartedAt: z.string().optional(),
+  initialStrength: z.number().optional(),
   units: z.array(
     z.object({
       name: z.string(),

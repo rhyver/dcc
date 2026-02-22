@@ -161,6 +161,7 @@ export function useMapItems(): {
         mapItems.push({
           id: structure.id,
           type: 'Structure',
+          objectiveId: structure.objectiveId,
           structureType: structureTypeResult.data,
           name: structure.type,
           coalition,
@@ -219,6 +220,7 @@ export function useMapItems(): {
         mapItems.push({
           id: group.id,
           type: 'Ground Group',
+          objectiveId: group.objectiveId,
           groundGroupType: groupType,
           name: `${groupType} Group`, // or generate a better name
           coalition,
@@ -247,6 +249,7 @@ export function useMapItems(): {
         mapItems.push({
           id: samGroup.id,
           type: 'SAM',
+          objectiveId: samGroup.objectiveId,
           name: samGroup.type,
           coalition,
           position: latLng,

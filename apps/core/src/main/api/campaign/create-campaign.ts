@@ -41,12 +41,35 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
     throw errors.NOT_FOUND({ data: { message: 'No theatre found', path: scenario.theatreName } })
   }
 
-  const objectives = theatre.objectives
+  const carrierObjectiveIds = new Set(
+    Object.values(scenario.start)
+      .map((coalitionStart) => coalitionStart.carrierObjectiveId)
+      .filter((objectiveId): objectiveId is string => objectiveId != null)
+  )
+
+  const objectives = theatre.objectives.filter(
+    (objective) => !carrierObjectiveIds.has(objective.name)
+  )
   const objectiveMap = new Map(objectives.map((o) => [o.name, o]))
+
+  const startWithoutCarrierObjectives: z.infer<typeof schemas.scenario>['start'] = {
+    player: {
+      ...scenario.start.player,
+      objectiveIds: scenario.start.player.objectiveIds.filter(
+        (objectiveId) => !carrierObjectiveIds.has(objectiveId)
+      )
+    },
+    opponent: {
+      ...scenario.start.opponent,
+      objectiveIds: scenario.start.opponent.objectiveIds.filter(
+        (objectiveId) => !carrierObjectiveIds.has(objectiveId)
+      )
+    }
+  }
 
   const objectiveAssignments = assignObjectivesToCoalitions({
     objectives,
-    start: scenario.start,
+    start: startWithoutCarrierObjectives,
     onMissingObjective: ({ coalition, objectiveId }) => {
       throw errors.NOT_FOUND({
         data: {

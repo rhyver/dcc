@@ -29,6 +29,7 @@ export const FlightGroupMapItem = mapItem.extend({
 
 export const StructureMapItem = mapItem.extend({
   type: z.literal('Structure'),
+  objectiveId: z.string(),
   structureType: structureType,
   resources: z.number().optional(),
   spawnCost: z.number().optional()
@@ -36,6 +37,7 @@ export const StructureMapItem = mapItem.extend({
 
 export const GroundGroupMapItem = mapItem.extend({
   type: z.literal('Ground Group'),
+  objectiveId: z.string().optional(),
   groundGroupType: groundUnitType
 })
 
@@ -45,6 +47,7 @@ export const DownedPilotMapItem = mapItem.extend({
 
 export const SamMapItem = mapItem.extend({
   type: z.literal('SAM'),
+  objectiveId: z.string(),
   range: z.number(),
   active: z.boolean()
 })

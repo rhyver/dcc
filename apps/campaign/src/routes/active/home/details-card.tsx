@@ -21,21 +21,41 @@ export function DetailsCard({
 }) {
   if (!selectedItem) return null
 
+  const objectiveName =
+    'objectiveId' in selectedItem && typeof selectedItem.objectiveId === 'string'
+      ? selectedItem.objectiveId
+      : 'target' in selectedItem &&
+          selectedItem.target != null &&
+          typeof selectedItem.target.objectiveId === 'string'
+        ? selectedItem.target.objectiveId
+        : null
+
+  const defaultTitle = 'callsign' in selectedItem ? selectedItem.callsign : selectedItem.name
+  const defaultSubtitle = `${'coalition' in selectedItem ? selectedItem.coalition : 'player'} ${
+    'type' in selectedItem
+      ? String(selectedItem.type)
+      : 'callsign' in selectedItem
+        ? 'Flight Group'
+        : 'Objective'
+  }`
+  const isObjectiveLinkedItem =
+    'type' in selectedItem &&
+    (selectedItem.type === 'Structure' ||
+      selectedItem.type === 'SAM' ||
+      selectedItem.type === 'Ground Group')
+  const headerTitle = isObjectiveLinkedItem && objectiveName != null ? objectiveName : defaultTitle
+  const headerSubtitle = isObjectiveLinkedItem
+    ? selectedItem.type === 'Ground Group'
+      ? selectedItem.groundGroupType
+      : selectedItem.name
+    : defaultSubtitle
+
   return (
     <div className="absolute top-4 right-4 w-80 z-[1100]">
       <Card className="backdrop-blur-md bg-synthwave-dark/80 border-synthwave-pink/30 text-synthwave-light shadow-[0_0_15px_rgba(255,0,170,0.3)]">
         <CardHeader>
-          <CardTitle className="text-synthwave-cyan retro-font">
-            {'callsign' in selectedItem ? selectedItem.callsign : selectedItem.name}
-          </CardTitle>
-          <CardDescription className="capitalize text-secondary">
-            {'coalition' in selectedItem ? selectedItem.coalition : 'player'}{' '}
-            {'type' in selectedItem
-              ? String(selectedItem.type)
-              : 'callsign' in selectedItem
-                ? 'Flight Group'
-                : 'Objective'}
-          </CardDescription>
+          <CardTitle className="text-synthwave-cyan retro-font">{headerTitle}</CardTitle>
+          <CardDescription className="text-secondary">{headerSubtitle}</CardDescription>
           <CardAction>
             <Button
               variant="ghost"
@@ -73,6 +93,12 @@ export function DetailsCard({
               <>
                 <div className="text-secondary/70">Needed to Spawn</div>
                 <div>{Math.floor(selectedItem.spawnCost as number)}</div>
+              </>
+            )}
+            {objectiveName != null && (
+              <>
+                <div className="text-secondary/70">Objective</div>
+                <div>{objectiveName}</div>
               </>
             )}
             {'flightplan' in selectedItem && (

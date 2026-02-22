@@ -29,10 +29,7 @@ export function assignObjectivesToCoalitions({
   for (const coalition of coalitionKeys) {
     const coalitionStart = start[coalition]
     const baseObjectiveIds = coalitionStart?.objectiveIds ?? []
-    const carrierObjectiveId = coalitionStart?.carrierObjectiveId
-    const combinedObjectiveIds =
-      carrierObjectiveId == null ? baseObjectiveIds : [...baseObjectiveIds, carrierObjectiveId]
-    const uniqueObjectiveIds = Array.from(new Set(combinedObjectiveIds))
+    const uniqueObjectiveIds = Array.from(new Set(baseObjectiveIds))
 
     assignments[coalition] = [...uniqueObjectiveIds]
     seeds[coalition] = uniqueObjectiveIds.map((objectiveId) => {

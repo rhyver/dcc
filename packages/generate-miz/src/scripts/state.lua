@@ -19,6 +19,56 @@ local missionState = {
     },
 }
 
+local transportGroups = {}
+
+local function loadTransportGroups()
+    if not env or not env.mission or not env.mission.coalition then
+        return
+    end
+
+    for _, coalitionData in pairs(env.mission.coalition) do
+        if coalitionData and coalitionData.country then
+            for _, countryData in pairs(coalitionData.country) do
+                local planes = countryData and countryData.plane and countryData.plane.group
+                local helicopters = countryData and countryData.helicopter and countryData.helicopter.group
+
+                if planes then
+                    for _, groupData in pairs(planes) do
+                        if groupData and groupData.name and groupData.task == 'Transport' then
+                            transportGroups[groupData.name] = true
+                        end
+                    end
+                end
+
+                if helicopters then
+                    for _, groupData in pairs(helicopters) do
+                        if groupData and groupData.name and groupData.task == 'Transport' then
+                            transportGroups[groupData.name] = true
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+local function recordCargoDelivery(groupName, position, deliveryType)
+    if not groupName or not position then
+        return
+    end
+
+    missionState.cargoDeliveries[groupName] = {
+        time = timer.getTime(),
+        x = position.x,
+        y = position.z,
+        deliveryType = deliveryType or 'unknown'
+    }
+    debugLog('Cargo delivery recorded: '..groupName..' ('..(deliveryType or 'unknown')..')')
+end
+
+DCC = DCC or {}
+DCC.recordCargoDelivery = recordCargoDelivery
+
 local function messageAll(message, displayTime)
     local msg = {}
     msg.text = message
@@ -56,6 +106,7 @@ local function findFilePath()
 end
 
 local filePath = findFilePath()
+loadTransportGroups()
 
 if filePath then
     debugLog(string.format("State File Location: %s", filePath))
@@ -239,15 +290,9 @@ function ev:onEvent(event)
 
         local groupName = group:getName()
 
-        -- Check if this is a transport flight (contains "Transport" in name)
-        if groupName and string.match(groupName, "Transport") then
+        if groupName and transportGroups[groupName] then
             local position = initiator:getPosition().p
-            missionState.cargoDeliveries[groupName] = {
-                time = timer.getTime(),
-                x = position.x,
-                y = position.z
-            }
-            debugLog('Transport landed: '..groupName)
+            recordCargoDelivery(groupName, position, 'landing')
         end
     end
 

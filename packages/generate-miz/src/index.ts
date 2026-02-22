@@ -10,6 +10,7 @@ import { addGroundGroups } from './add-ground-groups'
 import { addStructures } from './add-structures'
 import { dictionary, mapResource } from './l10n'
 import { options } from './options'
+import ctldLuaScript from './scripts/ctld.lua?raw'
 import mistLuaScript from './scripts/mist_4_5_126.lua?raw'
 import stateLuaScript from './scripts/state.lua?raw'
 import { warehouses } from './warehouses'
@@ -282,24 +283,28 @@ export function generateMizFromCampaign(
       actions: {
         1: `a_do_script("config = { missionId = '${campaign.id}' }")`,
         2: 'a_do_script_file(getValueResourceByKey("mist"))',
-        3: 'a_do_script_file(getValueResourceByKey("state"))'
+        3: 'a_do_script_file(getValueResourceByKey("state"))',
+        4: 'a_do_script_file(getValueResourceByKey("ctld"))'
       },
       events: {},
       custom: {},
       func: {
         1: 'if true then return true end',
         2: 'if true then return true end',
-        3: 'if true then return true end'
+        3: 'if true then return true end',
+        4: 'if true then return true end'
       },
       flag: {
         1: true,
         2: true,
-        3: true
+        3: true,
+        4: true
       },
       conditions: {
         1: 'return(c_time_after(1))',
         2: 'return(c_time_after(2))',
-        3: 'return(c_time_after(3))'
+        3: 'return(c_time_after(3))',
+        4: 'return(c_time_after(4))'
       },
       customStartup: {},
       funcStartup: {}
@@ -329,6 +334,14 @@ export function generateMizFromCampaign(
         predicate: 'triggerOnce',
         comment: 'DCC State Script',
         actions: { 1: { predicate: 'a_do_script_file', file: 'state' } },
+        colorItem: '0x00ffffff'
+      },
+      4: {
+        rules: { 1: { coalitionlist: 'all', seconds: 4, predicate: 'c_time_after' } },
+        eventlist: '',
+        predicate: 'triggerOnce',
+        comment: 'CTLD Script',
+        actions: { 1: { predicate: 'a_do_script_file', file: 'ctld' } },
         colorItem: '0x00ffffff'
       }
     },
@@ -400,6 +413,7 @@ export function generateMizFromCampaign(
   zip.addFile('l10n/DEFAULT/mapResource', Buffer.from('mapResource = ' + mapResourceLua, 'utf-8'))
   zip.addFile('l10n/DEFAULT/mist.lua', Buffer.from(mistLuaScript, 'utf-8'))
   zip.addFile('l10n/DEFAULT/state.lua', Buffer.from(stateLuaScript, 'utf-8'))
+  zip.addFile('l10n/DEFAULT/ctld.lua', Buffer.from(ctldLuaScript, 'utf-8'))
   try {
     zip.writeZip(path)
     // eslint-disable-next-line no-console

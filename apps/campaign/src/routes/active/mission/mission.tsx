@@ -37,8 +37,27 @@ type MissionState = z.infer<typeof schemas.missionState>
 function applyMissionStateUpdate(campaign: Campaign, missionState: MissionState): Campaign {
   const lostUnitNames = new Set(missionState.lostUnits?.map((unit) => unit.name) ?? [])
   const groupPositions = missionState.groupPositions
+  const cargoDeliveries = missionState.cargoDeliveries ?? {}
+  const transportDeliveryRadiusMeters = 2000
 
   return produce(campaign, (draft) => {
+    const isNearTransportDestination = (
+      flightGroup: Campaign['coalitions']['player']['flightGroups'][number],
+      delivery: { x: number; y: number }
+    ) => {
+      const directWaypoint = flightGroup.flightplan.waypoints.find((waypoint) => waypoint.name === 'Direct')
+      const lastWaypoint =
+        flightGroup.flightplan.waypoints.length > 0
+          ? flightGroup.flightplan.waypoints[flightGroup.flightplan.waypoints.length - 1]
+          : undefined
+      const destination = directWaypoint?.position ?? lastWaypoint?.position
+      if (!destination) return false
+
+      const dx = destination.x - delivery.x
+      const dy = destination.y - delivery.y
+      return Math.hypot(dx, dy) <= transportDeliveryRadiusMeters
+    }
+
     const applyToCoalition = (
       coalition: 'player' | 'opponent',
       groups?: Array<{ name: string; x: number; y: number }>
@@ -60,6 +79,23 @@ function applyMissionStateUpdate(campaign: Campaign, missionState: MissionState)
           flightGroup.aircrafts = flightGroup.aircrafts.filter(
             (aircraft) => !lostUnitNames.has(aircraft.unitName)
           )
+        }
+
+        if (flightGroup.task === 'Transport') {
+          const delivery = cargoDeliveries[flightGroup.callsign]
+          if (!delivery) continue
+          if (flightGroup.cargoStatus === 'delivered' || flightGroup.cargoStatus === 'lost') continue
+          if (!flightGroup.destinationNode || !flightGroup.cargoAmount) continue
+          if (!isNearTransportDestination(flightGroup, delivery)) continue
+
+          const destinationSupplyNode = draft.coalitions[coalition].supplyNodes?.[flightGroup.destinationNode]
+          if (destinationSupplyNode) {
+            destinationSupplyNode.current += flightGroup.cargoAmount
+          }
+
+          flightGroup.position.x = delivery.x
+          flightGroup.position.y = delivery.y
+          flightGroup.cargoStatus = 'delivered'
         }
       }
     }

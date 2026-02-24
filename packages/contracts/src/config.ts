@@ -25,6 +25,14 @@ export const config = {
       maxDistance: 300_000,
       aircraftsPerGroup: 2
     },
+    CAS: {
+      maxActive: {
+        player: 2,
+        opponent: 2
+      },
+      maxDistance: 250_000,
+      aircraftsPerGroup: 2
+    },
     CAP: {
       maxActive: {
         player: 2,

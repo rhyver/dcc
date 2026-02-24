@@ -799,6 +799,42 @@ export function addFlightGroups(
           }
         }
 
+        if (wp.name === 'IP' && fg.target && fg.task === 'CAS') {
+          const targetObjective = theatre.objectives.find((objective) => {
+            return objective.name === fg.target?.objectiveId
+          })
+
+          if (targetObjective) {
+            const casAttackPoints = [
+              { x: targetObjective.position.x, y: targetObjective.position.y },
+              { x: targetObjective.position.x + 120, y: targetObjective.position.y + 80 },
+              { x: targetObjective.position.x - 120, y: targetObjective.position.y - 80 }
+            ]
+
+            casAttackPoints.forEach((point) => {
+              tasks.push({
+                enabled: true,
+                auto: false,
+                id: 'Bombing',
+                number: tasks.length + 1,
+                params: {
+                  direction: 0,
+                  attackQtyLimit: false,
+                  attackQty: 1,
+                  expend: 'Auto',
+                  y: point.y,
+                  directionEnabled: false,
+                  groupAttack: false,
+                  altitude: 3000,
+                  altitudeEnabled: false,
+                  weaponType: 4030478,
+                  x: point.x
+                }
+              })
+            })
+          }
+        }
+
         const routePointIndex = routePoints.length
         const routePoint: z.infer<typeof schemas.dcs.aircraftRoutePoint> = {
           alt: alt,

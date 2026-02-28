@@ -4,6 +4,7 @@ import * as z from 'zod'
 import { GroundGroup } from '../../entities/ground-group'
 import { calculateDistance } from '@/logic/utils/calculate-distance'
 import { INFANTRY_COST, VEHICLE_COST } from './ground-group-costs'
+import { logSpawnAction } from '@/logic/simulation-log'
 
 const MAX_SPAWNS_PER_TICK = 3
 
@@ -62,6 +63,11 @@ export function spawnGroundGroups(
           state: targetObjectiveId ? 'moving' : 'idle',
           targetObjectiveId
         })
+        logSpawnAction(
+          draft,
+          coalition,
+          `Ground group spawned at ${structure.objectiveId}: 10x ${unitName}${targetObjectiveId ? ` moving to ${targetObjectiveId}` : ''}`
+        )
         if (targetObjectiveId != null) {
           reservedTargetObjectives.add(targetObjectiveId)
         }
@@ -88,6 +94,11 @@ export function spawnGroundGroups(
           state: targetObjectiveId ? 'moving' : 'idle',
           targetObjectiveId
         })
+        logSpawnAction(
+          draft,
+          coalition,
+          `Ground group spawned at ${structure.objectiveId}: 3x ${unitName}${targetObjectiveId ? ` moving to ${targetObjectiveId}` : ''}`
+        )
         if (targetObjectiveId != null) {
           reservedTargetObjectives.add(targetObjectiveId)
         }

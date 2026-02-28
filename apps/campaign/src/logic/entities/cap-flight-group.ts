@@ -3,6 +3,7 @@ import * as z from 'zod'
 import { FlightGroup } from './flight-group'
 import { calculateDistance } from '../utils/calculate-distance'
 import { buildCapMissionWaypoints, spawnPlannedFlightGroup } from './flight-group-spawn'
+import { logCombatAction } from '../simulation-log'
 
 export class CapFlightGroup extends FlightGroup {
   static spawn(
@@ -81,6 +82,13 @@ export class CapFlightGroup extends FlightGroup {
             console.log(
               `CAP aircraft ${capAircraft.unitName} shot down enemy ${shotDownAircraft?.unitName}`
             )
+            if (shotDownAircraft) {
+              logCombatAction(
+                draft,
+                coalition,
+                `CAP ${capAircraft.unitName} shot down ${shotDownAircraft.unitName}`
+              )
+            }
           }
         }
 
@@ -92,6 +100,13 @@ export class CapFlightGroup extends FlightGroup {
             console.log(
               `CAP aircraft ${lostAircraft?.unitName} shot down by enemy ${enemyAircraft.unitName}`
             )
+            if (lostAircraft) {
+              logCombatAction(
+                draft,
+                coalition,
+                `CAP ${lostAircraft.unitName} shot down by ${enemyAircraft.unitName}`
+              )
+            }
           }
         }
       }

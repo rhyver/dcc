@@ -1,19 +1,40 @@
 import { Outlet, useNavigate } from 'react-router'
 import { useTick } from './tick'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { coreClient } from '@/lib/orpc'
 import { activeStore } from '@/stores/active'
+import { useSelector } from '@xstate/store/react'
+
+const AUTOSAVE_INTERVAL_MS = 5_000
 
 export function ActiveLayout() {
   useTick()
   const navigate = useNavigate()
+  const timeMultiplier = useSelector(activeStore, (state) => state.context.timeMultiplier)
+  const autosaveInFlightRef = useRef(false)
+
+  const saveCurrentCampaign = async (setTimeMultiplierToZero = false) => {
+    if (autosaveInFlightRef.current) {
+      return
+    }
+
+    autosaveInFlightRef.current = true
+    try {
+      const snapshot = activeStore.getSnapshot().context
+      await coreClient.campaign.saveActiveCampaign({
+        ...snapshot,
+        ...(setTimeMultiplierToZero ? { timeMultiplier: 0 } : {})
+      })
+    } catch (error) {
+      console.error('Failed to save campaign:', error)
+    } finally {
+      autosaveInFlightRef.current = false
+    }
+  }
 
   useEffect(() => {
     const handleSaveCampaign = async () => {
-      await coreClient.campaign.saveActiveCampaign({
-        ...activeStore.getSnapshot().context,
-        timeMultiplier: 0
-      })
+      await saveCurrentCampaign(true)
     }
 
     const handleExportMission = async () => {
@@ -43,6 +64,20 @@ export function ActiveLayout() {
       unsubscribeRemoveFlightGroups?.()
     }
   }, [navigate])
+
+  useEffect(() => {
+    if (timeMultiplier <= 0) {
+      return
+    }
+
+    const autosaveInterval = setInterval(() => {
+      void saveCurrentCampaign(false)
+    }, AUTOSAVE_INTERVAL_MS)
+
+    return () => {
+      clearInterval(autosaveInterval)
+    }
+  }, [timeMultiplier])
 
   return (
     <div>

@@ -7,24 +7,39 @@ import { Button } from '@/components/ui/button'
 export function Settings() {
   const navigate = useNavigate()
   const [missionExportPath, setMissionExportPath] = useState<string>('')
+  const [dcsInstallPath, setDcsInstallPath] = useState<string>('')
+  const [enableDcsPersistence, setEnableDcsPersistence] = useState<boolean>(true)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     coreClient.campaign.getSettings().then((settings) => {
       setMissionExportPath(settings.missionExportPath || '')
+      setDcsInstallPath(settings.dcsInstallPath || '')
+      setEnableDcsPersistence(settings.enableDcsPersistence ?? true)
       setLoading(false)
     })
   }, [])
 
-  const handleBrowse = async () => {
+  const handleBrowseMissionExportPath = async () => {
     const path = await window.api?.selectDirectory()
     if (path) {
       setMissionExportPath(path)
     }
   }
 
+  const handleBrowseDcsInstallPath = async () => {
+    const path = await window.api?.selectDirectory()
+    if (path) {
+      setDcsInstallPath(path)
+    }
+  }
+
   const handleSave = async () => {
-    await coreClient.campaign.saveSettings({ missionExportPath })
+    await coreClient.campaign.saveSettings({
+      missionExportPath,
+      dcsInstallPath,
+      enableDcsPersistence
+    })
     navigate('/new')
   }
 
@@ -66,7 +81,7 @@ export function Settings() {
                 </div>
                 <Button
                   variant="outline"
-                  onClick={handleBrowse}
+                  onClick={handleBrowseMissionExportPath}
                   className="border-synthwave-purple text-synthwave-cyan hover:bg-synthwave-purple/20"
                 >
                   Browse...
@@ -74,6 +89,44 @@ export function Settings() {
               </div>
               <p className="text-xs text-gray-500">
                 Select the folder where the mission.miz file should be saved.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-300">DCS Persistence</label>
+              <label className="flex items-center gap-3 rounded border border-gray-700 bg-gray-900 p-3">
+                <input
+                  type="checkbox"
+                  checked={enableDcsPersistence}
+                  onChange={(event) => setEnableDcsPersistence(event.target.checked)}
+                  className="h-4 w-4 accent-cyan-400"
+                />
+                <span className="text-sm text-gray-200">
+                  Enable MissionScripting persistence patch while app is running
+                </span>
+              </label>
+              <p className="text-xs text-gray-500">
+                When enabled, `sanitizeModule('io')` and `sanitizeModule('lfs')` are temporarily
+                disabled and restored on app exit.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-300">DCS Install Path</label>
+              <div className="flex gap-2">
+                <div className="flex-1 p-2 rounded bg-gray-900 border border-gray-700 font-mono text-sm truncate flex items-center">
+                  {dcsInstallPath || 'Auto-detect from default install locations'}
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={handleBrowseDcsInstallPath}
+                  className="border-synthwave-purple text-synthwave-cyan hover:bg-synthwave-purple/20"
+                >
+                  Browse...
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500">
+                Select your DCS World installation folder (the one containing `Scripts`).
               </p>
             </div>
 

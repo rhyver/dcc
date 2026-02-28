@@ -6,6 +6,7 @@ import { isSeadFlightGroup } from '../entities/sead-flight-group'
 import { isDeadFlightGroup } from '../entities/dead-flight-group'
 import { isCapFlightGroup } from '../entities/cap-flight-group'
 import { FlightGroupFactory } from '../entities/flight-group-factory'
+import { logCombatAction } from '../simulation-log'
 
 export function updateFlightGroups(
   draft: z.infer<typeof schemas.campaign.campaign>,
@@ -29,6 +30,14 @@ export function updateFlightGroups(
     group.move(draft.time)
     if (group.isLanded(draft.time)) {
       finishedIds.add(group.id)
+      if (
+        group.task === 'CAP' ||
+        group.task === 'SEAD' ||
+        group.task === 'DEAD' ||
+        group.task === 'Pinpoint Strike'
+      ) {
+        logCombatAction(draft, coalition, `${group.task} landed`, group.callsign)
+      }
     }
 
     if (isStrikeFlightGroup(group)) {
@@ -61,6 +70,11 @@ export function updateFlightGroups(
         if (samGroup) {
           samGroup.suppressed = false
           console.log(`SAM ${samGroup.type} no longer suppressed - SEAD landed`)
+          logCombatAction(
+            draft,
+            coalition,
+            `SEAD completed, suppression lifted on ${samGroup.type} at ${samGroup.objectiveId}`
+          )
         }
       }
     }

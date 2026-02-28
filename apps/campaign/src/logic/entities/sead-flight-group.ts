@@ -5,6 +5,7 @@ import { FlightGroup } from './flight-group'
 import { calculateDistance } from '../utils/calculate-distance'
 import { getObjectivePosition } from '../utils/get-objective-position'
 import { buildAttackMissionWaypoints, spawnPlannedFlightGroup } from './flight-group-spawn'
+import { logCombatAction } from '../simulation-log'
 
 export class SeadFlightGroup extends FlightGroup {
   static spawn(
@@ -100,8 +101,17 @@ export class SeadFlightGroup extends FlightGroup {
     const isInRange = distanceToSam <= samTemplate.range
 
     if (isInRange) {
+      const wasSuppressed = samGroup.suppressed
+
       // Mark SAM as suppressed
       samGroup.suppressed = true
+      if (!wasSuppressed) {
+        logCombatAction(
+          draft,
+          coalition,
+          `SEAD established suppression on ${samGroup.type} at ${samGroup.objectiveId}`
+        )
+      }
 
       // SAM has small chance to shoot down SEAD while in range (5-10% per tick)
       const shootDownChance = 0.05
@@ -110,12 +120,26 @@ export class SeadFlightGroup extends FlightGroup {
         if (this._data.aircrafts.length > 0) {
           const removedAircraft = this._data.aircrafts.pop()
           console.log(`SEAD aircraft ${removedAircraft?.unitName} shot down by ${samGroup.type}`)
+          if (removedAircraft) {
+            logCombatAction(
+              draft,
+              coalition,
+              `SEAD ${removedAircraft.unitName} shot down by ${samGroup.type}`
+            )
+          }
         }
       }
     } else {
       // Check if this SEAD flight was previously suppressing this SAM
       // If we're no longer in range, clear suppression
       // (Note: In a more complex system, we'd track which SEAD is suppressing which SAM)
+      if (samGroup.suppressed) {
+        logCombatAction(
+          draft,
+          coalition,
+          `SEAD lost suppression on ${samGroup.type} at ${samGroup.objectiveId}`
+        )
+      }
       samGroup.suppressed = false
     }
   }

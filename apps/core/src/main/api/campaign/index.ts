@@ -25,7 +25,13 @@ console.log('campaignsDir', campaignsDir)
 
 const savedGamesVariants = ['DCS', 'DCS.openbeta', 'DCS.openbeta_server', 'DCS_server']
 
-function getMissionStateSearchPaths(settings?: { missionExportPath?: string }) {
+type AppSettings = {
+  missionExportPath?: string
+  dcsInstallPath?: string
+  enableDcsPersistence?: boolean
+}
+
+function getMissionStateSearchPaths(settings?: AppSettings) {
   const paths: string[] = []
   if (settings?.missionExportPath) {
     paths.push(path.join(settings.missionExportPath, missionStateFileName))
@@ -37,7 +43,7 @@ function getMissionStateSearchPaths(settings?: { missionExportPath?: string }) {
   return paths
 }
 
-// State file structure: { activeCampaignId: string | null, settings?: { missionExportPath?: string } }
+// State file structure: { activeCampaignId: string | null, settings?: AppSettings }
 async function getState() {
   const file = await readFile(stateFile)
   if (file.isErr()) {
@@ -52,13 +58,13 @@ async function getState() {
   }
   return parsedState.value as {
     activeCampaignId?: string
-    settings?: { missionExportPath?: string }
+    settings?: AppSettings
   }
 }
 
 async function saveState(state: {
   activeCampaignId?: string
-  settings?: { missionExportPath?: string }
+  settings?: AppSettings
 }) {
   const current = await getState()
   const result = await writeFile(stateFile, { ...current, ...state })

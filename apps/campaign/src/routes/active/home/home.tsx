@@ -20,12 +20,41 @@ const campaignData = {
   objectives: ['Destroy the primary fuel depot', 'Disable the runway', 'Eliminate enemy air patrol']
 }
 
+const LOG_ROW_HEIGHT = 68
+const LOG_OVERSCAN = 6
+
 export function Home() {
   const [mapZoom, setMapZoom] = React.useState(1)
   const [isBriefingOpen, setIsBriefingOpen] = React.useState(false)
+  const [isLogOpen, setIsLogOpen] = React.useState(false)
   const [selectedItem, setSelectedItem] = React.useState<SelectedItem>(null)
   const timeMultiplier = useSelector(activeStore, (state) => state.context.timeMultiplier)
+  const logEntries = useSelector(activeStore, (state) => state.context.logs)
   const timerState = timeMultiplier === 0 ? 'pause' : timeMultiplier === 1 ? 'play' : 'fast-forward'
+  const visibleLogs = React.useMemo(() => [...logEntries].reverse(), [logEntries])
+  const logViewportRef = React.useRef<HTMLDivElement | null>(null)
+  const [logScrollTop, setLogScrollTop] = React.useState(0)
+  const [logViewportHeight, setLogViewportHeight] = React.useState(190)
+
+  React.useEffect(() => {
+    const viewport = logViewportRef.current
+    if (!viewport) return
+
+    const updateHeight = () => setLogViewportHeight(viewport.clientHeight)
+    updateHeight()
+
+    const observer = new ResizeObserver(updateHeight)
+    observer.observe(viewport)
+    return () => observer.disconnect()
+  }, [isLogOpen])
+
+  const totalLogHeight = visibleLogs.length * LOG_ROW_HEIGHT
+  const startIndex = Math.max(0, Math.floor(logScrollTop / LOG_ROW_HEIGHT) - LOG_OVERSCAN)
+  const endIndex = Math.min(
+    visibleLogs.length,
+    Math.ceil((logScrollTop + logViewportHeight) / LOG_ROW_HEIGHT) + LOG_OVERSCAN
+  )
+  const virtualLogs = visibleLogs.slice(startIndex, endIndex)
 
   return (
     <div className="relative h-screen w-full overflow-hidden bg-background">
@@ -158,7 +187,19 @@ export function Home() {
                 <Info className="h-4 w-4 text-synthwave-pink" />
                 <span className="retro-font text-xs">Mission Briefing</span>
               </div>
-              <span className="text-[10px]">{isBriefingOpen ? '▼' : '▶'}</span>
+              <span className="text-[10px]">{isBriefingOpen ? 'v' : '>'}</span>
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-between text-secondary hover:text-white hover:bg-synthwave-pink/10"
+              onClick={() => setIsLogOpen(!isLogOpen)}
+            >
+              <span className="retro-font text-xs">Action Log</span>
+              <span className="text-[10px]">
+                {isLogOpen ? 'v' : '>'} {logEntries.length}
+              </span>
             </Button>
 
             {/* Briefing Content */}
@@ -196,6 +237,86 @@ export function Home() {
 
         {/* Active Flight Groups */}
         <ActiveFlightGroups selectedItem={selectedItem} onSelect={setSelectedItem} />
+
+        {isLogOpen && (
+          <Card className="pointer-events-auto border-synthwave-pink/30 bg-synthwave-dark/80 text-synthwave-light shadow-[0_0_15px_rgba(255,0,170,0.3)] backdrop-blur-md p-2 h-[240px]">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="retro-font text-xs uppercase text-primary">Action Log</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-[10px] text-secondary hover:text-white hover:bg-synthwave-pink/10"
+                onClick={() => activeStore.send({ type: 'clearLogs' })}
+              >
+                Clear
+              </Button>
+            </div>
+            <div
+              ref={logViewportRef}
+              className="h-[190px] overflow-y-auto pr-2 text-xs"
+              onScroll={(event) => setLogScrollTop(event.currentTarget.scrollTop)}
+            >
+              {visibleLogs.length === 0 ? (
+                <div className="text-secondary/70">No actions logged yet.</div>
+              ) : (
+                <div style={{ height: totalLogHeight, position: 'relative' }}>
+                  {virtualLogs.map((entry, idx) => {
+                    const index = startIndex + idx
+                    return (
+                      <div
+                        key={entry.id}
+                        style={{
+                          position: 'absolute',
+                          left: 0,
+                          right: 0,
+                          top: index * LOG_ROW_HEIGHT
+                        }}
+                        className="pb-1"
+                      >
+                        <div
+                          className={
+                            entry.coalition === 'player'
+                              ? 'rounded border border-cyan-400/30 bg-cyan-950/25 px-2 py-1'
+                              : 'rounded border border-red-400/30 bg-red-950/25 px-2 py-1'
+                          }
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`uppercase tracking-wide ${
+                                  entry.type === 'combat' ? 'text-red-300' : 'text-cyan-300'
+                                }`}
+                              >
+                                {entry.type}
+                              </span>
+                              {entry.label && (
+                                <span className="text-[10px] text-secondary uppercase tracking-wide">
+                                  {entry.label}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-secondary/70">
+                              {new Date(entry.campaignTime).toLocaleTimeString()}
+                            </span>
+                          </div>
+                          <div
+                            className={
+                              entry.coalition === 'player'
+                                ? 'mt-0.5 text-cyan-100'
+                                : 'mt-0.5 text-red-100'
+                            }
+                          >
+                            {entry.message}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </Card>
+        )}
       </div>
     </div>
   )

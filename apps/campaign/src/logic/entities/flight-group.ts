@@ -282,6 +282,10 @@ export class FlightGroup {
     return this._data.homeBase
   }
 
+  get callsign() {
+    return this._data.callsign
+  }
+
   get aircrafts() {
     return this._data.aircrafts
   }

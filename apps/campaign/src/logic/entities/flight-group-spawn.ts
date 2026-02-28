@@ -3,6 +3,7 @@ import { aircrafts } from '@dcc/data'
 import * as z from 'zod'
 
 import { FlightGroup } from './flight-group'
+import { logSpawnAction } from '../simulation-log'
 
 const aircraftMap = new Map(Object.values(aircrafts).map((def) => [def.name, def]))
 
@@ -178,10 +179,22 @@ export function spawnPlannedFlightGroup({
   })
 
   const calculatedTot = FlightGroup.calculateTot(flightplan)
+  const effectiveTot = tot ?? calculatedTot ?? startTime
+  const targetLabel = target?.objectiveId ? ` -> ${target.objectiveId}` : ''
+  const spawnedFlightGroup = draft.coalitions[coalition].flightGroups.find(
+    (group) => group.id === flightGroupId
+  )
+  const callsign = spawnedFlightGroup?.callsign
+  logSpawnAction(
+    draft,
+    coalition,
+    `${task} from ${homeBase} (${aircraftCount}x ${aircraftType})${targetLabel}`,
+    callsign
+  )
 
   return {
     flightGroupId,
-    tot: tot ?? calculatedTot ?? startTime,
+    tot: effectiveTot,
     flightplan
   }
 }

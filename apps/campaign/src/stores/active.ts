@@ -13,6 +13,7 @@ const initialState: z.infer<typeof schemas.campaign.campaign> = {
   campaignParams: {
     hotStart: false
   },
+  logs: [],
   scenarioId: 'red-bullet',
   coalitions: {
     player: {
@@ -134,6 +135,10 @@ export const activeStore = createStore({
       produce(context, (draft) => {
         draft.coalitions.player.flightGroups = []
         draft.coalitions.opponent.flightGroups = []
+      }),
+    clearLogs: (context) =>
+      produce(context, (draft) => {
+        draft.logs = []
       }),
 
     setFlightGroupClientCount: (

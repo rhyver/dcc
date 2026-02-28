@@ -4,6 +4,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { rpcHandler } from './api'
 import { readFile, parseJson } from './utils'
+import { enableDcsPersistenceForAppRuntime } from './dcs-persistence'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -220,6 +221,7 @@ function createWindow(): void {
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
   console.log('whenReady')
+  enableDcsPersistenceForAppRuntime()
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
 

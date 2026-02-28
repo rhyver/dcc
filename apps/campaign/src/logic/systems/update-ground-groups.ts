@@ -2,6 +2,7 @@ import { schemas } from '@dcc/contracts'
 import { scenarios, theatres } from '@dcc/data'
 import * as z from 'zod'
 import { calculateDistance } from '@/logic/utils/calculate-distance'
+import { logCombatAction } from '@/logic/simulation-log'
 
 type Campaign = z.infer<typeof schemas.campaign.campaign>
 type Coalition = z.infer<typeof schemas.coalition>
@@ -125,17 +126,19 @@ function applyCasualties(group: GroundGroup, expectedLosses: number): number {
   return applied
 }
 
-function distributeCasualties(groups: GroundGroup[], expectedLosses: number): void {
-  if (expectedLosses <= 0 || groups.length === 0) return
+function distributeCasualties(groups: GroundGroup[], expectedLosses: number): number {
+  if (expectedLosses <= 0 || groups.length === 0) return 0
 
   const powers = groups.map((group) => Math.max(getGroupPower(group), 1))
   const totalPower = powers.reduce((sum, power) => sum + power, 0)
-  if (totalPower <= 0) return
+  if (totalPower <= 0) return 0
 
+  let totalApplied = 0
   groups.forEach((group, idx) => {
     const groupExpectedLosses = expectedLosses * (powers[idx]! / totalPower)
-    applyCasualties(group, groupExpectedLosses)
+    totalApplied += applyCasualties(group, groupExpectedLosses)
   })
+  return totalApplied
 }
 
 function cleanupDestroyedGroups(draft: Campaign, coalition: Coalition): void {
@@ -205,11 +208,23 @@ function resolveObjectiveBattle(
   )
 
   if (defendersInRange.length > 0 && nearestAttackerDistance <= BATTLE_RADIUS) {
+    const enteringCombatCount =
+      attackers.filter((attacker) => attacker.state !== 'combat').length +
+      defendersInRange.filter((defender) => defender.state !== 'combat').length
+
     attackers.forEach((attacker) => {
       setCombatState(attacker, nowIso)
       clearCaptureState(attacker)
     })
     defendersInRange.forEach((defender) => setCombatState(defender, nowIso))
+
+    if (enteringCombatCount > 0) {
+      logCombatAction(
+        draft,
+        coalition,
+        `Ground battle started at ${targetObjectiveId} (${attackers.length} attackers vs ${defendersInRange.length} defenders)`
+      )
+    }
 
     const deltaS = (delta * draft.timeMultiplier) / 1000
     const attackerPower = getCombatPower(draft, coalition, attackers, targetObjectiveId, false)
@@ -224,8 +239,16 @@ function resolveObjectiveBattle(
     const expectedAttackerLosses = BASE_ATTRITION_PER_SECOND * deltaS * (defenderPower / 10)
     const expectedDefenderLosses = BASE_ATTRITION_PER_SECOND * deltaS * (attackerPower / 10)
 
-    distributeCasualties(attackers, expectedAttackerLosses)
-    distributeCasualties(defendersInRange, expectedDefenderLosses)
+    const attackerCasualties = distributeCasualties(attackers, expectedAttackerLosses)
+    const defenderCasualties = distributeCasualties(defendersInRange, expectedDefenderLosses)
+
+    if (attackerCasualties > 0 || defenderCasualties > 0) {
+      logCombatAction(
+        draft,
+        coalition,
+        `Ground combat at ${targetObjectiveId}: losses ${coalition}=${attackerCasualties}, ${enemyCoalition}=${defenderCasualties}`
+      )
+    }
 
     cleanupDestroyedGroups(draft, coalition)
     cleanupDestroyedGroups(draft, enemyCoalition)
@@ -263,6 +286,11 @@ function resolveObjectiveBattle(
 
   if (!nearestAttacker.captureStartedAt) {
     nearestAttacker.captureStartedAt = nowIso
+    logCombatAction(
+      draft,
+      coalition,
+      `Capture started at ${targetObjectiveId} by ground group ${nearestAttacker.id}`
+    )
     return
   }
 
@@ -281,6 +309,7 @@ function resolveObjectiveBattle(
     enemyObjectiveIds.splice(enemyObjectiveIndex, 1)
   }
   draft.coalitions[coalition].objectiveIds.push(targetObjectiveId)
+  logCombatAction(draft, coalition, `Objective captured: ${targetObjectiveId}`)
 
   draft.coalitions[enemyCoalition].structures = draft.coalitions[enemyCoalition].structures.filter(
     (structure) => structure.objectiveId !== targetObjectiveId

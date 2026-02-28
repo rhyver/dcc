@@ -9,6 +9,16 @@ import { structureBuilding } from '../../schemas/structure-building'
 import { supply } from '../../schemas/supply'
 import { task } from '../../schemas/task'
 
+const campaignLogEntry = z.object({
+  id: z.string(),
+  type: z.enum(['spawn', 'combat', 'landing']),
+  coalition: coalition,
+  label: z.string().optional(),
+  campaignTime: z.string(),
+  message: z.string(),
+  createdAt: z.string()
+})
+
 const campaignStructure = z.preprocess(
   (input) => {
     if (input == null || typeof input !== 'object') return input
@@ -78,6 +88,7 @@ export const campaign = z.object({
       hotStart: z.boolean().optional()
     })
     .optional(),
+  logs: z.array(campaignLogEntry).default([]),
   scenarioId: z.string(),
   coalitions: z.record(coalition, campaignCoalition)
 })

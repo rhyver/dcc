@@ -2,6 +2,7 @@ import { schemas, config } from '@dcc/contracts'
 import * as z from 'zod'
 import { FlightGroup } from './flight-group'
 import { buildAttackMissionWaypoints, spawnPlannedFlightGroup } from './flight-group-spawn'
+import { logCombatAction } from '../simulation-log'
 
 export class StrikeFlightGroup extends FlightGroup {
   static spawn(
@@ -80,11 +81,18 @@ export class StrikeFlightGroup extends FlightGroup {
     console.log('Striking structure', structure?.name)
 
     if (structure && structure.buildings.some((b) => b.alive)) {
+      let destroyedCount = 0
       structure.buildings.forEach((b) => {
         if (Math.random() <= 0.7) {
           b.alive = false
+          destroyedCount++
         }
       })
+      logCombatAction(
+        draft,
+        coalition,
+        `Strike hit ${structure.name} at ${structure.objectiveId}: destroyed ${destroyedCount}/${structure.buildings.length} buildings`
+      )
     }
 
     this._data.targetDestroyed = true

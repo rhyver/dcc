@@ -225,10 +225,69 @@ const generateMission = base
   .output(
     z.object({
       path: z.string(),
-      missionPlan: missionGeneratorSchemas.missionPlan
+      missionPlan: missionGeneratorSchemas.missionPlan,
+      missionPlanPath: z.string(),
+      campaignPath: z.string()
     })
   )
 
+const saveBriefing = base
+  .route({
+    summary: 'Save a mission briefing for later reuse',
+    tags: ['Mission Generator', 'Briefings']
+  })
+  .input(
+    z.object({
+      name: z.string().min(1).max(120).optional(),
+      briefing: z.string().min(1),
+      messages: z.array(missionGeneratorSchemas.chatMessage),
+      missionPlan: missionGeneratorSchemas.missionPlan.optional()
+    })
+  )
+  .errors({
+    FAILED_TO_WRITE_FILE: {
+      data: z.object({
+        path: z.string(),
+        message: z.string()
+      })
+    }
+  })
+  .output(missionGeneratorSchemas.savedBriefingSummary)
+
+const listBriefings = base
+  .route({
+    summary: 'List saved mission briefings',
+    tags: ['Mission Generator', 'Briefings']
+  })
+  .output(z.array(missionGeneratorSchemas.savedBriefingSummary))
+
+const getBriefing = base
+  .route({
+    summary: 'Get a saved mission briefing',
+    tags: ['Mission Generator', 'Briefings']
+  })
+  .input(z.object({ id: z.string() }))
+  .output(missionGeneratorSchemas.savedBriefing)
+
+const deleteBriefing = base
+  .route({
+    summary: 'Delete a saved mission briefing',
+    tags: ['Mission Generator', 'Briefings']
+  })
+  .input(z.object({ id: z.string() }))
+  .errors({
+    FAILED_TO_DELETE_FILE: {
+      data: z.object({
+        path: z.string(),
+        message: z.string()
+      })
+    }
+  })
+
 export const missionGenerator = {
-  generateMission
+  generateMission,
+  saveBriefing,
+  listBriefings,
+  getBriefing,
+  deleteBriefing
 }

@@ -39,3 +39,20 @@ export const missionPlan = z.object({
     tanker: z.boolean().default(false)
   })
 })
+
+export const savedBriefing = z.object({
+  id: z.string(),
+  name: z.string(),
+  briefing: z.string(),
+  messages: z.array(chatMessage),
+  missionPlan: missionPlan.optional(),
+  createdAt: z.date(),
+  updatedAt: z.date()
+})
+
+export const savedBriefingSummary = savedBriefing.pick({
+  id: true,
+  name: true,
+  createdAt: true,
+  updatedAt: true
+})

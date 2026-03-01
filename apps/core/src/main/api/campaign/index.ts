@@ -1,6 +1,7 @@
 import { pub } from '../orpc'
 import { app } from 'electron'
 import path from 'path'
+import { existsSync } from 'fs'
 import { schemas } from '@dcc/contracts'
 import {
   neverthrowParse,
@@ -35,10 +36,37 @@ type AppSettings = {
   lastViewPath?: string
 }
 
+function getDefaultMissionExportDirectory() {
+  const savedGamesRoot = path.join(app.getPath('home'), 'Saved Games')
+  const candidates = savedGamesVariants.map((variant) =>
+    path.join(savedGamesRoot, variant, 'Missions')
+  )
+
+  const existing = candidates.find((candidate) => existsSync(candidate))
+  return existing ?? app.getPath('downloads')
+}
+
+function resolveMissionExportDirectory(missionExportPath?: string) {
+  const configuredPath = missionExportPath?.trim()
+  const defaultDirectory = getDefaultMissionExportDirectory()
+
+  if (!configuredPath) {
+    return defaultDirectory
+  }
+
+  if (path.isAbsolute(configuredPath)) {
+    return configuredPath
+  }
+
+  // Never resolve against app cwd; treat relative settings as subfolders of the mission export default.
+  return path.join(defaultDirectory, configuredPath)
+}
+
 function getMissionStateSearchPaths(settings?: AppSettings) {
   const paths: string[] = []
   if (settings?.missionExportPath) {
-    paths.push(path.join(settings.missionExportPath, missionStateFileName))
+    const exportDirectory = resolveMissionExportDirectory(settings.missionExportPath)
+    paths.push(path.join(exportDirectory, missionStateFileName))
   }
   const savedGamesRoot = path.join(app.getPath('home'), 'Saved Games')
   for (const variant of savedGamesVariants) {
@@ -235,7 +263,14 @@ const saveSettings = pub.campaign.saveSettings.handler(async ({ input }) => {
 
 export const generateMiz = pub.campaign.generateMiz.handler(async ({ input, errors }) => {
   const state = await getState()
-  const downloadPath = state.settings?.missionExportPath ?? app.getPath('downloads')
+  const downloadPath = resolveMissionExportDirectory(state.settings?.missionExportPath)
+  const ensureDirectoryResult = await ensureDirectory(downloadPath)
+  if (ensureDirectoryResult.isErr()) {
+    throw errors.FAILED_TO_WRITE_FILE({
+      data: { path: downloadPath, message: ensureDirectoryResult.error.message }
+    })
+  }
+
   const mizPath = path.join(downloadPath, 'dcc_mission.miz')
   const scenarios = getScenarios()
   const scenario = scenarios.find((s) => s.id === input.scenarioId)

@@ -7,6 +7,47 @@ import { getTemplates } from '../data/get-templates'
 import { getTheatre } from '../data/get-theatre'
 
 type MissionPlan = z.infer<typeof schemas.missionGenerator.missionPlan>
+type AircraftName = z.infer<typeof schemas.dcs.aircraftName>
+type FlightTarget = NonNullable<z.infer<typeof schemas.flightGroup>['target']>
+
+function isValidAircraftName(value: string): value is AircraftName {
+  return schemas.dcs.aircraftName.safeParse(value).success
+}
+
+function normalizeAircraftKey(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, '')
+}
+
+function resolveAircraftType(params: {
+  requestedAircraftType: string
+  preferredTask: z.infer<typeof schemas.task>
+  factionAircraftTypes: Record<string, string[]>
+}): AircraftName {
+  const requested = params.requestedAircraftType.trim()
+  if (isValidAircraftName(requested)) {
+    return requested
+  }
+
+  const taskCandidates = (params.factionAircraftTypes[params.preferredTask] ?? []).filter(
+    isValidAircraftName
+  )
+  const factionCandidates = Object.values(params.factionAircraftTypes)
+    .flat()
+    .filter(isValidAircraftName)
+
+  const requestedKey = normalizeAircraftKey(requested)
+  const fuzzyMatch = factionCandidates.find((candidate) => {
+    const candidateKey = normalizeAircraftKey(candidate)
+    return candidateKey === requestedKey || candidateKey.includes(requestedKey)
+  })
+  if (fuzzyMatch) {
+    return fuzzyMatch
+  }
+
+  return (
+    taskCandidates[0] ?? factionCandidates[0] ?? schemas.dcs.aircraftName.options[0] ?? 'F-16C_50'
+  )
+}
 
 function createFlightplan(params: {
   start: z.infer<typeof schemas.position>
@@ -31,11 +72,11 @@ function createFlightplan(params: {
   }
 }
 
-function createAircraft(aircraftType: string, count: number, clientCount = 0) {
+function createAircraft(aircraftType: AircraftName, count: number, clientCount = 0) {
   return Array.from({ length: count }).map((_, index) => ({
     id: crypto.randomUUID(),
     unitName: `${aircraftType}-${index + 1}`,
-    aircraftName: aircraftType as z.infer<typeof schemas.dcs.aircraftName>,
+    aircraftName: aircraftType,
     ...(index < clientCount ? { client: true } : {})
   }))
 }
@@ -43,12 +84,13 @@ function createAircraft(aircraftType: string, count: number, clientCount = 0) {
 function createFlightGroup(params: {
   callsign: string
   task: z.infer<typeof schemas.task>
-  aircraftType: string
+  aircraftType: AircraftName
   count: number
   clientCount?: number
   homeBase: string
   homePosition: z.infer<typeof schemas.position>
-  targetObjective: z.infer<typeof schemas.objective>
+  target: FlightTarget
+  targetPosition: z.infer<typeof schemas.position>
   tot: Date
   packageId?: string
 }) {
@@ -59,15 +101,11 @@ function createFlightGroup(params: {
     position: params.homePosition,
     homeBase: params.homeBase,
     callsign: params.callsign,
-    target: {
-      id: crypto.randomUUID(),
-      type: 'Objective',
-      objectiveId: params.targetObjective.name
-    },
+    target: params.target,
     tot: params.tot,
     flightplan: createFlightplan({
       start: params.homePosition,
-      target: params.targetObjective.position,
+      target: params.targetPosition,
       startTime: new Date(params.tot.getTime() - 15 * 60 * 1000)
     }),
     packageId: params.packageId
@@ -157,15 +195,56 @@ export function buildCampaignFromPlan(
   const packageId = crypto.randomUUID()
 
   const playerPrimaryTask = coerceTask(plan.playerCoalition.primaryFlight.task)
+  const isStrikeMission = playerPrimaryTask === 'Pinpoint Strike'
+  const isCasMission = playerPrimaryTask === 'CAS'
+  const playerPrimaryAircraftType = resolveAircraftType({
+    requestedAircraftType: plan.playerCoalition.primaryFlight.aircraftType,
+    preferredTask: playerPrimaryTask,
+    factionAircraftTypes: playerFaction.aircraftTypes as Record<string, string[]>
+  })
+
+  const fallbackGroundUnitType =
+    opponentTemplate.groundUnitTypes.Vehicle[0] ??
+    opponentTemplate.groundUnitTypes['Shorad Vehicle'][0] ??
+    opponentTemplate.groundUnitTypes.Infantry[0] ??
+    opponentTemplate.groundUnitTypes['Shorad Infantry'][0] ??
+    opponentTemplate.groundUnitTypes.SAM[0] ??
+    opponentTemplate.groundUnitTypes.EWS[0]
+
+  const casTargetGroundGroup =
+    isCasMission && fallbackGroundUnitType
+      ? ({
+          id: crypto.randomUUID(),
+          objectiveId: primaryTargetObjective.name,
+          position: primaryTargetObjective.position,
+          state: 'idle',
+          units: [{ name: fallbackGroundUnitType, count: 4 }]
+        } satisfies z.infer<typeof schemas.groundGroup>)
+      : null
+
+  const playerTarget: FlightTarget = casTargetGroundGroup
+    ? {
+        id: casTargetGroundGroup.id,
+        type: 'Ground Group',
+        objectiveId: casTargetGroundGroup.objectiveId ?? primaryTargetObjective.name
+      }
+    : {
+        id: crypto.randomUUID(),
+        type: 'Objective',
+        objectiveId: primaryTargetObjective.name
+      }
+  const playerTargetPosition = casTargetGroundGroup?.position ?? primaryTargetObjective.position
+
   const playerFlightGroup = createFlightGroup({
     callsign: 'Hammer',
     task: playerPrimaryTask,
-    aircraftType: plan.playerCoalition.primaryFlight.aircraftType,
+    aircraftType: playerPrimaryAircraftType,
     count: plan.playerCoalition.primaryFlight.count,
     clientCount: 1,
     homeBase: playerHomeBase,
     homePosition: playerHomePosition,
-    targetObjective: primaryTargetObjective,
+    target: playerTarget,
+    targetPosition: playerTargetPosition,
     tot: new Date(missionTime.getTime() + 30 * 60 * 1000),
     packageId
   })
@@ -174,19 +253,31 @@ export function buildCampaignFromPlan(
     createFlightGroup({
       callsign: `Bandit${index + 1}`,
       task: 'CAP',
-      aircraftType: capFlight.aircraftType,
+      aircraftType: resolveAircraftType({
+        requestedAircraftType: capFlight.aircraftType,
+        preferredTask: 'CAP',
+        factionAircraftTypes: opponentFaction.aircraftTypes as Record<string, string[]>
+      }),
       count: capFlight.count,
       homeBase: opponentHomeBase,
       homePosition: opponentHomePosition,
-      targetObjective: primaryTargetObjective,
+      target: {
+        id: crypto.randomUUID(),
+        type: 'Objective',
+        objectiveId: primaryTargetObjective.name
+      },
+      targetPosition: primaryTargetObjective.position,
       tot: new Date(missionTime.getTime() + 20 * 60 * 1000)
     })
   )
 
   const supportFlights: z.infer<typeof schemas.flightGroup>[] = []
   if (plan.friendlySupport.awacs) {
-    const awacsType =
-      playerFaction.aircraftTypes.AWACS[0] ?? plan.playerCoalition.primaryFlight.aircraftType
+    const awacsType = resolveAircraftType({
+      requestedAircraftType: plan.playerCoalition.primaryFlight.aircraftType,
+      preferredTask: 'AWACS',
+      factionAircraftTypes: playerFaction.aircraftTypes as Record<string, string[]>
+    })
     supportFlights.push(
       createFlightGroup({
         callsign: 'Magic',
@@ -195,7 +286,12 @@ export function buildCampaignFromPlan(
         count: 1,
         homeBase: playerHomeBase,
         homePosition: playerHomePosition,
-        targetObjective: primaryTargetObjective,
+        target: {
+          id: crypto.randomUUID(),
+          type: 'Objective',
+          objectiveId: primaryTargetObjective.name
+        },
+        targetPosition: primaryTargetObjective.position,
         tot: new Date(missionTime.getTime() + 10 * 60 * 1000)
       })
     )
@@ -277,9 +373,9 @@ export function buildCampaignFromPlan(
         groundUnitTypes: opponentTemplate.groundUnitTypes,
         airdromeNames: [opponentHomeBase],
         objectiveIds: opponentObjectiveIds,
-        structures: [targetStructure],
+        structures: isStrikeMission ? [targetStructure] : [],
         samGroups,
-        groundGroups: [],
+        groundGroups: casTargetGroundGroup ? [casTargetGroundGroup] : [],
         flightGroups: opponentCapFlights,
         packages: []
       }

@@ -800,15 +800,20 @@ export function addFlightGroups(
         }
 
         if (wp.name === 'IP' && fg.target && fg.task === 'CAS') {
-          const targetObjective = theatre.objectives.find((objective) => {
-            return objective.name === fg.target?.objectiveId
-          })
+          const enemyCoalition = key === 'player' ? 'opponent' : 'player'
+          const targetGroundGroup = campaign.coalitions[enemyCoalition].groundGroups.find(
+            (groundGroup) => groundGroup.id === fg.target?.id
+          )
+          const targetObjective = theatre.objectives.find(
+            (objective) => objective.name === fg.target?.objectiveId
+          )
 
-          if (targetObjective) {
+          const targetPosition = targetGroundGroup?.position ?? targetObjective?.position
+          if (targetPosition) {
             const casAttackPoints = [
-              { x: targetObjective.position.x, y: targetObjective.position.y },
-              { x: targetObjective.position.x + 120, y: targetObjective.position.y + 80 },
-              { x: targetObjective.position.x - 120, y: targetObjective.position.y - 80 }
+              { x: targetPosition.x, y: targetPosition.y },
+              { x: targetPosition.x + 120, y: targetPosition.y + 80 },
+              { x: targetPosition.x - 120, y: targetPosition.y - 80 }
             ]
 
             casAttackPoints.forEach((point) => {

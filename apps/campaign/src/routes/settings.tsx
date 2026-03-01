@@ -76,7 +76,7 @@ export function Settings() {
   }
 
   return (
-    <div className="relative flex h-screen w-full items-center justify-center overflow-hidden bg-synthwave-dark text-white">
+    <div className="relative h-screen w-full overflow-y-auto bg-synthwave-dark text-white">
       {/* Background */}
       <div className="absolute inset-0 z-0 bg-cover opacity-20" />
       <div className="absolute bottom-0 left-0 right-0 h-[40vh] bg-linear-to-t from-synthwave-pink via-synthwave-purple to-transparent opacity-30" />
@@ -89,7 +89,8 @@ export function Settings() {
         }}
       />
 
-      <div className="relative z-10 flex w-full max-w-2xl flex-col p-8 bg-black/50 border border-synthwave-pink/30 rounded-lg backdrop-blur-sm">
+      <div className="relative z-10 flex min-h-full w-full items-start justify-center p-4 sm:p-6">
+        <div className="flex w-full max-w-2xl flex-col rounded-lg border border-synthwave-pink/30 bg-black/50 p-8 backdrop-blur-sm">
         <div className="mb-6 flex items-center justify-between">
           <h2 className="retro-font text-3xl text-synthwave-cyan">SETTINGS</h2>
           <Button
@@ -224,6 +225,7 @@ export function Settings() {
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   )

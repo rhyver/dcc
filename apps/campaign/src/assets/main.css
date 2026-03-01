@@ -138,3 +138,25 @@
   }
 }
 
+.synthwave-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--synthwave-purple) transparent;
+}
+
+.synthwave-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.synthwave-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.synthwave-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--synthwave-purple);
+  border-radius: 4px;
+}
+
+.synthwave-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--synthwave-pink);
+}
+

@@ -3,6 +3,10 @@ import * as z from 'zod'
 
 type Campaign = z.infer<typeof schemas.campaign.campaign>
 type Coalition = z.infer<typeof schemas.coalition>
+type LogEntityRef = {
+  entityType: 'flightGroup' | 'groundGroup'
+  entityId: string
+}
 const MAX_LOG_ENTRIES = 500
 
 function appendLog(
@@ -10,13 +14,16 @@ function appendLog(
   type: 'spawn' | 'combat',
   coalition: Coalition,
   message: string,
-  label?: string
+  label?: string,
+  entityRef?: LogEntityRef
 ): void {
   draft.logs.push({
     id: crypto.randomUUID(),
     type,
     coalition,
     label,
+    entityType: entityRef?.entityType,
+    entityId: entityRef?.entityId,
     campaignTime: draft.time.toISOString(),
     message,
     createdAt: new Date().toISOString()
@@ -30,16 +37,18 @@ export function logSpawnAction(
   draft: Campaign,
   coalition: Coalition,
   message: string,
-  label?: string
+  label?: string,
+  entityRef?: LogEntityRef
 ): void {
-  appendLog(draft, 'spawn', coalition, message, label)
+  appendLog(draft, 'spawn', coalition, message, label, entityRef)
 }
 
 export function logCombatAction(
   draft: Campaign,
   coalition: Coalition,
   message: string,
-  label?: string
+  label?: string,
+  entityRef?: LogEntityRef
 ): void {
-  appendLog(draft, 'combat', coalition, message, label)
+  appendLog(draft, 'combat', coalition, message, label, entityRef)
 }

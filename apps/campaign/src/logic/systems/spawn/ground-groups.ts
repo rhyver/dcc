@@ -56,7 +56,7 @@ export function spawnGroundGroups(
           reservedTargetObjectives
         )
 
-        GroundGroup.create(draft, coalition, {
+        const groundGroupId = GroundGroup.create(draft, coalition, {
           position: structure.position,
           objectiveId: structure.objectiveId,
           units: [{ name: unitName, count: 10 }],
@@ -66,7 +66,12 @@ export function spawnGroundGroups(
         logSpawnAction(
           draft,
           coalition,
-          `Ground group spawned at ${structure.objectiveId}: 10x ${unitName}${targetObjectiveId ? ` moving to ${targetObjectiveId}` : ''}`
+          `Ground group spawned at ${structure.objectiveId}: 10x ${unitName}${targetObjectiveId ? ` moving to ${targetObjectiveId}` : ''}`,
+          undefined,
+          {
+            entityType: 'groundGroup',
+            entityId: groundGroupId
+          }
         )
         if (targetObjectiveId != null) {
           reservedTargetObjectives.add(targetObjectiveId)
@@ -87,7 +92,7 @@ export function spawnGroundGroups(
           reservedTargetObjectives
         )
 
-        GroundGroup.create(draft, coalition, {
+        const groundGroupId = GroundGroup.create(draft, coalition, {
           position: structure.position,
           objectiveId: structure.objectiveId,
           units: [{ name: unitName, count: 3 }],
@@ -97,7 +102,12 @@ export function spawnGroundGroups(
         logSpawnAction(
           draft,
           coalition,
-          `Ground group spawned at ${structure.objectiveId}: 3x ${unitName}${targetObjectiveId ? ` moving to ${targetObjectiveId}` : ''}`
+          `Ground group spawned at ${structure.objectiveId}: 3x ${unitName}${targetObjectiveId ? ` moving to ${targetObjectiveId}` : ''}`,
+          undefined,
+          {
+            entityType: 'groundGroup',
+            entityId: groundGroupId
+          }
         )
         if (targetObjectiveId != null) {
           reservedTargetObjectives.add(targetObjectiveId)

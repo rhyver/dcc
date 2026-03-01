@@ -109,7 +109,12 @@ export class SeadFlightGroup extends FlightGroup {
         logCombatAction(
           draft,
           coalition,
-          `SEAD established suppression on ${samGroup.type} at ${samGroup.objectiveId}`
+          `SEAD established suppression on ${samGroup.type} at ${samGroup.objectiveId}`,
+          this._data.callsign,
+          {
+            entityType: 'flightGroup',
+            entityId: this._data.id
+          }
         )
       }
 
@@ -124,7 +129,12 @@ export class SeadFlightGroup extends FlightGroup {
             logCombatAction(
               draft,
               coalition,
-              `SEAD ${removedAircraft.unitName} shot down by ${samGroup.type}`
+              `SEAD ${removedAircraft.unitName} shot down by ${samGroup.type}`,
+              this._data.callsign,
+              {
+                entityType: 'flightGroup',
+                entityId: this._data.id
+              }
             )
           }
         }
@@ -137,7 +147,12 @@ export class SeadFlightGroup extends FlightGroup {
         logCombatAction(
           draft,
           coalition,
-          `SEAD lost suppression on ${samGroup.type} at ${samGroup.objectiveId}`
+          `SEAD lost suppression on ${samGroup.type} at ${samGroup.objectiveId}`,
+          this._data.callsign,
+          {
+            entityType: 'flightGroup',
+            entityId: this._data.id
+          }
         )
       }
       samGroup.suppressed = false

@@ -4,11 +4,17 @@ import { useSelector } from '@xstate/store/react'
 import { activeStore } from '@/stores/active'
 import { useQuery } from '@tanstack/react-query'
 import { orpc } from '@/lib/orpc'
-import { memo, useMemo, useState, useEffect } from 'react'
+import { memo, useMemo, useState, useEffect, useRef } from 'react'
 import { LOtoLL } from '@kilcekru/dcs-coordinates'
 import * as z from 'zod'
 import { schemas } from '@dcc/contracts'
-import MaplibreMap, { Marker as MaplibreMarker, Source, Layer, useMap } from 'react-map-gl/maplibre'
+import MaplibreMap, {
+  Marker as MaplibreMarker,
+  Source,
+  Layer,
+  useMap,
+  type MapRef
+} from 'react-map-gl/maplibre'
 import MilSymbol from 'milsymbol'
 import * as turf from '@turf/turf'
 import { getMilSymbolCode } from './unit-code'
@@ -91,6 +97,7 @@ export type SelectedItem =
   | z.infer<typeof schemas.MapItem>
   | ObjectiveMarkerType
   | z.infer<typeof schemas.flightGroup>
+  | z.infer<typeof schemas.groundGroup>
   | null
 
 const FlightPlanOverlay = memo(function FlightPlanOverlay({
@@ -190,6 +197,7 @@ export function Map({
   onSelect: (item: SelectedItem) => void
 }) {
   const scenarioId = useSelector(activeStore, (state) => state.context.scenarioId)
+  const mapRef = useRef<MapRef | null>(null)
 
   const scenarioQuery = useQuery(
     orpc.data.getScenario.queryOptions({
@@ -225,6 +233,34 @@ export function Map({
     return mapItems.find((item) => item.id === selectedItem.id) ?? selectedItem
   }, [selectedItem, flightGroups, mapItems])
 
+  const selectedCoordinates = useMemo(() => {
+    if (!liveSelectedItem || !theatreQuery.data) return null
+
+    const position = liveSelectedItem.position
+    if ('lat' in position && 'lng' in position) {
+      return position
+    }
+
+    if ('x' in position && 'y' in position) {
+      return LOtoLL({
+        theatre: theatreQuery.data.name as 'Caucasus',
+        x: position.x,
+        z: position.y
+      })
+    }
+
+    return null
+  }, [liveSelectedItem, theatreQuery.data])
+
+  useEffect(() => {
+    if (!selectedCoordinates || !mapRef.current) return
+    mapRef.current.flyTo({
+      center: [selectedCoordinates.lng, selectedCoordinates.lat],
+      duration: 700,
+      essential: true
+    })
+  }, [selectedCoordinates])
+
   // Generate GeoJSON for SAM range circles
   const samRangeGeoJson = useMemo(() => {
     const features: GeoJSON.Feature<GeoJSON.Polygon>[] = []
@@ -256,6 +292,7 @@ export function Map({
   return (
     <div className="w-full h-full relative">
       <MaplibreMap
+        ref={mapRef}
         initialViewState={initialViewState}
         mapStyle="https://api.maptiler.com/maps/openstreetmap/style.json?key=dMqlZfgU5XToBXt4BGnm"
       >

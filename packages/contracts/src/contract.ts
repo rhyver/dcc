@@ -2,6 +2,7 @@ import { oc } from '@orpc/contract'
 import * as z from 'zod'
 
 import { campaign as campaignSchemas } from './campaign/schemas'
+import * as missionGeneratorSchemas from './mission-generator/schemas'
 import * as schemas from './schemas'
 
 const base = oc.errors({
@@ -195,4 +196,39 @@ const getTheatre = base
 export const data = {
   getScenario,
   getTheatre
+}
+
+const generateMission = base
+  .route({
+    summary: 'Generate a single mission .miz from an AI conversation',
+    tags: ['Mission Generator', 'Generate']
+  })
+  .input(
+    z.object({
+      messages: z.array(missionGeneratorSchemas.chatMessage),
+      missionPlan: missionGeneratorSchemas.missionPlan.optional()
+    })
+  )
+  .errors({
+    FAILED_TO_WRITE_FILE: {
+      data: z.object({
+        path: z.string(),
+        message: z.string()
+      })
+    },
+    INVALID_APP_STATE: {
+      data: z.object({
+        message: z.string()
+      })
+    }
+  })
+  .output(
+    z.object({
+      path: z.string(),
+      missionPlan: missionGeneratorSchemas.missionPlan
+    })
+  )
+
+export const missionGenerator = {
+  generateMission
 }

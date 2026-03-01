@@ -16,9 +16,12 @@
     "clean": "rm -rf .turbo dist out node_modules"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.50",
+    "@ai-sdk/openai": "^3.0.37",
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
     "@orpc/server": "^1.10.0",
+    "ai": "^6.0.105",
     "electron-store": "^11.0.2",
     "electron-updater": "^6.3.9",
     "neverthrow": "^8.2.0",

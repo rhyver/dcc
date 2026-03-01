@@ -14,6 +14,8 @@ const campaignLogEntry = z.object({
   type: z.enum(['spawn', 'combat', 'landing']),
   coalition: coalition,
   label: z.string().optional(),
+  entityType: z.enum(['flightGroup', 'groundGroup']).optional(),
+  entityId: z.string().optional(),
   campaignTime: z.string(),
   message: z.string(),
   createdAt: z.string()

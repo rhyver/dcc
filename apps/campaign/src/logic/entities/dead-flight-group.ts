@@ -117,7 +117,12 @@ export class DeadFlightGroup extends FlightGroup {
           logCombatAction(
             draft,
             coalition,
-            `DEAD ${aircraft.unitName} destroyed ${samGroup.type} at ${samGroup.objectiveId}`
+            `DEAD ${aircraft.unitName} destroyed ${samGroup.type} at ${samGroup.objectiveId}`,
+            this._data.callsign,
+            {
+              entityType: 'flightGroup',
+              entityId: this._data.id
+            }
           )
           this._data.targetDestroyed = true
           return
@@ -126,7 +131,12 @@ export class DeadFlightGroup extends FlightGroup {
           logCombatAction(
             draft,
             coalition,
-            `DEAD ${aircraft.unitName} missed ${samGroup.type} at ${samGroup.objectiveId}`
+            `DEAD ${aircraft.unitName} missed ${samGroup.type} at ${samGroup.objectiveId}`,
+            this._data.callsign,
+            {
+              entityType: 'flightGroup',
+              entityId: this._data.id
+            }
           )
         }
       }
@@ -142,7 +152,12 @@ export class DeadFlightGroup extends FlightGroup {
             logCombatAction(
               draft,
               coalition,
-              `DEAD ${removedAircraft.unitName} shot down by ${samGroup.type}`
+              `DEAD ${removedAircraft.unitName} shot down by ${samGroup.type}`,
+              this._data.callsign,
+              {
+                entityType: 'flightGroup',
+                entityId: this._data.id
+              }
             )
           }
         }

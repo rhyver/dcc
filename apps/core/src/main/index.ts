@@ -3,10 +3,80 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { rpcHandler } from './api'
-import { readFile, parseJson } from './utils'
+import { readFile, parseJson, writeFile } from './utils'
 import { enableDcsPersistenceForAppRuntime } from './dcs-persistence'
+import { registerMissionGeneratorChatHandlers } from './api/mission-generator/chat-handler'
 
 let mainWindow: BrowserWindow | null = null
+const stateFile = join(app.getPath('userData'), 'state.json')
+const RESTORABLE_PATHS = new Set(['/', '/mission', '/new', '/load', '/settings', '/mission-generator'])
+
+async function getLastViewPath() {
+  const file = await readFile(stateFile)
+  if (file.isErr()) {
+    return '/'
+  }
+
+  const parsed = parseJson(file.value)
+  if (parsed.isErr()) {
+    return '/'
+  }
+
+  const state = parsed.value as { settings?: { lastViewPath?: string } }
+  const path = state.settings?.lastViewPath
+  if (typeof path === 'string' && RESTORABLE_PATHS.has(path)) {
+    return path
+  }
+  return '/'
+}
+
+async function setLastViewPath(pathname: string) {
+  if (!RESTORABLE_PATHS.has(pathname)) {
+    return
+  }
+
+  let current: Record<string, unknown> = {}
+  const file = await readFile(stateFile)
+  if (file.isOk()) {
+    const parsed = parseJson(file.value)
+    if (parsed.isOk() && parsed.value != null && typeof parsed.value === 'object') {
+      current = parsed.value as Record<string, unknown>
+    }
+  }
+
+  const settings =
+    current.settings != null && typeof current.settings === 'object'
+      ? (current.settings as Record<string, unknown>)
+      : {}
+
+  await writeFile(stateFile, {
+    ...current,
+    settings: {
+      ...settings,
+      lastViewPath: pathname
+    }
+  })
+}
+
+function getPathFromUrl(url: string) {
+  try {
+    const parsed = new URL(url)
+    const hash = parsed.hash
+    if (!hash) {
+      return '/'
+    }
+    const rawPath = hash.startsWith('#') ? hash.slice(1) : hash
+    const normalizedPath = rawPath.startsWith('/') ? rawPath : `/${rawPath}`
+    return RESTORABLE_PATHS.has(normalizedPath) ? normalizedPath : null
+  } catch {
+    return null
+  }
+}
+
+function withHashPath(baseUrl: string, path: string) {
+  const safePath = RESTORABLE_PATHS.has(path) ? path : '/'
+  return `${baseUrl}#${safePath}`
+}
 
 function createMenu() {
   const isMac = process.platform === 'darwin'
@@ -181,7 +251,7 @@ function createMenu() {
   Menu.setApplicationMenu(menu)
 }
 
-function createWindow(): void {
+async function createWindow(): Promise<void> {
   console.log('createWindow')
   // Create the browser window.
   mainWindow = new BrowserWindow({
@@ -206,13 +276,33 @@ function createWindow(): void {
     return { action: 'deny' }
   })
 
+  const persistPathFromUrl = (url: string) => {
+    const path = getPathFromUrl(url)
+    if (!path) {
+      return
+    }
+    void setLastViewPath(path).catch((error) => {
+      console.error('Failed to persist last view path:', error)
+    })
+  }
+
+  mainWindow.webContents.on('did-navigate', (_event, url) => {
+    persistPathFromUrl(url)
+  })
+  mainWindow.webContents.on('did-navigate-in-page', (_event, url) => {
+    persistPathFromUrl(url)
+  })
+
   // HMR for renderer base on electron-vite cli.
   // Load the remote URL for development or the local html file for production.
+  const startupPath = await getLastViewPath()
   const CAMPAIGN_URL = process.env.CAMPAIGN_URL
   if (is.dev && CAMPAIGN_URL) {
-    mainWindow.loadURL(CAMPAIGN_URL)
+    await mainWindow.loadURL(withHashPath(CAMPAIGN_URL, startupPath))
   } else {
-    mainWindow.loadFile(join(process.resourcesPath, 'renderer/campaign/index.html'))
+    await mainWindow.loadFile(join(process.resourcesPath, 'renderer/campaign/index.html'), {
+      hash: startupPath
+    })
   }
 }
 
@@ -252,13 +342,17 @@ app.whenReady().then(() => {
     }
   })
 
-  createWindow()
+  registerMissionGeneratorChatHandlers(ipcMain, () => mainWindow)
+
+  void createWindow()
 
   app.on('activate', function () {
     console.log('activate')
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    if (BrowserWindow.getAllWindows().length === 0) {
+      void createWindow()
+    }
   })
 })
 

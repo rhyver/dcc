@@ -86,7 +86,12 @@ export class CapFlightGroup extends FlightGroup {
               logCombatAction(
                 draft,
                 coalition,
-                `CAP ${capAircraft.unitName} shot down ${shotDownAircraft.unitName}`
+                `CAP ${capAircraft.unitName} shot down ${shotDownAircraft.unitName}`,
+                this._data.callsign,
+                {
+                  entityType: 'flightGroup',
+                  entityId: this._data.id
+                }
               )
             }
           }
@@ -104,7 +109,12 @@ export class CapFlightGroup extends FlightGroup {
               logCombatAction(
                 draft,
                 coalition,
-                `CAP ${lostAircraft.unitName} shot down by ${enemyAircraft.unitName}`
+                `CAP ${lostAircraft.unitName} shot down by ${enemyAircraft.unitName}`,
+                this._data.callsign,
+                {
+                  entityType: 'flightGroup',
+                  entityId: this._data.id
+                }
               )
             }
           }

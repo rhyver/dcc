@@ -4,11 +4,37 @@ import { useNavigate } from 'react-router'
 import { coreClient } from '@/lib/orpc'
 import { Button } from '@/components/ui/button'
 
+type AiProvider = 'openai' | 'anthropic' | 'openrouter'
+
+const AI_DEFAULT_MODELS: Record<AiProvider, string> = {
+  openai: 'gpt-5-mini',
+  anthropic: 'claude-sonnet-4-6',
+  openrouter: 'anthropic/claude-sonnet-4'
+}
+
+const AI_MODEL_OPTIONS: Record<AiProvider, string[]> = {
+  openai: ['gpt-5', 'gpt-5-mini', 'gpt-5-nano', 'gpt-4.1', 'gpt-4.1-mini'],
+  anthropic: ['claude-sonnet-4-6', 'claude-opus-4-6', 'claude-sonnet-4-5', 'claude-haiku-4-5'],
+  openrouter: [
+    'anthropic/claude-sonnet-4',
+    'anthropic/claude-haiku-4',
+    'openai/gpt-5-mini',
+    'openai/gpt-4.1-mini',
+    'google/gemini-2.5-flash',
+    'meta-llama/llama-4-maverick',
+    'minimax/minimax-m2.5',
+    'moonshotai/kimi-k2.5'
+  ]
+}
+
 export function Settings() {
   const navigate = useNavigate()
   const [missionExportPath, setMissionExportPath] = useState<string>('')
   const [dcsInstallPath, setDcsInstallPath] = useState<string>('')
   const [enableDcsPersistence, setEnableDcsPersistence] = useState<boolean>(true)
+  const [aiProvider, setAiProvider] = useState<AiProvider>('openai')
+  const [aiApiKey, setAiApiKey] = useState<string>('')
+  const [aiModel, setAiModel] = useState<string>('')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -16,6 +42,9 @@ export function Settings() {
       setMissionExportPath(settings.missionExportPath || '')
       setDcsInstallPath(settings.dcsInstallPath || '')
       setEnableDcsPersistence(settings.enableDcsPersistence ?? true)
+      setAiProvider(settings.aiProvider ?? 'openai')
+      setAiApiKey(settings.aiApiKey ?? '')
+      setAiModel(settings.aiModel ?? '')
       setLoading(false)
     })
   }, [])
@@ -38,7 +67,10 @@ export function Settings() {
     await coreClient.campaign.saveSettings({
       missionExportPath,
       dcsInstallPath,
-      enableDcsPersistence
+      enableDcsPersistence,
+      aiProvider,
+      aiApiKey: aiApiKey.trim() || undefined,
+      aiModel: aiModel.trim() || undefined
     })
     navigate('/new')
   }
@@ -90,6 +122,58 @@ export function Settings() {
               <p className="text-xs text-gray-500">
                 Select the folder where the mission.miz file should be saved.
               </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-300">AI Provider</label>
+              <select
+                value={aiProvider}
+                onChange={(event) => setAiProvider(event.target.value as AiProvider)}
+                className="w-full rounded border border-gray-700 bg-gray-900 p-2 text-sm text-white"
+              >
+                <option value="openai">OpenAI</option>
+                <option value="anthropic">Anthropic</option>
+                <option value="openrouter">OpenRouter</option>
+              </select>
+              <p className="text-xs text-gray-500">
+                Choose the provider used by AI Mission Generator chat and planning.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-300">AI API Key</label>
+              <input
+                type="password"
+                value={aiApiKey}
+                onChange={(event) => setAiApiKey(event.target.value)}
+                className="w-full rounded border border-gray-700 bg-gray-900 p-2 text-sm text-white"
+                placeholder={
+                  aiProvider === 'anthropic'
+                    ? 'sk-ant-...'
+                    : aiProvider === 'openrouter'
+                      ? 'sk-or-...'
+                      : 'sk-...'
+                }
+              />
+              <p className="text-xs text-gray-500">
+                Stored locally in app settings. Required for AI mission generation.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-300">AI Model (optional)</label>
+              <select
+                value={aiModel}
+                onChange={(event) => setAiModel(event.target.value)}
+                className="w-full rounded border border-gray-700 bg-gray-900 p-2 text-sm text-white"
+              >
+                <option value="">Default ({AI_DEFAULT_MODELS[aiProvider]})</option>
+                {AI_MODEL_OPTIONS[aiProvider].map((model) => (
+                  <option key={model} value={model}>
+                    {model}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="space-y-2">

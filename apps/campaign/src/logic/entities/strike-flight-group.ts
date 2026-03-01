@@ -91,7 +91,12 @@ export class StrikeFlightGroup extends FlightGroup {
       logCombatAction(
         draft,
         coalition,
-        `Strike hit ${structure.name} at ${structure.objectiveId}: destroyed ${destroyedCount}/${structure.buildings.length} buildings`
+        `Strike hit ${structure.name} at ${structure.objectiveId}: destroyed ${destroyedCount}/${structure.buildings.length} buildings`,
+        this._data.callsign,
+        {
+          entityType: 'flightGroup',
+          entityId: this._data.id
+        }
       )
     }
 

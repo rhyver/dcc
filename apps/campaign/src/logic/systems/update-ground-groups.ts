@@ -219,10 +219,18 @@ function resolveObjectiveBattle(
     defendersInRange.forEach((defender) => setCombatState(defender, nowIso))
 
     if (enteringCombatCount > 0) {
+      const primaryAttacker = attackers[0]
       logCombatAction(
         draft,
         coalition,
-        `Ground battle started at ${targetObjectiveId} (${attackers.length} attackers vs ${defendersInRange.length} defenders)`
+        `Ground battle started at ${targetObjectiveId} (${attackers.length} attackers vs ${defendersInRange.length} defenders)`,
+        undefined,
+        primaryAttacker
+          ? {
+              entityType: 'groundGroup',
+              entityId: primaryAttacker.id
+            }
+          : undefined
       )
     }
 
@@ -243,10 +251,18 @@ function resolveObjectiveBattle(
     const defenderCasualties = distributeCasualties(defendersInRange, expectedDefenderLosses)
 
     if (attackerCasualties > 0 || defenderCasualties > 0) {
+      const primaryAttacker = attackers[0]
       logCombatAction(
         draft,
         coalition,
-        `Ground combat at ${targetObjectiveId}: losses ${coalition}=${attackerCasualties}, ${enemyCoalition}=${defenderCasualties}`
+        `Ground combat at ${targetObjectiveId}: losses ${coalition}=${attackerCasualties}, ${enemyCoalition}=${defenderCasualties}`,
+        undefined,
+        primaryAttacker
+          ? {
+              entityType: 'groundGroup',
+              entityId: primaryAttacker.id
+            }
+          : undefined
       )
     }
 
@@ -286,11 +302,10 @@ function resolveObjectiveBattle(
 
   if (!nearestAttacker.captureStartedAt) {
     nearestAttacker.captureStartedAt = nowIso
-    logCombatAction(
-      draft,
-      coalition,
-      `Capture started at ${targetObjectiveId} by ground group ${nearestAttacker.id}`
-    )
+    logCombatAction(draft, coalition, `Capture started at ${targetObjectiveId}`, undefined, {
+      entityType: 'groundGroup',
+      entityId: nearestAttacker.id
+    })
     return
   }
 

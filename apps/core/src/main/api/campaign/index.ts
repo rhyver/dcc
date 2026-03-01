@@ -29,6 +29,10 @@ type AppSettings = {
   missionExportPath?: string
   dcsInstallPath?: string
   enableDcsPersistence?: boolean
+  aiProvider?: 'openai' | 'anthropic' | 'openrouter'
+  aiApiKey?: string
+  aiModel?: string
+  lastViewPath?: string
 }
 
 function getMissionStateSearchPaths(settings?: AppSettings) {
@@ -223,7 +227,13 @@ const getSettings = pub.campaign.getSettings.handler(async () => {
 
 const saveSettings = pub.campaign.saveSettings.handler(async ({ input }) => {
   const state = await getState()
-  await saveState({ ...state, settings: input })
+  await saveState({
+    ...state,
+    settings: {
+      ...(state.settings ?? {}),
+      ...input
+    }
+  })
 })
 
 export const generateMiz = pub.campaign.generateMiz.handler(async ({ input, errors }) => {

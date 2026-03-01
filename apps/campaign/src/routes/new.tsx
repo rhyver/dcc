@@ -1,4 +1,4 @@
-import { LogOut, Settings, BookOpen, Plane, FolderOpen } from 'lucide-react'
+import { LogOut, Settings, BookOpen, Sparkles, FolderOpen } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useState } from 'react'
 
@@ -17,7 +17,7 @@ type MenuOption = {
 const menuOptions: MenuOption[] = [
   { id: 'campaign', label: 'NEW CAMPAIGN', icon: BookOpen },
   { id: 'loadCampaign', label: 'LOAD CAMPAIGN', icon: FolderOpen },
-  { id: 'quickMission', label: 'QUICK MISSION', icon: Plane, disabled: true },
+  { id: 'quickMission', label: 'AI MISSION GENERATOR', icon: Sparkles },
   { id: 'settings', label: 'SETTINGS', icon: Settings },
   { id: 'exit', label: 'EXIT', icon: LogOut, disabled: true }
 ]
@@ -99,6 +99,8 @@ export function New() {
                       navigate('/load')
                     } else if (option.id === 'settings') {
                       navigate('/settings')
+                    } else if (option.id === 'quickMission') {
+                      navigate('/mission-generator')
                     }
                   }, 200)
                 }}

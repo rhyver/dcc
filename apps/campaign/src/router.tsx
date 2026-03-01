@@ -6,6 +6,7 @@ import { coreClient } from './lib/orpc'
 import { New } from './routes/new'
 import { Load } from './routes/load'
 import { Settings } from './routes/settings'
+import { MissionGenerator } from './routes/mission-generator/mission-generator'
 import { activeStore } from './stores/active'
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router'
@@ -76,6 +77,10 @@ export const router = createHashRouter([
       {
         path: '/settings',
         Component: Settings
+      },
+      {
+        path: '/mission-generator',
+        Component: MissionGenerator
       }
     ]
   }

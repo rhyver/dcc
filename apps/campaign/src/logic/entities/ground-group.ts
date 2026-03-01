@@ -14,9 +14,10 @@ export class GroundGroup {
       units: GroundGroupData['units']
       state?: GroundGroupData['state']
     }
-  ): void {
+  ): string {
+    const id = crypto.randomUUID()
     const newGroup: GroundGroupData = {
-      id: crypto.randomUUID(),
+      id,
       position: params.position,
       objectiveId: params.objectiveId,
       targetObjectiveId: params.targetObjectiveId,
@@ -25,6 +26,7 @@ export class GroundGroup {
     }
 
     draft.coalitions[coalition].groundGroups.push(newGroup)
+    return id
   }
 
   constructor(protected _data: GroundGroupData) {}

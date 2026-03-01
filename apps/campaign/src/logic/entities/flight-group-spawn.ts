@@ -189,7 +189,11 @@ export function spawnPlannedFlightGroup({
     draft,
     coalition,
     `${task} from ${homeBase} (${aircraftCount}x ${aircraftType})${targetLabel}`,
-    callsign
+    callsign,
+    {
+      entityType: 'flightGroup',
+      entityId: flightGroupId
+    }
   )
 
   return {

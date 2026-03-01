@@ -36,7 +36,10 @@ export function updateFlightGroups(
         group.task === 'DEAD' ||
         group.task === 'Pinpoint Strike'
       ) {
-        logCombatAction(draft, coalition, `${group.task} landed`, group.callsign)
+        logCombatAction(draft, coalition, `${group.task} landed`, group.callsign, {
+          entityType: 'flightGroup',
+          entityId: group.id
+        })
       }
     }
 
@@ -73,7 +76,12 @@ export function updateFlightGroups(
           logCombatAction(
             draft,
             coalition,
-            `SEAD completed, suppression lifted on ${samGroup.type} at ${samGroup.objectiveId}`
+            `SEAD completed, suppression lifted on ${samGroup.type} at ${samGroup.objectiveId}`,
+            seadGroup.callsign,
+            {
+              entityType: 'flightGroup',
+              entityId: seadGroup.id
+            }
           )
         }
       }

@@ -1,5 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
+import {
+  CHAT_REQUEST_CHANNEL,
+  CHAT_STREAM_CHANNEL,
+  CHAT_STREAM_END_CHANNEL,
+  CHAT_STREAM_ERROR_CHANNEL
+} from '../shared/mission-generator-channels'
 
 // Custom APIs for renderer
 const api = {
@@ -23,7 +29,24 @@ const api = {
     ipcRenderer.on('menu-remove-flight-groups', callback)
     return () => ipcRenderer.removeListener('menu-remove-flight-groups', callback)
   },
-  selectDirectory: () => ipcRenderer.invoke('dialog:openDirectory')
+  selectDirectory: () => ipcRenderer.invoke('dialog:openDirectory'),
+  sendMissionGeneratorChat: (messages: { role: 'user' | 'assistant'; content: string }[]) => {
+    ipcRenderer.send(CHAT_REQUEST_CHANNEL, messages)
+  },
+  onMissionGeneratorChatChunk: (callback: (chunk: string) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, chunk: string) => callback(chunk)
+    ipcRenderer.on(CHAT_STREAM_CHANNEL, listener)
+    return () => ipcRenderer.removeListener(CHAT_STREAM_CHANNEL, listener)
+  },
+  onMissionGeneratorChatEnd: (callback: () => void) => {
+    ipcRenderer.on(CHAT_STREAM_END_CHANNEL, callback)
+    return () => ipcRenderer.removeListener(CHAT_STREAM_END_CHANNEL, callback)
+  },
+  onMissionGeneratorChatError: (callback: (message: string) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, message: string) => callback(message)
+    ipcRenderer.on(CHAT_STREAM_ERROR_CHANNEL, listener)
+    return () => ipcRenderer.removeListener(CHAT_STREAM_ERROR_CHANNEL, listener)
+  }
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

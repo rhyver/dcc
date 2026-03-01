@@ -55,6 +55,27 @@ export function Home() {
     Math.ceil((logScrollTop + logViewportHeight) / LOG_ROW_HEIGHT) + LOG_OVERSCAN
   )
   const virtualLogs = visibleLogs.slice(startIndex, endIndex)
+  const handleLogItemClick = React.useCallback((entry: (typeof logEntries)[number]) => {
+    if (!entry.entityType || !entry.entityId) return
+
+    const snapshot = activeStore.getSnapshot().context
+    if (entry.entityType === 'flightGroup') {
+      const flightGroup =
+        snapshot.coalitions.player.flightGroups.find((group) => group.id === entry.entityId) ??
+        snapshot.coalitions.opponent.flightGroups.find((group) => group.id === entry.entityId)
+      if (flightGroup) {
+        setSelectedItem(flightGroup)
+      }
+      return
+    }
+
+    const groundGroup =
+      snapshot.coalitions.player.groundGroups.find((group) => group.id === entry.entityId) ??
+      snapshot.coalitions.opponent.groundGroups.find((group) => group.id === entry.entityId)
+    if (groundGroup) {
+      setSelectedItem(groundGroup)
+    }
+  }, [])
 
   return (
     <div className="relative h-screen w-full overflow-hidden bg-background">
@@ -274,11 +295,25 @@ export function Home() {
                         className="pb-1"
                       >
                         <div
-                          className={
+                          className={`rounded border px-2 py-1 ${
                             entry.coalition === 'player'
-                              ? 'rounded border border-cyan-400/30 bg-cyan-950/25 px-2 py-1'
-                              : 'rounded border border-red-400/30 bg-red-950/25 px-2 py-1'
-                          }
+                              ? 'border-cyan-400/30 bg-cyan-950/25'
+                              : 'border-red-400/30 bg-red-950/25'
+                          } ${
+                            entry.entityId
+                              ? 'cursor-pointer hover:ring-1 hover:ring-synthwave-pink/40'
+                              : ''
+                          }`}
+                          onClick={() => handleLogItemClick(entry)}
+                          role={entry.entityId ? 'button' : undefined}
+                          tabIndex={entry.entityId ? 0 : undefined}
+                          onKeyDown={(event) => {
+                            if (!entry.entityId) return
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault()
+                              handleLogItemClick(entry)
+                            }
+                          }}
                         >
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2">

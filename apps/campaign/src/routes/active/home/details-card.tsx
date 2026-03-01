@@ -30,7 +30,12 @@ export function DetailsCard({
         ? selectedItem.target.objectiveId
         : null
 
-  const defaultTitle = 'callsign' in selectedItem ? selectedItem.callsign : selectedItem.name
+  const defaultTitle =
+    'callsign' in selectedItem
+      ? selectedItem.callsign
+      : 'name' in selectedItem
+        ? selectedItem.name
+        : `Ground Group ${selectedItem.id.slice(0, 8)}`
   const defaultSubtitle = `${'coalition' in selectedItem ? selectedItem.coalition : 'player'} ${
     'type' in selectedItem
       ? String(selectedItem.type)

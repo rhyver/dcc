@@ -96,7 +96,8 @@ function readPersistenceSettingsFromState(stateFilePath: string): {
     const dcsInstallPath = parsedState.settings?.dcsInstallPath
     const enableDcsPersistence = parsedState.settings?.enableDcsPersistence
     return {
-      dcsInstallPath: typeof dcsInstallPath === 'string' && dcsInstallPath.length > 0 ? dcsInstallPath : null,
+      dcsInstallPath:
+        typeof dcsInstallPath === 'string' && dcsInstallPath.length > 0 ? dcsInstallPath : null,
       enableDcsPersistence:
         typeof enableDcsPersistence === 'boolean'
           ? enableDcsPersistence

@@ -22,7 +22,7 @@ export function createModel(config: ProviderConfig): LanguageModel {
     const openrouter = createOpenAI({
       apiKey: config.aiApiKey,
       baseURL: 'https://openrouter.ai/api/v1',
-      compatibility: 'compatible'
+      name: 'openrouter'
     })
     return openrouter.chat(config.aiModel || 'anthropic/claude-sonnet-4')
   }

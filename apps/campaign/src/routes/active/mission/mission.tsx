@@ -45,7 +45,9 @@ function applyMissionStateUpdate(campaign: Campaign, missionState: MissionState)
       flightGroup: Campaign['coalitions']['player']['flightGroups'][number],
       delivery: { x: number; y: number }
     ) => {
-      const directWaypoint = flightGroup.flightplan.waypoints.find((waypoint) => waypoint.name === 'Direct')
+      const directWaypoint = flightGroup.flightplan.waypoints.find(
+        (waypoint) => waypoint.name === 'Direct'
+      )
       const lastWaypoint =
         flightGroup.flightplan.waypoints.length > 0
           ? flightGroup.flightplan.waypoints[flightGroup.flightplan.waypoints.length - 1]
@@ -84,11 +86,13 @@ function applyMissionStateUpdate(campaign: Campaign, missionState: MissionState)
         if (flightGroup.task === 'Transport') {
           const delivery = cargoDeliveries[flightGroup.callsign]
           if (!delivery) continue
-          if (flightGroup.cargoStatus === 'delivered' || flightGroup.cargoStatus === 'lost') continue
+          if (flightGroup.cargoStatus === 'delivered' || flightGroup.cargoStatus === 'lost')
+            continue
           if (!flightGroup.destinationNode || !flightGroup.cargoAmount) continue
           if (!isNearTransportDestination(flightGroup, delivery)) continue
 
-          const destinationSupplyNode = draft.coalitions[coalition].supplyNodes?.[flightGroup.destinationNode]
+          const destinationSupplyNode =
+            draft.coalitions[coalition].supplyNodes?.[flightGroup.destinationNode]
           if (destinationSupplyNode) {
             destinationSupplyNode.current += flightGroup.cargoAmount
           }

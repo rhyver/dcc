@@ -5,7 +5,9 @@ function listTheatres() {
 }
 
 function listScenarioSummaries() {
-  return scenarios.map((scenario) => `${scenario.name} (${scenario.theatreName}, ${scenario.era})`).join('; ')
+  return scenarios
+    .map((scenario) => `${scenario.name} (${scenario.theatreName}, ${scenario.era})`)
+    .join('; ')
 }
 
 function listTaskTypes() {

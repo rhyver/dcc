@@ -9,7 +9,14 @@ import { registerMissionGeneratorChatHandlers } from './api/mission-generator/ch
 
 let mainWindow: BrowserWindow | null = null
 const stateFile = join(app.getPath('userData'), 'state.json')
-const RESTORABLE_PATHS = new Set(['/', '/mission', '/new', '/load', '/settings', '/mission-generator'])
+const RESTORABLE_PATHS = new Set([
+  '/',
+  '/mission',
+  '/new',
+  '/load',
+  '/settings',
+  '/mission-generator'
+])
 
 async function getLastViewPath() {
   const file = await readFile(stateFile)

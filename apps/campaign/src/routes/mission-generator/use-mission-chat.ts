@@ -86,9 +86,7 @@ export function useMissionChat() {
       offError()
     }
 
-    window.api?.sendMissionGeneratorChat(
-      nextMessages.filter((m) => m.content.length > 0)
-    )
+    window.api?.sendMissionGeneratorChat(nextMessages.filter((m) => m.content.length > 0))
   }
 
   const generateMission = async () => {
@@ -101,7 +99,8 @@ export function useMissionChat() {
       })
       setGeneratedPath(result.path)
     } catch (generationError) {
-      const message = generationError instanceof Error ? generationError.message : 'Generation failed.'
+      const message =
+        generationError instanceof Error ? generationError.message : 'Generation failed.'
       setError(message)
     } finally {
       setIsGenerating(false)

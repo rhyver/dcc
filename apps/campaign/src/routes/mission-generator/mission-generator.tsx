@@ -27,7 +27,11 @@ export function MissionGenerator() {
         <div className="flex w-2/3 flex-col rounded-lg border border-synthwave-purple/40 bg-black/45 p-4 backdrop-blur-sm">
           <div className="mb-4 flex items-center justify-between">
             <h1 className="retro-font text-2xl text-synthwave-cyan">AI MISSION GENERATOR</h1>
-            <Button variant="ghost" onClick={() => navigate('/new')} className="text-synthwave-pink">
+            <Button
+              variant="ghost"
+              onClick={() => navigate('/new')}
+              className="text-synthwave-pink"
+            >
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back
             </Button>
@@ -68,7 +72,11 @@ export function MissionGenerator() {
             disabled={isStreaming || isGenerating || messages.length < 2}
             className="mt-4 bg-synthwave-pink text-white hover:bg-synthwave-pink/80"
           >
-            {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
+            {isGenerating ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <FileDown className="mr-2 h-4 w-4" />
+            )}
             {isGenerating ? 'Generating .miz...' : 'Generate Mission'}
           </Button>
         </div>

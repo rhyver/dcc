@@ -22,7 +22,9 @@ export function ChatMessage({ role, content, isStreaming }: ChatMessageProps) {
         </div>
         <div>
           {content}
-          {isStreaming && <span className="ml-1 inline-block h-4 w-2 animate-pulse bg-synthwave-cyan" />}
+          {isStreaming && (
+            <span className="ml-1 inline-block h-4 w-2 animate-pulse bg-synthwave-cyan" />
+          )}
         </div>
       </div>
     </div>

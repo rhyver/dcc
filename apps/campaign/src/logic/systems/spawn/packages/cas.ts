@@ -1,6 +1,9 @@
 import { config, schemas } from '@dcc/contracts'
 import * as z from 'zod'
-import { buildAttackMissionWaypoints, spawnPlannedFlightGroup } from '../../../entities/flight-group-spawn'
+import {
+  buildAttackMissionWaypoints,
+  spawnPlannedFlightGroup
+} from '../../../entities/flight-group-spawn'
 import { FlightGroupFactory } from '../../../entities/flight-group-factory'
 import { getObjectivePosition } from '@/logic/utils/get-objective-position'
 import {
@@ -59,9 +62,7 @@ export function spawnCas(
 
   const candidateGroundGroups = draft.coalitions[enemyCoalition].groundGroups.filter(
     (group) =>
-      group.state === 'idle' &&
-      group.objectiveId != null &&
-      !targetedGroundGroupIds.has(group.id)
+      group.state === 'idle' && group.objectiveId != null && !targetedGroundGroupIds.has(group.id)
   )
 
   if (candidateGroundGroups.length === 0) {

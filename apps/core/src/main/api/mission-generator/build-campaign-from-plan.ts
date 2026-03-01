@@ -82,7 +82,9 @@ function coerceTask(task: string): z.infer<typeof schemas.task> {
   return 'Ground Attack'
 }
 
-export function buildCampaignFromPlan(plan: MissionPlan): z.infer<typeof schemas.campaign.campaign> {
+export function buildCampaignFromPlan(
+  plan: MissionPlan
+): z.infer<typeof schemas.campaign.campaign> {
   const scenarios = getScenarios()
   const scenario = scenarios.find((entry) => entry.theatreName === plan.theatreName) ?? scenarios[0]
   if (scenario == null) {
@@ -111,7 +113,9 @@ export function buildCampaignFromPlan(plan: MissionPlan): z.infer<typeof schemas
   }
 
   const playerTemplate = templates.find((template) => template.name === playerFaction.templateName)
-  const opponentTemplate = templates.find((template) => template.name === opponentFaction.templateName)
+  const opponentTemplate = templates.find(
+    (template) => template.name === opponentFaction.templateName
+  )
   if (playerTemplate == null || opponentTemplate == null) {
     throw new Error('Unable to resolve faction templates for mission generation.')
   }
@@ -136,7 +140,7 @@ export function buildCampaignFromPlan(plan: MissionPlan): z.infer<typeof schemas
   const playerHomeBase =
     theatre.airdromeDetails[plan.playerCoalition.primaryFlight.homeAirbase] != null
       ? plan.playerCoalition.primaryFlight.homeAirbase
-      : playerAirdromes[0] ?? allAirdromes[0]
+      : (playerAirdromes[0] ?? allAirdromes[0])
   const opponentHomeBase = opponentAirdromes[0] ?? allAirdromes[1] ?? allAirdromes[0]
 
   if (!playerHomeBase || !opponentHomeBase) {
@@ -226,7 +230,9 @@ export function buildCampaignFromPlan(plan: MissionPlan): z.infer<typeof schemas
         alive: true
       }
     ]
-  } satisfies z.infer<typeof schemas.campaign.campaign>['coalitions']['opponent']['structures'][number]
+  } satisfies z.infer<
+    typeof schemas.campaign.campaign
+  >['coalitions']['opponent']['structures'][number]
 
   const missionPackage = {
     id: packageId,

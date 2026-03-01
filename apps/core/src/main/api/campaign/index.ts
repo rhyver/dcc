@@ -66,10 +66,7 @@ async function getState() {
   }
 }
 
-async function saveState(state: {
-  activeCampaignId?: string
-  settings?: AppSettings
-}) {
+async function saveState(state: { activeCampaignId?: string; settings?: AppSettings }) {
   const current = await getState()
   const result = await writeFile(stateFile, { ...current, ...state })
   if (result.isErr()) {

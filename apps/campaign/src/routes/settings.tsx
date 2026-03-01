@@ -190,8 +190,8 @@ export function Settings() {
                 </span>
               </label>
               <p className="text-xs text-gray-500">
-                When enabled, `sanitizeModule('io')` and `sanitizeModule('lfs')` are temporarily
-                disabled and restored on app exit.
+                When enabled, `sanitizeModule(&apos;io&apos;)` and `sanitizeModule(&apos;lfs&apos;)`
+                are temporarily disabled and restored on app exit.
               </p>
             </div>
 

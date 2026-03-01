@@ -17,6 +17,12 @@ const samPlacement = z.object({
   objectiveName: z.string()
 })
 
+const aaaPlacement = z.object({
+  aaaType: z.string().default('AAA'),
+  objectiveName: z.string(),
+  count: z.number().int().min(1).max(12).default(2)
+})
+
 export const missionPlan = z.object({
   title: z.string(),
   theatreName: z.string(),
@@ -31,7 +37,8 @@ export const missionPlan = z.object({
   opponentCoalition: z.object({
     factionId: z.string().default('russia-1996'),
     capFlights: z.array(coalitionFlight).default([]),
-    samPlacements: z.array(samPlacement).default([])
+    samPlacements: z.array(samPlacement).default([]),
+    aaaPlacements: z.array(aaaPlacement).default([])
   }),
   friendlySupport: z.object({
     awacs: z.boolean().default(false),

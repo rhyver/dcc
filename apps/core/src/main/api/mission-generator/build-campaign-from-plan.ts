@@ -49,6 +49,37 @@ function resolveAircraftType(params: {
   )
 }
 
+function normalizeLookupKey(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, '')
+}
+
+function resolveAaaUnitName(params: {
+  requestedAaaType: string
+  opponentGroundUnitTypes: z.infer<typeof schemas.template>['groundUnitTypes']
+}) {
+  const allCandidates = [
+    ...params.opponentGroundUnitTypes['Shorad Vehicle'],
+    ...params.opponentGroundUnitTypes['Shorad Infantry'],
+    ...params.opponentGroundUnitTypes.Vehicle,
+    ...params.opponentGroundUnitTypes.SAM
+  ]
+
+  const requested = params.requestedAaaType.trim()
+  const requestedKey = normalizeLookupKey(requested)
+  const fuzzyMatch = allCandidates.find((candidate) => {
+    const candidateKey = normalizeLookupKey(candidate)
+    return candidateKey === requestedKey || candidateKey.includes(requestedKey)
+  })
+
+  return (
+    fuzzyMatch ??
+    params.opponentGroundUnitTypes['Shorad Vehicle'][0] ??
+    params.opponentGroundUnitTypes['Shorad Infantry'][0] ??
+    params.opponentGroundUnitTypes.Vehicle[0] ??
+    params.opponentGroundUnitTypes.SAM[0]
+  )
+}
+
 function createFlightplan(params: {
   start: z.infer<typeof schemas.position>
   target: z.infer<typeof schemas.position>
@@ -312,6 +343,26 @@ export function buildCampaignFromPlan(
       objectiveId: placement.objectiveName
     }))
 
+  const aaaGroundGroups: z.infer<typeof schemas.groundGroup>[] = []
+  for (const placement of plan.opponentCoalition.aaaPlacements) {
+    const objective = objectiveMap.get(placement.objectiveName)
+    if (!objective) continue
+
+    const unitName = resolveAaaUnitName({
+      requestedAaaType: placement.aaaType,
+      opponentGroundUnitTypes: opponentTemplate.groundUnitTypes
+    })
+    if (!unitName) continue
+
+    aaaGroundGroups.push({
+      id: crypto.randomUUID(),
+      objectiveId: placement.objectiveName,
+      position: objective.position,
+      state: 'idle',
+      units: [{ name: unitName, count: placement.count }]
+    })
+  }
+
   const targetStructure = {
     id: playerFlightGroup.target?.id ?? crypto.randomUUID(),
     type: 'Ammo Depot',
@@ -375,7 +426,7 @@ export function buildCampaignFromPlan(
         objectiveIds: opponentObjectiveIds,
         structures: isStrikeMission ? [targetStructure] : [],
         samGroups,
-        groundGroups: casTargetGroundGroup ? [casTargetGroundGroup] : [],
+        groundGroups: [...aaaGroundGroups, ...(casTargetGroundGroup ? [casTargetGroundGroup] : [])],
         flightGroups: opponentCapFlights,
         packages: []
       }

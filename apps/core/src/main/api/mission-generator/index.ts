@@ -250,6 +250,20 @@ function detectExplicitAircraftRequest(text: string): string | null {
   return matched ?? null
 }
 
+function detectExplicitAaaRequest(text: string): string | null {
+  const normalized = text.toLowerCase()
+  if (normalized.includes('zsu-23-4') || normalized.includes('shilka')) {
+    return 'ZSU-23-4 Shilka'
+  }
+  if (normalized.includes('zu-23')) {
+    return 'ZU-23'
+  }
+  if (normalized.includes('aaa') || normalized.includes('anti-aircraft')) {
+    return 'AAA'
+  }
+  return null
+}
+
 function enforceMissionIntentFromConversation(
   missionPlan: MissionPlan,
   messages: MissionChatMessage[]
@@ -258,6 +272,7 @@ function enforceMissionIntentFromConversation(
     .filter((message) => message.role === 'user')
     .map((message) => message.content)
     .join('\n')
+  const fullConversationText = messages.map((message) => message.content).join('\n')
 
   if (userText.trim().length === 0) {
     return missionPlan
@@ -265,9 +280,23 @@ function enforceMissionIntentFromConversation(
 
   const explicitTask = detectExplicitTaskRequest(userText)
   const explicitAircraft = detectExplicitAircraftRequest(userText)
-  if (!explicitTask && !explicitAircraft) {
+  const explicitAaaType = detectExplicitAaaRequest(fullConversationText)
+  const hasAaaPlacements = missionPlan.opponentCoalition.aaaPlacements.length > 0
+  if (!explicitTask && !explicitAircraft && (!explicitAaaType || hasAaaPlacements)) {
     return missionPlan
   }
+
+  const fallbackObjectiveName = missionPlan.objectiveNames[0]
+  const derivedAaaPlacements =
+    explicitAaaType && !hasAaaPlacements && fallbackObjectiveName
+      ? [
+          {
+            aaaType: explicitAaaType,
+            objectiveName: fallbackObjectiveName,
+            count: 2
+          }
+        ]
+      : missionPlan.opponentCoalition.aaaPlacements
 
   return {
     ...missionPlan,
@@ -278,6 +307,10 @@ function enforceMissionIntentFromConversation(
         ...(explicitTask ? { task: explicitTask } : {}),
         ...(explicitAircraft ? { aircraftType: explicitAircraft } : {})
       }
+    },
+    opponentCoalition: {
+      ...missionPlan.opponentCoalition,
+      aaaPlacements: derivedAaaPlacements
     }
   }
 }
@@ -399,7 +432,8 @@ function buildFallbackMissionPlan(messages: MissionChatMessage[], modelText?: st
     opponentCoalition: {
       factionId: 'russia-1996',
       capFlights: [],
-      samPlacements: []
+      samPlacements: [],
+      aaaPlacements: []
     },
     friendlySupport: {
       awacs: detectSupportEnabled(combinedText, 'awacs'),

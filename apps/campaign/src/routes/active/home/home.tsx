@@ -1,9 +1,11 @@
 import { Info, Sun, Target, Wind, FastForward, Pause, Play } from 'lucide-react'
 import React from 'react'
+import * as ScrollAreaPrimitive from '@radix-ui/react-scroll-area'
 import { useSelector } from '@xstate/store/react'
 
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { ScrollBar } from '@/components/ui/scroll-area'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Map, type SelectedItem } from './map'
 import { activeStore } from '@/stores/active'
@@ -20,11 +22,11 @@ const campaignData = {
   objectives: ['Destroy the primary fuel depot', 'Disable the runway', 'Eliminate enemy air patrol']
 }
 
-const LOG_ROW_HEIGHT = 68
+const LOG_ROW_HEIGHT = 52
 const LOG_OVERSCAN = 6
 
 export function Home() {
-  const [mapZoom, setMapZoom] = React.useState(1)
+  const [mapZoom, setMapZoom] = React.useState(7)
   const [isBriefingOpen, setIsBriefingOpen] = React.useState(false)
   const [isLogOpen, setIsLogOpen] = React.useState(false)
   const [selectedItem, setSelectedItem] = React.useState<SelectedItem>(null)
@@ -90,7 +92,7 @@ export function Home() {
                 variant="outline"
                 size="sm"
                 className="h-8 w-8 border-synthwave-pink/30 bg-synthwave-dark/80 p-0 text-secondary backdrop-blur-md hover:bg-synthwave-pink/20"
-                onClick={() => setMapZoom(Math.min(2, mapZoom + 0.5))}
+                onClick={() => setMapZoom(Math.min(12, mapZoom + 1))}
               >
                 +
               </Button>
@@ -98,7 +100,7 @@ export function Home() {
                 variant="outline"
                 size="sm"
                 className="h-8 w-8 border-synthwave-pink/30 bg-synthwave-dark/80 p-0 text-secondary backdrop-blur-md hover:bg-synthwave-pink/20"
-                onClick={() => setMapZoom(Math.max(0.5, mapZoom - 0.5))}
+                onClick={() => setMapZoom(Math.max(3, mapZoom - 1))}
               >
                 -
               </Button>
@@ -140,7 +142,7 @@ export function Home() {
           {/* Horizon glow */}
           <div className="absolute bottom-0 left-0 right-0 h-[30vh] bg-linear-to-t from-synthwave-pink via-synthwave-purple to-transparent opacity-30" />
 
-          <Map selectedItem={selectedItem} onSelect={setSelectedItem} />
+          <Map selectedItem={selectedItem} onSelect={setSelectedItem} zoom={mapZoom} />
         </div>
       </div>
 
@@ -272,84 +274,88 @@ export function Home() {
                 Clear
               </Button>
             </div>
-            <div
-              ref={logViewportRef}
-              className="h-[190px] overflow-y-auto pr-2 text-xs"
-              onScroll={(event) => setLogScrollTop(event.currentTarget.scrollTop)}
-            >
-              {visibleLogs.length === 0 ? (
-                <div className="text-secondary/70">No actions logged yet.</div>
-              ) : (
-                <div style={{ height: totalLogHeight, position: 'relative' }}>
-                  {virtualLogs.map((entry, idx) => {
-                    const index = startIndex + idx
-                    return (
-                      <div
-                        key={entry.id}
-                        style={{
-                          position: 'absolute',
-                          left: 0,
-                          right: 0,
-                          top: index * LOG_ROW_HEIGHT
-                        }}
-                        className="pb-1"
-                      >
+            <ScrollAreaPrimitive.Root className="relative h-[190px] overflow-hidden text-xs">
+              <ScrollAreaPrimitive.Viewport
+                ref={logViewportRef}
+                className="focus-visible:ring-ring/50 size-full rounded-[inherit] pr-2 transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:outline-1"
+                onScroll={(event) => setLogScrollTop(event.currentTarget.scrollTop)}
+              >
+                {visibleLogs.length === 0 ? (
+                  <div className="text-secondary/70">No actions logged yet.</div>
+                ) : (
+                  <div style={{ height: totalLogHeight, position: 'relative' }}>
+                    {virtualLogs.map((entry, idx) => {
+                      const index = startIndex + idx
+                      return (
                         <div
-                          className={`rounded border px-2 py-1 ${
-                            entry.coalition === 'player'
-                              ? 'border-cyan-400/30 bg-cyan-950/25'
-                              : 'border-red-400/30 bg-red-950/25'
-                          } ${
-                            entry.entityId
-                              ? 'cursor-pointer hover:ring-1 hover:ring-synthwave-pink/40'
-                              : ''
-                          }`}
-                          onClick={() => handleLogItemClick(entry)}
-                          role={entry.entityId ? 'button' : undefined}
-                          tabIndex={entry.entityId ? 0 : undefined}
-                          onKeyDown={(event) => {
-                            if (!entry.entityId) return
-                            if (event.key === 'Enter' || event.key === ' ') {
-                              event.preventDefault()
-                              handleLogItemClick(entry)
-                            }
+                          key={entry.id}
+                          style={{
+                            position: 'absolute',
+                            left: 0,
+                            right: 0,
+                            top: index * LOG_ROW_HEIGHT
                           }}
+                          className="pb-0"
                         >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2">
-                              <span
-                                className={`uppercase tracking-wide ${
-                                  entry.type === 'combat' ? 'text-red-300' : 'text-cyan-300'
-                                }`}
-                              >
-                                {entry.type}
-                              </span>
-                              {entry.label && (
-                                <span className="text-[10px] text-secondary uppercase tracking-wide">
-                                  {entry.label}
-                                </span>
-                              )}
-                            </div>
-                            <span className="text-secondary/70">
-                              {new Date(entry.campaignTime).toLocaleTimeString()}
-                            </span>
-                          </div>
                           <div
-                            className={
+                            className={`rounded border px-2 py-1 ${
                               entry.coalition === 'player'
-                                ? 'mt-0.5 text-cyan-100'
-                                : 'mt-0.5 text-red-100'
-                            }
+                                ? 'border-cyan-400/30 bg-cyan-950/25'
+                                : 'border-red-400/30 bg-red-950/25'
+                            } ${
+                              entry.entityId
+                                ? 'cursor-pointer hover:ring-1 hover:ring-synthwave-pink/40'
+                                : ''
+                            }`}
+                            onClick={() => handleLogItemClick(entry)}
+                            role={entry.entityId ? 'button' : undefined}
+                            tabIndex={entry.entityId ? 0 : undefined}
+                            onKeyDown={(event) => {
+                              if (!entry.entityId) return
+                              if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault()
+                                handleLogItemClick(entry)
+                              }
+                            }}
                           >
-                            {entry.message}
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className={`uppercase tracking-wide ${
+                                    entry.type === 'combat' ? 'text-red-300' : 'text-cyan-300'
+                                  }`}
+                                >
+                                  {entry.type}
+                                </span>
+                                {entry.label && (
+                                  <span className="text-[10px] text-secondary uppercase tracking-wide">
+                                    {entry.label}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-secondary/70">
+                                {new Date(entry.campaignTime).toLocaleTimeString()}
+                              </span>
+                            </div>
+                            <div
+                              className={
+                                entry.coalition === 'player'
+                                  ? 'mt-0.5 text-cyan-100'
+                                  : 'mt-0.5 text-red-100'
+                              }
+                            >
+                              {entry.message}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </ScrollAreaPrimitive.Viewport>
+              <ScrollBar />
+              <ScrollAreaPrimitive.Corner />
+            </ScrollAreaPrimitive.Root>
           </Card>
         )}
       </div>

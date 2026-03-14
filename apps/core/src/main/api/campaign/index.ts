@@ -151,8 +151,13 @@ const saveActiveCampaign = pub.campaign.saveActiveCampaign.handler(async ({ erro
     })
   }
 
+  const campaignToSave = {
+    ...input,
+    timeMultiplier: 0
+  }
+
   const campaignPath = getCampaignPath(input.id)
-  const writeFileResult = await writeFile(campaignPath, input)
+  const writeFileResult = await writeFile(campaignPath, campaignToSave)
   return writeFileResult.match(
     () => undefined,
     (error) => {
@@ -226,10 +231,22 @@ const openCampaign = pub.campaign.openCampaign.handler(async ({ errors, input })
     throw errors.INVALID_APP_STATE({ data: { message: schemaParsedState.error.message } })
   }
 
+  const openedCampaign = {
+    ...schemaParsedState.value,
+    timeMultiplier: 0
+  }
+
+  const writeFileResult = await writeFile(campaignPath, openedCampaign)
+  if (writeFileResult.isErr()) {
+    throw errors.FAILED_TO_WRITE_FILE({
+      data: { path: campaignPath, message: writeFileResult.error.message }
+    })
+  }
+
   // Set this campaign as active
   await setActiveCampaignId(input.id)
 
-  return schemaParsedState.value
+  return openedCampaign
 })
 
 const deleteCampaign = pub.campaign.deleteCampaign.handler(async ({ errors, input }) => {

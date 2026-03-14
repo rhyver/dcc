@@ -191,13 +191,16 @@ const WaypointLabelMarker = memo(function WaypointLabelMarker({
 
 export function Map({
   selectedItem,
-  onSelect
+  onSelect,
+  zoom
 }: {
   selectedItem: SelectedItem
   onSelect: (item: SelectedItem) => void
+  zoom: number
 }) {
   const scenarioId = useSelector(activeStore, (state) => state.context.scenarioId)
   const mapRef = useRef<MapRef | null>(null)
+  const lastCenteredSelectionIdRef = useRef<string | null>(null)
 
   const scenarioQuery = useQuery(
     orpc.data.getScenario.queryOptions({
@@ -220,9 +223,9 @@ export function Map({
     return {
       longitude: latLng.lng,
       latitude: latLng.lat,
-      zoom: 7
+      zoom
     }
-  }, [theatreQuery.data])
+  }, [theatreQuery.data, zoom])
   const { mapItems, objectiveMarkers, frontline, flightGroups } = useMapItems()
 
   const liveSelectedItem = useMemo(() => {
@@ -253,13 +256,30 @@ export function Map({
   }, [liveSelectedItem, theatreQuery.data])
 
   useEffect(() => {
+    const selectedId = liveSelectedItem?.id ?? null
+    if (selectedId == null) {
+      lastCenteredSelectionIdRef.current = null
+      return
+    }
     if (!selectedCoordinates || !mapRef.current) return
+    if (lastCenteredSelectionIdRef.current === selectedId) return
+
+    lastCenteredSelectionIdRef.current = selectedId
     mapRef.current.flyTo({
       center: [selectedCoordinates.lng, selectedCoordinates.lat],
       duration: 700,
       essential: true
     })
-  }, [selectedCoordinates])
+  }, [liveSelectedItem?.id, selectedCoordinates])
+
+  useEffect(() => {
+    if (!mapRef.current) return
+    mapRef.current.flyTo({
+      zoom,
+      duration: 250,
+      essential: true
+    })
+  }, [zoom])
 
   // Generate GeoJSON for SAM range circles
   const samRangeGeoJson = useMemo(() => {

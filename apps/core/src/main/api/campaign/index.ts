@@ -139,7 +139,22 @@ const getActiveCampaign = pub.campaign.getActiveCampaign.handler(async ({ errors
   if (schemaParsedState.isErr()) {
     throw errors.INVALID_APP_STATE({ data: { message: schemaParsedState.error.message } })
   }
-  return schemaParsedState.value
+
+  const activeCampaign = {
+    ...schemaParsedState.value,
+    timeMultiplier: 0
+  }
+
+  if (schemaParsedState.value.timeMultiplier !== 0) {
+    const writeFileResult = await writeFile(campaignPath, activeCampaign)
+    if (writeFileResult.isErr()) {
+      throw errors.INVALID_APP_STATE({
+        data: { message: `Failed to normalize active campaign: ${writeFileResult.error.message}` }
+      })
+    }
+  }
+
+  return activeCampaign
 })
 
 const saveActiveCampaign = pub.campaign.saveActiveCampaign.handler(async ({ errors, input }) => {

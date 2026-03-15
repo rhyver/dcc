@@ -9,8 +9,19 @@ import {
 } from '@/components/ui/card'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { X, User } from 'lucide-react'
+import { useSelector } from '@xstate/store/react'
 import { activeStore } from '@/stores/active'
+import { calculateResourceGainPerLogicTick } from '@/logic/systems/update-resources'
 import { type SelectedItem } from './map'
+
+function formatInGameClock(date: Date) {
+  return new Intl.DateTimeFormat('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'UTC'
+  }).format(date)
+}
 
 export function DetailsCard({
   selectedItem,
@@ -19,6 +30,8 @@ export function DetailsCard({
   selectedItem: SelectedItem
   onClose: () => void
 }) {
+  const campaign = useSelector(activeStore, (state) => state.context)
+
   if (!selectedItem) return null
 
   const objectiveName =
@@ -54,6 +67,53 @@ export function DetailsCard({
       ? selectedItem.groundGroupType
       : selectedItem.name
     : defaultSubtitle
+  const resourceAmount =
+    'resources' in selectedItem && selectedItem.resources != null
+      ? Math.floor(selectedItem.resources as number)
+      : null
+  const spawnCostAmount =
+    'spawnCost' in selectedItem && selectedItem.spawnCost != null
+      ? Math.floor(selectedItem.spawnCost as number)
+      : null
+  const hasSpawnProgress = resourceAmount != null && spawnCostAmount != null && spawnCostAmount > 0
+  const spawnProgressPercent = hasSpawnProgress
+    ? Math.min(100, Math.max(0, (resourceAmount / spawnCostAmount) * 100))
+    : 0
+  const remainingToSpawn = hasSpawnProgress ? Math.max(0, spawnCostAmount - resourceAmount) : null
+
+  const selectedStructure =
+    'type' in selectedItem && selectedItem.type === 'Structure'
+      ? campaign.coalitions[selectedItem.coalition].structures.find(
+          (structure) => structure.id === selectedItem.id
+        ) ?? null
+      : null
+  const selectedStructureCoalition =
+    'type' in selectedItem && selectedItem.type === 'Structure' ? selectedItem.coalition : null
+
+  const gainPerInGameSecond =
+    selectedStructure != null && selectedStructureCoalition != null
+      ? calculateResourceGainPerLogicTick(
+          selectedStructure,
+          campaign.coalitions[selectedStructureCoalition].structures,
+          1
+        )
+      : 0
+
+  const estimatedSpawnInGameSeconds =
+    remainingToSpawn != null && remainingToSpawn > 0 && gainPerInGameSecond > 0
+      ? remainingToSpawn / gainPerInGameSecond
+      : null
+
+  const spawnEtaLabel =
+    remainingToSpawn == null
+      ? null
+      : remainingToSpawn <= 0
+        ? formatInGameClock(new Date(campaign.time))
+        : estimatedSpawnInGameSeconds == null
+          ? '--:--'
+          : formatInGameClock(
+              new Date(new Date(campaign.time).getTime() + estimatedSpawnInGameSeconds * 1000)
+            )
 
   return (
     <div className="absolute top-4 right-4 w-80 z-[1100]">
@@ -74,14 +134,6 @@ export function DetailsCard({
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-2 text-sm">
-            {'lat' in selectedItem.position && (
-              <>
-                <div className="text-secondary/70">Latitude</div>
-                <div>{(selectedItem.position as { lat: number }).lat.toFixed(4)}</div>
-                <div className="text-secondary/70">Longitude</div>
-                <div>{(selectedItem.position as { lng: number }).lng.toFixed(4)}</div>
-              </>
-            )}
             {'structureType' in selectedItem && (
               <>
                 <div className="text-secondary/70">Structure Type</div>
@@ -91,14 +143,32 @@ export function DetailsCard({
             {'resources' in selectedItem && selectedItem.resources != null && (
               <>
                 <div className="text-secondary/70">Resources</div>
-                <div>{Math.floor(selectedItem.resources as number)}</div>
+                <div>{resourceAmount}</div>
               </>
             )}
             {'spawnCost' in selectedItem && selectedItem.spawnCost != null && (
               <>
                 <div className="text-secondary/70">Needed to Spawn</div>
-                <div>{Math.floor(selectedItem.spawnCost as number)}</div>
+                <div>{spawnCostAmount}</div>
               </>
+            )}
+            {hasSpawnProgress && (
+              <div className="col-span-2 mt-1">
+                <div className="mb-1 flex items-center justify-between text-[10px] uppercase tracking-wide text-secondary/70">
+                  <span>Spawn Progress</span>
+                  <span>{Math.round(spawnProgressPercent)}%</span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-synthwave-pink/15 ring-1 ring-synthwave-pink/20">
+                  <div
+                    className="h-full bg-linear-to-r from-synthwave-cyan to-synthwave-pink transition-[width] duration-300"
+                    style={{ width: `${spawnProgressPercent}%` }}
+                  />
+                </div>
+                <div className="mt-1 flex items-center justify-between text-[10px] uppercase tracking-wide text-secondary/70">
+                  <span>Est. Spawn Time</span>
+                  <span>{spawnEtaLabel}</span>
+                </div>
+              </div>
             )}
             {objectiveName != null && (
               <>

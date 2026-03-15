@@ -7,6 +7,9 @@ import { INFANTRY_COST, VEHICLE_COST } from './ground-group-costs'
 import { logSpawnAction } from '@/logic/simulation-log'
 
 const MAX_SPAWNS_PER_TICK = 3
+const NM_TO_METERS = 1852
+const INFANTRY_MAX_TARGET_RANGE_METERS = 20 * NM_TO_METERS
+const VEHICLE_MAX_TARGET_RANGE_METERS = 40 * NM_TO_METERS
 
 export function spawnGroundGroups(
   draft: z.infer<typeof schemas.campaign.campaign>,
@@ -53,7 +56,8 @@ export function spawnGroundGroups(
           structure.position,
           enemyObjectiveIds,
           theatre,
-          reservedTargetObjectives
+          reservedTargetObjectives,
+          INFANTRY_MAX_TARGET_RANGE_METERS
         )
 
         const groundGroupId = GroundGroup.create(draft, coalition, {
@@ -89,7 +93,8 @@ export function spawnGroundGroups(
           structure.position,
           enemyObjectiveIds,
           theatre,
-          reservedTargetObjectives
+          reservedTargetObjectives,
+          VEHICLE_MAX_TARGET_RANGE_METERS
         )
 
         const groundGroupId = GroundGroup.create(draft, coalition, {
@@ -123,7 +128,8 @@ function findNearestEnemyObjective(
   position: z.infer<typeof schemas.position>,
   enemyObjectiveIds: string[],
   theatre: z.infer<typeof schemas.theatre>,
-  reservedTargetObjectives: ReadonlySet<string>
+  reservedTargetObjectives: ReadonlySet<string>,
+  maxTargetRangeMeters: number
 ): string | undefined {
   let nearestId: string | undefined
   let nearestDist = Infinity
@@ -135,6 +141,8 @@ function findNearestEnemyObjective(
     if (!objective) continue
 
     const dist = calculateDistance(position, objective.position)
+    if (dist > maxTargetRangeMeters) continue
+
     if (dist < nearestDist) {
       nearestDist = dist
       nearestId = objId

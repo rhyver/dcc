@@ -8,48 +8,68 @@ const BONUS_AMOUNT = 2
 const RESOURCE_GENERATION_FACTOR = 0.1
 const MAX_RESOURCE_STOCKPILE = 2000
 
+type ResourceGeneratingStructure = {
+  id: string
+  type: string
+  position: z.infer<typeof schemas.position>
+  buildings: Array<{ alive: boolean }>
+}
+
+export function calculateResourceGainPerLogicTick(
+  structure: ResourceGeneratingStructure,
+  structures: ResourceGeneratingStructure[],
+  timeMultiplier: number
+) {
+  // Only Barrack and Depot structures generate resources.
+  if (structure.type !== 'Barrack' && structure.type !== 'Depot') {
+    return 0
+  }
+
+  const aliveBuildings = structure.buildings.filter((building) => building.alive)
+  if (aliveBuildings.length === 0) {
+    return 0
+  }
+
+  let gain = RESOURCE_GAIN_RATE
+
+  // Apply nearby structure bonuses to the base gain.
+  for (const otherStructure of structures) {
+    if (otherStructure.id === structure.id) continue
+
+    const dist = calculateDistance(structure.position, otherStructure.position)
+    if (dist <= BONUS_RADIUS) {
+      const isBonusType = ['Power Plant', 'Command Center', 'Fuel Storage', 'Ammo Depot'].includes(
+        otherStructure.type
+      )
+      const hasAliveBuildings = otherStructure.buildings.some((b) => b.alive)
+
+      if (isBonusType && hasAliveBuildings) {
+        gain += BONUS_AMOUNT
+      }
+    }
+  }
+
+  const timeFactor = (1000 * timeMultiplier) / 10000
+  return gain * timeFactor * RESOURCE_GENERATION_FACTOR
+}
+
 export function updateResources(
   draft: z.infer<typeof schemas.campaign.campaign>,
   coalition: z.infer<typeof schemas.coalition>
 ) {
-  const timeFactor = (1000 * draft.timeMultiplier) / 10000
   const structures = draft.coalitions[coalition].structures
-  // Optimization: Pre-filter bonus structures or spatial index if needed.
-  // For now simple O(N^2) loop where N is small (structures) is fine.
 
   for (const structure of structures) {
-    // Only Barrack and Depot structures generate resources
-    if (structure.type !== 'Barrack' && structure.type !== 'Depot') continue
-
-    const aliveBuildings = structure.buildings.filter((building) => building.alive)
-    if (aliveBuildings.length === 0) continue
-
-    let gain = RESOURCE_GAIN_RATE
-
-    // Check for nearby bonus structures
-    for (const otherStructure of structures) {
-      if (otherStructure.id === structure.id) continue
-
-      const dist = calculateDistance(structure.position, otherStructure.position)
-      if (dist <= BONUS_RADIUS) {
-        // Check if it has relevant bonus structure types nearby
-        const isBonusType = [
-          'Power Plant',
-          'Command Center',
-          'Fuel Storage',
-          'Ammo Depot'
-        ].includes(otherStructure.type)
-        const hasAliveBuildings = otherStructure.buildings.some((b) => b.alive)
-
-        if (isBonusType && hasAliveBuildings) {
-          gain += BONUS_AMOUNT
-        }
-      }
-    }
+    const gainPerLogicTick = calculateResourceGainPerLogicTick(
+      structure,
+      structures,
+      draft.timeMultiplier
+    )
+    if (gainPerLogicTick <= 0) continue
 
     structure.resources = Math.min(
       MAX_RESOURCE_STOCKPILE,
-      (structure.resources || 0) + gain * timeFactor * RESOURCE_GENERATION_FACTOR
+      (structure.resources || 0) + gainPerLogicTick
     )
   }
 }

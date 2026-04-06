@@ -13,7 +13,6 @@ const INFANTRY_SPEED = 4 // m/s (~14 km/h)
 const VEHICLE_SPEED = 12 // m/s (~43 km/h)
 const CAPTURE_DISTANCE = 2000 // meters
 const BATTLE_RADIUS = 5000 // meters
-const CAPTURE_HOLD_MS = 60_000
 const BASE_ATTRITION_PER_SECOND = 0.4
 const DEFENDER_BONUS = 1.2
 
@@ -300,25 +299,6 @@ function resolveObjectiveBattle(
     }
   }
 
-  if (!nearestAttacker.captureStartedAt) {
-    nearestAttacker.captureStartedAt = nowIso
-    logCombatAction(draft, coalition, `Capture started at ${targetObjectiveId}`, undefined, {
-      entityType: 'groundGroup',
-      entityId: nearestAttacker.id
-    })
-    return
-  }
-
-  const captureStartedAt = Date.parse(nearestAttacker.captureStartedAt)
-  if (!Number.isFinite(captureStartedAt)) {
-    nearestAttacker.captureStartedAt = nowIso
-    return
-  }
-
-  if (draft.time.getTime() - captureStartedAt < CAPTURE_HOLD_MS) {
-    return
-  }
-
   const enemyObjectiveIndex = enemyObjectiveIds.indexOf(targetObjectiveId)
   if (enemyObjectiveIndex !== -1) {
     enemyObjectiveIds.splice(enemyObjectiveIndex, 1)
@@ -340,10 +320,7 @@ function resolveObjectiveBattle(
     (group) => !(group.objectiveId === targetObjectiveId && group.state === 'idle')
   )
 
-  draft.coalitions[coalition].groundGroups = draft.coalitions[coalition].groundGroups.filter(
-    (group) => group.id !== nearestAttacker.id
-  )
-
+  // All attackers targeting this objective become defenders (including the capturing group)
   for (const attacker of draft.coalitions[coalition].groundGroups) {
     if (attacker.targetObjectiveId !== targetObjectiveId) continue
     clearCombatState(attacker)

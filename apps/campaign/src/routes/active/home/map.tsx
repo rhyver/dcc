@@ -189,6 +189,58 @@ const WaypointLabelMarker = memo(function WaypointLabelMarker({
   )
 })
 
+const GroundGroupPathOverlay = memo(function GroundGroupPathOverlay({
+  groupPosition,
+  targetPosition,
+  theatreName
+}: {
+  groupPosition: { x: number; y: number }
+  targetPosition: { x: number; y: number }
+  theatreName: string
+}) {
+  const { current: map } = useMap()
+  const [path, setPath] = useState('')
+
+  useEffect(() => {
+    if (!map) return
+
+    const updatePath = () => {
+      const from = LOtoLL({ theatre: theatreName as 'Caucasus', x: groupPosition.x, z: groupPosition.y })
+      const to = LOtoLL({ theatre: theatreName as 'Caucasus', x: targetPosition.x, z: targetPosition.y })
+      const p1 = map.project([from.lng, from.lat])
+      const p2 = map.project([to.lng, to.lat])
+      setPath(`M ${p1.x},${p1.y} L ${p2.x},${p2.y}`)
+    }
+
+    updatePath()
+    map.on('move', updatePath)
+    map.on('zoom', updatePath)
+    map.on('rotate', updatePath)
+    map.on('resize', updatePath)
+
+    return () => {
+      map.off('move', updatePath)
+      map.off('zoom', updatePath)
+      map.off('rotate', updatePath)
+      map.off('resize', updatePath)
+    }
+  }, [map, groupPosition, targetPosition, theatreName])
+
+  return (
+    <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 5 }}>
+      <path
+        d={path}
+        stroke="var(--synthwave-pink)"
+        strokeWidth="3"
+        fill="none"
+        strokeDasharray="6 4"
+        strokeLinecap="round"
+        className="drop-shadow-[0_0_5px_var(--synthwave-pink)]"
+      />
+    </svg>
+  )
+})
+
 export function Map({
   selectedItem,
   onSelect,
@@ -235,6 +287,21 @@ export function Map({
     }
     return mapItems.find((item) => item.id === selectedItem.id) ?? selectedItem
   }, [selectedItem, flightGroups, mapItems])
+
+  const campaign = useSelector(activeStore, (state) => state.context)
+  const groundGroupPath = useMemo(() => {
+    if (!liveSelectedItem || !theatreQuery.data) return null
+    const id = liveSelectedItem.id
+    const group =
+      campaign.coalitions.player.groundGroups.find((g) => g.id === id) ??
+      campaign.coalitions.opponent.groundGroups.find((g) => g.id === id)
+    if (!group || !group.targetObjectiveId) return null
+    const targetObjective = theatreQuery.data.objectives.find(
+      (o) => o.name === group.targetObjectiveId
+    )
+    if (!targetObjective) return null
+    return { groupPosition: group.position, targetPosition: targetObjective.position }
+  }, [liveSelectedItem, campaign, theatreQuery.data])
 
   const selectedCoordinates = useMemo(() => {
     if (!liveSelectedItem || !theatreQuery.data) return null
@@ -319,6 +386,13 @@ export function Map({
         {liveSelectedItem && 'flightplan' in liveSelectedItem && theatreQuery.data && (
           <FlightPlanOverlay
             flightplan={liveSelectedItem.flightplan}
+            theatreName={theatreQuery.data.name}
+          />
+        )}
+        {groundGroupPath && theatreQuery.data && (
+          <GroundGroupPathOverlay
+            groupPosition={groundGroupPath.groupPosition}
+            targetPosition={groundGroupPath.targetPosition}
             theatreName={theatreQuery.data.name}
           />
         )}
@@ -412,7 +486,14 @@ export function Map({
           />
         ))}
       </MaplibreMap>
-      <DetailsCard selectedItem={liveSelectedItem} onClose={() => onSelect(null)} />
+      <DetailsCard
+        selectedItem={liveSelectedItem}
+        onClose={() => onSelect(null)}
+        onSelectObjective={(name) => {
+          const marker = objectiveMarkers.find((m) => m.name === name)
+          if (marker) onSelect(marker)
+        }}
+      />
     </div>
   )
 }

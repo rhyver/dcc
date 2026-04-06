@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@dcc/contracts": "workspace:*",
-    "zod": "^4.1.12"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@kilcekru/ts-basics": "^4.0.0",

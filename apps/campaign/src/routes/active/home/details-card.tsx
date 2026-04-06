@@ -25,10 +25,12 @@ function formatInGameClock(date: Date) {
 
 export function DetailsCard({
   selectedItem,
-  onClose
+  onClose,
+  onSelectObjective
 }: {
   selectedItem: SelectedItem
   onClose: () => void
+  onSelectObjective?: (objectiveName: string) => void
 }) {
   const campaign = useSelector(activeStore, (state) => state.context)
 
@@ -80,6 +82,15 @@ export function DetailsCard({
     ? Math.min(100, Math.max(0, (resourceAmount / spawnCostAmount) * 100))
     : 0
   const remainingToSpawn = hasSpawnProgress ? Math.max(0, spawnCostAmount - resourceAmount) : null
+
+  const selectedGroundGroup = (() => {
+    const id = selectedItem.id
+    return (
+      campaign.coalitions.player.groundGroups.find((g) => g.id === id) ??
+      campaign.coalitions.opponent.groundGroups.find((g) => g.id === id) ??
+      null
+    )
+  })()
 
   const selectedStructure =
     'type' in selectedItem && selectedItem.type === 'Structure'
@@ -173,7 +184,56 @@ export function DetailsCard({
             {objectiveName != null && (
               <>
                 <div className="text-secondary/70">Objective</div>
-                <div>{objectiveName}</div>
+                <div
+                  className="cursor-pointer hover:text-synthwave-cyan transition-colors"
+                  onClick={() => onSelectObjective?.(objectiveName)}
+                >
+                  {objectiveName}
+                </div>
+              </>
+            )}
+            {selectedGroundGroup && (
+              <>
+                <div className="text-secondary/70">Status</div>
+                <div
+                  className={
+                    selectedGroundGroup.state === 'combat'
+                      ? 'text-red-400'
+                      : selectedGroundGroup.state === 'moving'
+                        ? 'text-yellow-400'
+                        : 'text-green-400'
+                  }
+                >
+                  {selectedGroundGroup.state.charAt(0).toUpperCase() +
+                    selectedGroundGroup.state.slice(1)}
+                </div>
+                {selectedGroundGroup.targetObjectiveId && (
+                  <>
+                    <div className="text-secondary/70">Target</div>
+                    <div
+                      className="cursor-pointer hover:text-synthwave-cyan transition-colors"
+                      onClick={() => onSelectObjective?.(selectedGroundGroup.targetObjectiveId!)}
+                    >
+                      {selectedGroundGroup.targetObjectiveId}
+                    </div>
+                  </>
+                )}
+                <div className="col-span-2 mt-2">
+                  <div className="text-secondary/70 text-xs uppercase tracking-wide mb-1">
+                    Units ({selectedGroundGroup.units.reduce((sum, u) => sum + u.count, 0)})
+                  </div>
+                  <div className="space-y-1">
+                    {selectedGroundGroup.units.map((unit) => (
+                      <div
+                        key={unit.name}
+                        className="flex items-center justify-between text-xs"
+                      >
+                        <span className="truncate mr-2">{unit.name}</span>
+                        <span className="text-secondary/70 shrink-0">x{unit.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </>
             )}
             {'flightplan' in selectedItem && (

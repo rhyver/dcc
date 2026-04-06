@@ -2,6 +2,7 @@
   "name": "dcc-vite",
   "version": "1.0.0",
   "private": true,
+  "packageManager": "bun@1.2.12",
   "description": "An Electron application with React and TypeScript",
   "author": "example.com",
   "homepage": "https://electron-vite.org",
@@ -26,21 +27,22 @@
     "@electron-toolkit/utils": "^4.0.0",
     "@kilcekru/ts-basics": "^4.0.0",
     "babel-plugin-react-compiler": "^1.0.0",
-    "electron": "38.1.2",
-    "electron-builder": "^25.1.8",
+    "electron": "^41.1.1",
+    "electron-builder": "^26.8.1",
     "electron-store": "^11.0.2",
-    "electron-updater": "^6.3.9",
-    "electron-vite": "^4.0.1",
+    "electron-updater": "^6.8.3",
+    "electron-vite": "^5.0.0",
     "eslint": "^9.36.0",
     "prettier": "^3.6.2",
     "turbo": "^2.3.3",
     "typescript": "^5.9.2"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "electron",
-      "esbuild"
-    ]
-  },
-  "packageManager": "pnpm@10.26.1"
+  "trustedDependencies": [
+    "electron",
+    "esbuild"
+  ],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
 }

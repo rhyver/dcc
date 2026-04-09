@@ -29,8 +29,8 @@ export function ActiveFlightGroups({ selectedItem, onSelect }: ActiveFlightGroup
   )
 
   return (
-    <Card className="pointer-events-auto flex-1 overflow-hidden border-synthwave-pink/30 bg-synthwave-dark/80 text-synthwave-light shadow-[0_0_15px_rgba(255,0,170,0.3)] backdrop-blur-md flex flex-col min-h-0">
-      <CardHeader className="pb-2 border-b border-synthwave-pink/10">
+    <Card className="pointer-events-auto flex-1 overflow-hidden border-synthwave-pink/30 bg-synthwave-dark/80 text-synthwave-light shadow-[0_0_15px_rgba(255,0,170,0.3)] backdrop-blur-md flex flex-col min-h-0 gap-0 py-0">
+      <CardHeader className="py-2 border-b border-synthwave-pink/10">
         <CardTitle className="flex items-center gap-2 text-lg font-medium text-white">
           <Plane className="h-4 w-4 text-synthwave-pink" />
           <span className="retro-font">Flight Groups</span>

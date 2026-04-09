@@ -64,5 +64,6 @@ export const config = {
     Barrack: 50_000,
     Depot: 60_000,
     Farp: 50_000
-  }
+  },
+  farpExclusionRange: 40_000
 }

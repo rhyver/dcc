@@ -96,9 +96,13 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
     })
   }
 
-  const getStructures = (objectiveIds: string[]) => {
+  const getStructures = (objectiveIds: string[], airdromeNames: string[]) => {
     const coalitionObjectives = getObjectiveInfos(objectiveIds)
-    const assignments = assignStructures(coalitionObjectives)
+    const airbasePositions = airdromeNames
+      .map((name) => theatre.airdromeDetails[name])
+      .filter((details) => details != null)
+      .map((details) => ({ x: details.x, y: details.y }))
+    const assignments = assignStructures(coalitionObjectives, airbasePositions)
 
     return assignments.map((assignment) => {
       return {
@@ -134,8 +138,14 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
     })
   }
 
-  const playerStructures = getStructures(objectiveAssignments.player ?? [])
-  const opponentStructures = getStructures(objectiveAssignments.opponent ?? [])
+  const playerStructures = getStructures(
+    objectiveAssignments.player ?? [],
+    scenario.start.player.airdromeNames
+  )
+  const opponentStructures = getStructures(
+    objectiveAssignments.opponent ?? [],
+    scenario.start.opponent.airdromeNames
+  )
 
   // Assign SAM groups to both coalitions
   const playerObjectiveInfos = getObjectiveInfos(objectiveAssignments.player ?? [])

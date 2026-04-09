@@ -9,7 +9,8 @@
       "Bash(pnpm --filter @dcc/contracts lint:*)",
       "Bash(pnpm --filter @dcc/generate-miz lint:*)",
       "Bash(npx eslint:*)",
-      "Bash(pnpm --filter @dcc/campaign tsc:*)"
+      "Bash(pnpm --filter @dcc/campaign tsc:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

@@ -36,7 +36,10 @@ type StructureAssignment = {
   buildings: z.infer<typeof schemas.structureBuilding>[]
 }
 
-export function assignStructures(objectives: ObjectiveInfo[]): StructureAssignment[] {
+export function assignStructures(
+  objectives: ObjectiveInfo[],
+  airbasePositions: Position[] = []
+): StructureAssignment[] {
   // State tracking
   const assignments = new Map<
     string,
@@ -72,7 +75,25 @@ export function assignStructures(objectives: ObjectiveInfo[]): StructureAssignme
       let maxCoveredCount = -1
 
       // Consider candidates: objectives that don't have a structure assignment yet
-      const candidates = objectives.filter((obj) => !assignments.has(obj.id))
+      let candidates = objectives.filter((obj) => !assignments.has(obj.id))
+
+      // FARPs must not be within exclusion range of an airbase or another FARP
+      if (type === 'Farp') {
+        const exclusionRange = config.farpExclusionRange
+        const placedFarpPositions = Array.from(assignments.values())
+          .filter((a) => a.type === 'Farp')
+          .map((a) => a.position)
+
+        candidates = candidates.filter((candidate) => {
+          const tooCloseToAirbase = airbasePositions.some(
+            (ab) => getDistance(candidate.position, ab) < exclusionRange
+          )
+          const tooCloseToFarp = placedFarpPositions.some(
+            (fp) => getDistance(candidate.position, fp) < exclusionRange
+          )
+          return !tooCloseToAirbase && !tooCloseToFarp
+        })
+      }
 
       if (candidates.length === 0) {
         // No more spots to place structures. Cannot achieve full coverage.

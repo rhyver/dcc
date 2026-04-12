@@ -7,7 +7,6 @@ import {
   CardContent,
   CardAction
 } from '@/components/ui/card'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { X, User } from 'lucide-react'
 import { useSelector } from '@xstate/store/react'
 import { activeStore } from '@/stores/active'
@@ -248,32 +247,7 @@ export function DetailsCard({
                       Clients
                       <User className="h-3 w-3" />
                     </div>
-                    <div>
-                      <ToggleGroup
-                        type="single"
-                        variant="outline"
-                        size="sm"
-                        value={selectedItem.aircrafts.filter((a) => a.client).length.toString()}
-                        onValueChange={(val) => {
-                          if (!val) return
-                          activeStore.send({
-                            type: 'setFlightGroupClientCount',
-                            flightGroupId: selectedItem.id,
-                            count: parseInt(val)
-                          })
-                        }}
-                      >
-                        {Array.from({ length: selectedItem.aircrafts.length + 1 }).map((_, i) => (
-                          <ToggleGroupItem
-                            key={i}
-                            value={i.toString()}
-                            className="h-6 w-6 p-0 text-xs"
-                          >
-                            {i}
-                          </ToggleGroupItem>
-                        ))}
-                      </ToggleGroup>
-                    </div>
+                    <div>{selectedItem.aircrafts.filter((a) => a.client).length} / {selectedItem.aircrafts.length}</div>
                   </>
                 )}
               </>

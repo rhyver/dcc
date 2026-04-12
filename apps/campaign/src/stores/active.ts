@@ -11,7 +11,8 @@ const initialState: z.infer<typeof schemas.campaign.campaign> = {
   id: crypto.randomUUID(),
   version: '0.0.1',
   campaignParams: {
-    hotStart: false
+    hotStart: false,
+    culling: true
   },
   logs: [],
   scenarioId: 'red-bullet',
@@ -121,6 +122,13 @@ export const activeStore = createStore({
           draft.campaignParams = {}
         }
         draft.campaignParams.hotStart = hotStart
+      }),
+    setCulling: (context, { culling }: { culling: boolean }) =>
+      produce(context, (draft) => {
+        if (!draft.campaignParams) {
+          draft.campaignParams = {}
+        }
+        draft.campaignParams.culling = culling
       }),
 
     tick: (

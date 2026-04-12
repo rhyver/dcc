@@ -1,14 +1,23 @@
-import { Info, Sun, Target, Wind, FastForward, Pause, Play } from 'lucide-react'
+import { Info, Sun, Target, Wind, FastForward, Pause, Play, Menu, Save, FileOutput, FolderOpen, Home as HomeIcon } from 'lucide-react'
 import React from 'react'
 import * as ScrollAreaPrimitive from '@radix-ui/react-scroll-area'
 import { useSelector } from '@xstate/store/react'
+import { useNavigate } from 'react-router'
 
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ScrollBar } from '@/components/ui/scroll-area'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from '@/components/ui/dialog'
 import { Map, type SelectedItem } from './map'
 import { activeStore } from '@/stores/active'
+import { coreClient } from '@/lib/orpc'
 import { Clock } from './clock'
 import { ActiveFlightGroups } from './active-flight-groups'
 import { TakeoffButton } from './takeoff-button'
@@ -151,7 +160,10 @@ export function Home() {
         {/* Controls - Now at the top */}
         <Card className="pointer-events-auto border-synthwave-pink/30 bg-synthwave-dark/80 text-synthwave-light shadow-[0_0_15px_rgba(255,0,170,0.3)] backdrop-blur-md p-3">
           <div className="flex flex-col gap-2">
-            <div className="flex justify-center border-b border-synthwave-pink/10 pb-2">
+            <div className="relative flex items-center justify-center border-b border-synthwave-pink/10 pb-2">
+              <div className="absolute left-0">
+                <CampaignMenu />
+              </div>
               <Clock />
             </div>
             <div className="flex items-center justify-between gap-2">
@@ -360,5 +372,88 @@ export function Home() {
         )}
       </div>
     </div>
+  )
+}
+
+function CampaignMenu() {
+  const [open, setOpen] = React.useState(false)
+  const navigate = useNavigate()
+
+  const handleSave = async () => {
+    const snapshot = activeStore.getSnapshot().context
+    await coreClient.campaign.saveActiveCampaign({
+      ...snapshot,
+      timeMultiplier: 0
+    })
+    setOpen(false)
+  }
+
+  const handleExportMission = async () => {
+    await coreClient.campaign.generateMiz(activeStore.getSnapshot().context)
+    setOpen(false)
+  }
+
+  const handleReturnToStart = () => {
+    setOpen(false)
+    navigate('/new')
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 w-8 p-0 text-secondary hover:text-white hover:bg-synthwave-pink/10"
+        >
+          <Menu className="h-4 w-4" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent
+        className="border-synthwave-pink/30 bg-synthwave-dark/95 text-synthwave-light shadow-[0_0_30px_rgba(255,0,170,0.3)] backdrop-blur-md sm:max-w-sm"
+        showCloseButton={false}
+      >
+        <DialogHeader>
+          <DialogTitle className="retro-font text-sm uppercase text-primary">
+            Campaign Menu
+          </DialogTitle>
+        </DialogHeader>
+        <div className="flex flex-col gap-2">
+          <Button
+            variant="ghost"
+            className="w-full justify-start gap-3 text-secondary hover:text-white hover:bg-synthwave-pink/10"
+            onClick={handleSave}
+          >
+            <Save className="h-4 w-4 text-synthwave-pink" />
+            Save Campaign
+          </Button>
+          <Button
+            variant="ghost"
+            className="w-full justify-start gap-3 text-secondary hover:text-white hover:bg-synthwave-pink/10"
+            onClick={handleExportMission}
+          >
+            <FileOutput className="h-4 w-4 text-synthwave-pink" />
+            Export Mission
+          </Button>
+          <Button
+            variant="ghost"
+            className="w-full justify-start gap-3 text-secondary hover:text-white hover:bg-synthwave-pink/10"
+            onClick={() => { setOpen(false); navigate('/load') }}
+          >
+            <FolderOpen className="h-4 w-4 text-synthwave-pink" />
+            Open Campaign
+          </Button>
+          <div className="h-px bg-synthwave-pink/20" />
+          <Button
+            variant="ghost"
+            className="w-full justify-start gap-3 text-secondary hover:text-white hover:bg-synthwave-pink/10"
+            onClick={handleReturnToStart}
+          >
+            <HomeIcon className="h-4 w-4 text-synthwave-pink" />
+            Return to Start
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }

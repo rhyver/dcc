@@ -10,7 +10,7 @@ import * as z from 'zod'
 import { activeStore } from '@/stores/active'
 import { coreClient, orpc } from '@/lib/orpc'
 import { Button } from '@/components/ui/button'
-import { Toggle } from '@/components/ui/toggle'
+import { Switch } from '@/components/ui/switch'
 import { cn, getAircraftDisplayName } from '@/lib/utils'
 
 const KNOTS_PER_MS = 1.94384
@@ -119,10 +119,7 @@ export function Mission() {
   const campaignTime = useSelector(activeStore, (state) => state.context.time)
   const timeMultiplier = useSelector(activeStore, (state) => state.context.timeMultiplier)
   const hotStart = useSelector(activeStore, (state) => state.context.campaignParams?.hotStart)
-  const playerPackages = useSelector(
-    activeStore,
-    (state) => state.context.coalitions.player.packages
-  )
+  const culling = useSelector(activeStore, (state) => state.context.campaignParams?.culling ?? true)
   const playerFlightGroups = useSelector(
     activeStore,
     (state) => state.context.coalitions.player.flightGroups
@@ -139,16 +136,6 @@ export function Mission() {
       enabled: scenarioQuery.data != null
     })
   )
-
-  const activePackages = useMemo(
-    () => playerPackages.filter((pkg) => pkg.status === 'active'),
-    [playerPackages]
-  )
-  const missionPackages = activePackages.length > 0 ? activePackages : playerPackages
-  const objectivesByName = useMemo(() => {
-    if (!theatreQuery.data) return new Map<string, { name: string; type: string }>()
-    return new Map(theatreQuery.data.objectives.map((objective) => [objective.name, objective]))
-  }, [theatreQuery.data])
 
   const clientFlightGroups = useMemo(
     () => playerFlightGroups.filter((group) => group.aircrafts.some((ac) => ac.client)),
@@ -234,18 +221,7 @@ export function Mission() {
 
       <div className="relative z-10 p-6 h-screen flex flex-col gap-4">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-[10px] tracking-[0.3em] text-[#ff00aa]/60 uppercase">
-              Mission Control
-            </div>
-            <h1
-              className="text-3xl font-bold text-white"
-              style={{ fontFamily: 'system-ui', fontWeight: 800 }}
-            >
-              {scenario?.name ?? 'Active Mission'}
-            </h1>
-          </div>
+        <div className="flex flex-col items-start gap-3">
           <Button
             variant="outline"
             size="sm"
@@ -254,75 +230,122 @@ export function Mission() {
           >
             <ArrowLeft className="mr-2 h-4 w-4" /> Back
           </Button>
+          <h1
+            className="text-2xl font-bold tracking-[0.2em] text-[#ff00aa]/80 uppercase"
+            style={{ fontFamily: 'system-ui', fontWeight: 800 }}
+          >
+            Mission Control
+          </h1>
         </div>
 
         {/* Main Content */}
         <div className="flex-1 grid grid-cols-3 gap-4 min-h-0">
-          {/* Left Column - Status & Packages */}
+          {/* Left Column - Actions */}
           <div className="flex flex-col gap-4">
-            {/* Status Card */}
+            {/* Step-by-step guide */}
             <div className="border border-[#ff00aa]/30 bg-[#ff00aa]/5 rounded-lg p-4 backdrop-blur-sm shadow-[0_0_20px_rgba(255,0,170,0.2)]">
-              <div className="flex items-center gap-2 mb-3">
+              <div className="flex items-center gap-2 mb-4">
                 <Target className="h-4 w-4 text-[#ff00aa]" />
-                <span className="text-sm font-semibold text-white">Status</span>
+                <span className="text-sm font-semibold text-white">Mission Actions</span>
               </div>
-              <div className="text-2xl font-bold text-white mb-4">
-                {isGenerated ? '✓ Ready' : '○ Pending'}
-              </div>
-              <div className="flex items-center gap-2">
-                <Toggle
-                  pressed={!!hotStart}
-                  onPressedChange={(pressed) =>
-                    activeStore.send({ type: 'setHotStart', hotStart: pressed })
-                  }
-                  className={cn(
-                    'h-8 text-xs border border-[#ff00aa]/40',
-                    hotStart && 'bg-[#ff00aa]/20 text-white'
-                  )}
-                >
-                  Hot Start
-                </Toggle>
-                <button
-                  onClick={isGenerated ? handleSubmitMissionState : handleGenerate}
-                  disabled={isGenerating || isSubmitting}
-                  className="flex-1 h-8 text-sm font-medium bg-[#ff00aa] text-white rounded hover:bg-[#ff00aa]/80 disabled:opacity-50 transition-colors shadow-[0_0_15px_rgba(255,0,170,0.5)]"
-                >
-                  {isGenerating
-                    ? 'Generating...'
-                    : isSubmitting
-                      ? 'Submitting...'
-                      : isGenerated
-                        ? 'Submit Mission State'
-                        : 'Generate'}
-                </button>
-              </div>
-            </div>
 
-            {/* Packages */}
-            <div className="flex-1 border border-[#ff00aa]/30 bg-[#ff00aa]/5 rounded-lg p-4 backdrop-blur-sm min-h-0 flex flex-col">
-              <div className="text-[10px] tracking-[0.2em] text-[#ff00aa]/60 uppercase mb-2">
-                Packages
-              </div>
-              <div className="flex-1 overflow-auto space-y-2">
-                {missionPackages.map((pkg) => {
-                  const objective = objectivesByName.get(pkg.targetObjectiveId)
-                  return (
+              <div className="space-y-5">
+                {/* Step 1: Generate */}
+                <div className={cn('space-y-2', isGenerated && 'opacity-50')}>
+                  <div className="flex items-center gap-3">
                     <div
-                      key={pkg.id}
-                      className="border border-[#ff00aa]/20 rounded bg-[#ff00aa]/5 px-3 py-2"
+                      className={cn(
+                        'h-7 w-7 rounded-full border-2 text-xs flex items-center justify-center font-bold',
+                        isGenerated
+                          ? 'border-green-500/60 text-green-400'
+                          : 'border-[#ff00aa]/60 text-[#ff00aa]'
+                      )}
                     >
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-white">{pkg.type}</span>
-                        <span className="text-xs text-[#00ddff] tabular-nums">
-                          {formatTime(pkg.tot)}
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-white/50">
-                        {objective?.name ?? pkg.targetObjectiveId}
-                      </div>
+                      {isGenerated ? '\u2713' : '1'}
                     </div>
-                  )
-                })}
+                    <span className="text-sm font-medium text-white">Generate Mission File</span>
+                  </div>
+                  <p className="text-sm text-white/50 ml-10">
+                    Creates a .miz file from your campaign state. Open it in DCS to fly the mission.
+                  </p>
+                  {!isGenerated && (
+                    <div className="ml-10 space-y-3">
+                      <div className="border border-[#ff00aa]/20 rounded-lg bg-[#ff00aa]/5 p-3 flex items-center justify-between">
+                        <div>
+                          <div className="text-sm font-medium text-white">Hot Start</div>
+                          <div className="text-sm text-white/40">
+                            Skip startup — begin with engines running on the runway
+                          </div>
+                        </div>
+                        <Switch
+                          checked={!!hotStart}
+                          onCheckedChange={(checked) =>
+                            activeStore.send({ type: 'setHotStart', hotStart: checked })
+                          }
+                        />
+                      </div>
+                      <div className="border border-[#ff00aa]/20 rounded-lg bg-[#ff00aa]/5 p-3 flex items-center justify-between">
+                        <div>
+                          <div className="text-sm font-medium text-white">Culling</div>
+                          <div className="text-sm text-white/40">
+                            Remove distant units to improve performance
+                          </div>
+                        </div>
+                        <Switch
+                          checked={!!culling}
+                          onCheckedChange={(checked) =>
+                            activeStore.send({ type: 'setCulling', culling: checked })
+                          }
+                        />
+                      </div>
+                      <button
+                        onClick={handleGenerate}
+                        disabled={isGenerating}
+                        className="h-9 px-5 text-sm font-medium bg-[#ff00aa] text-white rounded hover:bg-[#ff00aa]/80 disabled:opacity-50 transition-colors shadow-[0_0_15px_rgba(255,0,170,0.5)]"
+                      >
+                        {isGenerating ? 'Generating...' : 'Generate'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Step 2: Fly in DCS */}
+                <div className={cn('space-y-2', (!isGenerated || isSubmitting) && 'opacity-50')}>
+                  <div className="flex items-center gap-3">
+                    <div className="h-7 w-7 rounded-full border-2 border-[#00ddff]/60 text-xs flex items-center justify-center font-bold text-[#00ddff]">
+                      2
+                    </div>
+                    <span className="text-sm font-medium text-white">Fly the Mission in DCS</span>
+                  </div>
+                  <p className="text-sm text-white/50 ml-10">
+                    Load the generated mission in DCS World and complete your objectives.
+                  </p>
+                </div>
+
+                {/* Step 3: Submit results */}
+                <div className={cn('space-y-2', !isGenerated && 'opacity-50')}>
+                  <div className="flex items-center gap-3">
+                    <div className="h-7 w-7 rounded-full border-2 border-[#9900ff]/60 text-xs flex items-center justify-center font-bold text-[#9900ff]">
+                      3
+                    </div>
+                    <span className="text-sm font-medium text-white">Submit Results</span>
+                  </div>
+                  <p className="text-sm text-white/50 ml-10">
+                    After flying, submit the mission results to advance the campaign. Losses and
+                    objectives will be updated.
+                  </p>
+                  {isGenerated && (
+                    <div className="ml-10">
+                      <button
+                        onClick={handleSubmitMissionState}
+                        disabled={isSubmitting}
+                        className="h-9 px-5 text-sm font-medium bg-[#9900ff] text-white rounded hover:bg-[#9900ff]/80 disabled:opacity-50 transition-colors shadow-[0_0_15px_rgba(153,0,255,0.5)]"
+                      >
+                        {isSubmitting ? 'Submitting...' : 'Submit Mission State'}
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -330,9 +353,9 @@ export function Mission() {
           {/* Center Column - Flight Groups */}
           <div className="border border-[#ff00aa]/30 bg-[#ff00aa]/5 rounded-lg p-4 backdrop-blur-sm min-h-0 flex flex-col">
             <div className="flex items-center gap-2 mb-3">
-              <Plane className="h-4 w-4 text-[#ff00aa]" />
+              <Plane className="h-5 w-5 text-[#ff00aa]" />
               <span className="text-sm font-semibold text-white">Client Flights</span>
-              <span className="text-xs text-white/40 ml-auto">
+              <span className="text-sm text-white/40 ml-auto">
                 {clientFlightGroups.length} groups
               </span>
             </div>
@@ -342,15 +365,15 @@ export function Mission() {
                 return (
                   <div
                     key={group.id}
-                    className="border border-[#9900ff]/30 rounded bg-[#9900ff]/10 px-3 py-2"
+                    className="border border-[#9900ff]/30 rounded bg-[#9900ff]/10 px-3 py-2.5"
                   >
                     <div className="flex justify-between items-center">
                       <span className="text-sm font-bold text-white">{group.callsign}</span>
-                      <span className="text-[10px] text-[#00ddff]">
+                      <span className="text-sm text-[#00ddff]">
                         {clientCount}/{group.aircrafts.length}
                       </span>
                     </div>
-                    <div className="flex gap-3 mt-1 text-[10px] text-white/50">
+                    <div className="flex gap-3 mt-1 text-sm text-white/50">
                       <span>
                         {group.aircrafts[0]
                           ? getAircraftDisplayName(group.aircrafts[0].aircraftName)
@@ -358,7 +381,7 @@ export function Mission() {
                       </span>
                       <span className="text-[#ff00aa]">{group.task}</span>
                     </div>
-                    <div className="text-[10px] text-white/40 mt-1">
+                    <div className="text-sm text-white/40 mt-1">
                       Start {formatTime(group.flightplan.startTime)}{' '}
                       {group.tot && `• ToT ${formatTime(group.tot)}`}
                     </div>
@@ -373,13 +396,13 @@ export function Mission() {
             {/* Time */}
             <div className="border border-[#00ddff]/30 bg-[#00ddff]/5 rounded-lg p-4 backdrop-blur-sm">
               <div className="flex items-center gap-2 mb-2">
-                <Clock className="h-4 w-4 text-[#00ddff]" />
+                <Clock className="h-5 w-5 text-[#00ddff]" />
                 <span className="text-sm font-semibold text-white">Mission Time</span>
               </div>
               <div className="text-4xl font-bold text-[#00ddff] tabular-nums">
                 {campaignTime ? formatTime(campaignTime) : '--:--'}
               </div>
-              <div className="flex justify-between mt-2 text-xs text-white/50">
+              <div className="flex justify-between mt-2 text-sm text-white/50">
                 <span>UTC</span>
                 <span className={timeMultiplier === 0 ? 'text-[#ff00aa]' : ''}>
                   x{timeMultiplier}
@@ -390,35 +413,35 @@ export function Mission() {
             {/* Weather */}
             <div className="flex-1 border border-[#9900ff]/30 bg-[#9900ff]/5 rounded-lg p-4 backdrop-blur-sm">
               <div className="flex items-center gap-2 mb-3">
-                <CloudSun className="h-4 w-4 text-[#9900ff]" />
+                <CloudSun className="h-5 w-5 text-[#9900ff]" />
                 <span className="text-sm font-semibold text-white">Weather</span>
               </div>
               {weather ? (
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <span className="flex items-center gap-2 text-xs text-white/50">
-                      <Sun className="h-3 w-3" /> Temp
+                    <span className="flex items-center gap-2 text-sm text-white/50">
+                      <Sun className="h-4 w-4" /> Temp
                     </span>
                     <span className="text-sm text-white">
                       {weather.temperature.mean.toFixed(0)}°C
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="flex items-center gap-2 text-xs text-white/50">
-                      <Wind className="h-3 w-3" /> Wind
+                    <span className="flex items-center gap-2 text-sm text-white/50">
+                      <Wind className="h-4 w-4" /> Wind
                     </span>
                     <span className="text-sm text-white">
                       {(weather.wind.speed * KNOTS_PER_MS).toFixed(0)} kt
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-xs text-white/50">Direction</span>
+                    <span className="text-sm text-white/50">Direction</span>
                     <span className="text-sm text-white">
                       {formatWindDirection(weather.wind.direction)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-xs text-white/50">Clouds</span>
+                    <span className="text-sm text-white/50">Clouds</span>
                     <span className="text-sm text-white">
                       {Math.round(
                         (weather.cloudCover.baseCloudCover + weather.cloudCover.seasonEffect) * 100
@@ -428,16 +451,16 @@ export function Mission() {
                   </div>
                 </div>
               ) : (
-                <div className="text-xs text-white/40">Loading...</div>
+                <div className="text-sm text-white/40">Loading...</div>
               )}
             </div>
 
             {/* Theatre Info */}
-            <div className="border border-[#ff00aa]/20 rounded-lg p-3 bg-black/30">
-              <div className="text-[10px] text-white/40 uppercase tracking-wider">Theatre</div>
-              <div className="text-sm text-white">{scenario?.theatreName ?? '—'}</div>
+            <div className="border border-[#ff00aa]/20 rounded-lg p-4 bg-black/30">
+              <div className="text-sm font-bold text-white">{scenario?.name ?? 'Active Mission'}</div>
+              <div className="text-sm text-white/40 mt-1">{scenario?.theatreName ?? '—'}</div>
               {scenario?.era && (
-                <div className="text-[10px] text-[#ff00aa]/60 mt-1">{scenario.era}</div>
+                <div className="text-sm text-[#ff00aa]/60 mt-1">{scenario.era}</div>
               )}
             </div>
           </div>

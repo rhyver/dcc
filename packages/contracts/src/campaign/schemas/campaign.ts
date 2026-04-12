@@ -87,7 +87,8 @@ export const campaign = z.object({
   timeTarget: z.date().optional(),
   campaignParams: z
     .object({
-      hotStart: z.boolean().optional()
+      hotStart: z.boolean().optional(),
+      culling: z.boolean().optional()
     })
     .optional(),
   logs: z.array(campaignLogEntry).default([]),

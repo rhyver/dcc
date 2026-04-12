@@ -85,179 +85,6 @@ function withHashPath(baseUrl: string, path: string) {
   return `${baseUrl}#${safePath}`
 }
 
-function createMenu() {
-  const isMac = process.platform === 'darwin'
-
-  const template: Electron.MenuItemConstructorOptions[] = [
-    ...(isMac
-      ? [
-          {
-            label: app.name,
-            submenu: [
-              { role: 'about' as const },
-              { type: 'separator' as const },
-              { role: 'services' as const },
-              { type: 'separator' as const },
-              { role: 'hide' as const },
-              { role: 'hideOthers' as const },
-              { role: 'unhide' as const },
-              { type: 'separator' as const },
-              { role: 'quit' as const }
-            ]
-          }
-        ]
-      : []),
-    {
-      label: 'File',
-      submenu: [
-        {
-          label: 'Save Campaign',
-          accelerator: 'CmdOrCtrl+S',
-          click: () => {
-            mainWindow?.webContents.send('menu-save-campaign')
-          }
-        },
-        {
-          label: 'Export Mission',
-          accelerator: 'CmdOrCtrl+E',
-          click: () => {
-            mainWindow?.webContents.send('menu-export-mission')
-          }
-        },
-        { type: 'separator' as const },
-        {
-          label: 'Open Campaign...',
-          accelerator: 'CmdOrCtrl+O',
-          click: () => {
-            mainWindow?.webContents.send('menu-open-campaign')
-          }
-        },
-        {
-          label: 'Return to Menu',
-          accelerator: 'CmdOrCtrl+H',
-          click: () => {
-            mainWindow?.webContents.send('menu-return-to-menu')
-          }
-        },
-        { type: 'separator' as const },
-        isMac ? { role: 'close' as const } : { role: 'quit' as const }
-      ]
-    },
-    {
-      label: 'Edit',
-      submenu: [
-        { role: 'undo' as const },
-        { role: 'redo' as const },
-        { type: 'separator' as const },
-        { role: 'cut' as const },
-        { role: 'copy' as const },
-        { role: 'paste' as const },
-        ...(isMac
-          ? [
-              { role: 'pasteAndMatchStyle' as const },
-              { role: 'delete' as const },
-              { role: 'selectAll' as const },
-              { type: 'separator' as const },
-              {
-                label: 'Speech',
-                submenu: [{ role: 'startSpeaking' as const }, { role: 'stopSpeaking' as const }]
-              }
-            ]
-          : [
-              { role: 'delete' as const },
-              { type: 'separator' as const },
-              { role: 'selectAll' as const }
-            ])
-      ]
-    },
-    {
-      label: 'View',
-      submenu: [
-        { role: 'reload' as const },
-        { role: 'forceReload' as const },
-        { role: 'toggleDevTools' as const },
-        { type: 'separator' as const },
-        { role: 'resetZoom' as const },
-        { role: 'zoomIn' as const },
-        { role: 'zoomOut' as const },
-        { type: 'separator' as const },
-        { role: 'togglefullscreen' as const }
-      ]
-    },
-    {
-      label: 'Developer',
-      submenu: [
-        {
-          label: 'Remove All Flight Groups',
-          click: () => {
-            mainWindow?.webContents.send('menu-remove-flight-groups')
-          }
-        },
-        {
-          label: 'Open Save File',
-          click: async () => {
-            const stateFile = join(app.getPath('userData'), 'state.json')
-            const fileResult = await readFile(stateFile)
-
-            if (fileResult.isErr()) {
-              return
-            }
-
-            const parsedState = parseJson(fileResult.value)
-
-            if (parsedState.isErr()) {
-              return
-            }
-
-            const state = parsedState.value as { activeCampaignId?: string }
-
-            if (!state.activeCampaignId) {
-              return
-            }
-
-            const campaignPath = join(
-              app.getPath('userData'),
-              'campaigns',
-              `${state.activeCampaignId}.json`
-            )
-
-            await shell.openPath(campaignPath)
-          }
-        }
-      ]
-    },
-    {
-      label: 'Window',
-      submenu: [
-        { role: 'minimize' as const },
-        { role: 'zoom' as const },
-        ...(isMac
-          ? [
-              { type: 'separator' as const },
-              { role: 'front' as const },
-              { type: 'separator' as const },
-              { role: 'window' as const }
-            ]
-          : [{ role: 'close' as const }])
-      ]
-    },
-    {
-      role: 'help' as const,
-      submenu: [
-        {
-          label: 'Learn More',
-          click: async () => {
-            await shell.openExternal('https://electronjs.org')
-          }
-        }
-      ]
-    }
-  ]
-
-  const menu = Menu.buildFromTemplate(template)
-  Menu.setApplicationMenu(menu)
-}
-
 async function createWindow(): Promise<void> {
   console.log('createWindow')
   // Create the browser window.
@@ -265,7 +92,7 @@ async function createWindow(): Promise<void> {
     width: 900,
     height: 670,
     show: false,
-    autoHideMenuBar: false,
+    autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -322,8 +149,8 @@ app.whenReady().then(() => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
 
-  // Create the application menu
-  createMenu()
+  // Remove the application menu bar
+  Menu.setApplicationMenu(null)
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.

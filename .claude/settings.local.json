@@ -10,7 +10,10 @@
       "Bash(pnpm --filter @dcc/generate-miz lint:*)",
       "Bash(npx eslint:*)",
       "Bash(pnpm --filter @dcc/campaign tsc:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(find:*)",
+      "Bash(npx shadcn@latest add dialog -y)",
+      "Bash(npx shadcn@latest add switch -y)"
     ]
   }
 }

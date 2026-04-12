@@ -19,7 +19,7 @@ const menuOptions: MenuOption[] = [
   { id: 'loadCampaign', label: 'LOAD CAMPAIGN', icon: FolderOpen },
   { id: 'quickMission', label: 'AI MISSION GENERATOR', icon: Sparkles },
   { id: 'settings', label: 'SETTINGS', icon: Settings },
-  { id: 'exit', label: 'EXIT', icon: LogOut, disabled: true }
+  { id: 'exit', label: 'EXIT', icon: LogOut }
 ]
 
 export function New() {
@@ -101,6 +101,8 @@ export function New() {
                       navigate('/settings')
                     } else if (option.id === 'quickMission') {
                       navigate('/mission-generator')
+                    } else if (option.id === 'exit') {
+                      window.close()
                     }
                   }, 200)
                 }}

@@ -34,7 +34,7 @@
     "electron-vite": "^5.0.0",
     "eslint": "^9.36.0",
     "prettier": "^3.6.2",
-    "turbo": "^2.3.3",
+    "turbo": "^2.9.6",
     "typescript": "^5.9.2"
   },
   "trustedDependencies": [

@@ -1,7 +1,7 @@
 import { pub } from '../orpc'
 import { app } from 'electron'
 import path from 'path'
-import { existsSync } from 'fs'
+import { existsSync, promises as fs } from 'fs'
 import { schemas } from '@dcc/contracts'
 import {
   neverthrowParse,
@@ -362,7 +362,43 @@ export const loadMissionState = pub.campaign.loadMissionState.handler(async ({ e
     throw errors.INVALID_STATE_FILE({ data: { message: schemaParsedState.error.message } })
   }
 
-  return schemaParsedState.value
+  const missionState = schemaParsedState.value
+
+  // Validate the state file belongs to the active campaign
+  const activeCampaignId = await getActiveCampaignId()
+  if (!activeCampaignId) {
+    throw errors.MISSION_ID_MISMATCH({
+      data: { expected: '(no active campaign)', received: missionState.missionId }
+    })
+  }
+  if (missionState.missionId !== activeCampaignId) {
+    throw errors.MISSION_ID_MISMATCH({
+      data: { expected: activeCampaignId, received: missionState.missionId }
+    })
+  }
+
+  // Validate the state file is newer than the campaign file to prevent re-submitting old results
+  const campaignPath = getCampaignPath(activeCampaignId)
+  try {
+    const [stateStat, campaignStat] = await Promise.all([
+      fs.stat(filePath),
+      fs.stat(campaignPath)
+    ])
+    if (stateStat.mtimeMs < campaignStat.mtimeMs) {
+      throw errors.STALE_STATE_FILE({
+        data: {
+          message: `State file is older than the campaign file. The state file was last modified at ${stateStat.mtime.toISOString()}, but the campaign was saved at ${campaignStat.mtime.toISOString()}. Please fly a new mission and try again.`
+        }
+      })
+    }
+  } catch (error) {
+    // Re-throw our own errors, ignore filesystem errors (e.g. campaign file missing)
+    if (error && typeof error === 'object' && 'defined' in error) {
+      throw error
+    }
+  }
+
+  return missionState
 })
 
 export const campaign = {

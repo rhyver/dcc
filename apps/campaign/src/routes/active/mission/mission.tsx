@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSelector } from '@xstate/store/react'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, Clock, CloudSun, Plane, Sun, Target, Wind } from 'lucide-react'
+import { ArrowLeft, Clock, CloudSun, Plane, Sun, Target, Wind, X } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { produce } from 'immer'
 import { schemas } from '@dcc/contracts'
@@ -109,12 +109,112 @@ function applyMissionStateUpdate(campaign: Campaign, missionState: MissionState)
   })
 }
 
+type ZodIssue = {
+  path?: Array<string | number>
+  message?: string
+  expected?: string
+  code?: string
+}
+
+function formatZodIssues(raw: string): string | null {
+  try {
+    const parsed = JSON.parse(raw) as ZodIssue[]
+    if (!Array.isArray(parsed)) return null
+    return parsed
+      .map((issue) => {
+        const path = Array.isArray(issue.path) && issue.path.length > 0
+          ? issue.path.join('.')
+          : '(root)'
+        return `• ${path}: ${issue.message ?? issue.code ?? 'invalid'}`
+      })
+      .join('\n')
+  } catch {
+    return null
+  }
+}
+
+function buildErrorToast(error: unknown): {
+  title: string
+  message: string
+  details?: string
+  tone: 'error'
+} {
+  if (error && typeof error === 'object' && 'code' in error) {
+    const orpcError = error as {
+      code: string
+      message?: string
+      data?: {
+        message?: string
+        path?: string
+        expected?: string
+        received?: string
+      }
+    }
+
+    if (orpcError.code === 'MISSION_ID_MISMATCH') {
+      return {
+        title: 'Mission ID Mismatch',
+        message: 'The state file belongs to a different campaign.',
+        details: `Expected: ${orpcError.data?.expected}\nReceived: ${orpcError.data?.received}`,
+        tone: 'error'
+      }
+    }
+
+    if (orpcError.code === 'STALE_STATE_FILE') {
+      return {
+        title: 'Stale State File',
+        message: 'The state file is older than the campaign file.',
+        details: orpcError.data?.message,
+        tone: 'error'
+      }
+    }
+
+    if (orpcError.code === 'INVALID_STATE_FILE') {
+      const raw = orpcError.data?.message ?? orpcError.message ?? ''
+      const formatted = formatZodIssues(raw)
+      return {
+        title: 'Invalid State File',
+        message: 'The mission state file could not be validated.',
+        details: formatted ?? raw,
+        tone: 'error'
+      }
+    }
+
+    if (orpcError.code === 'FAILED_TO_READ_FILE') {
+      return {
+        title: 'State File Not Found',
+        message: orpcError.data?.message ?? 'Could not read the state file.',
+        details: orpcError.data?.path,
+        tone: 'error'
+      }
+    }
+
+    return {
+      title: orpcError.code,
+      message: orpcError.message ?? 'Mission state submission failed.',
+      details: orpcError.data?.message,
+      tone: 'error'
+    }
+  }
+
+  return {
+    title: 'Submission Failed',
+    message: error instanceof Error ? error.message : 'Mission state submission failed. Please try again.',
+    tone: 'error'
+  }
+}
+
 export function Mission() {
   const navigate = useNavigate()
   const [isGenerating, setIsGenerating] = useState(false)
   const [isGenerated, setIsGenerated] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [toast, setToast] = useState<{ message: string; tone: 'error' } | null>(null)
+  const [toast, setToast] = useState<{
+    title: string
+    message: string
+    details?: string
+    tone: 'error'
+  } | null>(null)
   const scenarioId = useSelector(activeStore, (state) => state.context.scenarioId)
   const campaignTime = useSelector(activeStore, (state) => state.context.time)
   const timeMultiplier = useSelector(activeStore, (state) => state.context.timeMultiplier)
@@ -163,9 +263,14 @@ export function Mission() {
       return
     }
 
+    // Keep detailed error toasts open until dismissed manually
+    if (toast.details) {
+      return
+    }
+
     const timeout = window.setTimeout(() => {
       setToast(null)
-    }, 4000)
+    }, 6000)
 
     return () => window.clearTimeout(timeout)
   }, [toast])
@@ -176,25 +281,13 @@ export function Mission() {
     try {
       const missionState = await coreClient.campaign.loadMissionState()
       const currentCampaign = activeStore.getSnapshot().context
-
-      if (missionState.missionId !== currentCampaign.id) {
-        const message = `Mission state mismatch. Expected ${currentCampaign.id}, got ${missionState.missionId}.`
-        console.error(message)
-        setToast({ message, tone: 'error' })
-        return
-      }
-
       const updatedCampaign = applyMissionStateUpdate(currentCampaign, missionState)
       activeStore.send({ type: 'loadCampaign', campaign: updatedCampaign })
       await coreClient.campaign.saveActiveCampaign(updatedCampaign)
       navigate('/')
     } catch (error) {
       console.error('Failed to submit mission state', error)
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Mission state submission failed. Please try again.'
-      setToast({ message, tone: 'error' })
+      setToast(buildErrorToast(error))
     } finally {
       setIsSubmitting(false)
     }
@@ -203,8 +296,27 @@ export function Mission() {
   return (
     <div className="min-h-screen bg-[#0b0014]">
       {toast && (
-        <div className="fixed right-6 top-6 z-50 rounded border border-red-500/40 bg-red-950/80 px-4 py-2 text-sm text-red-100 shadow-[0_0_20px_rgba(255,0,0,0.25)] backdrop-blur">
-          {toast.message}
+        <div className="fixed right-6 top-6 z-50 w-[min(560px,calc(100vw-3rem))] rounded-lg border border-red-500/40 bg-red-950/90 text-red-100 shadow-[0_0_30px_rgba(255,0,0,0.35)] backdrop-blur">
+          <div className="flex items-start justify-between gap-3 border-b border-red-500/30 px-4 py-3">
+            <div className="text-sm font-semibold uppercase tracking-wider text-red-200">
+              {toast.title}
+            </div>
+            <button
+              onClick={() => setToast(null)}
+              className="text-red-300 hover:text-red-100 transition-colors"
+              aria-label="Dismiss"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="px-4 py-3 space-y-2">
+            <div className="text-sm text-red-50">{toast.message}</div>
+            {toast.details && (
+              <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded border border-red-500/20 bg-black/40 px-3 py-2 text-xs leading-relaxed text-red-100/80 font-mono">
+                {toast.details}
+              </pre>
+            )}
+          </div>
         </div>
       )}
       {/* Grid background */}

@@ -16,19 +16,23 @@ const missionStateGroup = z.object({
   units: z.array(missionStateUnit).default([])
 })
 
+const coalitionPositions = z
+  .object({
+    aircraft: z.array(missionStateGroup).default([]),
+    ground: z.array(missionStateGroup).default([])
+  })
+  .default({ aircraft: [], ground: [] })
+
+// Lua JSON encoders may encode empty tables as [] instead of {}.
+// Use a preprocess step to normalize arrays to the expected object shape.
+const coalitionPositionsLenient = z.preprocess(
+  (val) => (Array.isArray(val) ? { aircraft: [], ground: [] } : val),
+  coalitionPositions
+)
+
 const missionStateGroupPositions = z.object({
-  blue: z
-    .object({
-      aircraft: z.array(missionStateGroup).default([]),
-      ground: z.array(missionStateGroup).default([])
-    })
-    .default({ aircraft: [], ground: [] }),
-  red: z
-    .object({
-      aircraft: z.array(missionStateGroup).default([]),
-      ground: z.array(missionStateGroup).default([])
-    })
-    .default({ aircraft: [], ground: [] })
+  blue: coalitionPositionsLenient,
+  red: coalitionPositionsLenient
 })
 
 export const missionState = z
@@ -50,7 +54,7 @@ export const missionState = z
         z.object({
           name: z.string(),
           groupName: z.string().nullable().optional(),
-          type: z.string(),
+          type: z.string().default('unknown'),
           category: z.number().optional(),
           x: z.number(),
           y: z.number()

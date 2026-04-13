@@ -270,7 +270,7 @@ function ev:onEvent(event)
         missionState.lostUnits[#missionState.lostUnits + 1] = {
             name = name,
             groupName = groupName,
-            type = initiator:getTypeName(),
+            type = initiator:getTypeName() or "unknown",
             category = category,
             x = position.x,
             y = position.z

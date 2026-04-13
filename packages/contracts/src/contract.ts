@@ -87,6 +87,17 @@ const loadMissionState = base
       data: z.object({
         message: z.string()
       })
+    },
+    MISSION_ID_MISMATCH: {
+      data: z.object({
+        expected: z.string(),
+        received: z.string()
+      })
+    },
+    STALE_STATE_FILE: {
+      data: z.object({
+        message: z.string()
+      })
     }
   })
   .output(schemas.missionState)

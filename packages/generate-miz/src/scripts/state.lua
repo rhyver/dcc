@@ -1,6 +1,84 @@
 local logName = 'DCC.STATE'
 local function debugLog(message) log.write(logName, log.INFO, tostring(message)) end
 
+local function isArray(value)
+    if type(value) ~= 'table' then
+        return false
+    end
+
+    local maxIndex = 0
+    for key, _ in pairs(value) do
+        if type(key) ~= 'number' or key < 1 or key % 1 ~= 0 then
+            return false
+        end
+        if key > maxIndex then
+            maxIndex = key
+        end
+    end
+
+    for index = 1, maxIndex do
+        if value[index] == nil then
+            return false
+        end
+    end
+
+    return true
+end
+
+local function encodeJsonString(value)
+    return '"' .. value
+        :gsub('\\', '\\\\')
+        :gsub('"', '\\"')
+        :gsub('\b', '\\b')
+        :gsub('\f', '\\f')
+        :gsub('\n', '\\n')
+        :gsub('\r', '\\r')
+        :gsub('\t', '\\t')
+        .. '"'
+end
+
+local function encodeJsonValue(value)
+    local valueType = type(value)
+
+    if valueType == 'nil' then
+        return 'null'
+    end
+
+    if valueType == 'boolean' or valueType == 'number' then
+        return tostring(value)
+    end
+
+    if valueType == 'string' then
+        return encodeJsonString(value)
+    end
+
+    if valueType == 'table' then
+        local parts = {}
+
+        if isArray(value) then
+            for index = 1, #value do
+                parts[#parts + 1] = encodeJsonValue(value[index])
+            end
+            return '[' .. table.concat(parts, ',') .. ']'
+        end
+
+        for key, nestedValue in pairs(value) do
+            parts[#parts + 1] = encodeJsonString(tostring(key)) .. ':' .. encodeJsonValue(nestedValue)
+        end
+        return '{' .. table.concat(parts, ',') .. '}'
+    end
+
+    return 'null'
+end
+
+local function encodeMissionState(value)
+    if json and json.encode then
+        return json:encode(value)
+    end
+
+    return encodeJsonValue(value)
+end
+
 local missionState = {
     missionId = config.missionId,
     missionEnded = false,
@@ -224,7 +302,7 @@ local function export()
     if io and filePath then
         local fp = io.open(filePath, 'w')
         if fp then
-            fp:write(json:encode(missionState))
+            fp:write(encodeMissionState(missionState))
             fp:close()
             debugLog('State exported successfully')
         end

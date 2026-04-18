@@ -17,6 +17,20 @@ type AppState = {
   }
 }
 
+type PersistenceSettings = {
+  dcsInstallPath: string | null
+  enableDcsPersistence: boolean
+}
+
+type PersistenceSettingsInput =
+  | AppState['settings']
+  | PersistenceSettings
+  | {
+      dcsInstallPath?: string | null
+      enableDcsPersistence?: boolean
+    }
+  | null
+
 const DEFAULT_ENABLE_DCS_PERSISTENCE = true
 
 let restoreRegistered = false
@@ -79,35 +93,31 @@ function findMissionScriptingPath(settingsInstallPath: string | null) {
   return null
 }
 
-function readPersistenceSettingsFromState(stateFilePath: string): {
-  dcsInstallPath: string | null
-  enableDcsPersistence: boolean
-} {
+function normalizePersistenceSettings(settings?: PersistenceSettingsInput): PersistenceSettings {
+  const dcsInstallPath = settings?.dcsInstallPath
+  const enableDcsPersistence = settings?.enableDcsPersistence
+
+  return {
+    dcsInstallPath:
+      typeof dcsInstallPath === 'string' && dcsInstallPath.length > 0 ? dcsInstallPath : null,
+    enableDcsPersistence:
+      typeof enableDcsPersistence === 'boolean'
+        ? enableDcsPersistence
+        : DEFAULT_ENABLE_DCS_PERSISTENCE
+  }
+}
+
+function readPersistenceSettingsFromState(stateFilePath: string): PersistenceSettings {
   if (!fs.existsSync(stateFilePath)) {
-    return {
-      dcsInstallPath: null,
-      enableDcsPersistence: DEFAULT_ENABLE_DCS_PERSISTENCE
-    }
+    return normalizePersistenceSettings()
   }
 
   try {
     const rawState = fs.readFileSync(stateFilePath, 'utf-8')
     const parsedState = superjson.parse(rawState) as AppState
-    const dcsInstallPath = parsedState.settings?.dcsInstallPath
-    const enableDcsPersistence = parsedState.settings?.enableDcsPersistence
-    return {
-      dcsInstallPath:
-        typeof dcsInstallPath === 'string' && dcsInstallPath.length > 0 ? dcsInstallPath : null,
-      enableDcsPersistence:
-        typeof enableDcsPersistence === 'boolean'
-          ? enableDcsPersistence
-          : DEFAULT_ENABLE_DCS_PERSISTENCE
-    }
+    return normalizePersistenceSettings(parsedState.settings)
   } catch {
-    return {
-      dcsInstallPath: null,
-      enableDcsPersistence: DEFAULT_ENABLE_DCS_PERSISTENCE
-    }
+    return normalizePersistenceSettings()
   }
 }
 
@@ -166,20 +176,17 @@ function registerRestoreHook() {
   app.on('will-quit', () => restoreMissionScripting())
 }
 
-export function enableDcsPersistenceForAppRuntime() {
-  // If the previous run ended unexpectedly, revert first.
-  restoreMissionScripting()
-
-  const stateFilePath = path.join(app.getPath('userData'), 'state.json')
-  const settings = readPersistenceSettingsFromState(stateFilePath)
-
+export function syncDcsPersistenceForAppRuntime(input?: PersistenceSettingsInput) {
+  const settings = normalizePersistenceSettings(input)
   if (!settings.enableDcsPersistence) {
+    restoreMissionScripting()
     console.log('DCS persistence is disabled in settings.')
     return
   }
 
   const missionScriptingPath = findMissionScriptingPath(settings.dcsInstallPath)
   if (!missionScriptingPath) {
+    restoreMissionScripting()
     console.warn(
       'MissionScripting.lua not found. Configure DCS Install Path in settings or set DCS_INSTALL_PATH.'
     )
@@ -189,13 +196,23 @@ export function enableDcsPersistenceForAppRuntime() {
   const { backupPath, backupMetaPath } = getBackupPaths()
 
   try {
+    const activeBackup = readBackupMeta(backupMetaPath)
+    const isAlreadyManagingTarget =
+      activeBackup?.missionScriptingPath === missionScriptingPath && fs.existsSync(backupPath)
+
+    if (!isAlreadyManagingTarget && (activeBackup || fs.existsSync(backupPath))) {
+      restoreMissionScripting()
+    }
+
     const currentContent = fs.readFileSync(missionScriptingPath, 'utf-8')
-    fs.writeFileSync(backupPath, currentContent, 'utf-8')
-    fs.writeFileSync(
-      backupMetaPath,
-      JSON.stringify({ missionScriptingPath } satisfies BackupMeta),
-      'utf-8'
-    )
+    if (!isAlreadyManagingTarget) {
+      fs.writeFileSync(backupPath, currentContent, 'utf-8')
+      fs.writeFileSync(
+        backupMetaPath,
+        JSON.stringify({ missionScriptingPath } satisfies BackupMeta),
+        'utf-8'
+      )
+    }
 
     const patchedContent = enablePersistenceInMissionScripting(currentContent)
     if (patchedContent !== currentContent) {
@@ -207,4 +224,13 @@ export function enableDcsPersistenceForAppRuntime() {
     console.error('Failed to enable DCS persistence:', error)
     restoreMissionScripting()
   }
+}
+
+export function enableDcsPersistenceForAppRuntime() {
+  // If the previous run ended unexpectedly, revert first.
+  restoreMissionScripting()
+
+  const stateFilePath = path.join(app.getPath('userData'), 'state.json')
+  const settings = readPersistenceSettingsFromState(stateFilePath)
+  syncDcsPersistenceForAppRuntime(settings)
 }

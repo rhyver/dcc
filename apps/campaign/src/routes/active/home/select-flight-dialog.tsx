@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plane, ChevronLeft, User } from 'lucide-react'
+import { Plane, ChevronLeft, User, PlaneTakeoff } from 'lucide-react'
 import { useSelector } from '@xstate/store/react'
 import { useNavigate } from 'react-router'
 
@@ -41,6 +41,8 @@ export function SelectFlightDialog({ open, onOpenChange }: SelectFlightDialogPro
     activeStore,
     (state) => state.context.coalitions.player.flightGroups
   )
+  const campaignTime = useSelector(activeStore, (state) => state.context.time)
+  const currentTime = campaignTime ? new Date(campaignTime) : new Date()
 
   const hasClient = flightGroups.some((fg) => fg.aircrafts.some((ac) => ac.client))
 
@@ -107,6 +109,9 @@ export function SelectFlightDialog({ open, onOpenChange }: SelectFlightDialogPro
                 (sum, g) => sum + g.aircrafts.filter((a) => a.client).length,
                 0
               )
+              const airborneCount = groups.filter(
+                (g) => new Date(g.flightplan.startTime) <= currentTime
+              ).length
               return (
                 <button
                   key={task}
@@ -118,6 +123,15 @@ export function SelectFlightDialog({ open, onOpenChange }: SelectFlightDialogPro
                     <span>
                       {groups.length} {groups.length === 1 ? 'flight' : 'flights'}
                     </span>
+                    {airborneCount > 0 && (
+                      <span
+                        className="flex items-center gap-0.5 text-amber-400"
+                        title={`${airborneCount} already airborne`}
+                      >
+                        <PlaneTakeoff className="h-2.5 w-2.5" />
+                        {airborneCount}
+                      </span>
+                    )}
                     {totalClients > 0 && (
                       <span className="flex items-center gap-0.5 text-synthwave-cyan">
                         <User className="h-2.5 w-2.5" />
@@ -134,14 +148,27 @@ export function SelectFlightDialog({ open, onOpenChange }: SelectFlightDialogPro
           <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
             {groupsByTask.get(selectedTask)!.map((group) => {
               const clientCount = group.aircrafts.filter((a) => a.client).length
+              const isAirborne = new Date(group.flightplan.startTime) <= currentTime
               return (
                 <div
                   key={group.id}
-                  className="rounded-lg border border-synthwave-pink/20 bg-synthwave-pink/5 p-3 space-y-2"
+                  className={
+                    isAirborne
+                      ? 'rounded-lg border border-amber-400/40 bg-amber-400/5 p-3 space-y-2'
+                      : 'rounded-lg border border-synthwave-pink/20 bg-synthwave-pink/5 p-3 space-y-2'
+                  }
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className="text-sm font-medium text-primary">{group.callsign}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-primary">{group.callsign}</span>
+                        {isAirborne && (
+                          <span className="flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-400/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">
+                            <PlaneTakeoff className="h-2.5 w-2.5" />
+                            Airborne
+                          </span>
+                        )}
+                      </div>
                       <div className="flex items-center gap-3 text-[10px] text-secondary/70 mt-0.5">
                         <span>
                           {group.aircrafts[0]
@@ -195,7 +222,6 @@ export function SelectFlightDialog({ open, onOpenChange }: SelectFlightDialogPro
             variant="outline"
             size="sm"
             className="border-synthwave-pink/30 text-secondary hover:bg-synthwave-pink/20 hover:text-white"
-            disabled={!hasClient}
             onClick={handleClose}
           >
             Continue

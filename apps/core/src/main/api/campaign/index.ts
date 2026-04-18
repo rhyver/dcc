@@ -17,6 +17,7 @@ import { createCampaign } from './create-campaign'
 import { generateMizFromCampaign } from '@dcc/generate-miz'
 import { getScenarios } from '../data/get-scenarios'
 import { getTheatre } from '../data/get-theatre'
+import { syncDcsPersistenceForAppRuntime } from '../../dcs-persistence'
 
 const stateFile = path.join(app.getPath('userData'), 'state.json')
 const campaignsDir = path.join(app.getPath('userData'), 'campaigns')
@@ -284,13 +285,17 @@ const getSettings = pub.campaign.getSettings.handler(async () => {
 
 const saveSettings = pub.campaign.saveSettings.handler(async ({ input }) => {
   const state = await getState()
+  const settings = {
+    ...(state.settings ?? {}),
+    ...input
+  }
+
   await saveState({
     ...state,
-    settings: {
-      ...(state.settings ?? {}),
-      ...input
-    }
+    settings
   })
+
+  syncDcsPersistenceForAppRuntime(settings)
 })
 
 export const generateMiz = pub.campaign.generateMiz.handler(async ({ input, errors }) => {
@@ -380,10 +385,7 @@ export const loadMissionState = pub.campaign.loadMissionState.handler(async ({ e
   // Validate the state file is newer than the campaign file to prevent re-submitting old results
   const campaignPath = getCampaignPath(activeCampaignId)
   try {
-    const [stateStat, campaignStat] = await Promise.all([
-      fs.stat(filePath),
-      fs.stat(campaignPath)
-    ])
+    const [stateStat, campaignStat] = await Promise.all([fs.stat(filePath), fs.stat(campaignPath)])
     if (stateStat.mtimeMs < campaignStat.mtimeMs) {
       throw errors.STALE_STATE_FILE({
         data: {

@@ -27,7 +27,7 @@ export function TakeoffButton() {
     <Button
       size="sm"
       variant="outline"
-      className="h-8 border-synthwave-pink/30 bg-synthwave-dark/50 text-secondary hover:bg-synthwave-pink/20 hover:text-white"
+      className="h-8 w-full border-synthwave-pink/30 bg-synthwave-dark/50 text-secondary hover:bg-synthwave-pink/20 hover:text-white"
       onClick={() => setDialogOpen(true)}
     >
       <Plane className="mr-1.5 h-4 w-4" />
@@ -37,20 +37,20 @@ export function TakeoffButton() {
 
   if (!hasClient) {
     return (
-      <>
+      <div className="grid flex-1 min-w-0 grid-cols-1">
         {selectFlightButton}
         <SelectFlightDialog open={dialogOpen} onOpenChange={setDialogOpen} />
-      </>
+      </div>
     )
   }
 
   if (isBeforeTakeoff && startTime) {
     return (
-      <div className="flex items-center gap-2">
+      <div className="grid flex-1 min-w-0 grid-cols-2 gap-2">
         {selectFlightButton}
         <Button
           size="sm"
-          className="h-8 bg-synthwave-pink hover:bg-synthwave-pink/80 text-white border-none shadow-[0_0_10px_rgba(255,0,170,0.5)]"
+          className="h-8 w-full bg-synthwave-pink hover:bg-synthwave-pink/80 text-white border-none shadow-[0_0_10px_rgba(255,0,170,0.5)]"
           onClick={() => {
             activeStore.trigger.setTimeTarget({ timeTarget: startTime })
             activeStore.trigger.updateTimeMultiplier({ timeMultiplier: 300 })
@@ -65,11 +65,11 @@ export function TakeoffButton() {
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="grid flex-1 min-w-0 grid-cols-2 gap-2">
       {selectFlightButton}
       <Button
         size="sm"
-        className="h-8 bg-synthwave-pink hover:bg-synthwave-pink/80 text-white border-none shadow-[0_0_10px_rgba(255,0,170,0.5)]"
+        className="h-8 w-full bg-synthwave-pink hover:bg-synthwave-pink/80 text-white border-none shadow-[0_0_10px_rgba(255,0,170,0.5)]"
         onClick={async () => {
           if (!hasClient || isSaving) return
           setIsSaving(true)

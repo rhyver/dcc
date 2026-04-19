@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plane, ChevronLeft, User, PlaneTakeoff } from 'lucide-react'
+import { Plane, ChevronLeft, User, PlaneTakeoff, RotateCcw } from 'lucide-react'
 import { useSelector } from '@xstate/store/react'
 import { useNavigate } from 'react-router'
 
@@ -218,6 +218,26 @@ export function SelectFlightDialog({ open, onOpenChange }: SelectFlightDialogPro
         )}
 
         <DialogFooter>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mr-auto border-synthwave-pink/30 text-secondary hover:bg-synthwave-pink/20 hover:text-white"
+            disabled={!hasClient}
+            onClick={() => {
+              for (const fg of flightGroups) {
+                if (fg.aircrafts.some((ac) => ac.client)) {
+                  activeStore.send({
+                    type: 'setFlightGroupClientCount',
+                    flightGroupId: fg.id,
+                    count: 0
+                  })
+                }
+              }
+            }}
+          >
+            <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+            Reset
+          </Button>
           <Button
             variant="outline"
             size="sm"

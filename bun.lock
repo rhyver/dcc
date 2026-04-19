@@ -31,6 +31,7 @@
         "@dcc/data": "workspace:*",
         "@kilcekru/dcs-coordinates": "^2.0.0",
         "@orpc/client": "^1.10.0",
+        "@orpc/contract": "^1.11.2",
         "@orpc/tanstack-query": "^1.11.2",
         "@radix-ui/react-scroll-area": "^1.2.10",
         "@radix-ui/react-slot": "^1.2.4",

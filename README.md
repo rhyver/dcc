@@ -1,106 +1,117 @@
-# DCC — DCS Campaign Creator
+# DCC - DCS Campaign Creator
 
-A desktop application for creating and managing DCS World campaigns. Built with Electron, React, and TypeScript in a pnpm monorepo.
+DCC is an Electron desktop app for building and managing DCS World campaigns.
+It combines a campaign planning UI, map-based operations tooling, shared DCS
+data packages, and mission generation logic in one TypeScript monorepo.
 
-## Tech Stack
+## What It Does
 
-- **Runtime:** Electron (main process) + Node.js
-- **Frontend:** React 19, Vite, Tailwind CSS v4
-- **Language:** TypeScript
-- **RPC:** ORPC with Zod schemas for type-safe frontend ↔ backend communication
-- **State:** TanStack Query, XState Store
-- **Maps:** MapLibre GL, react-map-gl, Turf.js
-- **Monorepo:** pnpm workspaces + Turborepo
-- **Packaging:** electron-builder
+- Build and manage campaign state in a desktop app
+- Visualize campaign data in a React-based map interface
+- Generate DCS mission content from shared contracts and domain data
+- Package mission data into `.miz`-compatible output
+- Optionally use AI-assisted mission planning inside the app settings
+
+## Stack
+
+- Electron for the desktop shell and main process
+- React 19 and Vite for the renderer apps
+- TypeScript across apps and shared packages
+- ORPC and Zod for typed client/server contracts
+- TanStack Query and XState Store for frontend state flows
+- MapLibre GL and Turf.js for map rendering and spatial logic
+- Turborepo for workspace task orchestration
+- Bun as the package manager/runtime entrypoint
 
 ## Workspace Layout
 
-```
+```text
 apps/
-  core/       — Electron main process; ORPC server, window management, mission generation
-  campaign/   — Primary renderer; campaign manager UI with interactive map
-  document/   — Secondary renderer; document/reference views
+  core/       Electron main process, window lifecycle, backend APIs
+  campaign/   Primary renderer for campaign planning and map workflows
+  document/   Secondary renderer for document/reference views
+
 packages/
-  contracts/  — Shared ORPC contracts and Zod schemas
-  data/       — Static DCS domain data (aircraft, factions, theatres, scenarios)
-  generate-miz/ — .miz file assembly (TypeScript → Lua → ZIP)
-  lua-table/  — Lua table parser/stringifier
+  contracts/    Shared ORPC contracts and Zod schemas
+  data/         Static DCS data such as aircraft, factions, theatres, scenarios
+  generate-miz/ Mission assembly pipeline for `.miz` output
+  lua-table/    Lua table parser/stringifier utilities
 ```
 
-## Setup
+## Getting Started
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) 20+
-- [pnpm](https://pnpm.io/) 10+
+- [Bun](https://bun.sh/) 1.3+
+- Node.js 20+
 
 ### Install
 
 ```bash
-pnpm install
+bun install
 ```
 
-## Development
+### Run In Development
 
-Run everything (Electron + both Vite dev servers) via Turborepo:
+This starts the Electron app plus the renderer dev servers through Turborepo.
 
 ```bash
-pnpm dev
+bun run dev
 ```
 
-The renderers are served at:
-- Campaign UI → `http://localhost:5173`
-- Document UI → `http://localhost:5174`
+Renderer dev servers:
 
-To run a single workspace:
+- Campaign UI: `http://localhost:5173`
+- Document UI: `http://localhost:5174`
+
+### Build
+
+Build all apps and packages:
 
 ```bash
-pnpm --filter @dcc/core dev
-pnpm --filter @dcc/campaign dev
-pnpm --filter @dcc/document dev
+bun run build
 ```
 
-## Build
-
-Build all packages and apps:
-
-```bash
-pnpm build
-```
-
-Package the desktop app (runs build first, then electron-builder):
+Package desktop builds:
 
 ```bash
 # Windows
-pnpm build:win
+bun run build:win
 
 # macOS
-pnpm build:mac
+bun run build:mac
 
 # Linux
-pnpm build:linux
+bun run build:linux
 
 # Unpacked directory only
-pnpm build:unpack
+bun run build:unpack
 ```
 
-## Code Quality
+## Quality Checks
 
 ```bash
-# Lint all workspaces
-pnpm lint
-
-# Auto-fix lint issues
-pnpm lint:fix
-
-# Type-check all workspaces
-pnpm tsc
+bun run lint
+bun run lint:fix
+bun run tsc
 ```
 
-## Data Flow
+## Mission Generator Notes
 
-1. **Campaign UI** — user triggers an action (e.g. generate a mission)
-2. **ORPC client** — request is typed via shared `@dcc/contracts`
-3. **Core (main process)** — receives the request over ORPC
-4. **Logic** — uses `@dcc/data` for game assets, `@dcc/generate-miz` + `@dcc/lua-table` to compile the `.miz` file
-5. **Response** — result returned to the renderer
+The core app supports AI-backed mission planning. API keys are configured inside
+the application settings rather than through required repo-level environment
+variables. The current code supports OpenAI, Anthropic, and OpenRouter-backed
+models.
+
+## Architecture
+
+1. The `campaign` renderer collects user input and drives campaign workflows.
+2. Shared contracts from `@dcc/contracts` define the typed request/response boundary.
+3. The Electron `core` app handles orchestration and backend operations.
+4. Domain data from `@dcc/data` and generation logic from `@dcc/generate-miz`
+   are used to assemble mission output.
+5. Lua-oriented serialization helpers from `@dcc/lua-table` support DCS file generation.
+
+## License
+
+MIT. See [LICENSE](./LICENSE).

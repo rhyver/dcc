@@ -98,6 +98,27 @@ const initialState: z.infer<typeof schemas.campaign.campaign> = {
   }
 }
 
+export function resetFlightGroupClientSelections(
+  campaign: z.infer<typeof schemas.campaign.campaign>
+) {
+  return produce(campaign, (draft) => {
+    const coalitions = [draft.coalitions.player, draft.coalitions.opponent]
+
+    for (const coalition of coalitions) {
+      for (const group of coalition.flightGroups) {
+        for (const aircraft of group.aircrafts) {
+          aircraft.client = false
+        }
+
+        if (group.flightplan.originalStartTime) {
+          group.flightplan.startTime = group.flightplan.originalStartTime
+          group.flightplan.originalStartTime = undefined
+        }
+      }
+    }
+  })
+}
+
 export const activeStore = createStore({
   context: initialState,
   on: {
@@ -148,6 +169,7 @@ export const activeStore = createStore({
       produce(context, (draft) => {
         draft.logs = []
       }),
+    clearFlightGroupClientSelections: (context) => resetFlightGroupClientSelections(context),
 
     setFlightGroupClientCount: (
       context,

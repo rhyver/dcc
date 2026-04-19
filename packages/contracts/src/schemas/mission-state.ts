@@ -35,6 +35,18 @@ const missionStateGroupPositions = z.object({
   red: coalitionPositionsLenient
 })
 
+const cargoDeliveries = z.preprocess(
+  (val) => (Array.isArray(val) ? {} : val),
+  z.record(
+    z.string(),
+    z.object({
+      time: z.number(),
+      x: z.number(),
+      y: z.number()
+    })
+  )
+)
+
 export const missionState = z
   .object({
     missionId: z.string(),
@@ -61,16 +73,7 @@ export const missionState = z
         })
       )
       .default([]),
-    cargoDeliveries: z
-      .record(
-        z.string(),
-        z.object({
-          time: z.number(),
-          x: z.number(),
-          y: z.number()
-        })
-      )
-      .default({}),
+    cargoDeliveries: cargoDeliveries.default({}),
     groupPositions: missionStateGroupPositions.optional()
   })
   .passthrough()

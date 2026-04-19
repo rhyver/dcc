@@ -7,7 +7,7 @@ import { produce } from 'immer'
 import { schemas } from '@dcc/contracts'
 import * as z from 'zod'
 
-import { activeStore } from '@/stores/active'
+import { activeStore, resetFlightGroupClientSelections } from '@/stores/active'
 import { coreClient, orpc } from '@/lib/orpc'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
@@ -281,7 +281,9 @@ export function Mission() {
     try {
       const missionState = await coreClient.campaign.loadMissionState()
       const currentCampaign = activeStore.getSnapshot().context
-      const updatedCampaign = applyMissionStateUpdate(currentCampaign, missionState)
+      const updatedCampaign = resetFlightGroupClientSelections(
+        applyMissionStateUpdate(currentCampaign, missionState)
+      )
       activeStore.send({ type: 'loadCampaign', campaign: updatedCampaign })
       await coreClient.campaign.saveActiveCampaign(updatedCampaign)
       navigate('/')

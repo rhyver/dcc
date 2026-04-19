@@ -1,5 +1,5 @@
 appId: com.electron.app
-productName: dcc-vite
+productName: dcc
 directories:
   buildResources: build
 files:
@@ -12,7 +12,7 @@ files:
 asarUnpack:
   - resources/**
 win:
-  executableName: dcc-vite
+  executableName: dcc
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}

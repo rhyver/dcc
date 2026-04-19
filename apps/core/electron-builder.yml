@@ -1,5 +1,5 @@
 appId: com.electron.app
-productName: dcc-vite
+productName: dcc
 electronVersion: 38.1.2
 directories:
   app: apps/core
@@ -28,7 +28,7 @@ extraResources:
   - from: apps/document/dist
     to: renderer/document
 win:
-  executableName: dcc-vite
+  executableName: dcc
 nsis:
   artifactName: ${productName}-${version}-setup.${ext}
   shortcutName: ${productName}

@@ -5,6 +5,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 const OWNER = 'rhyver'
 const REPO = 'dcc'
 const API = `https://codeberg.org/api/v1/repos/${OWNER}/${REPO}`
+const LATEST_TAG = 'dcc-latest'
 
 const argv = process.argv.slice(2)
 const skipPublish = argv.includes('--no-publish')
@@ -261,5 +262,71 @@ for (const path of artifacts) {
   }
 }
 
+console.log(`==> mirroring assets to ${LATEST_TAG}`)
+const headCommit = (await $`git rev-parse HEAD`.text()).trim()
+
+const oldLatestRes = await fetch(`${API}/releases/tags/${encodeURIComponent(LATEST_TAG)}`, {
+  headers: baseHeaders
+})
+if (oldLatestRes.ok) {
+  const old = (await oldLatestRes.json()) as Release
+  console.log(`    deleting previous ${LATEST_TAG} release (id ${old.id})`)
+  const delRes = await fetch(`${API}/releases/${old.id}`, {
+    method: 'DELETE',
+    headers: baseHeaders
+  })
+  if (!delRes.ok && delRes.status !== 404) {
+    console.error(`error: delete previous ${LATEST_TAG} failed: ${await describe(delRes)}`)
+    process.exit(1)
+  }
+} else if (oldLatestRes.status !== 404) {
+  console.error(`error: lookup ${LATEST_TAG} failed: ${await describe(oldLatestRes)}`)
+  process.exit(1)
+}
+
+console.log(`    moving ${LATEST_TAG} tag to ${headCommit.slice(0, 7)}`)
+await $`git tag -f ${LATEST_TAG} ${headCommit}`
+const pushTagCmd = token
+  ? $`git -c http.extraheader=${`Authorization: token ${token}`} push --force origin ${LATEST_TAG}`
+  : $`git push --force origin ${LATEST_TAG}`
+await pushTagCmd
+
+console.log(`    creating ${LATEST_TAG} release`)
+const createLatestRes = await fetch(`${API}/releases`, {
+  method: 'POST',
+  headers: { ...baseHeaders, 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    tag_name: LATEST_TAG,
+    target_commitish: headCommit,
+    name: `Auto-update channel (${version})`,
+    body: `Stable URL for the auto-updater. Mirrors assets from [${tag}](https://codeberg.org/${OWNER}/${REPO}/releases/tag/${tag}).`,
+    draft: false,
+    prerelease: false
+  })
+})
+if (!createLatestRes.ok) {
+  console.error(`error: create ${LATEST_TAG} failed: ${await describe(createLatestRes)}`)
+  process.exit(1)
+}
+const latestRelease = (await createLatestRes.json()) as Release
+
+for (const path of artifacts) {
+  const name = path.split('/').pop()!
+  console.log(`    uploading ${name} to ${LATEST_TAG}`)
+  const form = new FormData()
+  form.append('attachment', Bun.file(path), name)
+  const uploadRes = await fetch(
+    `${API}/releases/${latestRelease.id}/assets?name=${encodeURIComponent(name)}`,
+    { method: 'POST', headers: baseHeaders, body: form }
+  )
+  if (!uploadRes.ok) {
+    console.error(`error: upload ${name} to ${LATEST_TAG} failed: ${await describe(uploadRes)}`)
+    console.error(`mirror is incomplete — retry with: bun run release --resume`)
+    console.error(`or finish manually at ${latestRelease.html_url}`)
+    process.exit(1)
+  }
+}
+
 console.log('')
 console.log(`Released ${tag} -> ${release.html_url}`)
+console.log(`Auto-update channel -> ${latestRelease.html_url}`)

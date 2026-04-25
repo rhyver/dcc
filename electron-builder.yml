@@ -42,7 +42,7 @@ appImage:
 npmRebuild: false
 publish:
   provider: generic
-  url: https://codeberg.org/rhyver/dcc/releases/latest/download
+  url: https://codeberg.org/rhyver/dcc/releases/download/dcc-latest
   channel: latest
 electronDownload:
   mirror: https://npmmirror.com/mirrors/electron/

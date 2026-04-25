@@ -1,4 +1,4 @@
 provider: generic
-url: https://codeberg.org/rhyver/dcc/releases/latest/download
+url: https://codeberg.org/rhyver/dcc/releases/download/dcc-latest
 channel: latest
 updaterCacheDirName: dcc-updater

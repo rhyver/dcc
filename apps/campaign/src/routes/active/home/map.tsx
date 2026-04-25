@@ -15,12 +15,23 @@ import MaplibreMap, {
   useMap,
   type MapRef
 } from 'react-map-gl/maplibre'
+import maplibregl from 'maplibre-gl'
+import { Protocol } from 'pmtiles'
 import MilSymbol from 'milsymbol'
 import * as turf from '@turf/turf'
 import { getMilSymbolCode } from './unit-code'
 import { type ObjectiveMarker as ObjectiveMarkerType, useMapItems } from './use-map-items'
 import { cn } from '@/lib/utils'
 import { DetailsCard } from './details-card'
+import { offlineCaucasusMapStyle } from './offline-map-style'
+
+const globalWithPmtiles = globalThis as typeof globalThis & {
+  __dccPmtilesProtocol?: Protocol
+}
+if (!globalWithPmtiles.__dccPmtilesProtocol) {
+  globalWithPmtiles.__dccPmtilesProtocol = new Protocol()
+  maplibregl.addProtocol('pmtiles', globalWithPmtiles.__dccPmtilesProtocol.tile)
+}
 
 const Marker = memo(function Marker({
   item,
@@ -396,11 +407,11 @@ export function Map({
   // Only show the map if the view state is available
   if (initialViewState == null) return null
   return (
-    <div className="w-full h-full relative">
+    <div className="dcc-campaign-map w-full h-full relative">
       <MaplibreMap
         ref={mapRef}
         initialViewState={initialViewState}
-        mapStyle="https://api.maptiler.com/maps/openstreetmap/style.json?key=dMqlZfgU5XToBXt4BGnm"
+        mapStyle={offlineCaucasusMapStyle}
       >
         {liveSelectedItem && 'flightplan' in liveSelectedItem && theatreQuery.data && (
           <FlightPlanOverlay

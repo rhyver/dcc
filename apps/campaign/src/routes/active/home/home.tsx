@@ -109,7 +109,7 @@ export function Home() {
       <div className="absolute inset-0 z-0">
         <div className="absolute inset-0 flex flex-col overflow-hidden">
           {/* Map Controls & Weather - Floating bottom right */}
-          <div className="absolute bottom-8 right-4 z-1100 flex flex-col items-end gap-3">
+          <div className="absolute bottom-16 right-2 z-1100 flex flex-col items-end gap-3">
             {/* Zoom Controls */}
             <div className="flex flex-col gap-2">
               <Button

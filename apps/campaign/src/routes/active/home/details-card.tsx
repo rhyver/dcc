@@ -217,6 +217,12 @@ export function DetailsCard({
                     </div>
                   </>
                 )}
+                {selectedGroundGroup.targetAirdromeName && (
+                  <>
+                    <div className="text-secondary/70">Target Airport</div>
+                    <div>{selectedGroundGroup.targetAirdromeName}</div>
+                  </>
+                )}
                 <div className="col-span-2 mt-2">
                   <div className="text-secondary/70 text-xs uppercase tracking-wide mb-1">
                     Units ({selectedGroundGroup.units.reduce((sum, u) => sum + u.count, 0)})

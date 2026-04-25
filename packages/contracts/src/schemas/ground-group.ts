@@ -6,6 +6,7 @@ export const groundGroup = z.object({
   id: z.string(),
   objectiveId: z.string().optional(),
   targetObjectiveId: z.string().optional(),
+  targetAirdromeName: z.string().optional(),
   position: position,
   state: z.enum(['idle', 'moving', 'combat']).default('idle'),
   combatStartedAt: z.string().optional(),

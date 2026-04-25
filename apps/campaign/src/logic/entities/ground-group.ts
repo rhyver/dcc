@@ -11,6 +11,7 @@ export class GroundGroup {
       position: z.infer<typeof schemas.position>
       objectiveId?: string
       targetObjectiveId?: string
+      targetAirdromeName?: string
       units: GroundGroupData['units']
       state?: GroundGroupData['state']
     }
@@ -21,6 +22,7 @@ export class GroundGroup {
       position: params.position,
       objectiveId: params.objectiveId,
       targetObjectiveId: params.targetObjectiveId,
+      targetAirdromeName: params.targetAirdromeName,
       units: params.units,
       state: params.state ?? 'idle'
     }
@@ -49,6 +51,10 @@ export class GroundGroup {
 
   get targetObjectiveId() {
     return this._data.targetObjectiveId
+  }
+
+  get targetAirdromeName() {
+    return this._data.targetAirdromeName
   }
 
   setPosition(pos: z.infer<typeof schemas.position>) {

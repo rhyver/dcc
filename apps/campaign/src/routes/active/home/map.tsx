@@ -295,12 +295,23 @@ export function Map({
     const group =
       campaign.coalitions.player.groundGroups.find((g) => g.id === id) ??
       campaign.coalitions.opponent.groundGroups.find((g) => g.id === id)
-    if (!group || !group.targetObjectiveId) return null
-    const targetObjective = theatreQuery.data.objectives.find(
-      (o) => o.name === group.targetObjectiveId
-    )
-    if (!targetObjective) return null
-    return { groupPosition: group.position, targetPosition: targetObjective.position }
+    if (!group) return null
+    if (group.targetObjectiveId) {
+      const targetObjective = theatreQuery.data.objectives.find(
+        (o) => o.name === group.targetObjectiveId
+      )
+      if (!targetObjective) return null
+      return { groupPosition: group.position, targetPosition: targetObjective.position }
+    }
+    if (group.targetAirdromeName) {
+      const targetAirdrome = theatreQuery.data.airdromeDetails[group.targetAirdromeName]
+      if (!targetAirdrome) return null
+      return {
+        groupPosition: group.position,
+        targetPosition: { x: targetAirdrome.x, y: targetAirdrome.y }
+      }
+    }
+    return null
   }, [liveSelectedItem, campaign, theatreQuery.data])
 
   const selectedCoordinates = useMemo(() => {

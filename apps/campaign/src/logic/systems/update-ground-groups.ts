@@ -3,6 +3,11 @@ import { scenarios, theatres } from '@dcc/data'
 import * as z from 'zod'
 import { calculateDistance } from '@/logic/utils/calculate-distance'
 import { logCombatAction } from '@/logic/simulation-log'
+import {
+  getAirdromePosition,
+  isAirdromeVulnerable,
+  transferAirdromeOwnership
+} from './airport-capture'
 
 type Campaign = z.infer<typeof schemas.campaign.campaign>
 type Coalition = z.infer<typeof schemas.coalition>
@@ -65,6 +70,11 @@ function clearCombatState(group: GroundGroup): void {
 
 function clearCaptureState(group: GroundGroup): void {
   group.captureStartedAt = undefined
+}
+
+function clearTargetState(group: GroundGroup): void {
+  group.targetObjectiveId = undefined
+  group.targetAirdromeName = undefined
 }
 
 function setCombatState(group: GroundGroup, nowIso: string): void {
@@ -191,7 +201,7 @@ function resolveObjectiveBattle(
       clearCombatState(attacker)
       clearCaptureState(attacker)
       attacker.state = 'idle'
-      attacker.targetObjectiveId = undefined
+      clearTargetState(attacker)
     }
     return
   }
@@ -327,7 +337,154 @@ function resolveObjectiveBattle(
     clearCaptureState(attacker)
     attacker.state = 'idle'
     attacker.objectiveId = targetObjectiveId
-    attacker.targetObjectiveId = undefined
+    clearTargetState(attacker)
+  }
+}
+
+function resolveAirdromeBattle(
+  draft: Campaign,
+  coalition: Coalition,
+  enemyCoalition: Coalition,
+  theatre: z.infer<typeof schemas.theatre>,
+  targetAirdromeName: string,
+  delta: number
+): void {
+  const targetPosition = getAirdromePosition(theatre, targetAirdromeName)
+  if (!targetPosition) return
+
+  const enemyAirdromeNames = draft.coalitions[enemyCoalition].airdromeNames
+  const ownGroundGroups = draft.coalitions[coalition].groundGroups
+
+  const attackers = ownGroundGroups.filter(
+    (group) => group.targetAirdromeName === targetAirdromeName && group.state !== 'idle'
+  )
+  if (attackers.length === 0) return
+
+  if (!enemyAirdromeNames.includes(targetAirdromeName)) {
+    for (const attacker of attackers) {
+      clearCombatState(attacker)
+      clearCaptureState(attacker)
+      attacker.state = 'idle'
+      clearTargetState(attacker)
+    }
+    return
+  }
+
+  if (!isAirdromeVulnerable(draft, theatre, coalition, targetAirdromeName)) {
+    for (const attacker of attackers) {
+      clearCombatState(attacker)
+      clearCaptureState(attacker)
+    }
+    return
+  }
+
+  const nowIso = draft.time.toISOString()
+  const nearestAttackerDistance = Math.min(
+    ...attackers.map((attacker) => calculateDistance(attacker.position, targetPosition))
+  )
+
+  const defendersInRange = draft.coalitions[enemyCoalition].groundGroups.filter(
+    (group) =>
+      getUnitCount(group) > 0 && calculateDistance(group.position, targetPosition) <= BATTLE_RADIUS
+  )
+
+  if (defendersInRange.length > 0 && nearestAttackerDistance <= BATTLE_RADIUS) {
+    const enteringCombatCount =
+      attackers.filter((attacker) => attacker.state !== 'combat').length +
+      defendersInRange.filter((defender) => defender.state !== 'combat').length
+
+    attackers.forEach((attacker) => {
+      setCombatState(attacker, nowIso)
+      clearCaptureState(attacker)
+    })
+    defendersInRange.forEach((defender) => setCombatState(defender, nowIso))
+
+    if (enteringCombatCount > 0) {
+      const primaryAttacker = attackers[0]
+      logCombatAction(
+        draft,
+        coalition,
+        `Ground battle started at airport ${targetAirdromeName} (${attackers.length} attackers vs ${defendersInRange.length} defenders)`,
+        undefined,
+        primaryAttacker
+          ? {
+              entityType: 'groundGroup',
+              entityId: primaryAttacker.id
+            }
+          : undefined
+      )
+    }
+
+    const deltaS = (delta * draft.timeMultiplier) / 1000
+    const attackerPower = getCombatPower(draft, coalition, attackers, targetAirdromeName, false)
+    const defenderPower = getCombatPower(
+      draft,
+      enemyCoalition,
+      defendersInRange,
+      targetAirdromeName,
+      true
+    )
+
+    const expectedAttackerLosses = BASE_ATTRITION_PER_SECOND * deltaS * (defenderPower / 10)
+    const expectedDefenderLosses = BASE_ATTRITION_PER_SECOND * deltaS * (attackerPower / 10)
+
+    const attackerCasualties = distributeCasualties(attackers, expectedAttackerLosses)
+    const defenderCasualties = distributeCasualties(defendersInRange, expectedDefenderLosses)
+
+    if (attackerCasualties > 0 || defenderCasualties > 0) {
+      const primaryAttacker = attackers[0]
+      logCombatAction(
+        draft,
+        coalition,
+        `Ground combat at airport ${targetAirdromeName}: losses ${coalition}=${attackerCasualties}, ${enemyCoalition}=${defenderCasualties}`,
+        undefined,
+        primaryAttacker
+          ? {
+              entityType: 'groundGroup',
+              entityId: primaryAttacker.id
+            }
+          : undefined
+      )
+    }
+
+    cleanupDestroyedGroups(draft, coalition)
+    cleanupDestroyedGroups(draft, enemyCoalition)
+
+    return
+  }
+
+  for (const attacker of attackers) {
+    clearCombatState(attacker)
+  }
+
+  if (nearestAttackerDistance > CAPTURE_DISTANCE) {
+    for (const attacker of attackers) {
+      clearCaptureState(attacker)
+    }
+    return
+  }
+
+  transferAirdromeOwnership(draft, coalition, enemyCoalition, targetAirdromeName)
+  logCombatAction(draft, coalition, `Airport captured: ${targetAirdromeName}`)
+
+  draft.coalitions[enemyCoalition].groundGroups = draft.coalitions[
+    enemyCoalition
+  ].groundGroups.filter(
+    (group) =>
+      !(
+        group.objectiveId === targetAirdromeName &&
+        calculateDistance(group.position, targetPosition) <= BATTLE_RADIUS
+      )
+  )
+
+  for (const attacker of draft.coalitions[coalition].groundGroups) {
+    if (attacker.targetAirdromeName !== targetAirdromeName) continue
+    clearCombatState(attacker)
+    clearCaptureState(attacker)
+    attacker.state = 'idle'
+    attacker.objectiveId = targetAirdromeName
+    attacker.position = targetPosition
+    clearTargetState(attacker)
   }
 }
 
@@ -351,6 +508,21 @@ function processObjectiveBattlesAndCaptures(
 
   for (const targetObjectiveId of targetObjectiveIds) {
     resolveObjectiveBattle(draft, coalition, enemyCoalition, theatre, targetObjectiveId, delta)
+  }
+
+  const targetAirdromeNames = Array.from(
+    new Set(
+      draft.coalitions[coalition].groundGroups
+        .map((group) => {
+          if (group.state === 'idle') return undefined
+          return group.targetAirdromeName
+        })
+        .filter((targetAirdromeName): targetAirdromeName is string => targetAirdromeName != null)
+    )
+  )
+
+  for (const targetAirdromeName of targetAirdromeNames) {
+    resolveAirdromeBattle(draft, coalition, enemyCoalition, theatre, targetAirdromeName, delta)
   }
 }
 
@@ -380,33 +552,51 @@ export function updateGroundGroups(
 
   const groundGroups = draft.coalitions[coalition].groundGroups
   const enemyObjectiveIds = draft.coalitions[enemyCoalition].objectiveIds
+  const enemyAirdromeNames = draft.coalitions[enemyCoalition].airdromeNames
 
   for (const group of groundGroups) {
-    if (group.state === 'idle' || !group.targetObjectiveId) continue
+    if (group.state === 'idle') continue
+    if (group.targetObjectiveId && group.targetAirdromeName) {
+      group.targetAirdromeName = undefined
+    }
+    if (!group.targetObjectiveId && !group.targetAirdromeName) continue
 
-    const targetObjective = theatre.objectives.find(
-      (objective) => objective.name === group.targetObjectiveId
-    )
-    if (!targetObjective) {
+    const targetPosition = group.targetObjectiveId
+      ? theatre.objectives.find((objective) => objective.name === group.targetObjectiveId)?.position
+      : group.targetAirdromeName
+        ? getAirdromePosition(theatre, group.targetAirdromeName)
+        : undefined
+
+    if (!targetPosition) {
       clearCombatState(group)
       clearCaptureState(group)
       group.state = 'idle'
-      group.targetObjectiveId = undefined
+      clearTargetState(group)
       continue
     }
 
-    if (!enemyObjectiveIds.includes(group.targetObjectiveId)) {
+    if (group.targetObjectiveId && !enemyObjectiveIds.includes(group.targetObjectiveId)) {
       clearCombatState(group)
       clearCaptureState(group)
       group.state = 'idle'
-      group.targetObjectiveId = undefined
+      clearTargetState(group)
+      continue
+    }
+
+    if (
+      group.targetAirdromeName &&
+      (!enemyAirdromeNames.includes(group.targetAirdromeName) ||
+        !isAirdromeVulnerable(draft, theatre, coalition, group.targetAirdromeName))
+    ) {
+      clearCombatState(group)
+      clearCaptureState(group)
       continue
     }
 
     if (group.state === 'combat') continue
 
     if (moveEnabled) {
-      moveGroupTowardsObjective(group, targetObjective.position, delta, draft.timeMultiplier)
+      moveGroupTowardsObjective(group, targetPosition, delta, draft.timeMultiplier)
     }
   }
 }

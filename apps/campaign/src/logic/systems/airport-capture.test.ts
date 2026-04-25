@@ -1,0 +1,224 @@
+import { describe, expect, test } from 'vitest'
+import { schemas } from '@dcc/contracts'
+import { theatres } from '@dcc/data'
+import type * as z from 'zod'
+
+import { getNearbyObjectiveIds, isAirdromeVulnerable } from './airport-capture'
+import { spawnGroundGroups } from './spawn/ground-groups'
+import { updateGroundGroups } from './update-ground-groups'
+
+type Campaign = z.infer<typeof schemas.campaign.campaign>
+type CoalitionData = Campaign['coalitions']['player']
+type Theatre = z.infer<typeof schemas.theatre>
+
+const campaignTime = new Date('2026-01-01T12:00:00.000Z')
+const caucasus = theatres.find((theatre) => theatre.name === 'Caucasus')!
+
+function createSupply(current = 1_000) {
+  return {
+    current,
+    max: 2_000,
+    consumptionRate: 0,
+    productionRate: 0,
+    status: 'adequate' as const
+  }
+}
+
+function createCoalition(id: 'player' | 'opponent'): CoalitionData {
+  return {
+    id,
+    aircraftTypes: {
+      CAP: ['F-16C_50'],
+      'Pinpoint Strike': ['F-16C_50'],
+      SEAD: ['F-16C_50'],
+      DEAD: ['F-16C_50'],
+      CAS: ['F-16C_50'],
+      Transport: ['UH-60L']
+    } as CoalitionData['aircraftTypes'],
+    groundUnitTypes: {
+      Infantry: ['Infantry AK'],
+      Vehicle: ['BMP-2']
+    } as CoalitionData['groundUnitTypes'],
+    airdromeNames: [],
+    objectiveIds: [],
+    structures: [],
+    samGroups: [],
+    groundGroups: [],
+    flightGroups: [],
+    packages: [],
+    supplyNodes: {}
+  }
+}
+
+function createCampaign(): Campaign {
+  return {
+    version: 'test',
+    id: 'campaign-1',
+    name: 'Test Campaign',
+    createdAt: campaignTime,
+    time: campaignTime,
+    timeMultiplier: 1,
+    logs: [],
+    scenarioId: 'red-bullet',
+    coalitions: {
+      player: createCoalition('player'),
+      opponent: createCoalition('opponent')
+    }
+  }
+}
+
+function giveObjectiveMajority(
+  campaign: Campaign,
+  theatre: Theatre,
+  coalition: 'player' | 'opponent',
+  airdromeName: string
+) {
+  const nearbyObjectiveIds = getNearbyObjectiveIds(theatre, airdromeName)
+  const requiredCount = Math.floor(nearbyObjectiveIds.length / 2) + 1
+  campaign.coalitions[coalition].objectiveIds = nearbyObjectiveIds.slice(0, requiredCount)
+}
+
+describe('airport vulnerability', () => {
+  test('requires strict majority of nearby objectives', () => {
+    const campaign = createCampaign()
+    const nearbyObjectiveIds = getNearbyObjectiveIds(caucasus, 'Sukhumi-Babushara')
+    const halfCount = Math.floor(nearbyObjectiveIds.length / 2)
+
+    campaign.coalitions.player.objectiveIds = nearbyObjectiveIds.slice(0, halfCount)
+    expect(isAirdromeVulnerable(campaign, caucasus, 'player', 'Sukhumi-Babushara')).toBe(false)
+
+    campaign.coalitions.player.objectiveIds = nearbyObjectiveIds.slice(0, halfCount + 1)
+    expect(isAirdromeVulnerable(campaign, caucasus, 'player', 'Sukhumi-Babushara')).toBe(true)
+  })
+
+  test('allows direct attack when no objectives are near an airport', () => {
+    const theatre = {
+      name: 'Test',
+      objectives: [],
+      targets: {},
+      airdromeDetails: {
+        Remote: {
+          id: 1,
+          name: 'Remote',
+          x: 0,
+          y: 0,
+          standlist: {},
+          frequency: 250,
+          runwayAngle: 0
+        }
+      },
+      info: {
+        center: { x: 0, y: 0 },
+        weather: {
+          temperature: { amplitude: 0, mean: 20 },
+          cloudCover: { baseCloudCover: 0, seasonEffect: 0 },
+          wind: { speed: 0, direction: 0 }
+        },
+        night: { startHour: 20, endHour: 6 }
+      }
+    } as Theatre
+    const campaign = createCampaign()
+
+    expect(isAirdromeVulnerable(campaign, theatre, 'player', 'Remote')).toBe(true)
+  })
+})
+
+describe('airport capture', () => {
+  test('transfers ownership, supply, and clears the capturing group target', () => {
+    const campaign = createCampaign()
+    const airdrome = caucasus.airdromeDetails['Sukhumi-Babushara']!
+    giveObjectiveMajority(campaign, caucasus, 'player', 'Sukhumi-Babushara')
+    campaign.coalitions.player.airdromeNames = ['Kobuleti']
+    campaign.coalitions.opponent.airdromeNames = ['Sukhumi-Babushara']
+    campaign.coalitions.opponent.supplyNodes = {
+      'Sukhumi-Babushara': createSupply(900)
+    }
+    campaign.coalitions.player.groundGroups.push({
+      id: 'attacker-1',
+      position: { x: airdrome.x, y: airdrome.y },
+      units: [{ name: 'BMP-2', count: 3 }],
+      state: 'moving',
+      targetAirdromeName: 'Sukhumi-Babushara'
+    })
+
+    updateGroundGroups(campaign, 'player', 1_000, { move: false })
+
+    expect(campaign.coalitions.player.airdromeNames).toContain('Sukhumi-Babushara')
+    expect(campaign.coalitions.opponent.airdromeNames).not.toContain('Sukhumi-Babushara')
+    expect(campaign.coalitions.player.supplyNodes?.['Sukhumi-Babushara']?.current).toBe(900)
+    expect(campaign.coalitions.opponent.supplyNodes?.['Sukhumi-Babushara']).toBeUndefined()
+    expect(campaign.coalitions.player.groundGroups[0]).toMatchObject({
+      state: 'idle',
+      objectiveId: 'Sukhumi-Babushara',
+      targetAirdromeName: undefined
+    })
+  })
+})
+
+describe('ground group spawning airport targets', () => {
+  test('continues targeting enemy objectives before farther vulnerable airports', () => {
+    const campaign = createCampaign()
+    campaign.coalitions.player.objectiveIds = ['Maharadze', 'Hidmagala']
+    campaign.coalitions.opponent.objectiveIds = ['Bataria']
+    campaign.coalitions.opponent.airdromeNames = ['Sukhumi-Babushara']
+    campaign.coalitions.player.structures.push({
+      id: 'depot-1',
+      type: 'Depot',
+      objectiveId: 'Maharadze',
+      position: { x: -316272.09249774, y: 644623.93189239 },
+      name: 'Depot',
+      resources: 1_000,
+      buildings: [{ offset: { x: 0, y: 0 }, type: 'Tech hangar A', alive: true }]
+    })
+
+    spawnGroundGroups(campaign, 'player')
+
+    expect(campaign.coalitions.player.groundGroups[0]?.targetObjectiveId).toBe('Bataria')
+    expect(campaign.coalitions.player.groundGroups[0]?.targetAirdromeName).toBeUndefined()
+  })
+
+  test('targets a vulnerable airport when it is closer than valid objectives', () => {
+    const campaign = createCampaign()
+    const airdrome = caucasus.airdromeDetails['Sukhumi-Babushara']!
+    giveObjectiveMajority(campaign, caucasus, 'player', 'Sukhumi-Babushara')
+    campaign.coalitions.opponent.objectiveIds = ['Nalchik']
+    campaign.coalitions.opponent.airdromeNames = ['Sukhumi-Babushara']
+    campaign.coalitions.player.structures.push({
+      id: 'depot-1',
+      type: 'Depot',
+      objectiveId: 'Forward Depot',
+      position: { x: airdrome.x + 1_000, y: airdrome.y },
+      name: 'Depot',
+      resources: 1_000,
+      buildings: [{ offset: { x: 0, y: 0 }, type: 'Tech hangar A', alive: true }]
+    })
+
+    spawnGroundGroups(campaign, 'player')
+
+    expect(campaign.coalitions.player.groundGroups[0]?.targetAirdromeName).toBe(
+      'Sukhumi-Babushara'
+    )
+    expect(campaign.coalitions.player.groundGroups[0]?.targetObjectiveId).toBeUndefined()
+  })
+
+  test('ignores non-vulnerable airports', () => {
+    const campaign = createCampaign()
+    const airdrome = caucasus.airdromeDetails['Sukhumi-Babushara']!
+    campaign.coalitions.opponent.objectiveIds = []
+    campaign.coalitions.opponent.airdromeNames = ['Sukhumi-Babushara']
+    campaign.coalitions.player.structures.push({
+      id: 'depot-1',
+      type: 'Depot',
+      objectiveId: 'Forward Depot',
+      position: { x: airdrome.x + 1_000, y: airdrome.y },
+      name: 'Depot',
+      resources: 1_000,
+      buildings: [{ offset: { x: 0, y: 0 }, type: 'Tech hangar A', alive: true }]
+    })
+
+    spawnGroundGroups(campaign, 'player')
+
+    expect(campaign.coalitions.player.groundGroups[0]?.targetAirdromeName).toBeUndefined()
+    expect(campaign.coalitions.player.groundGroups[0]?.targetObjectiveId).toBeUndefined()
+  })
+})

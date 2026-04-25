@@ -17,16 +17,16 @@
     "clean": "rm -rf .turbo dist out node_modules"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^3.0.50",
-    "@ai-sdk/openai": "^3.0.37",
+    "@ai-sdk/anthropic": "^3.0.71",
+    "@ai-sdk/openai": "^3.0.53",
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
-    "@orpc/server": "^1.10.0",
-    "ai": "^6.0.105",
+    "@orpc/server": "^1.14.0",
+    "ai": "^6.0.168",
     "electron-store": "^11.0.2",
     "electron-updater": "^6.8.3",
     "neverthrow": "^8.2.0",
-    "superjson": "^2.2.5",
+    "superjson": "^2.2.6",
     "zod": "^4.3.6"
   },
   "devDependencies": {
@@ -36,12 +36,12 @@
     "@electron-toolkit/eslint-config-prettier": "^3.0.0",
     "@electron-toolkit/eslint-config-ts": "^3.1.0",
     "@electron-toolkit/tsconfig": "^2.0.0",
-    "@types/node": "^22.18.6",
-    "cross-env": "^7.0.3",
-    "electron": "^41.1.1",
+    "@types/node": "^25.6.0",
+    "cross-env": "^10.1.0",
+    "electron": "^41.3.0",
     "electron-builder": "^26.8.1",
     "electron-vite": "^5.0.0",
-    "eslint": "^9.36.0",
-    "typescript": "^5.9.2"
+    "eslint": "^10.2.1",
+    "typescript": "^6.0.3"
   }
 }

@@ -122,9 +122,8 @@ function formatZodIssues(raw: string): string | null {
     if (!Array.isArray(parsed)) return null
     return parsed
       .map((issue) => {
-        const path = Array.isArray(issue.path) && issue.path.length > 0
-          ? issue.path.join('.')
-          : '(root)'
+        const path =
+          Array.isArray(issue.path) && issue.path.length > 0 ? issue.path.join('.') : '(root)'
         return `• ${path}: ${issue.message ?? issue.code ?? 'invalid'}`
       })
       .join('\n')
@@ -199,7 +198,8 @@ function buildErrorToast(error: unknown): {
 
   return {
     title: 'Submission Failed',
-    message: error instanceof Error ? error.message : 'Mission state submission failed. Please try again.',
+    message:
+      error instanceof Error ? error.message : 'Mission state submission failed. Please try again.',
     tone: 'error'
   }
 }
@@ -571,7 +571,9 @@ export function Mission() {
 
             {/* Theatre Info */}
             <div className="border border-[#ff00aa]/20 rounded-lg p-4 bg-black/30">
-              <div className="text-sm font-bold text-white">{scenario?.name ?? 'Active Mission'}</div>
+              <div className="text-sm font-bold text-white">
+                {scenario?.name ?? 'Active Mission'}
+              </div>
               <div className="text-sm text-white/40 mt-1">{scenario?.theatreName ?? '—'}</div>
               {scenario?.era && (
                 <div className="text-sm text-[#ff00aa]/60 mt-1">{scenario.era}</div>

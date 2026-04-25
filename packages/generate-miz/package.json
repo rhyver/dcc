@@ -15,15 +15,15 @@
     "@dcc/contracts": "workspace:*",
     "@dcc/data": "workspace:*",
     "@dcc/lua-table": "workspace:*",
-    "adm-zip": "^0.5.16",
+    "adm-zip": "^0.5.17",
     "neverthrow": "^8.2.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
     "@kilcekru/ts-basics": "^4.0.0",
-    "@types/adm-zip": "^0.5.7",
-    "eslint": "^9.36.0",
-    "eslint-plugin-prettier": "^5.5.4",
-    "typescript": "^5.9.2"
+    "@types/adm-zip": "^0.5.8",
+    "eslint": "^10.2.1",
+    "eslint-plugin-prettier": "^5.5.5",
+    "typescript": "^6.0.3"
   }
 }

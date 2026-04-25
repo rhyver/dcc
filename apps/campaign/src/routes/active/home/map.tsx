@@ -205,8 +205,16 @@ const GroundGroupPathOverlay = memo(function GroundGroupPathOverlay({
     if (!map) return
 
     const updatePath = () => {
-      const from = LOtoLL({ theatre: theatreName as 'Caucasus', x: groupPosition.x, z: groupPosition.y })
-      const to = LOtoLL({ theatre: theatreName as 'Caucasus', x: targetPosition.x, z: targetPosition.y })
+      const from = LOtoLL({
+        theatre: theatreName as 'Caucasus',
+        x: groupPosition.x,
+        z: groupPosition.y
+      })
+      const to = LOtoLL({
+        theatre: theatreName as 'Caucasus',
+        x: targetPosition.x,
+        z: targetPosition.y
+      })
       const p1 = map.project([from.lng, from.lat])
       const p2 = map.project([to.lng, to.lat])
       setPath(`M ${p1.x},${p1.y} L ${p2.x},${p2.y}`)

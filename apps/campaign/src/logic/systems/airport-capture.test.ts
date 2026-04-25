@@ -195,9 +195,7 @@ describe('ground group spawning airport targets', () => {
 
     spawnGroundGroups(campaign, 'player')
 
-    expect(campaign.coalitions.player.groundGroups[0]?.targetAirdromeName).toBe(
-      'Sukhumi-Babushara'
-    )
+    expect(campaign.coalitions.player.groundGroups[0]?.targetAirdromeName).toBe('Sukhumi-Babushara')
     expect(campaign.coalitions.player.groundGroups[0]?.targetObjectiveId).toBeUndefined()
   })
 

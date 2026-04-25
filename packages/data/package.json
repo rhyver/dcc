@@ -24,8 +24,8 @@
   },
   "devDependencies": {
     "@kilcekru/ts-basics": "^4.0.0",
-    "eslint": "^9.36.0",
-    "eslint-plugin-prettier": "^5.5.4",
-    "typescript": "^5.9.2"
+    "eslint": "^10.2.1",
+    "eslint-plugin-prettier": "^5.5.5",
+    "typescript": "^6.0.3"
   }
 }

@@ -1,4 +1,18 @@
-import { Info, Sun, Target, Wind, FastForward, Pause, Play, Menu, Save, FileOutput, FolderOpen, Home as HomeIcon } from 'lucide-react'
+import {
+  Info,
+  Sun,
+  Target,
+  Wind,
+  FastForward,
+  Pause,
+  Play,
+  Menu,
+  Save,
+  FileOutput,
+  FolderOpen,
+  Home as HomeIcon,
+  ScrollText
+} from 'lucide-react'
 import React from 'react'
 import * as ScrollAreaPrimitive from '@radix-ui/react-scroll-area'
 import { useSelector } from '@xstate/store/react'
@@ -15,7 +29,7 @@ import {
   DialogTitle,
   DialogTrigger
 } from '@/components/ui/dialog'
-import { Map, type SelectedItem } from './map'
+import type { SelectedItem } from './map'
 import { activeStore } from '@/stores/active'
 import { coreClient } from '@/lib/orpc'
 import { Clock } from './clock'
@@ -33,6 +47,7 @@ const campaignData = {
 
 const LOG_ROW_HEIGHT = 52
 const LOG_OVERSCAN = 6
+const CampaignMap = React.lazy(() => import('./map').then(({ Map }) => ({ default: Map })))
 
 export function Home() {
   const [mapZoom, setMapZoom] = React.useState(7)
@@ -151,7 +166,9 @@ export function Home() {
           {/* Horizon glow */}
           <div className="absolute bottom-0 left-0 right-0 h-[30vh] bg-linear-to-t from-synthwave-pink via-synthwave-purple to-transparent opacity-30" />
 
-          <Map selectedItem={selectedItem} onSelect={setSelectedItem} zoom={mapZoom} />
+          <React.Suspense fallback={<div className="h-full w-full bg-synthwave-dark" />}>
+            <CampaignMap selectedItem={selectedItem} onSelect={setSelectedItem} zoom={mapZoom} />
+          </React.Suspense>
         </div>
       </div>
 
@@ -162,7 +179,11 @@ export function Home() {
           <div className="flex flex-col gap-2">
             <div className="relative flex items-center justify-center border-b border-synthwave-pink/10 pb-2">
               <div className="absolute left-0">
-                <CampaignMenu />
+                <CampaignMenu
+                  isLogOpen={isLogOpen}
+                  logCount={logEntries.length}
+                  onToggleLog={() => setIsLogOpen((value) => !value)}
+                />
               </div>
               <Clock />
             </div>
@@ -223,18 +244,6 @@ export function Home() {
                 <span className="retro-font text-xs">Mission Briefing</span>
               </div>
               <span className="text-[10px]">{isBriefingOpen ? 'v' : '>'}</span>
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full justify-between text-secondary hover:text-white hover:bg-synthwave-pink/10"
-              onClick={() => setIsLogOpen(!isLogOpen)}
-            >
-              <span className="retro-font text-xs">Action Log</span>
-              <span className="text-[10px]">
-                {isLogOpen ? 'v' : '>'} {logEntries.length}
-              </span>
             </Button>
 
             {/* Briefing Content */}
@@ -375,7 +384,15 @@ export function Home() {
   )
 }
 
-function CampaignMenu() {
+function CampaignMenu({
+  isLogOpen,
+  logCount,
+  onToggleLog
+}: {
+  isLogOpen: boolean
+  logCount: number
+  onToggleLog: () => void
+}) {
   const [open, setOpen] = React.useState(false)
   const navigate = useNavigate()
 
@@ -438,10 +455,29 @@ function CampaignMenu() {
           <Button
             variant="ghost"
             className="w-full justify-start gap-3 text-secondary hover:text-white hover:bg-synthwave-pink/10"
-            onClick={() => { setOpen(false); navigate('/load') }}
+            onClick={() => {
+              setOpen(false)
+              navigate('/load')
+            }}
           >
             <FolderOpen className="h-4 w-4 text-synthwave-pink" />
             Open Campaign
+          </Button>
+          <Button
+            variant="ghost"
+            className="w-full justify-between text-secondary hover:text-white hover:bg-synthwave-pink/10"
+            onClick={() => {
+              onToggleLog()
+              setOpen(false)
+            }}
+          >
+            <span className="flex items-center gap-3">
+              <ScrollText className="h-4 w-4 text-synthwave-pink" />
+              Action Log
+            </span>
+            <span className="text-[10px] text-secondary/80">
+              {isLogOpen ? 'Hide' : 'Show'} {logCount}
+            </span>
           </Button>
           <div className="h-px bg-synthwave-pink/20" />
           <Button

@@ -18,14 +18,14 @@
     "lint:fix": "eslint ./src --fix"
   },
   "dependencies": {
-    "@orpc/contract": "^1.11.2",
-    "@orpc/zod": "^1.11.2",
+    "@orpc/contract": "^1.14.0",
+    "@orpc/zod": "^1.14.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
     "@kilcekru/ts-basics": "^4.0.0",
-    "eslint": "^9.36.0",
-    "eslint-plugin-prettier": "^5.5.4",
-    "typescript": "^5.9.2"
+    "eslint": "^10.2.1",
+    "eslint-plugin-prettier": "^5.5.5",
+    "typescript": "^6.0.3"
   }
 }

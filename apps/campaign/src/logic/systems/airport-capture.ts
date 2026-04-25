@@ -11,10 +11,7 @@ type Supply = z.infer<typeof schemas.supply>
 
 export const AIRPORT_OBJECTIVE_INFLUENCE_RADIUS = 40_000
 
-export function getAirdromePosition(
-  theatre: Theatre,
-  airdromeName: string
-): Position | undefined {
+export function getAirdromePosition(theatre: Theatre, airdromeName: string): Position | undefined {
   const airdrome = theatre.airdromeDetails[airdromeName]
   if (!airdrome) return undefined
   return { x: airdrome.x, y: airdrome.y }

@@ -91,8 +91,7 @@ export function useMissionChat() {
     cleanupRef.current = null
   }
 
-  const refreshSavedBriefings = async () => {
-    const items = await coreClient.missionGenerator.listBriefings()
+  const applySavedBriefings = (items: SavedBriefingSummary[]) => {
     setSavedBriefings(items)
     setSelectedBriefingId((current) => {
       if (current && items.some((item) => item.id === current)) {
@@ -100,6 +99,11 @@ export function useMissionChat() {
       }
       return items[0]?.id ?? ''
     })
+  }
+
+  const refreshSavedBriefings = async () => {
+    const items = await coreClient.missionGenerator.listBriefings()
+    applySavedBriefings(items)
   }
 
   const pushAssistantMessage = (content: string) => {
@@ -123,9 +127,19 @@ export function useMissionChat() {
   }
 
   useEffect(() => {
-    void refreshSavedBriefings().catch(() => {})
+    let isMounted = true
+
+    void coreClient.missionGenerator
+      .listBriefings()
+      .then((items) => {
+        if (isMounted) {
+          applySavedBriefings(items)
+        }
+      })
+      .catch(() => {})
 
     return () => {
+      isMounted = false
       cleanupStreamingListeners()
     }
   }, [])

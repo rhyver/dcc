@@ -11,7 +11,7 @@ import { X, User } from 'lucide-react'
 import { useSelector } from '@xstate/store/react'
 import { activeStore } from '@/stores/active'
 import { calculateResourceGainPerLogicTick } from '@/logic/systems/update-resources'
-import { type SelectedItem } from './map'
+import type { SelectedItem } from './map'
 
 function formatInGameClock(date: Date) {
   return new Intl.DateTimeFormat('en-GB', {
@@ -93,9 +93,9 @@ export function DetailsCard({
 
   const selectedStructure =
     'type' in selectedItem && selectedItem.type === 'Structure'
-      ? campaign.coalitions[selectedItem.coalition].structures.find(
+      ? (campaign.coalitions[selectedItem.coalition].structures.find(
           (structure) => structure.id === selectedItem.id
-        ) ?? null
+        ) ?? null)
       : null
   const selectedStructureCoalition =
     'type' in selectedItem && selectedItem.type === 'Structure' ? selectedItem.coalition : null
@@ -229,10 +229,7 @@ export function DetailsCard({
                   </div>
                   <div className="space-y-1">
                     {selectedGroundGroup.units.map((unit) => (
-                      <div
-                        key={unit.name}
-                        className="flex items-center justify-between text-xs"
-                      >
+                      <div key={unit.name} className="flex items-center justify-between text-xs">
                         <span className="truncate mr-2">{unit.name}</span>
                         <span className="text-secondary/70 shrink-0">x{unit.count}</span>
                       </div>
@@ -253,7 +250,10 @@ export function DetailsCard({
                       Clients
                       <User className="h-3 w-3" />
                     </div>
-                    <div>{selectedItem.aircrafts.filter((a) => a.client).length} / {selectedItem.aircrafts.length}</div>
+                    <div>
+                      {selectedItem.aircrafts.filter((a) => a.client).length} /{' '}
+                      {selectedItem.aircrafts.length}
+                    </div>
                   </>
                 )}
               </>

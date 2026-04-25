@@ -179,30 +179,69 @@ if (skipPublish) {
   process.exit(0)
 }
 
-console.log('==> creating Codeberg release')
-const createRes = await fetch(`${API}/releases`, {
-  method: 'POST',
-  headers: {
-    Authorization: `token ${token}`,
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({
-    tag_name: tag,
-    name: tag,
-    body: `Release ${tag}`,
-    draft: false,
-    prerelease: false
-  })
+const baseHeaders = {
+  Authorization: `token ${token}`,
+  Accept: 'application/json',
+  'User-Agent': `dcc-release-script (${OWNER}/${REPO})`
+}
+
+type Release = { id: number; html_url: string }
+type Asset = { id: number; name: string }
+
+async function describe(res: Response): Promise<string> {
+  let body = ''
+  try {
+    body = await res.text()
+  } catch {
+    // ignore
+  }
+  return `${res.status} ${res.statusText} ${body}`.trim()
+}
+
+console.log('==> looking up Codeberg release')
+let release: Release
+const existingRes = await fetch(`${API}/releases/tags/${encodeURIComponent(tag)}`, {
+  headers: baseHeaders
 })
-if (!createRes.ok) {
-  console.error(`error: create release failed: ${createRes.status} ${await createRes.text()}`)
+if (existingRes.ok) {
+  release = (await existingRes.json()) as Release
+  console.log(`    reusing existing release id ${release.id}`)
+} else if (existingRes.status === 404) {
+  console.log('==> creating Codeberg release')
+  const createRes = await fetch(`${API}/releases`, {
+    method: 'POST',
+    headers: { ...baseHeaders, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      tag_name: tag,
+      target_commitish: branch,
+      name: tag,
+      body: `Release ${tag}`,
+      draft: false,
+      prerelease: false
+    })
+  })
+  if (!createRes.ok) {
+    console.error(`error: create release failed: ${await describe(createRes)}`)
+    console.error(`       tag is already pushed; retry with: bun run release --resume`)
+    process.exit(1)
+  }
+  release = (await createRes.json()) as Release
+  console.log(`    release id: ${release.id}`)
+} else {
+  console.error(`error: lookup release failed: ${await describe(existingRes)}`)
   process.exit(1)
 }
-const release = (await createRes.json()) as { id: number; html_url: string }
-console.log(`    release id: ${release.id}`)
+
+const assetsRes = await fetch(`${API}/releases/${release.id}/assets`, { headers: baseHeaders })
+const existingAssets = assetsRes.ok ? ((await assetsRes.json()) as Asset[]) : []
+const existingNames = new Set(existingAssets.map((a) => a.name))
 
 for (const path of artifacts) {
   const name = path.split('/').pop()!
+  if (existingNames.has(name)) {
+    console.log(`==> skipping ${name} (already uploaded)`)
+    continue
+  }
   console.log(`==> uploading ${name}`)
   const form = new FormData()
   form.append('attachment', Bun.file(path), name)
@@ -210,13 +249,14 @@ for (const path of artifacts) {
     `${API}/releases/${release.id}/assets?name=${encodeURIComponent(name)}`,
     {
       method: 'POST',
-      headers: { Authorization: `token ${token}` },
+      headers: baseHeaders,
       body: form
     }
   )
   if (!uploadRes.ok) {
-    console.error(`error: upload ${name} failed: ${uploadRes.status} ${await uploadRes.text()}`)
-    console.error(`release was created but is incomplete — finish manually at ${release.html_url}`)
+    console.error(`error: upload ${name} failed: ${await describe(uploadRes)}`)
+    console.error(`release exists but is incomplete — retry with: bun run release --resume`)
+    console.error(`or finish manually at ${release.html_url}`)
     process.exit(1)
   }
 }

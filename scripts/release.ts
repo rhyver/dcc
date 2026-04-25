@@ -5,6 +5,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 const OWNER = 'rhyver'
 const REPO = 'dcc'
 const API = `https://codeberg.org/api/v1/repos/${OWNER}/${REPO}`
+const REPO_URL = `https://codeberg.org/${OWNER}/${REPO}.git`
 const LATEST_TAG = 'dcc-latest'
 
 const argv = process.argv.slice(2)
@@ -164,11 +165,11 @@ if (!resume) {
   await $`git tag -a ${tag} -m ${`Release ${tag}`}`
 }
 
-console.log('==> pushing commit and tag')
+console.log(`==> pushing commit and tag to ${REPO_URL}`)
 if (token) {
-  await $`git -c http.extraheader=${`Authorization: token ${token}`} push --follow-tags`
+  await $`git -c http.extraheader=${`Authorization: token ${token}`} push --follow-tags ${REPO_URL} HEAD:${branch}`
 } else {
-  await $`git push --follow-tags`
+  await $`git push --follow-tags ${REPO_URL} HEAD:${branch}`
 }
 
 if (skipPublish) {
@@ -307,10 +308,11 @@ if (oldLatestRes.ok) {
 
 console.log(`    moving ${LATEST_TAG} tag to ${headCommit.slice(0, 7)}`)
 await $`git tag -f ${LATEST_TAG} ${headCommit}`
-const pushTagCmd = token
-  ? $`git -c http.extraheader=${`Authorization: token ${token}`} push --force origin ${LATEST_TAG}`
-  : $`git push --force origin ${LATEST_TAG}`
-await pushTagCmd
+if (token) {
+  await $`git -c http.extraheader=${`Authorization: token ${token}`} push --force ${REPO_URL} ${LATEST_TAG}`
+} else {
+  await $`git push --force ${REPO_URL} ${LATEST_TAG}`
+}
 
 console.log(`    creating ${LATEST_TAG} release`)
 let latestRelease: Release

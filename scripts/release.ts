@@ -199,6 +199,28 @@ async function describe(res: Response): Promise<string> {
   return `${res.status} ${res.statusText} ${body}`.trim()
 }
 
+async function createRelease(
+  payload: Record<string, unknown>,
+  label: string
+): Promise<Release> {
+  const delaysMs = [3000, 6000, 12000]
+  let lastError = ''
+  for (let attempt = 0; attempt <= delaysMs.length; attempt++) {
+    const res = await fetch(`${API}/releases`, {
+      method: 'POST',
+      headers: { ...baseHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+    if (res.ok) return (await res.json()) as Release
+    lastError = await describe(res)
+    if (res.status < 500 || attempt === delaysMs.length) break
+    const wait = delaysMs[attempt]
+    console.log(`    ${label} create returned ${res.status}, retrying in ${wait / 1000}s...`)
+    await new Promise((r) => setTimeout(r, wait))
+  }
+  throw new Error(lastError)
+}
+
 console.log('==> looking up Codeberg release')
 let release: Release
 const existingRes = await fetch(`${API}/releases/tags/${encodeURIComponent(tag)}`, {
@@ -209,24 +231,23 @@ if (existingRes.ok) {
   console.log(`    reusing existing release id ${release.id}`)
 } else if (existingRes.status === 404) {
   console.log('==> creating Codeberg release')
-  const createRes = await fetch(`${API}/releases`, {
-    method: 'POST',
-    headers: { ...baseHeaders, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      tag_name: tag,
-      target_commitish: branch,
-      name: tag,
-      body: `Release ${tag}`,
-      draft: false,
-      prerelease: false
-    })
-  })
-  if (!createRes.ok) {
-    console.error(`error: create release failed: ${await describe(createRes)}`)
+  try {
+    release = await createRelease(
+      {
+        tag_name: tag,
+        target_commitish: branch,
+        name: tag,
+        body: `Release ${tag}`,
+        draft: false,
+        prerelease: false
+      },
+      tag
+    )
+  } catch (err) {
+    console.error(`error: create release failed: ${(err as Error).message}`)
     console.error(`       tag is already pushed; retry with: bun run release --resume`)
     process.exit(1)
   }
-  release = (await createRes.json()) as Release
   console.log(`    release id: ${release.id}`)
 } else {
   console.error(`error: lookup release failed: ${await describe(existingRes)}`)
@@ -292,23 +313,24 @@ const pushTagCmd = token
 await pushTagCmd
 
 console.log(`    creating ${LATEST_TAG} release`)
-const createLatestRes = await fetch(`${API}/releases`, {
-  method: 'POST',
-  headers: { ...baseHeaders, 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    tag_name: LATEST_TAG,
-    target_commitish: headCommit,
-    name: `Auto-update channel (${version})`,
-    body: `Stable URL for the auto-updater. Mirrors assets from [${tag}](https://codeberg.org/${OWNER}/${REPO}/releases/tag/${tag}).`,
-    draft: false,
-    prerelease: false
-  })
-})
-if (!createLatestRes.ok) {
-  console.error(`error: create ${LATEST_TAG} failed: ${await describe(createLatestRes)}`)
+let latestRelease: Release
+try {
+  latestRelease = await createRelease(
+    {
+      tag_name: LATEST_TAG,
+      target_commitish: headCommit,
+      name: `Auto-update channel (${version})`,
+      body: `Stable URL for the auto-updater. Mirrors assets from [${tag}](https://codeberg.org/${OWNER}/${REPO}/releases/tag/${tag}).`,
+      draft: false,
+      prerelease: false
+    },
+    LATEST_TAG
+  )
+} catch (err) {
+  console.error(`error: create ${LATEST_TAG} failed: ${(err as Error).message}`)
+  console.error(`       retry with: bun run release --resume`)
   process.exit(1)
 }
-const latestRelease = (await createLatestRes.json()) as Release
 
 for (const path of artifacts) {
   const name = path.split('/').pop()!

@@ -1,6 +1,7 @@
 import { app, shell, BrowserWindow, ipcMain, Menu, dialog, protocol, net } from 'electron'
 import { join, resolve, relative, isAbsolute } from 'path'
 import { pathToFileURL } from 'url'
+import { open, stat } from 'fs/promises'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { autoUpdater } from 'electron-updater'
 import icon from '../../resources/icon.png?asset'
@@ -35,7 +36,7 @@ protocol.registerSchemesAsPrivileged([
 ])
 
 function registerRendererProtocol() {
-  protocol.handle(rendererProtocol, (request) => {
+  protocol.handle(rendererProtocol, async (request) => {
     const url = new URL(request.url)
     if (url.host !== campaignRendererHost) {
       return new Response('Not found', { status: 404 })
@@ -52,8 +53,59 @@ function registerRendererProtocol() {
       return new Response('Bad request', { status: 400 })
     }
 
+    const range = request.headers.get('range')
+    if (range) {
+      return serveFileRange(filePath, range)
+    }
+
     return net.fetch(pathToFileURL(filePath).toString())
   })
+}
+
+async function serveFileRange(filePath: string, rangeHeader: string) {
+  const fileStat = await stat(filePath)
+  const match = rangeHeader.match(/^bytes=(\d+)-(\d*)$/)
+
+  if (!match) {
+    return new Response('Bad range', {
+      status: 416,
+      headers: { 'Content-Range': `bytes */${fileStat.size}` }
+    })
+  }
+
+  const start = Number(match[1])
+  const requestedEnd = match[2] ? Number(match[2]) : fileStat.size - 1
+  const end = Math.min(requestedEnd, fileStat.size - 1)
+
+  if (
+    !Number.isSafeInteger(start) ||
+    !Number.isSafeInteger(end) ||
+    start > end ||
+    start >= fileStat.size
+  ) {
+    return new Response('Range not satisfiable', {
+      status: 416,
+      headers: { 'Content-Range': `bytes */${fileStat.size}` }
+    })
+  }
+
+  const length = end - start + 1
+  const file = await open(filePath, 'r')
+  try {
+    const buffer = Buffer.allocUnsafe(length)
+    const { bytesRead } = await file.read(buffer, 0, length, start)
+    return new Response(buffer.subarray(0, bytesRead), {
+      status: 206,
+      headers: {
+        'Accept-Ranges': 'bytes',
+        'Content-Length': String(bytesRead),
+        'Content-Range': `bytes ${start}-${start + bytesRead - 1}/${fileStat.size}`,
+        'Content-Type': 'application/octet-stream'
+      }
+    })
+  } finally {
+    await file.close()
+  }
 }
 
 async function getLastViewPath() {

@@ -11,7 +11,8 @@ import { activeStore, resetFlightGroupClientSelections } from '@/stores/active'
 import { coreClient, orpc } from '@/lib/orpc'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
-import { cn, getAircraftDisplayName } from '@/lib/utils'
+import { getAircraftDisplayName } from '@/lib/aircraft-display'
+import { cn } from '@/lib/utils'
 
 const KNOTS_PER_MS = 1.94384
 

@@ -15,7 +15,7 @@ import {
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { activeStore } from '@/stores/active'
 import { coreClient } from '@/lib/orpc'
-import { getAircraftDisplayName } from '@/lib/utils'
+import { getAircraftDisplayName } from '@/lib/aircraft-display'
 import { featureFlags } from '@/lib/feature-flags'
 
 function formatTime(date: Date | string) {

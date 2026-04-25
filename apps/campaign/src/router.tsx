@@ -1,12 +1,5 @@
 import { createHashRouter, redirect, Outlet, useRouteError, Navigate } from 'react-router'
-import { Home } from './routes/active/home/home'
-import { Mission } from './routes/active/mission/mission'
-import { ActiveLayout } from './routes/active/layout'
 import { coreClient } from './lib/orpc'
-import { New } from './routes/new'
-import { Load } from './routes/load'
-import { Settings } from './routes/settings'
-import { MissionGenerator } from './routes/mission-generator/mission-generator'
 import { activeStore } from './stores/active'
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router'
@@ -98,29 +91,56 @@ export const router = createHashRouter([
     children: [
       {
         path: '/',
-        Component: ActiveLayout,
+        lazy: async () => {
+          const { ActiveLayout } = await import('./routes/active/layout')
+          return { Component: ActiveLayout }
+        },
         middleware: [activeCampaignMiddleware],
         ErrorBoundary: ActiveCampaignErrorBoundary,
         children: [
-          { index: true, Component: Home },
-          { path: 'mission', Component: Mission }
+          {
+            index: true,
+            lazy: async () => {
+              const { Home } = await import('./routes/active/home/home')
+              return { Component: Home }
+            }
+          },
+          {
+            path: 'mission',
+            lazy: async () => {
+              const { Mission } = await import('./routes/active/mission/mission')
+              return { Component: Mission }
+            }
+          }
         ]
       },
       {
         path: '/new',
-        Component: New
+        lazy: async () => {
+          const { New } = await import('./routes/new')
+          return { Component: New }
+        }
       },
       {
         path: '/load',
-        Component: Load
+        lazy: async () => {
+          const { Load } = await import('./routes/load')
+          return { Component: Load }
+        }
       },
       {
         path: '/settings',
-        Component: Settings
+        lazy: async () => {
+          const { Settings } = await import('./routes/settings')
+          return { Component: Settings }
+        }
       },
       {
         path: '/mission-generator',
-        Component: MissionGenerator
+        lazy: async () => {
+          const { MissionGenerator } = await import('./routes/mission-generator/mission-generator')
+          return { Component: MissionGenerator }
+        }
       }
     ]
   }

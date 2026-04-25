@@ -22,12 +22,12 @@ const RESTORABLE_PATHS = new Set([
 async function getLastViewPath() {
   const file = await readFile(stateFile)
   if (file.isErr()) {
-    return '/'
+    return '/new'
   }
 
   const parsed = parseJson(file.value)
   if (parsed.isErr()) {
-    return '/'
+    return '/new'
   }
 
   const state = parsed.value as { settings?: { lastViewPath?: string } }
@@ -35,7 +35,7 @@ async function getLastViewPath() {
   if (typeof path === 'string' && RESTORABLE_PATHS.has(path)) {
     return path
   }
-  return '/'
+  return '/new'
 }
 
 async function isAutoUpdateDisabled() {

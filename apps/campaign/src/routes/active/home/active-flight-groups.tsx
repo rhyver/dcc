@@ -4,7 +4,8 @@ import { useSelector } from '@xstate/store/react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { activeStore } from '@/stores/active'
-import { cn, getAircraftDisplayName } from '@/lib/utils'
+import { getAircraftDisplayName } from '@/lib/aircraft-display'
+import { cn } from '@/lib/utils'
 import type { SelectedItem } from './map'
 
 interface ActiveFlightGroupsProps {

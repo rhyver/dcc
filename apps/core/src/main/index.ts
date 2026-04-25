@@ -51,6 +51,126 @@ async function isAutoUpdateDisabled() {
   return state.settings?.disableAutoUpdate === true
 }
 
+let updateWindow: BrowserWindow | null = null
+let updateWindowReady = false
+type UpdateUiState = { status: string; percent?: number; meta?: string }
+let pendingUpdateUi: UpdateUiState | null = null
+
+const updateHtml = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0a0a14; color: #e0e0ff; height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    -webkit-app-region: drag; user-select: none; }
+  .card { width: 100%; padding: 24px 28px; box-sizing: border-box; }
+  h1 { margin: 0 0 8px 0; font-size: 14px; color: #ff6ec7;
+    letter-spacing: 0.08em; text-transform: uppercase; }
+  p { margin: 0 0 14px 0; font-size: 13px; color: #c0c0e0; }
+  .bar { height: 8px; background: rgba(255,255,255,0.08);
+    border-radius: 4px; overflow: hidden; }
+  .fill { height: 100%; width: 0%;
+    background: linear-gradient(90deg, #ff6ec7, #4dd0e1);
+    transition: width 0.2s ease; }
+  .meta { margin-top: 8px; font-size: 11px; color: #707090;
+    font-variant-numeric: tabular-nums; }
+</style></head><body>
+  <div class="card">
+    <h1>Updating Digital Crew Chief</h1>
+    <p id="status">Preparing update...</p>
+    <div class="bar"><div class="fill" id="fill"></div></div>
+    <div class="meta" id="meta"></div>
+  </div>
+</body></html>`
+
+function ensureUpdateWindow(): BrowserWindow {
+  if (updateWindow && !updateWindow.isDestroyed()) {
+    return updateWindow
+  }
+  updateWindowReady = false
+  const win = new BrowserWindow({
+    width: 440,
+    height: 180,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    frame: false,
+    alwaysOnTop: true,
+    show: false,
+    skipTaskbar: true,
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true }
+  })
+  void win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(updateHtml)}`)
+  win.once('ready-to-show', () => win.show())
+  win.webContents.once('did-finish-load', () => {
+    updateWindowReady = true
+    if (pendingUpdateUi) {
+      applyUpdateUi(pendingUpdateUi)
+      pendingUpdateUi = null
+    }
+  })
+  win.on('closed', () => {
+    updateWindow = null
+    updateWindowReady = false
+  })
+  updateWindow = win
+  return win
+}
+
+function applyUpdateUi(state: UpdateUiState) {
+  if (!updateWindow || updateWindow.isDestroyed()) return
+  const percentJs = state.percent == null ? "'0%'" : `(${state.percent}) + '%'`
+  const js = `(function(){
+    var s=document.getElementById('status'); if(s) s.textContent=${JSON.stringify(state.status)};
+    var f=document.getElementById('fill'); if(f) f.style.width=${percentJs};
+    var m=document.getElementById('meta'); if(m) m.textContent=${JSON.stringify(state.meta ?? '')};
+  })();`
+  updateWindow.webContents.executeJavaScript(js, true).catch(() => {})
+}
+
+function setUpdateUi(state: UpdateUiState) {
+  if (!updateWindow || updateWindow.isDestroyed()) return
+  if (!updateWindowReady) {
+    pendingUpdateUi = state
+    return
+  }
+  applyUpdateUi(state)
+}
+
+function startAutoUpdate() {
+  autoUpdater.autoDownload = true
+  autoUpdater.autoInstallOnAppQuit = false
+
+  autoUpdater.on('update-available', (info) => {
+    ensureUpdateWindow()
+    setUpdateUi({ status: `Downloading version ${info.version}...`, percent: 0 })
+  })
+  autoUpdater.on('download-progress', (p) => {
+    const pct = Math.round(p.percent)
+    const transferred = (p.transferred / 1024 / 1024).toFixed(1)
+    const total = (p.total / 1024 / 1024).toFixed(1)
+    setUpdateUi({
+      status: 'Downloading update...',
+      percent: pct,
+      meta: `${transferred} MB / ${total} MB · ${pct}%`
+    })
+  })
+  autoUpdater.on('update-downloaded', () => {
+    setUpdateUi({ status: 'Installing update...', percent: 100, meta: 'Restarting to apply.' })
+    setTimeout(() => autoUpdater.quitAndInstall(), 800)
+  })
+  autoUpdater.on('error', (error) => {
+    console.error('Auto-update error:', error)
+    if (updateWindow && !updateWindow.isDestroyed()) {
+      updateWindow.close()
+    }
+  })
+
+  autoUpdater.checkForUpdates().catch((error) => {
+    console.error('Auto-update check failed:', error)
+  })
+}
+
 async function setLastViewPath(pathname: string) {
   if (!RESTORABLE_PATHS.has(pathname)) {
     return
@@ -161,7 +281,7 @@ app.whenReady().then(() => {
   console.log('whenReady')
   enableDcsPersistenceForAppRuntime()
   // Set app user model id for windows
-  electronApp.setAppUserModelId('com.electron')
+  electronApp.setAppUserModelId('at.digitalcrewchief.app')
 
   // Remove the application menu bar
   Menu.setApplicationMenu(null)
@@ -202,9 +322,7 @@ app.whenReady().then(() => {
         console.log('Auto-update disabled in settings; skipping update check.')
         return
       }
-      autoUpdater.checkForUpdatesAndNotify().catch((error) => {
-        console.error('Auto-update check failed:', error)
-      })
+      startAutoUpdate()
     })
   }
 

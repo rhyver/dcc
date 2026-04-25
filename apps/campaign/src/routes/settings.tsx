@@ -35,6 +35,8 @@ export function Settings() {
   const [aiProvider, setAiProvider] = useState<AiProvider>('openai')
   const [aiApiKey, setAiApiKey] = useState<string>('')
   const [aiModel, setAiModel] = useState<string>('')
+  const [disableAutoUpdate, setDisableAutoUpdate] = useState<boolean>(false)
+  const [appVersion, setAppVersion] = useState<string>('')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -45,7 +47,11 @@ export function Settings() {
       setAiProvider(settings.aiProvider ?? 'openai')
       setAiApiKey(settings.aiApiKey ?? '')
       setAiModel(settings.aiModel ?? '')
+      setDisableAutoUpdate(settings.disableAutoUpdate ?? false)
       setLoading(false)
+    })
+    window.api?.getAppVersion?.().then((version) => {
+      setAppVersion(version)
     })
   }, [])
 
@@ -70,7 +76,8 @@ export function Settings() {
       enableDcsPersistence,
       aiProvider,
       aiApiKey: aiApiKey.trim() || undefined,
-      aiModel: aiModel.trim() || undefined
+      aiModel: aiModel.trim() || undefined,
+      disableAutoUpdate
     })
     navigate('/new')
   }
@@ -214,6 +221,31 @@ export function Settings() {
                 <p className="text-xs text-gray-500">
                   Select your DCS World installation folder (the one containing `Scripts`).
                 </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-300">Automatic Updates</label>
+                <label className="flex items-center gap-3 rounded border border-gray-700 bg-gray-900 p-3">
+                  <input
+                    type="checkbox"
+                    checked={disableAutoUpdate}
+                    onChange={(event) => setDisableAutoUpdate(event.target.checked)}
+                    className="h-4 w-4 accent-cyan-400"
+                  />
+                  <span className="text-sm text-gray-200">
+                    Disable automatic update checks (no network calls on launch)
+                  </span>
+                </label>
+                <p className="text-xs text-gray-500">
+                  When enabled, the app will not contact the update server. Restart the app to apply.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-300">Version</label>
+                <div className="rounded border border-gray-700 bg-gray-900 p-2 font-mono text-sm text-gray-200">
+                  {appVersion || 'unknown'}
+                </div>
               </div>
 
               <div className="pt-4 flex justify-end">

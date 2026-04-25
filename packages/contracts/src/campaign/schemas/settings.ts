@@ -7,5 +7,6 @@ export const settings = z.object({
   aiProvider: z.enum(['openai', 'anthropic', 'openrouter']).optional(),
   aiApiKey: z.string().optional(),
   aiModel: z.string().optional(),
+  disableAutoUpdate: z.boolean().optional(),
   lastViewPath: z.string().optional()
 })

@@ -30,6 +30,7 @@ const api = {
     return () => ipcRenderer.removeListener('menu-remove-flight-groups', callback)
   },
   selectDirectory: () => ipcRenderer.invoke('dialog:openDirectory'),
+  getAppVersion: (): Promise<string> => ipcRenderer.invoke('app:getVersion'),
   sendMissionGeneratorChat: (messages: { role: 'user' | 'assistant'; content: string }[]) => {
     ipcRenderer.send(CHAT_REQUEST_CHANNEL, messages)
   },

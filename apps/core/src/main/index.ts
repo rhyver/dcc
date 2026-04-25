@@ -38,6 +38,19 @@ async function getLastViewPath() {
   return '/'
 }
 
+async function isAutoUpdateDisabled() {
+  const file = await readFile(stateFile)
+  if (file.isErr()) {
+    return false
+  }
+  const parsed = parseJson(file.value)
+  if (parsed.isErr()) {
+    return false
+  }
+  const state = parsed.value as { settings?: { disableAutoUpdate?: boolean } }
+  return state.settings?.disableAutoUpdate === true
+}
+
 async function setLastViewPath(pathname: string) {
   if (!RESTORABLE_PATHS.has(pathname)) {
     return
@@ -177,13 +190,21 @@ app.whenReady().then(() => {
     }
   })
 
+  ipcMain.handle('app:getVersion', () => app.getVersion())
+
   registerMissionGeneratorChatHandlers(ipcMain, () => mainWindow)
 
   void createWindow()
 
   if (!is.dev && process.platform === 'win32') {
-    autoUpdater.checkForUpdatesAndNotify().catch((error) => {
-      console.error('Auto-update check failed:', error)
+    void isAutoUpdateDisabled().then((disabled) => {
+      if (disabled) {
+        console.log('Auto-update disabled in settings; skipping update check.')
+        return
+      }
+      autoUpdater.checkForUpdatesAndNotify().catch((error) => {
+        console.error('Auto-update check failed:', error)
+      })
     })
   }
 

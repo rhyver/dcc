@@ -34,6 +34,7 @@ type AppSettings = {
   aiProvider?: 'openai' | 'anthropic' | 'openrouter'
   aiApiKey?: string
   aiModel?: string
+  disableAutoUpdate?: boolean
   lastViewPath?: string
 }
 

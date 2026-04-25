@@ -7,6 +7,7 @@ interface API {
   onMenuReturnToMenu: (callback: () => void) => () => void
   onMenuRemoveFlightGroups: (callback: () => void) => () => void
   selectDirectory: () => Promise<string | null>
+  getAppVersion: () => Promise<string>
   sendMissionGeneratorChat: (messages: { role: 'user' | 'assistant'; content: string }[]) => void
   onMissionGeneratorChatChunk: (callback: (chunk: string) => void) => () => void
   onMissionGeneratorChatEnd: (callback: () => void) => () => void

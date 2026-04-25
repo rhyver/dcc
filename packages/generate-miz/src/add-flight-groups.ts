@@ -75,6 +75,10 @@ function createCapOrbitTask(
   }
 }
 
+function cloneAircraftUnitOption<T>(value: T): T {
+  return structuredClone(value)
+}
+
 /**
  * Calculate current position along the flight path based on elapsed time.
  * Returns null if the flight hasn't taken off yet.
@@ -503,6 +507,12 @@ export function addFlightGroups(
             chaff: aircraftDef.chaff,
             gun: 100
           },
+          AddPropAircraft: aircraftDef.AddPropAircraft
+            ? cloneAircraftUnitOption(aircraftDef.AddPropAircraft)
+            : undefined,
+          datalinks: aircraftDef.datalinks
+            ? cloneAircraftUnitOption(aircraftDef.datalinks)
+            : undefined,
           livery_id: 'default',
           skill: ac.client ? 'Client' : 'High',
           speed: speed,
@@ -793,47 +803,6 @@ export function addFlightGroups(
                   altitudeEnabled: false,
                   weaponType: 4030478,
                   x: targetStructure.position.x + building.offset.x
-                }
-              })
-            })
-          }
-        }
-
-        if (wp.name === 'IP' && fg.target && fg.task === 'CAS') {
-          const enemyCoalition = key === 'player' ? 'opponent' : 'player'
-          const targetGroundGroup = campaign.coalitions[enemyCoalition].groundGroups.find(
-            (groundGroup) => groundGroup.id === fg.target?.id
-          )
-          const targetObjective = theatre.objectives.find(
-            (objective) => objective.name === fg.target?.objectiveId
-          )
-
-          const targetPosition = targetGroundGroup?.position ?? targetObjective?.position
-          if (targetPosition) {
-            const casAttackPoints = [
-              { x: targetPosition.x, y: targetPosition.y },
-              { x: targetPosition.x + 120, y: targetPosition.y + 80 },
-              { x: targetPosition.x - 120, y: targetPosition.y - 80 }
-            ]
-
-            casAttackPoints.forEach((point) => {
-              tasks.push({
-                enabled: true,
-                auto: false,
-                id: 'Bombing',
-                number: tasks.length + 1,
-                params: {
-                  direction: 0,
-                  attackQtyLimit: false,
-                  attackQty: 1,
-                  expend: 'Auto',
-                  y: point.y,
-                  directionEnabled: false,
-                  groupAttack: false,
-                  altitude: 3000,
-                  altitudeEnabled: false,
-                  weaponType: 4030478,
-                  x: point.x
                 }
               })
             })

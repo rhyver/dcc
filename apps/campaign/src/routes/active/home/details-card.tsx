@@ -1,4 +1,3 @@
-import { Button } from '@/components/ui/button'
 import {
   Card,
   CardHeader,
@@ -126,20 +125,20 @@ export function DetailsCard({
             )
 
   return (
-    <div className="absolute top-4 right-4 w-80 z-[1100]">
+    <div className="absolute top-4 right-4 w-80 z-1100">
       <Card className="backdrop-blur-md bg-synthwave-dark/80 border-synthwave-pink/30 text-synthwave-light shadow-[0_0_15px_rgba(255,0,170,0.3)]">
         <CardHeader>
           <CardTitle className="text-synthwave-cyan retro-font">{headerTitle}</CardTitle>
           <CardDescription className="text-secondary">{headerSubtitle}</CardDescription>
           <CardAction>
-            <Button
-              variant="ghost"
-              size="icon"
+            <button
+              type="button"
               onClick={onClose}
-              className="text-synthwave-pink hover:bg-synthwave-pink/20 hover:text-synthwave-pink"
+              aria-label="Close details"
+              className="window-control-button window-control-button-close"
             >
-              <X className="h-4 w-4" />
-            </Button>
+              <X className="h-3.5 w-3.5" />
+            </button>
           </CardAction>
         </CardHeader>
         <CardContent>

@@ -322,6 +322,11 @@ local function writeState()
     export()
 end
 
+local function getInitiatorGroup(initiator)
+    if not initiator or not initiator.getGroup then return nil end
+    return initiator:getGroup()
+end
+
 local ev = {}
 function ev:onEvent(event)
     debugLog('onEvent: '..event.id)
@@ -341,7 +346,7 @@ function ev:onEvent(event)
 
         local name = initiator:getName()
         local position = initiator:getPosition().p
-        local group = initiator:getGroup()
+        local group = getInitiatorGroup(initiator)
         local groupName = group and group:getName() or nil
         local category = group and group:getCategory() or nil
 
@@ -363,7 +368,7 @@ function ev:onEvent(event)
         if not initiator then return end
         if not initiator:isExist() then return end
 
-        local group = initiator:getGroup()
+        local group = getInitiatorGroup(initiator)
         if not group then return end
 
         local groupName = group:getName()

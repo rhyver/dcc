@@ -16,7 +16,7 @@ const DEFAULT_AWACS: Record<string, string> = {
   red: 'A-50'
 }
 
-const ORBIT_LEG_KM = 40
+const RACETRACK_LEG_KM = 120
 const OFFSET_KM = 120
 const AWACS_FREQUENCY = 251.0
 const AWACS_ALTITUDE = 6096
@@ -119,12 +119,12 @@ export function addAwacsGroups(
   const fNx = frontAxisX / frontAxisLen
   const fNy = frontAxisY / frontAxisLen
 
-  // Perpendicular direction (for orbit legs)
+  // Perpendicular direction for the long racetrack legs
   const perpX = -fNy
   const perpY = fNx
 
   const offsetM = OFFSET_KM * 1000
-  const legHalfM = (ORBIT_LEG_KM * 1000) / 2
+  const legHalfM = (RACETRACK_LEG_KM * 1000) / 2
 
   for (const coalition of coalitionData) {
     // Determine AWACS aircraft type
@@ -212,7 +212,7 @@ export function addAwacsGroups(
     // 2. SetInvisible
     // 3. SetUnlimitedFuel
     // 4. AWACS
-    // 5. Orbit (Race-Track, no duration)
+    // 5. Racetrack orbit, no duration
     const tasks: z.infer<typeof schemas.dcs.task>[] = [
       {
         enabled: true,
@@ -297,7 +297,7 @@ export function addAwacsGroups(
         ETA_locked: true,
         speed_locked: true,
         formation_template: '',
-        name: 'Orbit Start'
+        name: 'Racetrack Start'
       },
       {
         alt: altitude,
@@ -317,7 +317,7 @@ export function addAwacsGroups(
         ETA_locked: false,
         speed_locked: true,
         formation_template: '',
-        name: 'Orbit End'
+        name: 'Racetrack End'
       }
     ]
 

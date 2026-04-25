@@ -29,6 +29,9 @@
     "tsc": {
       "dependsOn": ["^tsc"]
     },
+    "test": {
+      "dependsOn": ["^test"]
+    },
     "lint": {
       "dependsOn": ["^lint"]
     },

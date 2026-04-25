@@ -8,13 +8,22 @@ const API = `https://codeberg.org/api/v1/repos/${OWNER}/${REPO}`
 
 const argv = process.argv.slice(2)
 const skipPublish = argv.includes('--no-publish')
+const resume = argv.includes('--resume')
 const manualVersion = argv.find((a) => !a.startsWith('--'))
+const KNOWN_FLAGS = new Set(['--no-publish', '--resume'])
 
-if (argv.some((a) => a !== '--no-publish' && a.startsWith('--'))) {
-  console.error('usage: bun run release [version] [--no-publish]')
-  console.error('       version  optional manual override (e.g. 0.5.0-2026041901 or 0.6.0)')
-  console.error('                if omitted, derived as <base>-YYYYMMDDNN from package.json + today')
+if (argv.some((a) => a.startsWith('--') && !KNOWN_FLAGS.has(a))) {
+  console.error('usage: bun run release [version] [--no-publish] [--resume]')
+  console.error('       version    optional manual override (e.g. 0.5.0-2026041901 or 0.6.0)')
+  console.error('                  if omitted, derived as <base>-YYYYMMDDNN from package.json + today')
+  console.error('       --resume   skip bump/build/commit/tag; push and publish the version')
+  console.error('                  already in package.json (use after a failed publish)')
   console.error('       CODEBERG_TOKEN=<token> required unless --no-publish')
+  process.exit(1)
+}
+
+if (resume && manualVersion) {
+  console.error('error: --resume cannot be combined with a manual version')
   process.exit(1)
 }
 
@@ -48,10 +57,23 @@ if (branch !== 'main') {
 }
 
 console.log('==> fetching tags from origin')
-await $`git fetch --tags --quiet`.nothrow()
+if (token) {
+  await $`git -c http.extraheader=${`Authorization: token ${token}`} fetch --tags --quiet`.nothrow()
+} else {
+  await $`git fetch --tags --quiet`.nothrow()
+}
 
 let version: string
-if (manualVersion) {
+if (resume) {
+  const rootPkg = JSON.parse(readFileSync('package.json', 'utf8')) as { version: string }
+  version = rootPkg.version
+  console.log(`==> resuming release of ${version} from package.json`)
+  const localTag = await $`git rev-parse v${version}`.quiet().nothrow()
+  if (localTag.exitCode !== 0) {
+    console.error(`error: tag v${version} not found locally — nothing to resume`)
+    process.exit(1)
+  }
+} else if (manualVersion) {
   version = manualVersion
   console.log(`==> using manual version ${version}`)
 } else {
@@ -90,27 +112,29 @@ if (manualVersion) {
 
 const tag = `v${version}`
 
-const tagCheck = await $`git rev-parse ${tag}`.quiet().nothrow()
-if (tagCheck.exitCode === 0) {
-  console.error(`error: tag ${tag} already exists locally`)
-  process.exit(1)
+if (!resume) {
+  const tagCheck = await $`git rev-parse ${tag}`.quiet().nothrow()
+  if (tagCheck.exitCode === 0) {
+    console.error(`error: tag ${tag} already exists locally`)
+    process.exit(1)
+  }
+
+  function bump(path: string): void {
+    const pkg = JSON.parse(readFileSync(path, 'utf8'))
+    pkg.version = version
+    writeFileSync(path, JSON.stringify(pkg, null, 2) + '\n')
+  }
+
+  console.log(`==> bumping version to ${version}`)
+  bump('package.json')
+  bump('apps/core/package.json')
+
+  console.log('==> refreshing lockfile')
+  await $`bun install`
+
+  console.log('==> building Windows installer')
+  await $`bun run build:win`
 }
-
-function bump(path: string): void {
-  const pkg = JSON.parse(readFileSync(path, 'utf8'))
-  pkg.version = version
-  writeFileSync(path, JSON.stringify(pkg, null, 2) + '\n')
-}
-
-console.log(`==> bumping version to ${version}`)
-bump('package.json')
-bump('apps/core/package.json')
-
-console.log('==> refreshing lockfile')
-await $`bun install`
-
-console.log('==> building Windows installer')
-await $`bun run build:win`
 
 const installer = `dist/dcc-${version}-setup.exe`
 const blockmap = `dist/dcc-${version}-setup.exe.blockmap`
@@ -132,13 +156,19 @@ if (!manifestText.includes(`version: ${version}`)) {
   process.exit(1)
 }
 
-console.log('==> committing and tagging')
-await $`git add package.json apps/core/package.json bun.lock`
-await $`git commit -m ${`Release ${tag}`}`
-await $`git tag -a ${tag} -m ${`Release ${tag}`}`
+if (!resume) {
+  console.log('==> committing and tagging')
+  await $`git add package.json apps/core/package.json bun.lock`
+  await $`git commit -m ${`Release ${tag}`}`
+  await $`git tag -a ${tag} -m ${`Release ${tag}`}`
+}
 
 console.log('==> pushing commit and tag')
-await $`git push --follow-tags`
+if (token) {
+  await $`git -c http.extraheader=${`Authorization: token ${token}`} push --follow-tags`
+} else {
+  await $`git push --follow-tags`
+}
 
 if (skipPublish) {
   console.log('')

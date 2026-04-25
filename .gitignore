@@ -6,3 +6,6 @@ out
 *.log*
 .turbo
 .cache
+.env
+.env.*
+!.env.example

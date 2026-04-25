@@ -13,6 +13,8 @@ asarUnpack:
   - resources/**
 win:
   executableName: dcc
+  target:
+    - nsis
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
@@ -40,6 +42,7 @@ appImage:
 npmRebuild: false
 publish:
   provider: generic
-  url: https://example.com/auto-updates
+  url: https://codeberg.org/rhyver/dcc/releases/latest/download
+  channel: latest
 electronDownload:
   mirror: https://npmmirror.com/mirrors/electron/

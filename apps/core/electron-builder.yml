@@ -1,6 +1,5 @@
 appId: com.electron.app
 productName: dcc
-electronVersion: 38.1.2
 directories:
   app: apps/core
   buildResources: build
@@ -29,6 +28,8 @@ extraResources:
     to: renderer/document
 win:
   executableName: dcc
+  target:
+    - nsis
 nsis:
   artifactName: ${productName}-${version}-setup.${ext}
   shortcutName: ${productName}
@@ -56,6 +57,7 @@ appImage:
 npmRebuild: false
 publish:
   provider: generic
-  url: https://example.com/auto-updates
+  url: https://codeberg.org/rhyver/dcc/releases/latest/download
+  channel: latest
 electronDownload:
   mirror: https://npmmirror.com/mirrors/electron/

@@ -1,6 +1,7 @@
 import { app, shell, BrowserWindow, ipcMain, Menu, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import { autoUpdater } from 'electron-updater'
 import icon from '../../resources/icon.png?asset'
 import { rpcHandler } from './api'
 import { readFile, parseJson, writeFile } from './utils'
@@ -179,6 +180,12 @@ app.whenReady().then(() => {
   registerMissionGeneratorChatHandlers(ipcMain, () => mainWindow)
 
   void createWindow()
+
+  if (!is.dev && process.platform === 'win32') {
+    autoUpdater.checkForUpdatesAndNotify().catch((error) => {
+      console.error('Auto-update check failed:', error)
+    })
+  }
 
   app.on('activate', function () {
     console.log('activate')

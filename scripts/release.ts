@@ -240,7 +240,7 @@ if (existingRes.ok) {
         name: tag,
         body: `Release ${tag}`,
         draft: false,
-        prerelease: false
+        prerelease: true
       },
       tag
     )
@@ -324,7 +324,7 @@ try {
       name: `Auto-update channel (${version})`,
       body: `Stable URL for the auto-updater. Mirrors assets from [${tag}](https://codeberg.org/${OWNER}/${REPO}/releases/tag/${tag}).`,
       draft: false,
-      prerelease: false
+      prerelease: true
     },
     LATEST_TAG
   )

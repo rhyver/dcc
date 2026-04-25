@@ -1,5 +1,6 @@
-import { app, shell, BrowserWindow, ipcMain, Menu, dialog } from 'electron'
-import { join } from 'path'
+import { app, shell, BrowserWindow, ipcMain, Menu, dialog, protocol, net } from 'electron'
+import { join, resolve, relative, isAbsolute } from 'path'
+import { pathToFileURL } from 'url'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { autoUpdater } from 'electron-updater'
 import icon from '../../resources/icon.png?asset'
@@ -10,6 +11,8 @@ import { registerMissionGeneratorChatHandlers } from './api/mission-generator/ch
 
 let mainWindow: BrowserWindow | null = null
 const stateFile = join(app.getPath('userData'), 'state.json')
+const rendererProtocol = 'dcc'
+const campaignRendererHost = 'campaign'
 const RESTORABLE_PATHS = new Set([
   '/',
   '/mission',
@@ -18,6 +21,40 @@ const RESTORABLE_PATHS = new Set([
   '/settings',
   '/mission-generator'
 ])
+
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: rendererProtocol,
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      corsEnabled: true
+    }
+  }
+])
+
+function registerRendererProtocol() {
+  protocol.handle(rendererProtocol, (request) => {
+    const url = new URL(request.url)
+    if (url.host !== campaignRendererHost) {
+      return new Response('Not found', { status: 404 })
+    }
+
+    const rendererRoot = resolve(process.resourcesPath, 'renderer/campaign')
+    const requestedPath = decodeURIComponent(url.pathname === '/' ? '/index.html' : url.pathname)
+    const filePath = resolve(rendererRoot, `.${requestedPath}`)
+    const relativePath = relative(rendererRoot, filePath)
+    const isSafePath =
+      relativePath === '' || (!relativePath.startsWith('..') && !isAbsolute(relativePath))
+
+    if (!isSafePath) {
+      return new Response('Bad request', { status: 400 })
+    }
+
+    return net.fetch(pathToFileURL(filePath).toString())
+  })
+}
 
 async function getLastViewPath() {
   const file = await readFile(stateFile)
@@ -269,9 +306,9 @@ async function createWindow(): Promise<void> {
   if (is.dev && CAMPAIGN_URL) {
     await mainWindow.loadURL(withHashPath(CAMPAIGN_URL, startupPath))
   } else {
-    await mainWindow.loadFile(join(process.resourcesPath, 'renderer/campaign/index.html'), {
-      hash: startupPath
-    })
+    await mainWindow.loadURL(
+      withHashPath(`${rendererProtocol}://${campaignRendererHost}/index.html`, startupPath)
+    )
   }
 }
 
@@ -280,6 +317,7 @@ async function createWindow(): Promise<void> {
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
   console.log('whenReady')
+  registerRendererProtocol()
   enableDcsPersistenceForAppRuntime()
   // Set app user model id for windows
   electronApp.setAppUserModelId('at.digitalcrewchief.app')

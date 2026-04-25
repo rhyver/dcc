@@ -10,6 +10,7 @@ import { MissionGenerator } from './routes/mission-generator/mission-generator'
 import { activeStore } from './stores/active'
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router'
+import { Maximize2, Minus, X } from 'lucide-react'
 
 function RootLayout() {
   const navigate = useNavigate()
@@ -26,7 +27,46 @@ function RootLayout() {
     }
   }, [navigate])
 
-  return <Outlet />
+  return (
+    <>
+      <WindowFrameControls />
+      <Outlet />
+    </>
+  )
+}
+
+function WindowFrameControls() {
+  return (
+    <div className="pointer-events-none fixed inset-x-0 top-0 z-[5000] h-10">
+      <div className="app-drag-region absolute inset-x-0 top-0 h-3" />
+      <div className="app-no-drag absolute right-3 top-2 flex items-center gap-1">
+        <button
+          type="button"
+          className="window-control-button"
+          aria-label="Minimize window"
+          onClick={() => void window.api?.minimizeWindow()}
+        >
+          <Minus className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          className="window-control-button"
+          aria-label="Maximize or restore window"
+          onClick={() => void window.api?.toggleMaximizeWindow()}
+        >
+          <Maximize2 className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          className="window-control-button window-control-button-close"
+          aria-label="Close window"
+          onClick={() => void window.api?.closeWindow()}
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </div>
+  )
 }
 
 async function activeCampaignMiddleware() {

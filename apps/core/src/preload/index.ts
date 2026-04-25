@@ -31,6 +31,9 @@ const api = {
   },
   selectDirectory: () => ipcRenderer.invoke('dialog:openDirectory'),
   getAppVersion: (): Promise<string> => ipcRenderer.invoke('app:getVersion'),
+  minimizeWindow: () => ipcRenderer.invoke('window:minimize'),
+  toggleMaximizeWindow: () => ipcRenderer.invoke('window:toggleMaximize'),
+  closeWindow: () => ipcRenderer.invoke('window:close'),
   sendMissionGeneratorChat: (messages: { role: 'user' | 'assistant'; content: string }[]) => {
     ipcRenderer.send(CHAT_REQUEST_CHANNEL, messages)
   },

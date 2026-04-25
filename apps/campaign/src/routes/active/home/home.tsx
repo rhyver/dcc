@@ -11,7 +11,9 @@ import {
   FileOutput,
   FolderOpen,
   Home as HomeIcon,
-  ScrollText
+  ScrollText,
+  Plus,
+  Minus
 } from 'lucide-react'
 import React from 'react'
 import * as ScrollAreaPrimitive from '@radix-ui/react-scroll-area'
@@ -115,18 +117,18 @@ export function Home() {
               <Button
                 variant="outline"
                 size="sm"
-                className="h-8 w-8 border-synthwave-pink/30 bg-synthwave-dark/80 p-0 text-secondary backdrop-blur-md hover:bg-synthwave-pink/20"
+                className="h-[30px] w-[30px] rounded-full border-synthwave-pink/30 bg-synthwave-dark/80 p-0 text-secondary backdrop-blur-md hover:bg-synthwave-pink/20"
                 onClick={() => setMapZoom(Math.min(12, mapZoom + 1))}
               >
-                +
+                <Plus className="h-3.5 w-3.5" />
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                className="h-8 w-8 border-synthwave-pink/30 bg-synthwave-dark/80 p-0 text-secondary backdrop-blur-md hover:bg-synthwave-pink/20"
+                className="h-[30px] w-[30px] rounded-full border-synthwave-pink/30 bg-synthwave-dark/80 p-0 text-secondary backdrop-blur-md hover:bg-synthwave-pink/20"
                 onClick={() => setMapZoom(Math.max(3, mapZoom - 1))}
               >
-                -
+                <Minus className="h-3.5 w-3.5" />
               </Button>
             </div>
 

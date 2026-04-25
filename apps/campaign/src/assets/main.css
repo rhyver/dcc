@@ -138,6 +138,54 @@
   }
 }
 
+.app-drag-region {
+  -webkit-app-region: drag;
+  user-select: none;
+  pointer-events: auto;
+}
+
+.app-no-drag,
+.app-no-drag * {
+  -webkit-app-region: no-drag;
+  pointer-events: auto;
+}
+
+.window-control-button {
+  display: inline-flex;
+  height: 30px;
+  width: 30px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--synthwave-pink) 26%, transparent);
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--synthwave-dark) 72%, transparent);
+  color: var(--synthwave-light);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--synthwave-pink) 22%, transparent);
+  backdrop-filter: blur(12px);
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.window-control-button:hover {
+  border-color: color-mix(in srgb, var(--synthwave-cyan) 54%, transparent);
+  background: color-mix(in srgb, var(--synthwave-purple) 28%, var(--synthwave-dark));
+  color: white;
+  box-shadow: 0 0 16px color-mix(in srgb, var(--synthwave-cyan) 28%, transparent);
+}
+
+.window-control-button:active {
+  background: color-mix(in srgb, var(--synthwave-pink) 28%, var(--synthwave-dark));
+}
+
+.window-control-button-close:hover {
+  border-color: color-mix(in srgb, var(--enemy-red) 72%, transparent);
+  background: color-mix(in srgb, var(--enemy-red) 72%, transparent);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--enemy-red) 36%, transparent);
+}
+
 .synthwave-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: var(--synthwave-purple) transparent;

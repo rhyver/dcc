@@ -227,6 +227,7 @@ async function createWindow(): Promise<void> {
     height: 670,
     show: false,
     autoHideMenuBar: true,
+    frame: false,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -311,6 +312,20 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('app:getVersion', () => app.getVersion())
+  ipcMain.handle('window:minimize', () => {
+    mainWindow?.minimize()
+  })
+  ipcMain.handle('window:toggleMaximize', () => {
+    if (!mainWindow) return
+    if (mainWindow.isMaximized()) {
+      mainWindow.unmaximize()
+      return
+    }
+    mainWindow.maximize()
+  })
+  ipcMain.handle('window:close', () => {
+    mainWindow?.close()
+  })
 
   registerMissionGeneratorChatHandlers(ipcMain, () => mainWindow)
 

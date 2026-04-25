@@ -8,6 +8,9 @@ interface API {
   onMenuRemoveFlightGroups: (callback: () => void) => () => void
   selectDirectory: () => Promise<string | null>
   getAppVersion: () => Promise<string>
+  minimizeWindow: () => Promise<void>
+  toggleMaximizeWindow: () => Promise<void>
+  closeWindow: () => Promise<void>
   sendMissionGeneratorChat: (messages: { role: 'user' | 'assistant'; content: string }[]) => void
   onMissionGeneratorChatChunk: (callback: (chunk: string) => void) => () => void
   onMissionGeneratorChatEnd: (callback: () => void) => () => void

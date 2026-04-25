@@ -16,6 +16,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { activeStore } from '@/stores/active'
 import { coreClient } from '@/lib/orpc'
 import { getAircraftDisplayName } from '@/lib/utils'
+import { featureFlags } from '@/lib/feature-flags'
 
 function formatTime(date: Date | string) {
   const d = new Date(date)
@@ -49,6 +50,8 @@ export function SelectFlightDialog({ open, onOpenChange }: SelectFlightDialogPro
   // Group flight groups by task, only include tasks that have groups
   const groupsByTask = new Map<string, typeof flightGroups>()
   for (const group of flightGroups) {
+    if (!featureFlags.transportFlightGroups && group.task === 'Transport') continue
+
     const existing = groupsByTask.get(group.task)
     if (existing) {
       existing.push(group)

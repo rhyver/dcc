@@ -12,6 +12,7 @@ import {
   FolderOpen,
   Home as HomeIcon,
   ScrollText,
+  Settings as SettingsIcon,
   Plus,
   Minus
 } from 'lucide-react'
@@ -482,6 +483,17 @@ function CampaignMenu({
             </span>
           </Button>
           <div className="h-px bg-synthwave-pink/20" />
+          <Button
+            variant="ghost"
+            className="w-full justify-start gap-3 text-secondary hover:text-white hover:bg-synthwave-pink/10"
+            onClick={() => {
+              setOpen(false)
+              navigate('/settings')
+            }}
+          >
+            <SettingsIcon className="h-4 w-4 text-synthwave-pink" />
+            Settings
+          </Button>
           <Button
             variant="ghost"
             className="w-full justify-start gap-3 text-secondary hover:text-white hover:bg-synthwave-pink/10"

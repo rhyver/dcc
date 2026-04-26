@@ -9,9 +9,9 @@ import { rpcHandler } from './api'
 import { readFile, parseJson, writeFile } from './utils'
 import { enableDcsPersistenceForAppRuntime } from './dcs-persistence'
 import { registerMissionGeneratorChatHandlers } from './api/mission-generator/chat-handler'
+import { stateFile } from './app-data'
 
 let mainWindow: BrowserWindow | null = null
-const stateFile = join(app.getPath('userData'), 'state.json')
 const rendererProtocol = 'dcc'
 const campaignRendererHost = 'campaign'
 const RESTORABLE_PATHS = new Set([

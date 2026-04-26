@@ -18,9 +18,8 @@ import { generateMizFromCampaign } from '@dcc/generate-miz'
 import { getScenarios } from '../data/get-scenarios'
 import { getTheatre } from '../data/get-theatre'
 import { syncDcsPersistenceForAppRuntime } from '../../dcs-persistence'
+import { campaignsDir, stateFile } from '../../app-data'
 
-const stateFile = path.join(app.getPath('userData'), 'state.json')
-const campaignsDir = path.join(app.getPath('userData'), 'campaigns')
 const missionStateFileName = 'dcc_state.json'
 console.log('stateFile', stateFile)
 console.log('campaignsDir', campaignsDir)

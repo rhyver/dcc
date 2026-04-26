@@ -79,6 +79,44 @@ function cloneAircraftUnitOption<T>(value: T): T {
   return structuredClone(value)
 }
 
+function createAddPropAircraft(aircraftDef: z.infer<typeof schemas.dcs.aircraft>, index: number) {
+  if (!aircraftDef.AddPropAircraft) return undefined
+
+  const addPropAircraft = cloneAircraftUnitOption(aircraftDef.AddPropAircraft)
+
+  Object.entries(addPropAircraft).forEach(([key, value]) => {
+    if (value === '{STN_L16}') {
+      addPropAircraft[key] = `002${(index + 1).toString().padStart(2, '0')}`
+    }
+    if (value === '{VoiceCallsignNumber}') {
+      addPropAircraft[key] = `1${index + 1}`
+    }
+  })
+
+  return addPropAircraft
+}
+
+function createDatalinks(
+  aircraftDef: z.infer<typeof schemas.dcs.aircraft>,
+  index: number,
+  unitIds: number[]
+) {
+  if (!aircraftDef.datalinks) return undefined
+
+  const datalinks = cloneAircraftUnitOption(aircraftDef.datalinks)
+
+  datalinks.Link16.settings.flightLead = index === 0
+  datalinks.Link16.network = {
+    teamMembers: unitIds.map((unitId) => ({
+      TDOA: true,
+      missionUnitId: unitId
+    })),
+    donors: {}
+  }
+
+  return datalinks
+}
+
 /**
  * Calculate current position along the flight path based on elapsed time.
  * Returns null if the flight hasn't taken off yet.
@@ -438,8 +476,9 @@ export function addFlightGroups(
       }
 
       // Add units
+      const unitIds = fg.aircrafts.map(() => nextId())
       const units: z.infer<typeof schemas.dcs.aircraftUnit>[] = fg.aircrafts.map((ac, index) => {
-        const unitId = nextId()
+        const unitId = unitIds[index] ?? nextId()
 
         let parking: string | undefined = undefined
         let parking_id: string | undefined = undefined
@@ -507,12 +546,8 @@ export function addFlightGroups(
             chaff: aircraftDef.chaff,
             gun: 100
           },
-          AddPropAircraft: aircraftDef.AddPropAircraft
-            ? cloneAircraftUnitOption(aircraftDef.AddPropAircraft)
-            : undefined,
-          datalinks: aircraftDef.datalinks
-            ? cloneAircraftUnitOption(aircraftDef.datalinks)
-            : undefined,
+          AddPropAircraft: createAddPropAircraft(aircraftDef, index),
+          datalinks: createDatalinks(aircraftDef, index, unitIds),
           livery_id: 'default',
           skill: ac.client ? 'Client' : 'High',
           speed: speed,

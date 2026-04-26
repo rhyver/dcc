@@ -6,15 +6,12 @@ import * as z from 'zod'
 import { schemas } from '@dcc/contracts'
 import { writeFile, ensureDirectory, readFile, parseJson } from '../../utils'
 import path from 'path'
-import { app } from 'electron'
 import { getTheatre } from '../data/get-theatre'
 import { assignObjectivesToCoalitions } from './assign-objectives-to-coalitions'
 import { assignSams } from './assign-sams'
 import { assignStructures } from './assign-structures'
 import { assignGroundGroups } from './assign-ground-groups'
-
-const stateFile = path.join(app.getPath('userData'), 'state.json')
-const campaignsDir = path.join(app.getPath('userData'), 'campaigns')
+import { campaignsDir, stateFile } from '../../app-data'
 
 async function setActiveCampaignId(id: string) {
   // Read existing state to preserve settings (e.g., missionExportPath)

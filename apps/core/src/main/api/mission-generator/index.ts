@@ -23,6 +23,7 @@ import { createModel } from './ai-provider'
 import { buildCampaignFromPlan } from './build-campaign-from-plan'
 import { createMissionGeneratorSystemPrompt } from './system-prompt'
 import { isMissionChatAllowed, MISSION_TOPIC_REJECTION_MESSAGE } from './topic-guard'
+import { missionBriefingsDir, stateFile } from '../../app-data'
 
 type AppSettings = {
   missionExportPath?: string
@@ -31,8 +32,7 @@ type AppSettings = {
   aiModel?: string
 }
 
-const stateFile = path.join(app.getPath('userData'), 'state.json')
-const briefingsDir = path.join(app.getPath('userData'), 'mission-briefings')
+const briefingsDir = missionBriefingsDir
 const savedGamesVariants = ['DCS', 'DCS.openbeta', 'DCS.openbeta_server', 'DCS_server']
 type MissionPlan = z.infer<typeof schemas.missionGenerator.missionPlan>
 type MissionChatMessage = z.infer<typeof schemas.missionGenerator.chatMessage>

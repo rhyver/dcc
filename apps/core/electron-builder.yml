@@ -1,5 +1,5 @@
 appId: at.digitalcrewchief.app
-productName: dcc
+productName: DCC
 directories:
   app: apps/core
   buildResources: build

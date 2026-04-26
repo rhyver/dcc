@@ -1,14 +1,13 @@
 import type { BrowserWindow, IpcMain } from 'electron'
 import { streamText } from 'ai'
 import { schemas } from '@dcc/contracts'
-import path from 'path'
 import * as z from 'zod'
-import { app } from 'electron'
 
 import { parseJson, readFile } from '../../utils'
 import { createModel } from './ai-provider'
 import { createMissionGeneratorSystemPrompt } from './system-prompt'
 import { isMissionChatAllowed, MISSION_TOPIC_REJECTION_MESSAGE } from './topic-guard'
+import { stateFile } from '../../app-data'
 import {
   CHAT_REQUEST_CHANNEL,
   CHAT_STREAM_CHANNEL,
@@ -21,8 +20,6 @@ type AppSettings = {
   aiApiKey?: string
   aiModel?: string
 }
-
-const stateFile = path.join(app.getPath('userData'), 'state.json')
 
 async function getSettings(): Promise<AppSettings> {
   const file = await readFile(stateFile)

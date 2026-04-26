@@ -2,6 +2,7 @@ import * as fs from 'node:fs'
 import path from 'node:path'
 import { app } from 'electron'
 import superjson from 'superjson'
+import { appDataRoot, stateFile } from './app-data'
 
 const BACKUP_FILE_NAME = 'dcs-mission-scripting.backup.lua'
 const BACKUP_META_FILE_NAME = 'dcs-mission-scripting.backup.json'
@@ -36,10 +37,9 @@ const DEFAULT_ENABLE_DCS_PERSISTENCE = true
 let restoreRegistered = false
 
 function getBackupPaths() {
-  const userData = app.getPath('userData')
   return {
-    backupPath: path.join(userData, BACKUP_FILE_NAME),
-    backupMetaPath: path.join(userData, BACKUP_META_FILE_NAME)
+    backupPath: path.join(appDataRoot, BACKUP_FILE_NAME),
+    backupMetaPath: path.join(appDataRoot, BACKUP_META_FILE_NAME)
   }
 }
 
@@ -230,7 +230,6 @@ export function enableDcsPersistenceForAppRuntime() {
   // If the previous run ended unexpectedly, revert first.
   restoreMissionScripting()
 
-  const stateFilePath = path.join(app.getPath('userData'), 'state.json')
-  const settings = readPersistenceSettingsFromState(stateFilePath)
+  const settings = readPersistenceSettingsFromState(stateFile)
   syncDcsPersistenceForAppRuntime(settings)
 }

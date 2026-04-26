@@ -32,7 +32,18 @@ export const aircraft = z.object({
   datalinks: z
     .object({
       Link16: z.object({
-        settings: z.record(z.string(), z.string().or(z.number()).or(z.boolean()))
+        settings: z.record(z.string(), z.string().or(z.number()).or(z.boolean())),
+        network: z
+          .object({
+            teamMembers: z.array(
+              z.object({
+                TDOA: z.boolean(),
+                missionUnitId: z.number()
+              })
+            ),
+            donors: z.record(z.string(), z.any())
+          })
+          .optional()
       })
     })
     .optional()

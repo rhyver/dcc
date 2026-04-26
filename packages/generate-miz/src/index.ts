@@ -12,6 +12,7 @@ import { dictionary, mapResource } from './l10n'
 import { options } from './options'
 import ctldLuaScript from './scripts/ctld.lua?raw'
 import mistLuaScript from './scripts/mist_4_5_126.lua?raw'
+import splashDamageLuaScript from './scripts/splash_damage.lua?raw'
 import stateLuaScript from './scripts/state.lua?raw'
 import { warehouses } from './warehouses'
 
@@ -284,7 +285,8 @@ export function generateMizFromCampaign(
         1: `a_do_script("config = { missionId = '${campaign.id}' }")`,
         2: 'a_do_script_file(getValueResourceByKey("mist"))',
         3: 'a_do_script_file(getValueResourceByKey("state"))',
-        4: 'a_do_script_file(getValueResourceByKey("ctld"))'
+        4: 'a_do_script_file(getValueResourceByKey("ctld"))',
+        5: 'a_do_script_file(getValueResourceByKey("splash_damage"))'
       },
       events: {},
       custom: {},
@@ -292,19 +294,22 @@ export function generateMizFromCampaign(
         1: 'if true then return true end',
         2: 'if true then return true end',
         3: 'if true then return true end',
-        4: 'if true then return true end'
+        4: 'if true then return true end',
+        5: 'if true then return true end'
       },
       flag: {
         1: true,
         2: true,
         3: true,
-        4: true
+        4: true,
+        5: true
       },
       conditions: {
         1: 'return(c_time_after(1))',
         2: 'return(c_time_after(2))',
         3: 'return(c_time_after(3))',
-        4: 'return(c_time_after(4))'
+        4: 'return(c_time_after(4))',
+        5: 'return(c_time_after(5))'
       },
       customStartup: {},
       funcStartup: {}
@@ -342,6 +347,14 @@ export function generateMizFromCampaign(
         predicate: 'triggerOnce',
         comment: 'CTLD Script',
         actions: { 1: { predicate: 'a_do_script_file', file: 'ctld' } },
+        colorItem: '0x00ffffff'
+      },
+      5: {
+        rules: { 1: { coalitionlist: 'all', seconds: 5, predicate: 'c_time_after' } },
+        eventlist: '',
+        predicate: 'triggerOnce',
+        comment: 'Splash Damage Script',
+        actions: { 1: { predicate: 'a_do_script_file', file: 'splash_damage' } },
         colorItem: '0x00ffffff'
       }
     },
@@ -414,6 +427,7 @@ export function generateMizFromCampaign(
   zip.addFile('l10n/DEFAULT/mist.lua', Buffer.from(mistLuaScript, 'utf-8'))
   zip.addFile('l10n/DEFAULT/state.lua', Buffer.from(stateLuaScript, 'utf-8'))
   zip.addFile('l10n/DEFAULT/ctld.lua', Buffer.from(ctldLuaScript, 'utf-8'))
+  zip.addFile('l10n/DEFAULT/splash_damage.lua', Buffer.from(splashDamageLuaScript, 'utf-8'))
   try {
     zip.writeZip(path)
     // eslint-disable-next-line no-console

@@ -4,7 +4,7 @@ This document provides an overview of the project structure, including applicati
 
 ## Overview
 
-The project is a monorepo built with **pnpm workspaces** and **TurboRepo**. It consists of an Electron application (`core`) that serves two React frontends (`campaign` and `document`), supported by several shared packages.
+The project is a monorepo built with **bun workspaces** and **TurboRepo**. It consists of an Electron application (`core`) that serves two React frontends (`campaign` and `document`), supported by several shared packages.
 
 ### Technologies
 - **Runtime:** Electron, Node.js
@@ -78,17 +78,20 @@ Utility library for handling Lua data structures.
 - **Role:** Parses and stringifies Lua tables.
 - **Usage:** Essential for interacting with DCS mission files which rely heavily on Lua configuration.
 
+#### 5. `definitions` (`packages/definitions`)
+Placeholder package, currently empty (no `src/`). Reserved for future shared definitions.
+
 ## Development Workflow
 
 ### Build System
 - **TurboRepo** manages the build pipeline.
-- **Development (`pnpm dev`):**
-  - Starts all applications in parallel.
+- **Development (`bun dev`):**
+  - Starts all applications in parallel via `turbo run dev`.
   - `apps/core` runs the Electron main process.
   - `apps/campaign` is served at `http://localhost:5173`.
   - `apps/document` is served at `http://localhost:5174`.
   - These URLs are injected into Core via environment variables (`CAMPAIGN_URL`, `DOCUMENT_URL`).
-- **Production (`pnpm build`):**
+- **Production (`bun run build`):**
   1. `apps/campaign` and `apps/document` are built using Vite, outputting to their respective `dist/` folders.
   2. `apps/core` is built using Electron Vite.
   3. **Packaging:** `electron-builder` packages the Electron app and copies the `dist/` folders of the frontend apps into the application's resources directory (`renderer/campaign` and `renderer/document`).

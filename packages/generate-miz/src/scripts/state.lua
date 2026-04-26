@@ -98,6 +98,173 @@ local missionState = {
 }
 
 local transportGroups = {}
+local unitCache = {}
+local lostUnitIndexesByName = {}
+local getInitiatorGroup
+
+local function safeCall(callback, fallback)
+    local ok, result = pcall(callback)
+    if ok then
+        return result
+    end
+    return fallback
+end
+
+local function cacheUnitData(unitData, groupData, categoryName, coalitionName)
+    if not unitData or not unitData.name then
+        return
+    end
+
+    local groupName = groupData and groupData.name or nil
+    unitCache[unitData.name] = {
+        name = unitData.name,
+        groupName = groupName,
+        type = unitData.type or "unknown",
+        categoryName = categoryName,
+        coalition = coalitionName,
+        x = unitData.x or 0,
+        y = unitData.y or 0
+    }
+end
+
+local function loadMissionUnitCache()
+    if not env or not env.mission or not env.mission.coalition then
+        return
+    end
+
+    for coalitionName, coalitionData in pairs(env.mission.coalition) do
+        if coalitionData and coalitionData.country then
+            for _, countryData in pairs(coalitionData.country) do
+                for _, categoryName in pairs({'plane', 'helicopter', 'vehicle', 'ship'}) do
+                    local groups = countryData and countryData[categoryName] and countryData[categoryName].group
+                    if groups then
+                        for _, groupData in pairs(groups) do
+                            if groupData and groupData.units then
+                                for _, unitData in pairs(groupData.units) do
+                                    cacheUnitData(unitData, groupData, categoryName, coalitionName)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+local function cacheLiveUnit(unit, group, category)
+    if not unit or not unit.getName then
+        return
+    end
+
+    local name = safeCall(function() return unit:getName() end, nil)
+    if not name then
+        return
+    end
+
+    local point = safeCall(function() return unit:getPoint() end, nil)
+    local groupName = group and safeCall(function() return group:getName() end, nil) or nil
+
+    unitCache[name] = {
+        name = name,
+        groupName = groupName,
+        type = safeCall(function() return unit:getTypeName() end, "unknown"),
+        category = category,
+        x = point and point.x or (unitCache[name] and unitCache[name].x) or 0,
+        y = point and point.z or (unitCache[name] and unitCache[name].y) or 0
+    }
+end
+
+local function mergeLostUnitAttribution(lostUnit, attribution)
+    if not lostUnit or not attribution then
+        return
+    end
+
+    lostUnit.lossType = attribution.lossType or lostUnit.lossType
+    lostUnit.killerPlayerName = attribution.killerPlayerName or lostUnit.killerPlayerName
+    lostUnit.killerUnitName = attribution.killerUnitName or lostUnit.killerUnitName
+    lostUnit.killerGroupName = attribution.killerGroupName or lostUnit.killerGroupName
+    lostUnit.weaponName = attribution.weaponName or lostUnit.weaponName
+    lostUnit.killCause = attribution.killCause or lostUnit.killCause
+end
+
+local function addOrUpdateLostUnit(lostUnit, attribution)
+    if not lostUnit or not lostUnit.name then
+        return
+    end
+
+    local existingIndex = lostUnitIndexesByName[lostUnit.name]
+    if existingIndex then
+        mergeLostUnitAttribution(missionState.lostUnits[existingIndex], attribution)
+        return
+    end
+
+    mergeLostUnitAttribution(lostUnit, attribution)
+    missionState.lostUnits[#missionState.lostUnits + 1] = lostUnit
+    lostUnitIndexesByName[lostUnit.name] = #missionState.lostUnits
+end
+
+local function recordLostUnit(unit, eventName, attribution)
+    if not unit or not unit.getName then
+        return
+    end
+
+    local name = safeCall(function() return unit:getName() end, nil)
+    if not name then
+        return
+    end
+
+    local cached = unitCache[name] or {}
+    local position = safeCall(function() return unit:getPosition().p end, nil)
+    if not position then
+        local point = safeCall(function() return unit:getPoint() end, nil)
+        if point then
+            position = { x = point.x, z = point.z }
+        end
+    end
+
+    local group = getInitiatorGroup(unit)
+    local groupName = group and safeCall(function() return group:getName() end, nil) or cached.groupName
+    local category = group and safeCall(function() return group:getCategory() end, nil) or cached.category
+
+    addOrUpdateLostUnit({
+        name = name,
+        groupName = groupName,
+        type = safeCall(function() return unit:getTypeName() end, cached.type or "unknown"),
+        category = category,
+        categoryName = cached.categoryName,
+        event = eventName,
+        x = position and position.x or cached.x or 0,
+        y = position and position.z or cached.y or 0
+    }, attribution)
+    debugLog("Lost unit recorded: "..name.." ("..(eventName or "unknown")..")")
+end
+
+local function recordUnitKill(data)
+    if not data or not data.targetName then
+        return
+    end
+
+    local cached = unitCache[data.targetName] or {}
+    addOrUpdateLostUnit({
+        name = data.targetName,
+        groupName = data.targetGroupName or cached.groupName,
+        type = data.targetType or cached.type or "unknown",
+        category = data.targetCategory or cached.category,
+        categoryName = cached.categoryName,
+        event = data.event or "external_kill",
+        x = data.x or cached.x or 0,
+        y = data.y or cached.y or 0
+    }, {
+        killerPlayerName = data.killerPlayerName,
+        killerUnitName = data.killerUnitName,
+        killerGroupName = data.killerGroupName,
+        weaponName = data.weaponName,
+        killCause = data.killCause,
+        lossType = data.lossType
+    })
+    debugLog("Attributed unit kill recorded: "..data.targetName.." ("..(data.killCause or "unknown")..")")
+end
 
 local function loadTransportGroups()
     if not env or not env.mission or not env.mission.coalition then
@@ -146,6 +313,7 @@ end
 
 DCC = DCC or {}
 DCC.recordCargoDelivery = recordCargoDelivery
+DCC.recordUnitKill = recordUnitKill
 
 local function messageAll(message, displayTime)
     local msg = {}
@@ -184,6 +352,7 @@ local function findFilePath()
 end
 
 local filePath = findFilePath()
+loadMissionUnitCache()
 loadTransportGroups()
 
 if filePath then
@@ -213,6 +382,7 @@ local function getAircraftGroupPositions(coalition)
 
                     for _, unit in pairs(units) do
                         if unit and unit:isExist() and unit:getLife() > 0 then
+                            cacheLiveUnit(unit, group, category)
                             hasAliveUnits = true
                             local position = unit:getPoint()
                             local unitInfo = {
@@ -266,6 +436,7 @@ local function getGroundGroupPositions(coalition)
 
                     for _, unit in pairs(units) do
                         if unit and unit:isExist() and unit:getLife() > 0 then
+                            cacheLiveUnit(unit, group, category)
                             hasAliveUnits = true
                             local position = unit:getPoint()
                             local unitInfo = {
@@ -322,42 +493,63 @@ local function writeState()
     export()
 end
 
-local function getInitiatorGroup(initiator)
+getInitiatorGroup = function(initiator)
     if not initiator or not initiator.getGroup then return nil end
-    return initiator:getGroup()
+    return safeCall(function() return initiator:getGroup() end, nil)
 end
 
 local ev = {}
 function ev:onEvent(event)
     debugLog('onEvent: '..event.id)
     
-    -- UNIT LOST
+    -- UNIT DESTRUCTION
     if event.id == world.event.S_EVENT_UNIT_LOST then
         debugLog('S_EVENT_UNIT_LOST')
-        local initiator = event.initiator
-        
-        if not initiator then return end
-        if not initiator:isExist() then return end
-        if not initiator.getName then return end
-        if not initiator.getPosition then return end
+        recordLostUnit(event.initiator, 'unit_lost', {
+            lossType = 'lost'
+        })
+    end
 
-        debugLog("valid S_EVENT_UNIT_LOST")
-        debugLog("initiator: "..initiator:getName())
+    if event.id == world.event.S_EVENT_DEAD then
+        debugLog('S_EVENT_DEAD')
+        recordLostUnit(event.initiator, 'dead', {
+            lossType = 'destroyed'
+        })
+    end
 
-        local name = initiator:getName()
-        local position = initiator:getPosition().p
-        local group = getInitiatorGroup(initiator)
-        local groupName = group and group:getName() or nil
-        local category = group and group:getCategory() or nil
+    if event.id == world.event.S_EVENT_KILL then
+        debugLog('S_EVENT_KILL')
+        local killer = event.initiator
+        local killerGroup = getInitiatorGroup(killer)
+        recordLostUnit(event.target, 'kill', {
+            killerPlayerName = killer and killer.getPlayerName and safeCall(function() return killer:getPlayerName() end, nil) or nil,
+            killerUnitName = killer and killer.getName and safeCall(function() return killer:getName() end, nil) or nil,
+            killerGroupName = killerGroup and safeCall(function() return killerGroup:getName() end, nil) or nil,
+            weaponName = event.weapon and event.weapon.getTypeName and safeCall(function() return event.weapon:getTypeName() end, nil) or nil,
+            killCause = 'direct',
+            lossType = 'killed'
+        })
+    end
 
-        missionState.lostUnits[#missionState.lostUnits + 1] = {
-            name = name,
-            groupName = groupName,
-            type = initiator:getTypeName() or "unknown",
-            category = category,
-            x = position.x,
-            y = position.z
-        }
+    if event.id == world.event.S_EVENT_CRASH then
+        debugLog('S_EVENT_CRASH')
+        recordLostUnit(event.initiator, 'crash', {
+            lossType = 'crashed'
+        })
+    end
+
+    if event.id == world.event.S_EVENT_EJECTION then
+        debugLog('S_EVENT_EJECTION')
+        recordLostUnit(event.initiator, 'ejection', {
+            lossType = 'ejected'
+        })
+    end
+
+    if event.id == world.event.S_EVENT_PILOT_DEAD then
+        debugLog('S_EVENT_PILOT_DEAD')
+        recordLostUnit(event.initiator, 'pilot_dead', {
+            lossType = 'pilot_dead'
+        })
     end
 
     -- LANDING (for cargo deliveries)
@@ -405,8 +597,12 @@ function ev:onEvent(event)
     end
 
     -- PLAYER BIRTH (for logging)
-    if event.id == world.event.S_EVENT_BIRTH and event.initiator and event.initiator.getPlayerName then
-        local player = event.initiator:getPlayerName()
+    if event.id == world.event.S_EVENT_BIRTH and event.initiator then
+        local group = getInitiatorGroup(event.initiator)
+        local category = group and safeCall(function() return group:getCategory() end, nil) or nil
+        cacheLiveUnit(event.initiator, group, category)
+
+        local player = event.initiator.getPlayerName and event.initiator:getPlayerName() or nil
         if player then
             debugLog('Player birth: '..player)
         end

@@ -16,6 +16,7 @@ export function mapResource(): z.infer<typeof schemas.dcs.l10n>['mapResource'] {
   return {
     mist: 'mist.lua',
     state: 'state.lua',
-    ctld: 'ctld.lua'
+    ctld: 'ctld.lua',
+    splash_damage: 'splash_damage.lua'
   }
 }

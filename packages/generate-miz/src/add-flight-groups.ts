@@ -287,6 +287,42 @@ function createDatalinks(
   return datalinks
 }
 
+function ensureFirstWaypointEplrs(
+  routePoints: z.infer<typeof schemas.dcs.aircraftRoutePoint>[],
+  groupId: number
+) {
+  const firstWaypoint = routePoints[0]
+  if (!firstWaypoint) return
+
+  firstWaypoint.task ??= {
+    id: 'ComboTask',
+    params: {
+      tasks: []
+    }
+  }
+  firstWaypoint.task.params.tasks ??= []
+
+  const tasks = firstWaypoint.task.params.tasks
+  const hasEplrs = tasks.some(
+    (task: z.infer<typeof schemas.dcs.task>) =>
+      task.id === 'WrappedAction' &&
+      task.params?.action?.id === 'EPLRS' &&
+      task.params.action.params?.value === true
+  )
+
+  if (hasEplrs) return
+
+  tasks.push(
+    createWrappedActionTask(
+      {
+        id: 'EPLRS',
+        params: { value: true, groupId }
+      },
+      tasks.length + 1
+    )
+  )
+}
+
 /**
  * Calculate current position along the flight path based on elapsed time.
  * Returns null if the flight hasn't taken off yet.
@@ -1043,6 +1079,10 @@ export function addFlightGroups(
 
         routePoints.push(routePoint)
       })
+
+      if (aircraftDef.name === 'F-16C_50') {
+        ensureFirstWaypointEplrs(routePoints, groupId)
+      }
 
       const group = {
         groupId: groupId,

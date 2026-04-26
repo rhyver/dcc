@@ -4,6 +4,7 @@ import { FlightGroup } from './flight-group'
 import { calculateDistance } from '../utils/calculate-distance'
 import { buildCapMissionWaypoints, spawnPlannedFlightGroup } from './flight-group-spawn'
 import { logCombatAction } from '../simulation-log'
+import { debugLog } from '@/lib/debug'
 
 export class CapFlightGroup extends FlightGroup {
   static spawn(
@@ -41,7 +42,7 @@ export class CapFlightGroup extends FlightGroup {
       packageId: params.packageId
     })
 
-    console.log(
+    debugLog(
       `Spawned CAP group from ${params.homeBase} patrolling near ${params.patrolCenter.x}, ${params.patrolCenter.y}`
     )
 
@@ -79,7 +80,7 @@ export class CapFlightGroup extends FlightGroup {
 
           if (Math.random() < hitChance && enemyFg.aircrafts.length > 0) {
             const shotDownAircraft = enemyFg.aircrafts.pop()
-            console.log(
+            debugLog(
               `CAP aircraft ${capAircraft.unitName} shot down enemy ${shotDownAircraft?.unitName}`
             )
             if (shotDownAircraft) {
@@ -102,7 +103,7 @@ export class CapFlightGroup extends FlightGroup {
           const enemyHitChance = 0.1 * (1 - distance / engagementRange)
           if (Math.random() < enemyHitChance && this._data.aircrafts.length > 0) {
             const lostAircraft = this._data.aircrafts.pop()
-            console.log(
+            debugLog(
               `CAP aircraft ${lostAircraft?.unitName} shot down by enemy ${enemyAircraft.unitName}`
             )
             if (lostAircraft) {

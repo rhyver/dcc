@@ -6,6 +6,7 @@ import { calculateDistance } from '../utils/calculate-distance'
 import { getObjectivePosition } from '../utils/get-objective-position'
 import { buildAttackMissionWaypoints, spawnPlannedFlightGroup } from './flight-group-spawn'
 import { logCombatAction } from '../simulation-log'
+import { debugLog } from '@/lib/debug'
 
 export class DeadFlightGroup extends FlightGroup {
   static spawn(
@@ -56,7 +57,7 @@ export class DeadFlightGroup extends FlightGroup {
       packageId: params.packageId
     })
 
-    console.log(
+    debugLog(
       `Spawned DEAD group from ${params.homeBase} targeting ${params.target.type} at ${params.target.objectiveId}`
     )
 
@@ -113,7 +114,7 @@ export class DeadFlightGroup extends FlightGroup {
         if (Math.random() <= 0.5) {
           // Successful attack - mark SAM as destroyed
           samGroup.destroyed = true
-          console.log(`DEAD aircraft ${aircraft.unitName} destroyed ${samGroup.type}`)
+          debugLog(`DEAD aircraft ${aircraft.unitName} destroyed ${samGroup.type}`)
           logCombatAction(
             draft,
             coalition,
@@ -127,7 +128,7 @@ export class DeadFlightGroup extends FlightGroup {
           this._data.targetDestroyed = true
           return
         } else {
-          console.log(`DEAD aircraft ${aircraft.unitName} missed ${samGroup.type}`)
+          debugLog(`DEAD aircraft ${aircraft.unitName} missed ${samGroup.type}`)
           logCombatAction(
             draft,
             coalition,
@@ -147,7 +148,7 @@ export class DeadFlightGroup extends FlightGroup {
       if (Math.random() < shootDownChance) {
         if (this._data.aircrafts.length > 0) {
           const removedAircraft = this._data.aircrafts.pop()
-          console.log(`DEAD aircraft ${removedAircraft?.unitName} shot down by ${samGroup.type}`)
+          debugLog(`DEAD aircraft ${removedAircraft?.unitName} shot down by ${samGroup.type}`)
           if (removedAircraft) {
             logCombatAction(
               draft,

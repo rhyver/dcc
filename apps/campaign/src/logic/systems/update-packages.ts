@@ -1,5 +1,6 @@
 import { schemas } from '@dcc/contracts'
 import * as z from 'zod'
+import { debugLog } from '@/lib/debug'
 
 export function updatePackages(
   draft: z.infer<typeof schemas.campaign.campaign>,
@@ -23,7 +24,7 @@ export function updatePackages(
 
     if (allMembersLanded) {
       pkg.status = 'completed'
-      console.log(`Package ${pkg.id} (${pkg.type}) completed - all flights landed`)
+      debugLog(`Package ${pkg.id} (${pkg.type}) completed - all flights landed`)
     }
   }
 

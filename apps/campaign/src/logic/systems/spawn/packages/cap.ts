@@ -9,6 +9,7 @@ import {
   selectCapPatrolAssignment
 } from './common'
 import { getNodeSupply } from '../../update-supply'
+import { debugLog } from '@/lib/debug'
 
 /**
  * Get sortie rate multiplier based on airbase supply status
@@ -41,7 +42,7 @@ export function spawnCap(
 
   const capGroups = flightGroups.filter((group) => group.task === 'CAP')
 
-  console.log(`${coalition}: CAP groups`, capGroups.length)
+  debugLog(`${coalition}: CAP groups`, capGroups.length)
 
   if (capGroups.length >= config.packages.CAP.maxActive[coalition]) {
     return
@@ -56,7 +57,7 @@ export function spawnCap(
   // Get available aircraft types for CAP missions
   const availableAircraftTypes = draft.coalitions[coalition].aircraftTypes['CAP']
   if (!availableAircraftTypes || availableAircraftTypes.length === 0) {
-    console.log('No aircraft types available for CAP')
+    debugLog('No aircraft types available for CAP')
     return
   }
 
@@ -75,7 +76,7 @@ export function spawnCap(
 
   // If no suitable airdrome found, return
   if (!selectedPatrolAssignment) {
-    console.log('No suitable home base found for CAP')
+    debugLog('No suitable home base found for CAP')
     return
   }
 
@@ -86,7 +87,7 @@ export function spawnCap(
     selectedPatrolAssignment.homeBase.name
   )
   if (Math.random() > spawnModifier) {
-    console.log(
+    debugLog(
       `Skipping CAP spawn due to supply status at ${selectedPatrolAssignment.homeBase.name}`
     )
     return
@@ -95,7 +96,7 @@ export function spawnCap(
   // Select a random aircraft type
   const selectedAircraftType = pickRandomAircraftType(availableAircraftTypes)
   if (!selectedAircraftType) {
-    console.log('No valid aircraft type selected')
+    debugLog('No valid aircraft type selected')
     return
   }
   const aircraftType = selectedAircraftType

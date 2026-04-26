@@ -6,13 +6,14 @@ import { removeDestroyedStructures } from './systems/remove-destroyed-structures
 import { updateResources } from './systems/update-resources'
 import { updateGroundGroups } from './systems/update-ground-groups'
 import { updateSupply } from './systems/update-supply'
+import { debugLog } from '@/lib/debug'
 
 export function fastTick(delta: number) {
   activeStore.send({
     type: 'tick',
     delta,
     logic: (draft) => {
-      console.log('fast tick', draft.time)
+      debugLog('fast tick', draft.time)
       updateFlightGroups(draft, 'player')
       updateFlightGroups(draft, 'opponent')
       updatePackages(draft, 'player')
@@ -26,7 +27,7 @@ export function fastTick(delta: number) {
 }
 
 export function logicTick(delta: number) {
-  console.log('logic tick', delta)
+  debugLog('logic tick', delta)
   const start = performance.now()
 
   activeStore.send({
@@ -45,5 +46,5 @@ export function logicTick(delta: number) {
   })
 
   const end = performance.now()
-  console.log(`tick duration: ${end - start}ms`)
+  debugLog(`tick duration: ${end - start}ms`)
 }

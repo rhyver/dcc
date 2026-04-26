@@ -12,6 +12,7 @@ import {
   selectHomeBaseAndTarget
 } from './common'
 import { getNodeSupply } from '../../update-supply'
+import { debugLog } from '@/lib/debug'
 
 /**
  * Get sortie rate multiplier based on airbase supply status
@@ -44,7 +45,7 @@ export function spawnStrike(
 
   const strikeGroups = flightGroups.filter((group) => group.task === 'Pinpoint Strike')
 
-  console.log(`${coalition}: strike groups`, strikeGroups.length)
+  debugLog(`${coalition}: strike groups`, strikeGroups.length)
 
   if (strikeGroups.length >= config.packages['Pinpoint Strike'].maxActive[coalition]) {
     return
@@ -63,7 +64,7 @@ export function spawnStrike(
   // Get available aircraft types for strike missions
   const availableAircraftTypes = draft.coalitions[coalition].aircraftTypes['Pinpoint Strike']
   if (!availableAircraftTypes || availableAircraftTypes.length === 0) {
-    console.log('No aircraft types available for Pinpoint Strike')
+    debugLog('No aircraft types available for Pinpoint Strike')
     return
   }
 
@@ -94,7 +95,7 @@ export function spawnStrike(
 
   // If no suitable pair found, return
   if (!selectedAssignment) {
-    console.log('No suitable home base and target pair found within range')
+    debugLog('No suitable home base and target pair found within range')
     return
   }
   const selectedTarget = selectedAssignment.target
@@ -102,14 +103,14 @@ export function spawnStrike(
   // Check airbase supply status
   const spawnModifier = getAirbaseSpawnModifier(draft, coalition, selectedAssignment.homeBase.name)
   if (Math.random() > spawnModifier) {
-    console.log(`Skipping strike spawn due to supply status at ${selectedAssignment.homeBase.name}`)
+    debugLog(`Skipping strike spawn due to supply status at ${selectedAssignment.homeBase.name}`)
     return
   }
 
   // Select a random aircraft type
   const selectedAircraftType = pickRandomAircraftType(availableAircraftTypes)
   if (!selectedAircraftType) {
-    console.log('No valid aircraft type selected')
+    debugLog('No valid aircraft type selected')
     return
   }
   const aircraftType = selectedAircraftType
@@ -198,7 +199,7 @@ export function spawnStrike(
 
     draft.coalitions[coalition].packages.push(missionPackage)
 
-    console.log(
+    debugLog(
       `Created SEAD Strike Package: Strike + SEAD targeting ${threateningSam.samGroup.type}`
     )
   } else {

@@ -3,6 +3,7 @@ import * as z from 'zod'
 import { FlightGroup } from './flight-group'
 import { buildAttackMissionWaypoints, spawnPlannedFlightGroup } from './flight-group-spawn'
 import { logCombatAction } from '../simulation-log'
+import { debugLog } from '@/lib/debug'
 
 export class StrikeFlightGroup extends FlightGroup {
   static spawn(
@@ -52,7 +53,7 @@ export class StrikeFlightGroup extends FlightGroup {
       packageId: params.packageId
     })
 
-    console.log(
+    debugLog(
       `Spawned strike group from ${params.homeBase} targeting ${params.target.type} at ${params.target.objectiveId}`
     )
 
@@ -64,12 +65,12 @@ export class StrikeFlightGroup extends FlightGroup {
     coalition: z.infer<typeof schemas.coalition>
   ) {
     if (!this._data.target || !this._data.tot || this._data.targetDestroyed) {
-      console.log(this._data.tot)
+      debugLog(this._data.tot)
       return
     }
 
     if (draft.time < this._data.tot) {
-      console.log(draft.time, this._data.tot)
+      debugLog(draft.time, this._data.tot)
       return
     }
 
@@ -78,7 +79,7 @@ export class StrikeFlightGroup extends FlightGroup {
       (s) => s.id === this._data.target?.id
     )
 
-    console.log('Striking structure', structure?.name)
+    debugLog('Striking structure', structure?.name)
 
     if (structure && structure.buildings.some((b) => b.alive)) {
       let destroyedCount = 0

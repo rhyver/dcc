@@ -10,6 +10,7 @@ import {
   selectHomeBaseAndTarget
 } from './common'
 import { getNodeSupply } from '../../update-supply'
+import { debugLog } from '@/lib/debug'
 
 /**
  * Get sortie rate multiplier based on airbase supply status
@@ -42,7 +43,7 @@ export function spawnDead(
 
   const deadGroups = flightGroups.filter((group) => group.task === 'DEAD')
 
-  console.log(`${coalition}: DEAD groups`, deadGroups.length)
+  debugLog(`${coalition}: DEAD groups`, deadGroups.length)
 
   if (deadGroups.length >= config.packages.DEAD.maxActive[coalition]) {
     return
@@ -62,7 +63,7 @@ export function spawnDead(
   // Get available aircraft types for DEAD missions
   const availableAircraftTypes = draft.coalitions[coalition].aircraftTypes['DEAD']
   if (!availableAircraftTypes || availableAircraftTypes.length === 0) {
-    console.log('No aircraft types available for DEAD')
+    debugLog('No aircraft types available for DEAD')
     return
   }
 
@@ -72,7 +73,7 @@ export function spawnDead(
   )
 
   if (enemySamGroups.length === 0) {
-    console.log('No valid SAM targets for DEAD')
+    debugLog('No valid SAM targets for DEAD')
     return
   }
 
@@ -105,21 +106,21 @@ export function spawnDead(
 
   // If no suitable pair found, return
   if (!selectedAssignment) {
-    console.log('No suitable home base and SAM target pair found within range')
+    debugLog('No suitable home base and SAM target pair found within range')
     return
   }
 
   // Check airbase supply status
   const spawnModifier = getAirbaseSpawnModifier(draft, coalition, selectedAssignment.homeBase.name)
   if (Math.random() > spawnModifier) {
-    console.log(`Skipping DEAD spawn due to supply status at ${selectedAssignment.homeBase.name}`)
+    debugLog(`Skipping DEAD spawn due to supply status at ${selectedAssignment.homeBase.name}`)
     return
   }
 
   // Select a random aircraft type
   const selectedAircraftType = pickRandomAircraftType(availableAircraftTypes)
   if (!selectedAircraftType) {
-    console.log('No valid aircraft type selected')
+    debugLog('No valid aircraft type selected')
     return
   }
   const aircraftType = selectedAircraftType

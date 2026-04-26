@@ -3,6 +3,7 @@ import * as z from 'zod'
 import { FlightGroup } from './flight-group'
 import { buildTransportMissionWaypoints, spawnPlannedFlightGroup } from './flight-group-spawn'
 import { getNodeSupply } from '../systems/update-supply'
+import { debugLog } from '@/lib/debug'
 
 type Campaign = z.infer<typeof schemas.campaign.campaign>
 type Coalition = z.infer<typeof schemas.coalition>
@@ -66,7 +67,7 @@ export class TransportFlightGroup extends FlightGroup {
       }
     }
 
-    console.log(
+    debugLog(
       `Spawned ${params.transportType} transport from ${params.homeBase} to ${params.destinationNode} with ${params.cargoAmount} supplies`
     )
 
@@ -85,7 +86,7 @@ export class TransportFlightGroup extends FlightGroup {
       destinationSupply.current += this._data.cargoAmount
       this._data.cargoStatus = 'delivered'
 
-      console.log(
+      debugLog(
         `Transport ${this._data.callsign} delivered ${this._data.cargoAmount} supplies to ${this._data.destinationNode}`
       )
     }
@@ -97,7 +98,7 @@ export class TransportFlightGroup extends FlightGroup {
   loseCargo(): void {
     if (this._data.cargoStatus === 'loaded' || this._data.cargoStatus === 'in-transit') {
       this._data.cargoStatus = 'lost'
-      console.log(`Transport ${this._data.callsign} lost ${this._data.cargoAmount} supplies`)
+      debugLog(`Transport ${this._data.callsign} lost ${this._data.cargoAmount} supplies`)
     }
   }
 }

@@ -7,6 +7,7 @@ import { isDeadFlightGroup } from '../entities/dead-flight-group'
 import { isCapFlightGroup } from '../entities/cap-flight-group'
 import { FlightGroupFactory } from '../entities/flight-group-factory'
 import { logCombatAction } from '../simulation-log'
+import { debugLog } from '@/lib/debug'
 
 export function updateFlightGroups(
   draft: z.infer<typeof schemas.campaign.campaign>,
@@ -19,7 +20,7 @@ export function updateFlightGroups(
   const scenario = scenarios.find((s) => s.id === draft.scenarioId)
   const theatre = scenario ? theatres.find((t) => t.name === scenario.theatreName) : undefined
 
-  console.log('Updating flight groups', groups.length)
+  debugLog('Updating flight groups', groups.length)
 
   for (const group of groups) {
     if (group.aircrafts.length === 0) {
@@ -44,19 +45,19 @@ export function updateFlightGroups(
     }
 
     if (isStrikeFlightGroup(group)) {
-      console.log('Striking structure', group)
+      debugLog('Striking structure', group)
       group.strikeStructure(draft, coalition)
     } else if (isSeadFlightGroup(group) && theatre) {
-      console.log('SEAD suppressing SAM', group)
+      debugLog('SEAD suppressing SAM', group)
       group.suppressSam(draft, coalition, theatre)
     } else if (isDeadFlightGroup(group) && theatre) {
-      console.log('DEAD attacking SAM', group)
+      debugLog('DEAD attacking SAM', group)
       group.destroySam(draft, coalition, theatre)
     } else if (isCapFlightGroup(group)) {
-      console.log('CAP patrolling', group)
+      debugLog('CAP patrolling', group)
       group.engageAirTargets(draft, coalition)
     } else {
-      console.log('Not a strike/SEAD/DEAD/CAP group', group.task)
+      debugLog('Not a strike/SEAD/DEAD/CAP group', group.task)
     }
   }
 
@@ -72,7 +73,7 @@ export function updateFlightGroups(
         )
         if (samGroup) {
           samGroup.suppressed = false
-          console.log(`SAM ${samGroup.type} no longer suppressed - SEAD landed`)
+          debugLog(`SAM ${samGroup.type} no longer suppressed - SEAD landed`)
           logCombatAction(
             draft,
             coalition,

@@ -18,6 +18,7 @@ import {
   Settings,
   X
 } from 'lucide-react'
+import { debugLog } from './lib/debug'
 
 function RootLayout() {
   const navigate = useNavigate()
@@ -216,7 +217,7 @@ async function activeCampaignMiddleware() {
   if (!activeCampaign) {
     throw redirect('/new')
   }
-  console.log('loaded campaign', activeCampaign)
+  debugLog('loaded campaign', activeCampaign)
   activeStore.trigger.loadCampaign({ campaign: activeCampaign })
 }
 

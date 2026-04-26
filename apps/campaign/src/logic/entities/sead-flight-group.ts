@@ -6,6 +6,7 @@ import { calculateDistance } from '../utils/calculate-distance'
 import { getObjectivePosition } from '../utils/get-objective-position'
 import { buildAttackMissionWaypoints, spawnPlannedFlightGroup } from './flight-group-spawn'
 import { logCombatAction } from '../simulation-log'
+import { debugLog } from '@/lib/debug'
 
 export class SeadFlightGroup extends FlightGroup {
   static spawn(
@@ -60,7 +61,7 @@ export class SeadFlightGroup extends FlightGroup {
       tot: params.tot
     })
 
-    console.log(
+    debugLog(
       `Spawned SEAD group from ${params.homeBase} targeting ${params.target.type} at ${params.target.objectiveId}`
     )
 
@@ -124,7 +125,7 @@ export class SeadFlightGroup extends FlightGroup {
         // Remove one aircraft from the flight
         if (this._data.aircrafts.length > 0) {
           const removedAircraft = this._data.aircrafts.pop()
-          console.log(`SEAD aircraft ${removedAircraft?.unitName} shot down by ${samGroup.type}`)
+          debugLog(`SEAD aircraft ${removedAircraft?.unitName} shot down by ${samGroup.type}`)
           if (removedAircraft) {
             logCombatAction(
               draft,

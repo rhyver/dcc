@@ -57,6 +57,14 @@ function campaignDateFromMissionTime(campaignTime: Date, missionTimeSeconds?: nu
   return missionDate
 }
 
+function getGeneratedUnitIndex(unitName: string): number | null {
+  const match = unitName.match(/-(\d+)$/)
+  if (!match?.[1]) return null
+
+  const index = Number.parseInt(match[1], 10)
+  return Number.isFinite(index) ? index - 1 : null
+}
+
 function applyMissionStateUpdate(campaign: Campaign, missionState: MissionState): Campaign {
   const lostUnitNames = new Set(missionState.lostUnits?.map((unit) => unit.name) ?? [])
   const groupPositions = missionState.groupPositions
@@ -135,6 +143,30 @@ function applyMissionStateUpdate(campaign: Campaign, missionState: MissionState)
 
     applyToCoalition('player', groupPositions?.blue?.aircraft)
     applyToCoalition('opponent', groupPositions?.red?.aircraft)
+
+    if (lostUnitNames.size > 0) {
+      for (const coalition of ['player', 'opponent'] as const) {
+        for (const sam of draft.coalitions[coalition].samGroups) {
+          const namePrefix = `SAM-${sam.id}-`
+          if ([...lostUnitNames].some((name) => name.startsWith(namePrefix))) {
+            sam.destroyed = true
+          }
+        }
+
+        for (const structure of draft.coalitions[coalition].structures) {
+          const namePrefix = `Static-${structure.id}-`
+          for (const lostUnitName of lostUnitNames) {
+            if (!lostUnitName.startsWith(namePrefix)) continue
+
+            const buildingIndex = getGeneratedUnitIndex(lostUnitName)
+            const building = buildingIndex != null ? structure.buildings[buildingIndex] : undefined
+            if (building) {
+              building.alive = false
+            }
+          }
+        }
+      }
+    }
   })
 }
 

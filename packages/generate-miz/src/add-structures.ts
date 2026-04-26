@@ -42,7 +42,7 @@ export function addStructures(
       if (!objective) return
 
       const groupId = nextId()
-      const groupName = `Static ${struct.type}-${groupId}`
+      const groupName = `Static-${struct.id}-${struct.type}-${groupId}`
 
       const groupUnits: { x: number; y: number; [key: string]: unknown }[] = []
 

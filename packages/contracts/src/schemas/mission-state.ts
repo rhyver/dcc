@@ -2,7 +2,7 @@ import * as z from 'zod'
 
 const missionStateUnit = z
   .object({
-    name: z.string(),
+    name: z.coerce.string(),
     type: z.string(),
     x: z.number(),
     y: z.number()
@@ -10,7 +10,7 @@ const missionStateUnit = z
   .passthrough()
 
 const missionStateGroup = z.object({
-  name: z.string(),
+  name: z.coerce.string(),
   x: z.number(),
   y: z.number(),
   units: z.array(missionStateUnit).default([])
@@ -55,7 +55,7 @@ export const missionState = z
     ejectedPilots: z
       .array(
         z.object({
-          name: z.string(),
+          name: z.coerce.string(),
           x: z.number(),
           y: z.number()
         })
@@ -64,8 +64,8 @@ export const missionState = z
     lostUnits: z
       .array(
         z.object({
-          name: z.string(),
-          groupName: z.string().nullable().optional(),
+          name: z.coerce.string(),
+          groupName: z.coerce.string().nullable().optional(),
           type: z.string().default('unknown'),
           category: z.number().optional(),
           x: z.number(),

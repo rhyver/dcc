@@ -110,14 +110,23 @@ local function safeCall(callback, fallback)
     return fallback
 end
 
+local function stringifyName(name)
+    if name == nil then
+        return nil
+    end
+
+    return tostring(name)
+end
+
 local function cacheUnitData(unitData, groupData, categoryName, coalitionName)
     if not unitData or not unitData.name then
         return
     end
 
-    local groupName = groupData and groupData.name or nil
-    unitCache[unitData.name] = {
-        name = unitData.name,
+    local name = stringifyName(unitData.name)
+    local groupName = stringifyName(groupData and groupData.name or nil)
+    local cachedUnit = {
+        name = name,
         groupName = groupName,
         type = unitData.type or "unknown",
         categoryName = categoryName,
@@ -125,6 +134,12 @@ local function cacheUnitData(unitData, groupData, categoryName, coalitionName)
         x = unitData.x or 0,
         y = unitData.y or 0
     }
+    unitCache[name] = cachedUnit
+
+    local unitId = stringifyName(unitData.unitId or unitData.unit_id or nil)
+    if unitId then
+        unitCache[unitId] = cachedUnit
+    end
 end
 
 local function loadMissionUnitCache()
@@ -135,7 +150,7 @@ local function loadMissionUnitCache()
     for coalitionName, coalitionData in pairs(env.mission.coalition) do
         if coalitionData and coalitionData.country then
             for _, countryData in pairs(coalitionData.country) do
-                for _, categoryName in pairs({'plane', 'helicopter', 'vehicle', 'ship'}) do
+                for _, categoryName in pairs({'plane', 'helicopter', 'vehicle', 'ship', 'static'}) do
                     local groups = countryData and countryData[categoryName] and countryData[categoryName].group
                     if groups then
                         for _, groupData in pairs(groups) do
@@ -157,13 +172,13 @@ local function cacheLiveUnit(unit, group, category)
         return
     end
 
-    local name = safeCall(function() return unit:getName() end, nil)
+    local name = stringifyName(safeCall(function() return unit:getName() end, nil))
     if not name then
         return
     end
 
     local point = safeCall(function() return unit:getPoint() end, nil)
-    local groupName = group and safeCall(function() return group:getName() end, nil) or nil
+    local groupName = stringifyName(group and safeCall(function() return group:getName() end, nil) or nil)
     local coalitionId = group and safeCall(function() return group:getCoalition() end, nil) or nil
     local coalitionName = coalitionId == coalition.side.BLUE and "blue" or coalitionId == coalition.side.RED and "red" or nil
     local cached = unitCache[name] or {}
@@ -213,12 +228,13 @@ local function recordLostUnit(unit, eventName, attribution)
         return
     end
 
-    local name = safeCall(function() return unit:getName() end, nil)
+    local name = stringifyName(safeCall(function() return unit:getName() end, nil))
     if not name then
         return
     end
 
     local cached = unitCache[name] or {}
+    name = cached.name or name
     local position = safeCall(function() return unit:getPosition().p end, nil)
     if not position then
         local point = safeCall(function() return unit:getPoint() end, nil)
@@ -228,7 +244,7 @@ local function recordLostUnit(unit, eventName, attribution)
     end
 
     local group = getInitiatorGroup(unit)
-    local groupName = group and safeCall(function() return group:getName() end, nil) or cached.groupName
+    local groupName = stringifyName(group and safeCall(function() return group:getName() end, nil) or cached.groupName)
     local category = group and safeCall(function() return group:getCategory() end, nil) or cached.category
 
     addOrUpdateLostUnit({
@@ -250,10 +266,11 @@ local function recordUnitKill(data)
         return
     end
 
-    local cached = unitCache[data.targetName] or {}
+    local targetName = stringifyName(data.targetName)
+    local cached = unitCache[targetName] or {}
     addOrUpdateLostUnit({
-        name = data.targetName,
-        groupName = data.targetGroupName or cached.groupName,
+        name = targetName,
+        groupName = stringifyName(data.targetGroupName or cached.groupName),
         type = data.targetType or cached.type or "unknown",
         category = data.targetCategory or cached.category,
         categoryName = cached.categoryName,
@@ -308,6 +325,7 @@ local function recordCargoDelivery(groupName, position, deliveryType)
         return
     end
 
+    groupName = stringifyName(groupName)
     missionState.cargoDeliveries[groupName] = {
         time = timer.getTime(),
         x = position.x,
@@ -374,7 +392,7 @@ local function getAircraftGroupPositions(coalition)
     local groups = {}
 
     for i in pairs(list) do
-        local groupName = list[i]
+        local groupName = stringifyName(list[i])
         if groupName ~= nil then
             local group = Group.getByName(groupName)
             
@@ -392,7 +410,7 @@ local function getAircraftGroupPositions(coalition)
                             hasAliveUnits = true
                             local position = unit:getPoint()
                             local unitInfo = {
-                                name = unit:getName(),
+                                name = stringifyName(unit:getName()),
                                 type = unit:getTypeName(),
                                 x = position.x,
                                 y = position.z,
@@ -407,7 +425,7 @@ local function getAircraftGroupPositions(coalition)
                     if hasAliveUnits then
                         local position = mist.getLeadPos(groupName)
                         local groupOut = {
-                            name = groupName,
+                            name = stringifyName(groupName),
                             x = position and position.x or 0,
                             y = position and position.z or 0,
                             units = unitData
@@ -428,7 +446,7 @@ local function getGroundGroupPositions(coalition)
     local groups = {}
 
     for i in pairs(list) do
-        local groupName = list[i]
+        local groupName = stringifyName(list[i])
         if groupName ~= nil then
             local group = Group.getByName(groupName)
             
@@ -446,7 +464,7 @@ local function getGroundGroupPositions(coalition)
                             hasAliveUnits = true
                             local position = unit:getPoint()
                             local unitInfo = {
-                                name = unit:getName(),
+                                name = stringifyName(unit:getName()),
                                 type = unit:getTypeName(),
                                 x = position.x,
                                 y = position.z,
@@ -460,7 +478,7 @@ local function getGroundGroupPositions(coalition)
                     if hasAliveUnits then
                         local position = mist.getLeadPos(groupName)
                         local groupOut = {
-                            name = groupName,
+                            name = stringifyName(groupName),
                             x = position and position.x or 0,
                             y = position and position.z or 0,
                             units = unitData
@@ -569,7 +587,7 @@ function ev:onEvent(event)
         local group = getInitiatorGroup(initiator)
         if not group then return end
 
-        local groupName = group:getName()
+        local groupName = stringifyName(group:getName())
 
         if groupName and transportGroups[groupName] then
             local position = initiator:getPosition().p
@@ -587,7 +605,7 @@ function ev:onEvent(event)
         if not initiator.getName then return end
         if not initiator.getPosition then return end
 
-        local name = initiator:getName()
+        local name = stringifyName(initiator:getName())
         local position = initiator:getPosition().p    
         
         if position.x ~= 0 and position.y ~= 0 then

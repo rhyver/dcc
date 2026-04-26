@@ -70,7 +70,7 @@ export function addGroundGroups(
         if (!template) continue
 
         const groupId = nextId()
-        const groupName = `SAM ${sam.type}-${groupId}`
+        const groupName = `SAM-${sam.id}-${sam.type}-${groupId}`
         const positions = arrangeUnits(objective.position, template.units.length, 50)
 
         const units = template.units.map((unitType, index) => {

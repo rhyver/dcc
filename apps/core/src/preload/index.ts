@@ -33,6 +33,14 @@ const api = {
   getAppVersion: (): Promise<string> => ipcRenderer.invoke('app:getVersion'),
   minimizeWindow: () => ipcRenderer.invoke('window:minimize'),
   toggleMaximizeWindow: () => ipcRenderer.invoke('window:toggleMaximize'),
+  getWindowMaximized: (): Promise<boolean> => ipcRenderer.invoke('window:isMaximized'),
+  onWindowMaximizedChange: (callback: (isMaximized: boolean) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, isMaximized: boolean) =>
+      callback(isMaximized)
+    ipcRenderer.on('window:maximized-change', listener)
+    return () => ipcRenderer.removeListener('window:maximized-change', listener)
+  },
+  openDevTools: () => ipcRenderer.invoke('devtools:open'),
   closeWindow: () => ipcRenderer.invoke('window:close'),
   sendMissionGeneratorChat: (messages: { role: 'user' | 'assistant'; content: string }[]) => {
     ipcRenderer.send(CHAT_REQUEST_CHANNEL, messages)

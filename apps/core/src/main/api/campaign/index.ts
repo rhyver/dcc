@@ -37,14 +37,34 @@ type AppSettings = {
   lastViewPath?: string
 }
 
-function getDefaultMissionExportDirectory() {
+function detectMissionExportDirectory() {
   const savedGamesRoot = path.join(app.getPath('home'), 'Saved Games')
   const candidates = savedGamesVariants.map((variant) =>
     path.join(savedGamesRoot, variant, 'Missions')
   )
 
-  const existing = candidates.find((candidate) => existsSync(candidate))
-  return existing ?? app.getPath('downloads')
+  return candidates.find((candidate) => existsSync(candidate))
+}
+
+function getDefaultMissionExportDirectory() {
+  return detectMissionExportDirectory() ?? app.getPath('downloads')
+}
+
+function detectDcsInstallPath() {
+  const programFiles = [process.env.ProgramFiles, process.env['ProgramFiles(x86)']].filter(
+    (value): value is string => Boolean(value)
+  )
+
+  for (const basePath of programFiles) {
+    for (const variant of ['DCS World', 'DCS World OpenBeta']) {
+      const candidate = path.join(basePath, 'Eagle Dynamics', variant)
+      if (existsSync(path.join(candidate, 'Scripts', 'MissionScripting.lua'))) {
+        return candidate
+      }
+    }
+  }
+
+  return undefined
 }
 
 function resolveMissionExportDirectory(missionExportPath?: string) {
@@ -280,7 +300,11 @@ const deleteCampaign = pub.campaign.deleteCampaign.handler(async ({ errors, inpu
 
 const getSettings = pub.campaign.getSettings.handler(async () => {
   const state = await getState()
-  return state.settings ?? {}
+  return {
+    ...(state.settings ?? {}),
+    detectedMissionExportPath: detectMissionExportDirectory(),
+    detectedDcsInstallPath: detectDcsInstallPath()
+  }
 })
 
 const saveSettings = pub.campaign.saveSettings.handler(async ({ input }) => {

@@ -45,7 +45,7 @@ export function Load() {
   const campaigns = campaignsQuery.data ?? []
 
   return (
-    <div className="relative flex min-h-screen w-full bg-synthwave-dark">
+    <div className="relative flex min-h-full w-full bg-synthwave-dark">
       {/* Grid background */}
       <div className="fixed inset-0 z-0 bg-cover opacity-20" />
 

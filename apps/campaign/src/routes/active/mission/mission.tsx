@@ -361,7 +361,7 @@ export function Mission() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0b0014]">
+    <div className="min-h-full bg-[#0b0014]">
       {toast && (
         <div className="fixed right-6 top-6 z-50 w-[min(560px,calc(100vw-3rem))] rounded-lg border border-red-500/40 bg-red-950/90 text-red-100 shadow-[0_0_30px_rgba(255,0,0,0.35)] backdrop-blur">
           <div className="flex items-start justify-between gap-3 border-b border-red-500/30 px-4 py-3">
@@ -398,7 +398,7 @@ export function Mission() {
       {/* Horizon glow */}
       <div className="fixed inset-x-0 bottom-0 h-[30vh] bg-gradient-to-t from-[#ff00aa]/30 via-[#9900ff]/10 to-transparent" />
 
-      <div className="relative z-10 p-6 h-screen flex flex-col gap-4">
+      <div className="relative z-10 p-6 h-full flex flex-col gap-4">
         {/* Header */}
         <div className="flex flex-col items-start gap-3">
           <Button

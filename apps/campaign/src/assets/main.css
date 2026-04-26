@@ -135,6 +135,16 @@
   body {
     @apply bg-background text-foreground;
     cursor: default;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  input,
+  textarea,
+  [contenteditable="true"],
+  .select-text,
+  .select-text * {
+    user-select: text;
+    -webkit-user-select: text;
   }
 }
 
@@ -150,30 +160,79 @@
   pointer-events: auto;
 }
 
-.window-control-button {
+.titlebar-menu-button {
   display: inline-flex;
-  height: 30px;
-  width: 30px;
+  height: 28px;
   align-items: center;
-  justify-content: center;
-  border: 1px solid color-mix(in srgb, var(--synthwave-pink) 26%, transparent);
-  border-radius: 9999px;
-  background: color-mix(in srgb, var(--synthwave-dark) 72%, transparent);
-  color: var(--synthwave-light);
-  box-shadow: 0 0 14px color-mix(in srgb, var(--synthwave-pink) 22%, transparent);
-  backdrop-filter: blur(12px);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 0 10px;
+  color: color-mix(in srgb, var(--synthwave-light) 82%, transparent);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
   transition:
     background-color 140ms ease,
     border-color 140ms ease,
-    color 140ms ease,
-    box-shadow 140ms ease;
+    color 140ms ease;
+}
+
+.titlebar-menu-button:hover,
+.titlebar-menu-button[aria-expanded="true"] {
+  border-color: color-mix(in srgb, var(--synthwave-cyan) 34%, transparent);
+  background: color-mix(in srgb, var(--synthwave-purple) 18%, transparent);
+  color: white;
+}
+
+.titlebar-menu {
+  position: absolute;
+  left: 0;
+  top: 34px;
+  min-width: 190px;
+  border: 1px solid color-mix(in srgb, var(--synthwave-pink) 30%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--synthwave-dark) 94%, black);
+  padding: 4px;
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.38);
+}
+
+.titlebar-menu-item {
+  display: flex;
+  width: 100%;
+  height: 30px;
+  align-items: center;
+  border-radius: 4px;
+  padding: 0 9px;
+  color: var(--synthwave-light);
+  font-size: 12px;
+  text-align: left;
+}
+
+.titlebar-menu-item:hover {
+  background: color-mix(in srgb, var(--synthwave-pink) 16%, transparent);
+  color: white;
+}
+
+.window-control-button {
+  display: inline-flex;
+  height: 28px;
+  width: 32px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--synthwave-pink) 26%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--synthwave-dark) 72%, transparent);
+  color: var(--synthwave-light);
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease;
 }
 
 .window-control-button:hover {
   border-color: color-mix(in srgb, var(--synthwave-cyan) 54%, transparent);
   background: color-mix(in srgb, var(--synthwave-purple) 28%, var(--synthwave-dark));
   color: white;
-  box-shadow: 0 0 16px color-mix(in srgb, var(--synthwave-cyan) 28%, transparent);
 }
 
 .window-control-button:active {
@@ -183,7 +242,6 @@
 .window-control-button-close:hover {
   border-color: color-mix(in srgb, var(--enemy-red) 72%, transparent);
   background: color-mix(in srgb, var(--enemy-red) 72%, transparent);
-  box-shadow: 0 0 18px color-mix(in srgb, var(--enemy-red) 36%, transparent);
 }
 
 .synthwave-scrollbar {

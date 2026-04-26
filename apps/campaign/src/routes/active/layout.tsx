@@ -80,7 +80,7 @@ export function ActiveLayout() {
   }, [timeMultiplier])
 
   return (
-    <div>
+    <div className="h-full">
       <Outlet />
     </div>
   )

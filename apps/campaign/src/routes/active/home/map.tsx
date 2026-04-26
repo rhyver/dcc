@@ -4,7 +4,7 @@ import { useSelector } from '@xstate/store/react'
 import { activeStore } from '@/stores/active'
 import { useQuery } from '@tanstack/react-query'
 import { orpc } from '@/lib/orpc'
-import { memo, useMemo, useState, useEffect, useRef } from 'react'
+import { memo, useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import { LOtoLL } from '@kilcekru/dcs-coordinates'
 import * as z from 'zod'
 import { schemas } from '@dcc/contracts'
@@ -13,17 +13,19 @@ import MaplibreMap, {
   Source,
   Layer,
   useMap,
+  type MapLayerMouseEvent,
   type MapRef
 } from 'react-map-gl/maplibre'
 import maplibregl from 'maplibre-gl'
 import { Protocol } from 'pmtiles'
+import { RotateCcw } from 'lucide-react'
 import MilSymbol from 'milsymbol'
 import * as turf from '@turf/turf'
 import { getMilSymbolCode } from './unit-code'
 import { type ObjectiveMarker as ObjectiveMarkerType, useMapItems } from './use-map-items'
 import { cn } from '@/lib/utils'
 import { DetailsCard } from './details-card'
-import { offlineCaucasusMapStyle } from './offline-map-style'
+import { CAUCASUS_DETAIL_MAX_ZOOM, offlineCaucasusMapStyle } from './offline-map-style'
 
 const globalWithPmtiles = globalThis as typeof globalThis & {
   __dccPmtilesProtocol?: Protocol
@@ -110,6 +112,34 @@ export type SelectedItem =
   | z.infer<typeof schemas.flightGroup>
   | z.infer<typeof schemas.groundGroup>
   | null
+
+type MeasurePoint = {
+  id: string
+  lng: number
+  lat: number
+}
+
+type MeasureSegment = {
+  id: string
+  from: MeasurePoint
+  to: MeasurePoint
+  distanceNm: number
+}
+
+const KILOMETERS_PER_NAUTICAL_MILE = 1.852
+
+function getDistanceNm(from: MeasurePoint, to: MeasurePoint) {
+  return (
+    turf.distance([from.lng, from.lat], [to.lng, to.lat], {
+      units: 'kilometers'
+    }) / KILOMETERS_PER_NAUTICAL_MILE
+  )
+}
+
+function formatNauticalMiles(value: number) {
+  if (value < 10) return `${value.toFixed(1)} NM`
+  return `${Math.round(value)} NM`
+}
 
 const FlightPlanOverlay = memo(function FlightPlanOverlay({
   flightplan,
@@ -263,15 +293,20 @@ const GroundGroupPathOverlay = memo(function GroundGroupPathOverlay({
 export function Map({
   selectedItem,
   onSelect,
-  zoom
+  zoom,
+  measureMode,
+  overlaySafeLeft = 0
 }: {
   selectedItem: SelectedItem
   onSelect: (item: SelectedItem) => void
   zoom: number
+  measureMode: boolean
+  overlaySafeLeft?: number
 }) {
   const scenarioId = useSelector(activeStore, (state) => state.context.scenarioId)
   const mapRef = useRef<MapRef | null>(null)
   const lastCenteredSelectionIdRef = useRef<string | null>(null)
+  const [measurePoints, setMeasurePoints] = useState<MeasurePoint[]>([])
 
   const scenarioQuery = useQuery(
     orpc.data.getScenario.queryOptions({
@@ -298,6 +333,58 @@ export function Map({
     }
   }, [theatreQuery.data, zoom])
   const { mapItems, objectiveMarkers, frontline, flightGroups } = useMapItems()
+
+  useEffect(() => {
+    if (measureMode) return
+    setMeasurePoints([])
+  }, [measureMode])
+
+  const measureSegments = useMemo<MeasureSegment[]>(() => {
+    return measurePoints.slice(1).map((point, index) => {
+      const from = measurePoints[index]
+      return {
+        id: `${from.id}-${point.id}`,
+        from,
+        to: point,
+        distanceNm: getDistanceNm(from, point)
+      }
+    })
+  }, [measurePoints])
+
+  const measureTotalNm = useMemo(
+    () => measureSegments.reduce((total, segment) => total + segment.distanceNm, 0),
+    [measureSegments]
+  )
+
+  const measureLineGeoJson = useMemo<GeoJSON.FeatureCollection<GeoJSON.LineString>>(
+    () => {
+      if (measurePoints.length < 2) {
+        return turf.featureCollection<GeoJSON.LineString>([])
+      }
+
+      return turf.featureCollection([
+        turf.lineString(measurePoints.map((point) => [point.lng, point.lat]))
+      ])
+    },
+    [measurePoints]
+  )
+
+  const handleMapClick = useCallback(
+    (event: MapLayerMouseEvent) => {
+      if (!measureMode) return
+      event.originalEvent.stopPropagation()
+      const { lng, lat } = event.lngLat
+      setMeasurePoints((points) => [
+        ...points,
+        {
+          id: `${Date.now()}-${points.length}`,
+          lng,
+          lat
+        }
+      ])
+    },
+    [measureMode]
+  )
 
   const liveSelectedItem = useMemo(() => {
     if (!selectedItem) return null
@@ -407,11 +494,14 @@ export function Map({
   // Only show the map if the view state is available
   if (initialViewState == null) return null
   return (
-    <div className="dcc-campaign-map w-full h-full relative">
+    <div className={cn('dcc-campaign-map w-full h-full relative', measureMode && 'cursor-crosshair')}>
       <MaplibreMap
         ref={mapRef}
         initialViewState={initialViewState}
         mapStyle={offlineCaucasusMapStyle}
+        minZoom={3}
+        maxZoom={CAUCASUS_DETAIL_MAX_ZOOM}
+        onClick={handleMapClick}
       >
         {liveSelectedItem && 'flightplan' in liveSelectedItem && theatreQuery.data && (
           <FlightPlanOverlay
@@ -499,6 +589,61 @@ export function Map({
             />
           </Source>
         )}
+        {measurePoints.length > 1 && (
+          <Source id="measure-line-source" type="geojson" data={measureLineGeoJson}>
+            <Layer
+              id="measure-line-glow"
+              type="line"
+              paint={{
+                'line-color': '#0b0014',
+                'line-width': 7,
+                'line-opacity': 0.75
+              }}
+            />
+            <Layer
+              id="measure-line"
+              type="line"
+              paint={{
+                'line-color': '#00ddff',
+                'line-width': 3,
+                'line-dasharray': [1.5, 1.2]
+              }}
+            />
+          </Source>
+        )}
+        {measureMode &&
+          measurePoints.map((point, index) => (
+            <MaplibreMarker
+              key={point.id}
+              longitude={point.lng}
+              latitude={point.lat}
+              anchor="center"
+              style={{ zIndex: 35 }}
+            >
+              <div className="pointer-events-none flex h-5 w-5 items-center justify-center rounded-full bg-synthwave-dark/90 ring-2 ring-synthwave-cyan shadow-[0_0_12px_rgba(0,221,255,0.55)]">
+                <span className="h-1.5 w-1.5 rounded-full bg-synthwave-cyan" />
+                {index === 0 ? null : (
+                  <span className="absolute translate-x-4 -translate-y-3 rounded bg-synthwave-dark/90 px-1.5 py-0.5 text-[10px] font-semibold text-synthwave-light ring-1 ring-synthwave-cyan/35">
+                    {index + 1}
+                  </span>
+                )}
+              </div>
+            </MaplibreMarker>
+          ))}
+        {measureMode &&
+          measureSegments.map((segment) => (
+            <MaplibreMarker
+              key={segment.id}
+              longitude={(segment.from.lng + segment.to.lng) / 2}
+              latitude={(segment.from.lat + segment.to.lat) / 2}
+              anchor="center"
+              style={{ zIndex: 34 }}
+            >
+              <div className="pointer-events-none rounded bg-synthwave-dark/90 px-2 py-0.5 text-[11px] font-semibold text-synthwave-cyan shadow-[0_0_10px_rgba(0,0,0,0.5)] ring-1 ring-synthwave-cyan/35">
+                {formatNauticalMiles(segment.distanceNm)}
+              </div>
+            </MaplibreMarker>
+          ))}
         {mapItems.map((item) => (
           <Marker
             key={item.id}
@@ -524,6 +669,32 @@ export function Map({
           if (marker) onSelect(marker)
         }}
       />
+      {measureMode && (
+        <div
+          className="pointer-events-auto absolute top-4 z-20 flex -translate-x-1/2 items-center gap-3 rounded border border-synthwave-cyan/40 bg-synthwave-dark/90 px-3 py-2 text-synthwave-light shadow-[0_0_18px_rgba(0,221,255,0.22)] backdrop-blur-md"
+          style={{
+            left: `max(50%, calc((100% + ${overlaySafeLeft}px) / 2))`,
+            maxWidth: `calc(100% - ${overlaySafeLeft}px - 2rem)`
+          }}
+        >
+          <div className="flex items-baseline gap-2">
+            <span className="retro-font text-[10px] uppercase text-synthwave-cyan">Measure</span>
+            <span className="text-sm font-semibold tabular-nums">
+              {formatNauticalMiles(measureTotalNm)}
+            </span>
+          </div>
+          <button
+            type="button"
+            className="flex h-6 items-center gap-1.5 rounded border border-synthwave-pink/30 px-2 text-[10px] font-semibold uppercase text-secondary hover:bg-synthwave-pink/20 hover:text-white"
+            onClick={() => setMeasurePoints([])}
+            title="Reset measurement"
+            aria-label="Reset measurement"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            Reset
+          </button>
+        </div>
+      )}
     </div>
   )
 }

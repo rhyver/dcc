@@ -14,7 +14,8 @@ import {
   ScrollText,
   Settings as SettingsIcon,
   Plus,
-  Minus
+  Minus,
+  Ruler
 } from 'lucide-react'
 import React from 'react'
 import * as ScrollAreaPrimitive from '@radix-ui/react-scroll-area'
@@ -38,6 +39,7 @@ import { coreClient } from '@/lib/orpc'
 import { Clock } from './clock'
 import { ActiveFlightGroups } from './active-flight-groups'
 import { TakeoffButton } from './takeoff-button'
+import { CAUCASUS_DETAIL_MAX_ZOOM } from './offline-map-style'
 
 const campaignData = {
   description:
@@ -50,10 +52,12 @@ const campaignData = {
 
 const LOG_ROW_HEIGHT = 52
 const LOG_OVERSCAN = 6
+const MAP_OVERLAY_SAFE_LEFT_PX = 412
 const CampaignMap = React.lazy(() => import('./map').then(({ Map }) => ({ default: Map })))
 
 export function Home() {
   const [mapZoom, setMapZoom] = React.useState(7)
+  const [isMeasureMode, setIsMeasureMode] = React.useState(false)
   const [isBriefingOpen, setIsBriefingOpen] = React.useState(false)
   const [isLogOpen, setIsLogOpen] = React.useState(false)
   const [selectedItem, setSelectedItem] = React.useState<SelectedItem>(null)
@@ -107,7 +111,7 @@ export function Home() {
   }, [])
 
   return (
-    <div className="relative h-screen w-full overflow-hidden bg-background">
+    <div className="relative h-full w-full overflow-hidden bg-background">
       {/* Map - Full screen background */}
       <div className="absolute inset-0 z-0">
         <div className="absolute inset-0 flex flex-col overflow-hidden">
@@ -118,8 +122,23 @@ export function Home() {
               <Button
                 variant="outline"
                 size="sm"
+                className={`h-[30px] w-[30px] rounded-full border-synthwave-pink/30 p-0 text-secondary backdrop-blur-md hover:bg-synthwave-pink/20 ${
+                  isMeasureMode
+                    ? 'bg-synthwave-pink/25 text-synthwave-light ring-1 ring-synthwave-pink/60'
+                    : 'bg-synthwave-dark/80'
+                }`}
+                onClick={() => setIsMeasureMode((value) => !value)}
+                title="Measure distance"
+                aria-label="Measure distance"
+                aria-pressed={isMeasureMode}
+              >
+                <Ruler className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 className="h-[30px] w-[30px] rounded-full border-synthwave-pink/30 bg-synthwave-dark/80 p-0 text-secondary backdrop-blur-md hover:bg-synthwave-pink/20"
-                onClick={() => setMapZoom(Math.min(12, mapZoom + 1))}
+                onClick={() => setMapZoom(Math.min(CAUCASUS_DETAIL_MAX_ZOOM, mapZoom + 1))}
               >
                 <Plus className="h-3.5 w-3.5" />
               </Button>
@@ -170,7 +189,13 @@ export function Home() {
           <div className="absolute bottom-0 left-0 right-0 h-[30vh] bg-linear-to-t from-synthwave-pink via-synthwave-purple to-transparent opacity-30" />
 
           <React.Suspense fallback={<div className="h-full w-full bg-synthwave-dark" />}>
-            <CampaignMap selectedItem={selectedItem} onSelect={setSelectedItem} zoom={mapZoom} />
+            <CampaignMap
+              selectedItem={selectedItem}
+              onSelect={setSelectedItem}
+              zoom={mapZoom}
+              measureMode={isMeasureMode}
+              overlaySafeLeft={MAP_OVERLAY_SAFE_LEFT_PX}
+            />
           </React.Suspense>
         </div>
       </div>
@@ -246,7 +271,6 @@ export function Home() {
                 <Info className="h-4 w-4 text-synthwave-pink" />
                 <span className="retro-font text-xs">Mission Briefing</span>
               </div>
-              <span className="text-[10px]">{isBriefingOpen ? 'v' : '>'}</span>
             </Button>
 
             {/* Briefing Content */}
@@ -322,15 +346,13 @@ export function Home() {
                           className="pb-0"
                         >
                           <div
-                            className={`rounded border px-2 py-1 ${
-                              entry.coalition === 'player'
+                            className={`rounded border px-2 py-1 ${entry.coalition === 'player'
                                 ? 'border-cyan-400/30 bg-cyan-950/25'
                                 : 'border-red-400/30 bg-red-950/25'
-                            } ${
-                              entry.entityId
+                              } ${entry.entityId
                                 ? 'cursor-pointer hover:ring-1 hover:ring-synthwave-pink/40'
                                 : ''
-                            }`}
+                              }`}
                             onClick={() => handleLogItemClick(entry)}
                             role={entry.entityId ? 'button' : undefined}
                             tabIndex={entry.entityId ? 0 : undefined}
@@ -345,9 +367,8 @@ export function Home() {
                             <div className="flex items-center justify-between gap-2">
                               <div className="flex items-center gap-2">
                                 <span
-                                  className={`uppercase tracking-wide ${
-                                    entry.type === 'combat' ? 'text-red-300' : 'text-cyan-300'
-                                  }`}
+                                  className={`uppercase tracking-wide ${entry.type === 'combat' ? 'text-red-300' : 'text-cyan-300'
+                                    }`}
                                 >
                                   {entry.type}
                                 </span>

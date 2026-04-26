@@ -10,6 +10,9 @@ interface API {
   getAppVersion: () => Promise<string>
   minimizeWindow: () => Promise<void>
   toggleMaximizeWindow: () => Promise<void>
+  getWindowMaximized: () => Promise<boolean>
+  onWindowMaximizedChange: (callback: (isMaximized: boolean) => void) => () => void
+  openDevTools: () => Promise<void>
   closeWindow: () => Promise<void>
   sendMissionGeneratorChat: (messages: { role: 'user' | 'assistant'; content: string }[]) => void
   onMissionGeneratorChatChunk: (callback: (chunk: string) => void) => () => void

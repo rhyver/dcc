@@ -10,3 +10,8 @@ export const settings = z.object({
   disableAutoUpdate: z.boolean().optional(),
   lastViewPath: z.string().optional()
 })
+
+export const settingsOutput = settings.extend({
+  detectedMissionExportPath: z.string().optional(),
+  detectedDcsInstallPath: z.string().optional()
+})

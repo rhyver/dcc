@@ -158,7 +158,7 @@ const getSettings = base
     summary: 'Get application settings',
     tags: ['Campaign', 'Settings']
   })
-  .output(campaignSchemas.settings)
+  .output(campaignSchemas.settingsOutput)
 
 const saveSettings = base
   .route({

@@ -308,6 +308,23 @@ function withHashPath(baseUrl: string, path: string) {
   return `${baseUrl}#${safePath}`
 }
 
+function createApplicationMenu() {
+  return Menu.buildFromTemplate([
+    {
+      label: 'Dev',
+      submenu: [
+        {
+          label: 'Show Chrome DevTools',
+          accelerator: 'F12',
+          click: () => {
+            mainWindow?.webContents.openDevTools({ mode: 'detach' })
+          }
+        }
+      ]
+    }
+  ])
+}
+
 async function createWindow(): Promise<void> {
   console.log('createWindow')
   // Create the browser window.
@@ -325,8 +342,13 @@ async function createWindow(): Promise<void> {
   })
 
   mainWindow.on('ready-to-show', () => {
-    console.log('ready-to-show')
     mainWindow?.show()
+  })
+  mainWindow.on('maximize', () => {
+    mainWindow?.webContents.send('window:maximized-change', true)
+  })
+  mainWindow.on('unmaximize', () => {
+    mainWindow?.webContents.send('window:maximized-change', false)
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -374,8 +396,7 @@ app.whenReady().then(() => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('at.digitalcrewchief.app')
 
-  // Remove the application menu bar
-  Menu.setApplicationMenu(null)
+  Menu.setApplicationMenu(createApplicationMenu())
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
@@ -412,6 +433,10 @@ app.whenReady().then(() => {
       return
     }
     mainWindow.maximize()
+  })
+  ipcMain.handle('window:isMaximized', () => mainWindow?.isMaximized() ?? false)
+  ipcMain.handle('devtools:open', () => {
+    mainWindow?.webContents.openDevTools({ mode: 'detach' })
   })
   ipcMain.handle('window:close', () => {
     mainWindow?.close()

@@ -1,4 +1,4 @@
-import { ArrowLeft } from 'lucide-react'
+import { AlertTriangle, ArrowLeft } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { coreClient } from '@/lib/orpc'
@@ -32,6 +32,8 @@ export function Settings() {
   const navigate = useNavigate()
   const [missionExportPath, setMissionExportPath] = useState<string>('')
   const [dcsInstallPath, setDcsInstallPath] = useState<string>('')
+  const [detectedMissionExportPath, setDetectedMissionExportPath] = useState<string>('')
+  const [detectedDcsInstallPath, setDetectedDcsInstallPath] = useState<string>('')
   const [enableDcsPersistence, setEnableDcsPersistence] = useState<boolean>(true)
   const [aiProvider, setAiProvider] = useState<AiProvider>('openai')
   const [aiApiKey, setAiApiKey] = useState<string>('')
@@ -44,6 +46,8 @@ export function Settings() {
     coreClient.campaign.getSettings().then((settings) => {
       setMissionExportPath(settings.missionExportPath || '')
       setDcsInstallPath(settings.dcsInstallPath || '')
+      setDetectedMissionExportPath(settings.detectedMissionExportPath ?? '')
+      setDetectedDcsInstallPath(settings.detectedDcsInstallPath ?? '')
       setEnableDcsPersistence(settings.enableDcsPersistence ?? true)
       setAiProvider(settings.aiProvider ?? 'openai')
       setAiApiKey(settings.aiApiKey ?? '')
@@ -84,7 +88,7 @@ export function Settings() {
   }
 
   return (
-    <div className="relative h-screen w-full overflow-hidden bg-synthwave-dark text-white">
+    <div className="relative h-full w-full overflow-hidden bg-synthwave-dark text-white">
       {/* Background */}
       <div className="absolute inset-0 z-0 bg-cover opacity-20" />
       <div className="absolute bottom-0 left-0 right-0 h-[40vh] bg-linear-to-t from-synthwave-pink via-synthwave-purple to-transparent opacity-30" />
@@ -119,8 +123,8 @@ export function Settings() {
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-300">Mission Export Path</label>
                     <div className="flex gap-2">
-                      <div className="flex-1 p-2 rounded bg-gray-900 border border-gray-700 font-mono text-sm truncate flex items-center">
-                        {missionExportPath || 'Default (Downloads folder)'}
+                      <div className="flex-1 h-9 px-2 rounded bg-gray-900 border border-gray-700 font-mono text-sm truncate flex items-center">
+                        {missionExportPath || detectedMissionExportPath}
                       </div>
                       <Button
                         variant="outline"
@@ -130,6 +134,12 @@ export function Settings() {
                         Browse...
                       </Button>
                     </div>
+                    {!missionExportPath && !detectedMissionExportPath ? (
+                      <div className="flex items-center gap-2 rounded border border-amber-400/60 bg-amber-950/60 px-2 py-1.5 text-xs text-amber-100">
+                        <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-300" />
+                        <span>No path set and no DCS Saved Games folder was found.</span>
+                      </div>
+                    ) : null}
                     <p className="text-xs text-gray-500">
                       Select the folder where the mission.miz file should be saved.
                     </p>
@@ -192,8 +202,8 @@ export function Settings() {
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-300">DCS Install Path</label>
                     <div className="flex gap-2">
-                      <div className="flex-1 p-2 rounded bg-gray-900 border border-gray-700 font-mono text-sm truncate flex items-center">
-                        {dcsInstallPath || 'Auto-detect from default install locations'}
+                      <div className="flex-1 h-9 px-2 rounded bg-gray-900 border border-gray-700 font-mono text-sm truncate flex items-center">
+                        {dcsInstallPath || detectedDcsInstallPath}
                       </div>
                       <Button
                         variant="outline"
@@ -203,6 +213,12 @@ export function Settings() {
                         Browse...
                       </Button>
                     </div>
+                    {!dcsInstallPath && !detectedDcsInstallPath ? (
+                      <div className="flex items-center gap-2 rounded border border-amber-400/60 bg-amber-950/60 px-2 py-1.5 text-xs text-amber-100">
+                        <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-300" />
+                        <span>No path set and no DCS World install was found.</span>
+                      </div>
+                    ) : null}
                     <p className="text-xs text-gray-500">
                       Select your DCS World installation folder (the one containing `Scripts`).
                     </p>

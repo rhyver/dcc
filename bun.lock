@@ -78,7 +78,7 @@
     },
     "apps/core": {
       "name": "@dcc/core",
-      "version": "0.5.0",
+      "version": "0.5.0-2026042509",
       "dependencies": {
         "@ai-sdk/anthropic": "^3.0.71",
         "@ai-sdk/openai": "^3.0.53",
@@ -128,6 +128,26 @@
         "eslint-plugin-react-hooks": "^7.1.1",
         "eslint-plugin-react-refresh": "^0.5.2",
         "tailwindcss": "^4.2.4",
+        "typescript": "^6.0.3",
+        "vite": "^8.0.10",
+      },
+    },
+    "apps/landing": {
+      "name": "@dcc/landing",
+      "version": "1.0.0",
+      "dependencies": {
+        "react": "^19.2.5",
+        "react-dom": "^19.2.5",
+      },
+      "devDependencies": {
+        "@electron-toolkit/eslint-config-prettier": "^3.0.0",
+        "@electron-toolkit/eslint-config-ts": "^3.1.0",
+        "@types/react": "^19.2.14",
+        "@types/react-dom": "^19.2.3",
+        "@vitejs/plugin-react": "^6.0.1",
+        "babel-plugin-react-compiler": "^1.0.0",
+        "eslint": "^10.2.1",
+        "eslint-plugin-react-hooks": "^7.1.1",
         "typescript": "^6.0.3",
         "vite": "^8.0.10",
       },
@@ -275,6 +295,8 @@
     "@dcc/document": ["@dcc/document@workspace:apps/document"],
 
     "@dcc/generate-miz": ["@dcc/generate-miz@workspace:packages/generate-miz"],
+
+    "@dcc/landing": ["@dcc/landing@workspace:apps/landing"],
 
     "@dcc/lua-table": ["@dcc/lua-table@workspace:packages/lua-table"],
 

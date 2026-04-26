@@ -5,6 +5,10 @@ const worldSource = 'protomaps-world'
 const caucasusSource = 'protomaps-caucasus'
 const worldPmtilesUrl = new URL('./maps/world-low.pmtiles', window.location.href).toString()
 const caucasusPmtilesUrl = new URL('./maps/caucasus/caucasus.pmtiles', window.location.href).toString()
+const caucasusDetailBounds: [number, number, number, number] = [
+  40.130612, 40.747635, 44.435577, 44.169509
+]
+export const CAUCASUS_DETAIL_MAX_ZOOM = 12
 
 function prepareLayer(layer: LayerSpecification, source: string, minzoom?: number, maxzoom?: number) {
   const preparedLayer = {
@@ -31,15 +35,20 @@ function prepareLayer(layer: LayerSpecification, source: string, minzoom?: numbe
   }
 }
 
-function prepareLayers(source: string, minzoom?: number, maxzoom?: number) {
-  return layers(source, LIGHT, { lang: 'en' }).map((layer) =>
-    prepareLayer(layer, source, minzoom, maxzoom)
-  )
+function prepareLayers(
+  source: string,
+  minzoom?: number,
+  maxzoom?: number,
+  options: { includeBackground?: boolean } = {}
+) {
+  return layers(source, LIGHT, { lang: 'en' })
+    .filter((layer) => options.includeBackground !== false || layer.type !== 'background')
+    .map((layer) => prepareLayer(layer, source, minzoom, maxzoom))
 }
 
 const englishOnlyLayers = [
-  ...prepareLayers(worldSource, undefined, 6),
-  ...prepareLayers(caucasusSource, 6)
+  ...prepareLayers(worldSource),
+  ...prepareLayers(caucasusSource, 6, undefined, { includeBackground: false })
 ]
 
 const layersWithEmptyEnglishLabels = englishOnlyLayers.map((layer) => {
@@ -74,8 +83,8 @@ export const offlineCaucasusMapStyle: StyleSpecification = {
       attribution:
         '<a href="https://github.com/protomaps/basemaps">Protomaps</a> © <a href="https://osm.org/copyright">OpenStreetMap</a>',
       minzoom: 3,
-      maxzoom: 10,
-      bounds: [40.130612, 40.747635, 44.435577, 44.169509]
+      maxzoom: CAUCASUS_DETAIL_MAX_ZOOM,
+      bounds: caucasusDetailBounds
     }
   },
   layers: layersWithEmptyEnglishLabels

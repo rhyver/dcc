@@ -3,7 +3,7 @@ import { mkdir, readdir, rm, unlink } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 
 const bbox = '40.130612,40.747635,44.435577,44.169509'
-const maxZoom = process.env.MAP_CACHE_MAX_ZOOM ?? '10'
+const maxZoom = process.env.MAP_CACHE_MAX_ZOOM ?? '12'
 const worldMaxZoom = process.env.MAP_CACHE_WORLD_MAX_ZOOM ?? '5'
 const mapsRoot = join(import.meta.dirname, '..', 'public', 'maps')
 const caucasusOutputPath = join(mapsRoot, 'caucasus', 'caucasus.pmtiles')

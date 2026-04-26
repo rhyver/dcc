@@ -34,7 +34,7 @@ export function MissionGenerator() {
   const [briefingName, setBriefingName] = useState('')
 
   return (
-    <div className="relative flex h-screen w-full overflow-hidden bg-synthwave-dark text-white">
+    <div className="relative flex h-full w-full overflow-hidden bg-synthwave-dark text-white">
       <div className="absolute inset-0 z-0 opacity-20 [background-image:linear-gradient(to_right,var(--synthwave-pink)_1px,transparent_1px),linear-gradient(to_bottom,var(--synthwave-pink)_1px,transparent_1px)] [background-size:40px_40px]" />
 
       <div className="relative z-10 flex w-full gap-4 p-4">

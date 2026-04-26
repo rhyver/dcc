@@ -13,7 +13,13 @@
       "Bash(npx tsc:*)",
       "Bash(find:*)",
       "Bash(npx shadcn@latest add dialog -y)",
-      "Bash(npx shadcn@latest add switch -y)"
+      "Bash(npx shadcn@latest add switch -y)",
+      "WebFetch(domain:api.anthropic.com)",
+      "Bash(mkdir -p /tmp/dcc-design)",
+      "Read(//tmp/**)",
+      "Bash(cp \"C:\\\\Users\\\\juerg\\\\.claude\\\\projects\\\\f--dcc-vite\\\\104487ea-dae1-42b8-85ad-ee671aea0f78\\\\tool-results\\\\webfetch-1777187371382-lxf0im.bin\" design.tar.gz)",
+      "Bash(tar -xzf design.tar.gz)",
+      "Bash(bun install *)"
     ]
   }
 }

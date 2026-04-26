@@ -26,7 +26,7 @@ export function New() {
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
 
   return (
-    <div className="relative flex h-screen w-full items-center justify-center overflow-hidden bg-synthwave-dark">
+    <div className="relative flex h-full w-full items-center justify-center overflow-hidden bg-synthwave-dark">
       {/* Grid background */}
       <div className="absolute inset-0 z-0 bg-cover opacity-20" />
 

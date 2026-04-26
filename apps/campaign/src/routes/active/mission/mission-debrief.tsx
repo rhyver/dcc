@@ -101,7 +101,7 @@ export function MissionDebriefScreen({
   ]
 
   return (
-    <div className="min-h-screen bg-[#0b0014] text-white">
+    <div className="min-h-full bg-[#0b0014] text-white">
       <div
         className="fixed inset-0"
         style={{
@@ -112,7 +112,7 @@ export function MissionDebriefScreen({
       />
       <div className="fixed inset-x-0 bottom-0 h-[34vh] bg-gradient-to-t from-[#00ddff]/20 via-[#ff3366]/10 to-transparent" />
 
-      <div className="relative z-10 flex min-h-screen flex-col gap-5 p-6">
+      <div className="relative z-10 flex min-h-full flex-col gap-5 p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="text-xs font-semibold uppercase tracking-[0.35em] text-white/45">

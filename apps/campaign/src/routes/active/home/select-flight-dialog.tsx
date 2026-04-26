@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import { Plane, ChevronLeft, User, PlaneTakeoff, RotateCcw } from 'lucide-react'
+import { Plane, ChevronLeft, User, PlaneTakeoff, RotateCcw, X } from 'lucide-react'
 import { useSelector } from '@xstate/store/react'
-import { useNavigate } from 'react-router'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -14,7 +13,6 @@ import {
 } from '@/components/ui/dialog'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { activeStore } from '@/stores/active'
-import { coreClient } from '@/lib/orpc'
 import { getAircraftDisplayName } from '@/lib/aircraft-display'
 import { featureFlags } from '@/lib/feature-flags'
 
@@ -34,9 +32,7 @@ interface SelectFlightDialogProps {
 }
 
 export function SelectFlightDialog({ open, onOpenChange }: SelectFlightDialogProps) {
-  const navigate = useNavigate()
   const [selectedTask, setSelectedTask] = useState<string | null>(null)
-  const [isSaving, setIsSaving] = useState(false)
 
   const flightGroups = useSelector(
     activeStore,
@@ -44,8 +40,6 @@ export function SelectFlightDialog({ open, onOpenChange }: SelectFlightDialogPro
   )
   const campaignTime = useSelector(activeStore, (state) => state.context.time)
   const currentTime = campaignTime ? new Date(campaignTime) : new Date()
-
-  const hasClient = flightGroups.some((fg) => fg.aircrafts.some((ac) => ac.client))
 
   // Group flight groups by task, only include tasks that have groups
   const groupsByTask = new Map<string, typeof flightGroups>()
@@ -225,7 +219,6 @@ export function SelectFlightDialog({ open, onOpenChange }: SelectFlightDialogPro
             variant="outline"
             size="sm"
             className="mr-auto border-synthwave-pink/30 text-secondary hover:bg-synthwave-pink/20 hover:text-white"
-            disabled={!hasClient}
             onClick={() => {
               for (const fg of flightGroups) {
                 if (fg.aircrafts.some((ac) => ac.client)) {
@@ -241,30 +234,25 @@ export function SelectFlightDialog({ open, onOpenChange }: SelectFlightDialogPro
             <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
             Reset
           </Button>
+          {selectedTask && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-synthwave-pink/30 text-secondary hover:bg-synthwave-pink/20 hover:text-white"
+              onClick={() => setSelectedTask(null)}
+            >
+              <ChevronLeft className="mr-1.5 h-3.5 w-3.5" />
+              Back
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
             className="border-synthwave-pink/30 text-secondary hover:bg-synthwave-pink/20 hover:text-white"
             onClick={handleClose}
           >
-            Continue
-          </Button>
-          <Button
-            size="sm"
-            className="bg-synthwave-pink hover:bg-synthwave-pink/80 text-white border-none shadow-[0_0_10px_rgba(255,0,170,0.5)]"
-            disabled={!hasClient || isSaving}
-            onClick={async () => {
-              if (!hasClient || isSaving) return
-              setIsSaving(true)
-              try {
-                await coreClient.campaign.saveActiveCampaign(activeStore.getSnapshot().context)
-                navigate('/mission')
-              } finally {
-                setIsSaving(false)
-              }
-            }}
-          >
-            {isSaving ? 'Saving…' : 'Takeoff'}
+            <X className="mr-1.5 h-3.5 w-3.5" />
+            Close
           </Button>
         </DialogFooter>
       </DialogContent>

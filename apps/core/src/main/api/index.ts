@@ -14,6 +14,24 @@ const router = pub.router({
 export const rpcHandler = new RPCHandler(router, {
   interceptors: [
     onError((error) => {
+      // During mission polling, these errors are expected until DCS writes a fresh state file.
+      if (error && typeof error === 'object' && 'defined' in error && 'code' in error) {
+        const e = error as {
+          code?: string
+          data?: { message?: string }
+        }
+
+        if (e.code === 'STALE_STATE_FILE') return
+
+        if (e.code === 'FAILED_TO_READ_FILE') return
+
+        if (e.code === 'INVALID_STATE_FILE') {
+          const msg = e.data?.message ?? ''
+          // Happens when the exporter truncates/writes the JSON in multiple chunks.
+          if (msg.includes('Unexpected end of JSON input')) return
+        }
+      }
+
       console.error(error)
     })
   ]

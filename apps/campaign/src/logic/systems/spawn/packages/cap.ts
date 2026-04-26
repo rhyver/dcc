@@ -87,9 +87,7 @@ export function spawnCap(
     selectedPatrolAssignment.homeBase.name
   )
   if (Math.random() > spawnModifier) {
-    debugLog(
-      `Skipping CAP spawn due to supply status at ${selectedPatrolAssignment.homeBase.name}`
-    )
+    debugLog(`Skipping CAP spawn due to supply status at ${selectedPatrolAssignment.homeBase.name}`)
     return
   }
 

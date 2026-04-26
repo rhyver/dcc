@@ -199,9 +199,7 @@ export function spawnStrike(
 
     draft.coalitions[coalition].packages.push(missionPackage)
 
-    debugLog(
-      `Created SEAD Strike Package: Strike + SEAD targeting ${threateningSam.samGroup.type}`
-    )
+    debugLog(`Created SEAD Strike Package: Strike + SEAD targeting ${threateningSam.samGroup.type}`)
   } else {
     // Spawn strike without SEAD support
     StrikeFlightGroup.spawn(draft, coalition, {

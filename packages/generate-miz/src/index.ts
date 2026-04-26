@@ -5,11 +5,12 @@ import { err, ok, Result } from 'neverthrow'
 import * as z from 'zod'
 
 import { addAwacsGroups } from './add-awacs-groups'
-import { addFlightGroups } from './add-flight-groups'
+import { addFlightGroups, type CasFlightConfig } from './add-flight-groups'
 import { addGroundGroups } from './add-ground-groups'
 import { addStructures } from './add-structures'
 import { dictionary, mapResource } from './l10n'
 import { options } from './options'
+import casLuaScript from './scripts/cas.lua?raw'
 import ctldLuaScript from './scripts/ctld.lua?raw'
 import mistLuaScript from './scripts/mist_4_5_126.lua?raw'
 import splashDamageLuaScript from './scripts/splash_damage.lua?raw'
@@ -39,6 +40,11 @@ type MissionTriggerRule = {
 }
 
 type MissionTriggerRules = Record<number, MissionTriggerRule>
+
+type MissionScriptConfig = {
+  missionId: string
+  flightGroups: CasFlightConfig[]
+}
 
 function addTransportCargoTriggers(
   mission: z.infer<typeof schemas.dcs.mission>,
@@ -282,11 +288,12 @@ export function generateMizFromCampaign(
     },
     trig: {
       actions: {
-        1: `a_do_script("config = { missionId = '${campaign.id}' }")`,
+        1: `a_do_script("config = { missionId = '${campaign.id}', flightGroups = {} }")`,
         2: 'a_do_script_file(getValueResourceByKey("mist"))',
         3: 'a_do_script_file(getValueResourceByKey("state"))',
         4: 'a_do_script_file(getValueResourceByKey("ctld"))',
-        5: 'a_do_script_file(getValueResourceByKey("splash_damage"))'
+        5: 'a_do_script_file(getValueResourceByKey("splash_damage"))',
+        6: 'a_do_script_file(getValueResourceByKey("cas"))'
       },
       events: {},
       custom: {},
@@ -295,21 +302,24 @@ export function generateMizFromCampaign(
         2: 'if true then return true end',
         3: 'if true then return true end',
         4: 'if true then return true end',
-        5: 'if true then return true end'
+        5: 'if true then return true end',
+        6: 'if true then return true end'
       },
       flag: {
         1: true,
         2: true,
         3: true,
         4: true,
-        5: true
+        5: true,
+        6: true
       },
       conditions: {
         1: 'return(c_time_after(1))',
         2: 'return(c_time_after(2))',
         3: 'return(c_time_after(3))',
         4: 'return(c_time_after(4))',
-        5: 'return(c_time_after(5))'
+        5: 'return(c_time_after(5))',
+        6: 'return(c_time_after(6))'
       },
       customStartup: {},
       funcStartup: {}
@@ -356,6 +366,14 @@ export function generateMizFromCampaign(
         comment: 'Splash Damage Script',
         actions: { 1: { predicate: 'a_do_script_file', file: 'splash_damage' } },
         colorItem: '0x00ffffff'
+      },
+      6: {
+        rules: { 1: { coalitionlist: 'all', seconds: 6, predicate: 'c_time_after' } },
+        eventlist: '',
+        predicate: 'triggerOnce',
+        comment: 'CAS JTAC Script',
+        actions: { 1: { predicate: 'a_do_script_file', file: 'cas' } },
+        colorItem: '0x00ffffff'
       }
     },
     triggers: {
@@ -375,7 +393,22 @@ export function generateMizFromCampaign(
 
   const flightGroupsResult = addFlightGroups(mission, campaign, theatre)
   if (flightGroupsResult.isErr()) {
-    return flightGroupsResult
+    return err(flightGroupsResult.error)
+  }
+  const scriptConfig: MissionScriptConfig = {
+    missionId: campaign.id,
+    flightGroups: flightGroupsResult.value
+  }
+  const scriptConfigLuaResult = luaTable.stringify(scriptConfig, { mixedKeyTypes: true })
+  if (scriptConfigLuaResult.isErr()) {
+    return err(scriptConfigLuaResult.error)
+  }
+  const scriptConfigLua = scriptConfigLuaResult.value
+  const trig = mission.trig as MissionTriggerTables
+  trig.actions[1] = `a_do_script("config = ${scriptConfigLua}")`
+  mission.trigrules[1].actions[1] = {
+    predicate: 'a_do_script',
+    text: `config = ${scriptConfigLua}`
   }
 
   addTransportCargoTriggers(mission, campaign)
@@ -428,6 +461,7 @@ export function generateMizFromCampaign(
   zip.addFile('l10n/DEFAULT/state.lua', Buffer.from(stateLuaScript, 'utf-8'))
   zip.addFile('l10n/DEFAULT/ctld.lua', Buffer.from(ctldLuaScript, 'utf-8'))
   zip.addFile('l10n/DEFAULT/splash_damage.lua', Buffer.from(splashDamageLuaScript, 'utf-8'))
+  zip.addFile('l10n/DEFAULT/cas.lua', Buffer.from(casLuaScript, 'utf-8'))
   try {
     zip.writeZip(path)
     // eslint-disable-next-line no-console

@@ -12,6 +12,22 @@ Object.values(aircrafts).forEach((def) => {
 })
 
 const STARTUP_DELAY_MS = 10 * 60 * 1000 // 10 minutes in milliseconds
+const JTAC_ALTITUDE = 3048
+const JTAC_SPEED = 80
+const JTAC_FREQUENCY = 133
+const JTAC_LASER_CODE = 1688
+
+type Mission = z.infer<typeof schemas.dcs.mission>
+type MissionCountry = NonNullable<Mission['coalition']['blue']['country']>[number]
+
+export type CasFlightConfig = {
+  groupId: number
+  name: string
+  task: 'CAS'
+  jtacName: string
+  targetGroupName: string
+  laserCode: number
+}
 
 /**
  * Creates a SEADEscort task for SEAD flight groups.
@@ -73,6 +89,160 @@ function createCapOrbitTask(
       duration: Math.max(1, Math.round(durationMs / 1000))
     }
   }
+}
+
+function createWrappedActionTask(
+  action: { id: string; params?: Record<string, unknown> },
+  taskNumber: number
+): z.infer<typeof schemas.dcs.task> {
+  return {
+    enabled: true,
+    auto: true,
+    id: 'WrappedAction',
+    number: taskNumber,
+    params: {
+      action
+    }
+  }
+}
+
+function findMissionGroundGroupName(
+  mission: z.infer<typeof schemas.dcs.mission>,
+  coalitionKey: 'blue' | 'red' | 'neutrals',
+  groundGroupId: string
+): string | null {
+  const countries = mission.coalition[coalitionKey].country ?? []
+  const namePrefix = `Ground-${groundGroupId}-`
+
+  for (const country of countries) {
+    const vehicleGroups = country.vehicle?.group ?? []
+    for (const group of vehicleGroups) {
+      if (group.name.startsWith(namePrefix)) {
+        return group.name
+      }
+    }
+  }
+
+  return null
+}
+
+function addJtacPredator(params: {
+  country: MissionCountry
+  nextId: () => number
+  targetId: string
+  targetPosition: z.infer<typeof schemas.position>
+  groupId: number
+}): string {
+  const jtacGroupId = params.nextId()
+  const jtacUnitId = params.nextId()
+  const groupName = `FAC-${params.targetId}`
+  const unitName = `${groupName}-1`
+
+  params.country.plane ??= { group: [] }
+  params.country.plane.group.push({
+    groupId: jtacGroupId,
+    name: groupName,
+    start_time: 0,
+    task: 'AFAC',
+    tasks: [],
+    uncontrolled: false,
+    taskSelected: true,
+    hiddenOnMFD: false,
+    hiddenOnPlanner: false,
+    lateActivation: false,
+    radioSet: false,
+    units: [
+      {
+        alt: JTAC_ALTITUDE,
+        alt_type: 'BARO',
+        livery_id: 'default',
+        skill: 'High',
+        speed: JTAC_SPEED,
+        heading: 0,
+        type: 'RQ-1A Predator',
+        unitId: jtacUnitId,
+        psi: 0,
+        x: params.targetPosition.x,
+        y: params.targetPosition.y,
+        name: unitName,
+        payload: {
+          pylons: {},
+          fuel: 200,
+          flare: 0,
+          chaff: 0,
+          gun: 100
+        },
+        callsign: {
+          _1: 1,
+          _2: jtacGroupId,
+          _3: 1,
+          name: `Enfield${jtacGroupId}1`
+        },
+        onboard_num: '010'
+      }
+    ],
+    x: params.targetPosition.x,
+    y: params.targetPosition.y,
+    route: {
+      points: [
+        {
+          alt: JTAC_ALTITUDE,
+          action: 'Turning Point',
+          name: '',
+          alt_type: 'BARO',
+          speed: JTAC_SPEED,
+          task: {
+            id: 'ComboTask',
+            params: {
+              tasks: [
+                createWrappedActionTask({ id: 'SetImmortal', params: { value: true } }, 1),
+                createWrappedActionTask({ id: 'SetInvisible', params: { value: true } }, 2),
+                {
+                  enabled: true,
+                  auto: true,
+                  id: 'FAC',
+                  number: 3,
+                  params: {}
+                },
+                createWrappedActionTask(
+                  {
+                    id: 'EPLRS',
+                    params: { value: true, groupId: params.groupId }
+                  },
+                  4
+                ),
+                {
+                  enabled: true,
+                  auto: false,
+                  id: 'Orbit',
+                  number: 5,
+                  params: {
+                    altitude: JTAC_ALTITUDE,
+                    pattern: 'Circle',
+                    speed: JTAC_SPEED,
+                    altitudeEdited: true
+                  }
+                }
+              ]
+            }
+          },
+          type: 'Turning Point',
+          ETA: 0,
+          ETA_locked: true,
+          x: params.targetPosition.x,
+          y: params.targetPosition.y,
+          speed_locked: true,
+          formation_template: ''
+        }
+      ]
+    },
+    modulation: 0,
+    hidden: false,
+    communication: true,
+    frequency: JTAC_FREQUENCY
+  })
+
+  return unitName
 }
 
 function cloneAircraftUnitOption<T>(value: T): T {
@@ -341,7 +511,7 @@ export function addFlightGroups(
   mission: z.infer<typeof schemas.dcs.mission>,
   campaign: z.infer<typeof schemas.campaign.campaign>,
   theatre: z.infer<typeof schemas.theatre>
-): Result<void, Error> {
+): Result<CasFlightConfig[], Error> {
   const nextId = () => {
     mission.currentKey += 1
     return mission.currentKey
@@ -386,6 +556,7 @@ export function addFlightGroups(
   }
 
   const usedParkingSlots = new Map<string, Set<string>>() // Airdrome Name -> Set of Slot IDs
+  const casFlightConfigs: CasFlightConfig[] = []
 
   for (const [key, value] of Object.entries(campaign.coalitions)) {
     const missionCoalitionKey = key === 'player' ? 'blue' : key === 'opponent' ? 'red' : 'neutrals'
@@ -896,8 +1067,47 @@ export function addFlightGroups(
       } else {
         country.plane?.group.push(group)
       }
+
+      if (fg.task === 'CAS' && fg.aircrafts.some((ac) => ac.client) && fg.target) {
+        const enemyCoalition = key === 'player' ? 'opponent' : 'player'
+        const enemyMissionCoalitionKey = enemyCoalition === 'player' ? 'blue' : 'red'
+        const targetGroundGroup = campaign.coalitions[enemyCoalition].groundGroups.find(
+          (groundGroup) => groundGroup.id === fg.target?.id
+        )
+        const targetObjective = theatre.objectives.find(
+          (objective) => objective.name === fg.target?.objectiveId
+        )
+        const targetPosition = targetGroundGroup?.position ?? targetObjective?.position
+
+        if (targetGroundGroup && targetPosition) {
+          const targetGroupName = findMissionGroundGroupName(
+            mission,
+            enemyMissionCoalitionKey,
+            targetGroundGroup.id
+          )
+
+          if (targetGroupName) {
+            const jtacName = addJtacPredator({
+              country,
+              nextId,
+              targetId: targetGroundGroup.id,
+              targetPosition,
+              groupId
+            })
+
+            casFlightConfigs.push({
+              groupId,
+              name: groupName,
+              task: 'CAS',
+              jtacName,
+              targetGroupName,
+              laserCode: JTAC_LASER_CODE
+            })
+          }
+        }
+      }
     })
   }
 
-  return ok()
+  return ok(casFlightConfigs)
 }

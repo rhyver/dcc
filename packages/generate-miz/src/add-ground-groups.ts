@@ -128,7 +128,7 @@ export function addGroundGroups(
 
       for (const gg of groundGroups) {
         const groupId = nextId()
-        const groupName = `Ground-${groupId}`
+        const groupName = `Ground-${gg.id}-${groupId}`
 
         // Expand units: each entry has a name (DCS type) and count
         const expandedUnits: { type: string; x: number; y: number }[] = []

@@ -10,22 +10,13 @@ import { coreClient } from './lib/orpc'
 import { activeStore } from './stores/active'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
-import {
-  AlertTriangle,
-  Maximize2,
-  Minimize2,
-  Minus,
-  Settings,
-  X
-} from 'lucide-react'
+import { AlertTriangle, Maximize2, Minimize2, Minus, Settings, X } from 'lucide-react'
 import { debugLog } from './lib/debug'
 
 function RootLayout() {
   const navigate = useNavigate()
   const location = useLocation()
-  const [pathWarnings, setPathWarnings] = useState<
-    { title: string; detail: string }[]
-  >([])
+  const [pathWarnings, setPathWarnings] = useState<{ title: string; detail: string }[]>([])
 
   useEffect(() => {
     const handleOpenCampaign = () => {
@@ -83,10 +74,7 @@ function RootLayout() {
       <AppTitleBar />
       <div className="relative min-h-0 flex-1">
         {pathWarnings.length > 0 ? (
-          <PathWarningBanner
-            warnings={pathWarnings}
-            onOpenSettings={() => navigate('/settings')}
-          />
+          <PathWarningBanner warnings={pathWarnings} onOpenSettings={() => navigate('/settings')} />
         ) : null}
         <Outlet />
       </div>

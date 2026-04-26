@@ -161,7 +161,12 @@ if (!manifestText.includes(`version: ${version}`)) {
 if (!resume) {
   console.log('==> committing and tagging')
   await $`git add package.json apps/core/package.json bun.lock`
-  await $`git commit -m ${`Release ${tag}`}`
+  const staged = await $`git diff --cached --quiet`.nothrow()
+  if (staged.exitCode === 0) {
+    console.log('    no version files changed; skipping release commit')
+  } else {
+    await $`git commit -m ${`Release ${tag}`}`
+  }
   await $`git tag -a ${tag} -m ${`Release ${tag}`}`
 }
 

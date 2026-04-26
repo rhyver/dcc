@@ -29,6 +29,7 @@ const api = {
     ipcRenderer.on('menu-remove-flight-groups', callback)
     return () => ipcRenderer.removeListener('menu-remove-flight-groups', callback)
   },
+  logActionEntry: (entry: unknown) => ipcRenderer.send('campaign:log-action', entry),
   selectDirectory: () => ipcRenderer.invoke('dialog:openDirectory'),
   getAppVersion: (): Promise<string> => ipcRenderer.invoke('app:getVersion'),
   minimizeWindow: () => ipcRenderer.invoke('window:minimize'),
@@ -41,6 +42,7 @@ const api = {
     return () => ipcRenderer.removeListener('window:maximized-change', listener)
   },
   openDevTools: () => ipcRenderer.invoke('devtools:open'),
+  openUserDataFolder: () => ipcRenderer.invoke('app:openUserData'),
   closeWindow: () => ipcRenderer.invoke('window:close'),
   sendMissionGeneratorChat: (messages: { role: 'user' | 'assistant'; content: string }[]) => {
     ipcRenderer.send(CHAT_REQUEST_CHANNEL, messages)

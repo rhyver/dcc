@@ -11,7 +11,6 @@ import {
   FileOutput,
   FolderOpen,
   Home as HomeIcon,
-  ScrollText,
   Settings as SettingsIcon,
   Plus,
   Minus,
@@ -35,6 +34,7 @@ import {
 } from '@/components/ui/dialog'
 import type { SelectedItem } from './map'
 import { activeStore } from '@/stores/active'
+import { uiStore } from '@/stores/ui'
 import { coreClient } from '@/lib/orpc'
 import { Clock } from './clock'
 import { ActiveFlightGroups } from './active-flight-groups'
@@ -59,10 +59,10 @@ export function Home() {
   const [mapZoom, setMapZoom] = React.useState(7)
   const [isMeasureMode, setIsMeasureMode] = React.useState(false)
   const [isBriefingOpen, setIsBriefingOpen] = React.useState(false)
-  const [isLogOpen, setIsLogOpen] = React.useState(false)
   const [selectedItem, setSelectedItem] = React.useState<SelectedItem>(null)
   const timeMultiplier = useSelector(activeStore, (state) => state.context.timeMultiplier)
   const logEntries = useSelector(activeStore, (state) => state.context.logs)
+  const isLogOpen = useSelector(uiStore, (state) => state.context.isLogOpen)
   const timerState = timeMultiplier === 0 ? 'pause' : timeMultiplier === 1 ? 'play' : 'fast-forward'
   const visibleLogs = React.useMemo(() => [...logEntries].reverse(), [logEntries])
   const logViewportRef = React.useRef<HTMLDivElement | null>(null)
@@ -207,11 +207,7 @@ export function Home() {
           <div className="flex flex-col gap-2">
             <div className="relative flex items-center justify-center border-b border-synthwave-pink/10 pb-2">
               <div className="absolute left-0">
-                <CampaignMenu
-                  isLogOpen={isLogOpen}
-                  logCount={logEntries.length}
-                  onToggleLog={() => setIsLogOpen((value) => !value)}
-                />
+                <CampaignMenu />
               </div>
               <Clock />
             </div>
@@ -411,15 +407,7 @@ export function Home() {
   )
 }
 
-function CampaignMenu({
-  isLogOpen,
-  logCount,
-  onToggleLog
-}: {
-  isLogOpen: boolean
-  logCount: number
-  onToggleLog: () => void
-}) {
+function CampaignMenu() {
   const [open, setOpen] = React.useState(false)
   const navigate = useNavigate()
 
@@ -489,22 +477,6 @@ function CampaignMenu({
           >
             <FolderOpen className="h-4 w-4 text-synthwave-pink" />
             Open Campaign
-          </Button>
-          <Button
-            variant="ghost"
-            className="w-full justify-between text-secondary hover:text-white hover:bg-synthwave-pink/10"
-            onClick={() => {
-              onToggleLog()
-              setOpen(false)
-            }}
-          >
-            <span className="flex items-center gap-3">
-              <ScrollText className="h-4 w-4 text-synthwave-pink" />
-              Action Log
-            </span>
-            <span className="text-[10px] text-secondary/80">
-              {isLogOpen ? 'Hide' : 'Show'} {logCount}
-            </span>
           </Button>
           <div className="h-px bg-synthwave-pink/20" />
           <Button

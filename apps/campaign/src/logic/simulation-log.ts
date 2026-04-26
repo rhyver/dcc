@@ -17,7 +17,7 @@ function appendLog(
   label?: string,
   entityRef?: LogEntityRef
 ): void {
-  draft.logs.push({
+  const entry = {
     id: crypto.randomUUID(),
     type,
     coalition,
@@ -27,7 +27,9 @@ function appendLog(
     campaignTime: draft.time.toISOString(),
     message,
     createdAt: new Date().toISOString()
-  })
+  }
+  draft.logs.push(entry)
+  globalThis.window?.api?.logActionEntry(entry)
   if (draft.logs.length > MAX_LOG_ENTRIES) {
     draft.logs.splice(0, draft.logs.length - MAX_LOG_ENTRIES)
   }

@@ -8,9 +8,20 @@ import {
 } from 'react-router'
 import { coreClient } from './lib/orpc'
 import { activeStore } from './stores/active'
+import { uiStore } from './stores/ui'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { AlertTriangle, Maximize2, Minimize2, Minus, Settings, X } from 'lucide-react'
+import { useSelector } from '@xstate/store/react'
+import {
+  AlertTriangle,
+  FolderOpen,
+  Maximize2,
+  Minimize2,
+  Minus,
+  ScrollText,
+  Settings,
+  X
+} from 'lucide-react'
 import { debugLog } from './lib/debug'
 
 function RootLayout() {
@@ -117,6 +128,8 @@ function PathWarningBanner({
 function AppTitleBar() {
   const [isMaximized, setIsMaximized] = useState(false)
   const [isDevMenuOpen, setIsDevMenuOpen] = useState(false)
+  const isLogOpen = useSelector(uiStore, (state) => state.context.isLogOpen)
+  const logEntries = useSelector(activeStore, (state) => state.context.logs)
 
   useEffect(() => {
     let cancelled = false
@@ -165,6 +178,35 @@ function AppTitleBar() {
                 }}
               >
                 Show Chrome DevTools
+              </button>
+              <button
+                type="button"
+                className="titlebar-menu-item"
+                role="menuitem"
+                onClick={() => {
+                  setIsDevMenuOpen(false)
+                  uiStore.trigger.toggleLog()
+                }}
+              >
+                <span className="flex items-center gap-2">
+                  <ScrollText className="h-3.5 w-3.5" />
+                  {isLogOpen ? 'Hide' : 'Show'} Action Log
+                  <span className="ml-auto text-[10px] opacity-70">{logEntries.length}</span>
+                </span>
+              </button>
+              <button
+                type="button"
+                className="titlebar-menu-item"
+                role="menuitem"
+                onClick={() => {
+                  setIsDevMenuOpen(false)
+                  void window.api?.openUserDataFolder?.()
+                }}
+              >
+                <span className="flex items-center gap-2">
+                  <FolderOpen className="h-3.5 w-3.5" />
+                  Open User Data Folder
+                </span>
               </button>
             </div>
           ) : null}

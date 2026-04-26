@@ -3,6 +3,7 @@ import { join, resolve, relative, isAbsolute } from 'path'
 import { pathToFileURL } from 'url'
 import { open, stat } from 'fs/promises'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import log from 'electron-log/main'
 import { autoUpdater } from 'electron-updater'
 import icon from '../../resources/icon.png?asset'
 import { rpcHandler } from './api'
@@ -10,6 +11,45 @@ import { readFile, parseJson, writeFile } from './utils'
 import { enableDcsPersistenceForAppRuntime } from './dcs-persistence'
 import { registerMissionGeneratorChatHandlers } from './api/mission-generator/chat-handler'
 import { stateFile } from './app-data'
+
+log.initialize()
+log.transports.file.level = 'info'
+log.transports.console.level = is.dev ? 'debug' : 'info'
+log.errorHandler.startCatching({ showDialog: false })
+autoUpdater.logger = log
+
+const actionLog = log.create({ logId: 'actions' })
+actionLog.transports.file.fileName = 'actions.log'
+actionLog.transports.file.level = 'info'
+actionLog.transports.console.level = false
+
+console.log = (...args) => log.info(...args)
+console.info = (...args) => log.info(...args)
+console.warn = (...args) => log.warn(...args)
+console.error = (...args) => log.error(...args)
+console.debug = (...args) => log.debug(...args)
+
+console.log('Log file:', log.transports.file.getFile().path)
+console.log('Action log file:', actionLog.transports.file.getFile().path)
+
+app.on('web-contents-created', (_event, contents) => {
+  contents.on('console-message', (_consoleEvent, level, message, line, sourceId) => {
+    if (/^%[oO]$/.test(message.trim())) return
+
+    const location = sourceId ? ` (${sourceId}:${line})` : ''
+    const text = `Renderer console: ${message}${location}`
+
+    if (level === 0) {
+      log.debug(text)
+    } else if (level === 1) {
+      log.info(text)
+    } else if (level === 2) {
+      log.warn(text)
+    } else {
+      log.error(text)
+    }
+  })
+})
 
 let mainWindow: BrowserWindow | null = null
 const rendererProtocol = 'dcc'
@@ -22,6 +62,38 @@ const RESTORABLE_PATHS = new Set([
   '/settings',
   '/mission-generator'
 ])
+
+type CampaignActionLogEntry = {
+  id: string
+  type: string
+  coalition: string
+  label?: string
+  entityType?: string
+  entityId?: string
+  campaignTime: string
+  message: string
+  createdAt: string
+}
+
+function isCampaignActionLogEntry(value: unknown): value is CampaignActionLogEntry {
+  if (value == null || typeof value !== 'object') return false
+  const entry = value as Record<string, unknown>
+  return (
+    typeof entry.id === 'string' &&
+    typeof entry.type === 'string' &&
+    typeof entry.coalition === 'string' &&
+    typeof entry.campaignTime === 'string' &&
+    typeof entry.message === 'string' &&
+    typeof entry.createdAt === 'string'
+  )
+}
+
+function formatCampaignActionLogEntry(entry: CampaignActionLogEntry): string {
+  const label = entry.label ? ` [${entry.label}]` : ''
+  const entity =
+    entry.entityType && entry.entityId ? ` (${entry.entityType}:${entry.entityId})` : ''
+  return `${entry.createdAt} | campaign=${entry.campaignTime} | ${entry.coalition}/${entry.type}${label}${entity} | ${entry.message}`
+}
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -230,7 +302,14 @@ function startAutoUpdate() {
   autoUpdater.autoDownload = true
   autoUpdater.autoInstallOnAppQuit = false
 
+  autoUpdater.on('checking-for-update', () => {
+    console.log('Checking for app update.')
+  })
+  autoUpdater.on('update-not-available', (info) => {
+    console.log('No app update available:', info.version)
+  })
   autoUpdater.on('update-available', (info) => {
+    console.log('App update available:', info.version)
     ensureUpdateWindow()
     setUpdateUi({ status: `Downloading version ${info.version}...`, percent: 0 })
   })
@@ -238,6 +317,7 @@ function startAutoUpdate() {
     const pct = Math.round(p.percent)
     const transferred = (p.transferred / 1024 / 1024).toFixed(1)
     const total = (p.total / 1024 / 1024).toFixed(1)
+    console.log(`App update download progress: ${pct}% (${transferred} MB / ${total} MB)`)
     setUpdateUi({
       status: 'Downloading update...',
       percent: pct,
@@ -245,6 +325,7 @@ function startAutoUpdate() {
     })
   })
   autoUpdater.on('update-downloaded', () => {
+    console.log('App update downloaded; restarting to install.')
     setUpdateUi({ status: 'Installing update...', percent: 100, meta: 'Restarting to apply.' })
     setTimeout(() => autoUpdater.quitAndInstall(), 800)
   })
@@ -423,6 +504,13 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('app:getVersion', () => app.getVersion())
+  ipcMain.on('campaign:log-action', (_event, entry: unknown) => {
+    if (!isCampaignActionLogEntry(entry)) {
+      console.warn('Ignored invalid campaign action log entry.')
+      return
+    }
+    actionLog.info(formatCampaignActionLogEntry(entry))
+  })
   ipcMain.handle('window:minimize', () => {
     mainWindow?.minimize()
   })
@@ -437,6 +525,10 @@ app.whenReady().then(() => {
   ipcMain.handle('window:isMaximized', () => mainWindow?.isMaximized() ?? false)
   ipcMain.handle('devtools:open', () => {
     mainWindow?.webContents.openDevTools({ mode: 'detach' })
+  })
+  ipcMain.handle('app:openUserData', () => {
+    const userDataPath = app.getPath('userData')
+    void shell.openPath(userDataPath)
   })
   ipcMain.handle('window:close', () => {
     mainWindow?.close()

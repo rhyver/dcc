@@ -164,14 +164,18 @@ local function cacheLiveUnit(unit, group, category)
 
     local point = safeCall(function() return unit:getPoint() end, nil)
     local groupName = group and safeCall(function() return group:getName() end, nil) or nil
+    local coalitionId = group and safeCall(function() return group:getCoalition() end, nil) or nil
+    local coalitionName = coalitionId == coalition.side.BLUE and "blue" or coalitionId == coalition.side.RED and "red" or nil
+    local cached = unitCache[name] or {}
 
     unitCache[name] = {
         name = name,
         groupName = groupName,
         type = safeCall(function() return unit:getTypeName() end, "unknown"),
         category = category,
-        x = point and point.x or (unitCache[name] and unitCache[name].x) or 0,
-        y = point and point.z or (unitCache[name] and unitCache[name].y) or 0
+        coalition = coalitionName or cached.coalition,
+        x = point and point.x or cached.x or 0,
+        y = point and point.z or cached.y or 0
     }
 end
 
@@ -233,6 +237,7 @@ local function recordLostUnit(unit, eventName, attribution)
         type = safeCall(function() return unit:getTypeName() end, cached.type or "unknown"),
         category = category,
         categoryName = cached.categoryName,
+        coalition = cached.coalition,
         event = eventName,
         x = position and position.x or cached.x or 0,
         y = position and position.z or cached.y or 0
@@ -252,6 +257,7 @@ local function recordUnitKill(data)
         type = data.targetType or cached.type or "unknown",
         category = data.targetCategory or cached.category,
         categoryName = cached.categoryName,
+        coalition = data.targetCoalition or cached.coalition,
         event = data.event or "external_kill",
         x = data.x or cached.x or 0,
         y = data.y or cached.y or 0

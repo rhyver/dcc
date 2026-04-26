@@ -14,6 +14,8 @@ import { Switch } from '@/components/ui/switch'
 import { getAircraftDisplayName } from '@/lib/aircraft-display'
 import { cn } from '@/lib/utils'
 
+import { MissionDebriefScreen, type MissionDebrief } from './mission-debrief'
+
 const KNOTS_PER_MS = 1.94384
 
 function formatTime(date: Date | string) {
@@ -35,6 +37,26 @@ function formatWindDirection(degrees: number) {
 type Campaign = z.infer<typeof schemas.campaign.campaign>
 type MissionState = z.infer<typeof schemas.missionState>
 
+function campaignDateFromMissionTime(campaignTime: Date, missionTimeSeconds?: number): Date | null {
+  if (missionTimeSeconds == null || !Number.isFinite(missionTimeSeconds)) {
+    return null
+  }
+
+  const campaignDate = new Date(campaignTime)
+  const midnightUtc = Date.UTC(
+    campaignDate.getUTCFullYear(),
+    campaignDate.getUTCMonth(),
+    campaignDate.getUTCDate()
+  )
+  const missionDate = new Date(midnightUtc + missionTimeSeconds * 1000)
+
+  while (missionDate < campaignDate) {
+    missionDate.setUTCDate(missionDate.getUTCDate() + 1)
+  }
+
+  return missionDate
+}
+
 function applyMissionStateUpdate(campaign: Campaign, missionState: MissionState): Campaign {
   const lostUnitNames = new Set(missionState.lostUnits?.map((unit) => unit.name) ?? [])
   const groupPositions = missionState.groupPositions
@@ -42,6 +64,12 @@ function applyMissionStateUpdate(campaign: Campaign, missionState: MissionState)
   const transportDeliveryRadiusMeters = 2000
 
   return produce(campaign, (draft) => {
+    const missionDate = campaignDateFromMissionTime(draft.time, missionState.time)
+    if (missionDate) {
+      draft.time = missionDate
+      draft.timeTarget = undefined
+    }
+
     const isNearTransportDestination = (
       flightGroup: Campaign['coalitions']['player']['flightGroups'][number],
       delivery: { x: number; y: number }
@@ -209,7 +237,9 @@ export function Mission() {
   const navigate = useNavigate()
   const [isGenerating, setIsGenerating] = useState(false)
   const [isGenerated, setIsGenerated] = useState(false)
+  const [isMissionStateReady, setIsMissionStateReady] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [debrief, setDebrief] = useState<MissionDebrief | null>(null)
   const [toast, setToast] = useState<{
     title: string
     message: string
@@ -252,12 +282,42 @@ export function Mission() {
     try {
       await coreClient.campaign.generateMiz(activeStore.getSnapshot().context)
       setIsGenerated(true)
+      setIsMissionStateReady(false)
     } catch (error) {
       console.error('Failed to generate mission', error)
     } finally {
       setIsGenerating(false)
     }
   }
+
+  useEffect(() => {
+    if (!isGenerated || isMissionStateReady) {
+      return
+    }
+
+    let cancelled = false
+
+    const checkMissionState = async () => {
+      try {
+        await coreClient.campaign.loadMissionState()
+        if (!cancelled) {
+          setIsMissionStateReady(true)
+        }
+      } catch {
+        // The state file is expected to be missing or stale until DCS writes this mission's result.
+      }
+    }
+
+    void checkMissionState()
+    const interval = window.setInterval(() => {
+      void checkMissionState()
+    }, 1000)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(interval)
+    }
+  }, [isGenerated, isMissionStateReady])
 
   useEffect(() => {
     if (!toast) {
@@ -277,7 +337,7 @@ export function Mission() {
   }, [toast])
 
   const handleSubmitMissionState = async () => {
-    if (isSubmitting) return
+    if (isSubmitting || !isMissionStateReady) return
     setIsSubmitting(true)
     try {
       const missionState = await coreClient.campaign.loadMissionState()
@@ -287,13 +347,17 @@ export function Mission() {
       )
       activeStore.send({ type: 'loadCampaign', campaign: updatedCampaign })
       await coreClient.campaign.saveActiveCampaign(updatedCampaign)
-      navigate('/')
+      setDebrief({ submittedAt: updatedCampaign.time, missionState })
     } catch (error) {
       console.error('Failed to submit mission state', error)
       setToast(buildErrorToast(error))
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  if (debrief) {
+    return <MissionDebriefScreen debrief={debrief} onClose={() => navigate('/')} />
   }
 
   return (
@@ -427,18 +491,27 @@ export function Mission() {
                 {/* Step 2: Fly in DCS */}
                 <div className={cn('space-y-2', (!isGenerated || isSubmitting) && 'opacity-50')}>
                   <div className="flex items-center gap-3">
-                    <div className="h-7 w-7 rounded-full border-2 border-[#00ddff]/60 text-xs flex items-center justify-center font-bold text-[#00ddff]">
-                      2
+                    <div
+                      className={cn(
+                        'h-7 w-7 rounded-full border-2 text-xs flex items-center justify-center font-bold',
+                        isMissionStateReady
+                          ? 'border-green-500/60 text-green-400'
+                          : 'border-[#00ddff]/60 text-[#00ddff]'
+                      )}
+                    >
+                      {isMissionStateReady ? '\u2713' : '2'}
                     </div>
                     <span className="text-sm font-medium text-white">Fly the Mission in DCS</span>
                   </div>
                   <p className="text-sm text-white/50 ml-10">
-                    Load the generated mission in DCS World and complete your objectives.
+                    {isGenerated && !isMissionStateReady
+                      ? 'Waiting for DCS to write a fresh mission state for this campaign.'
+                      : 'Load the generated mission in DCS World and complete your objectives.'}
                   </p>
                 </div>
 
                 {/* Step 3: Submit results */}
-                <div className={cn('space-y-2', !isGenerated && 'opacity-50')}>
+                <div className={cn('space-y-2', !isMissionStateReady && 'opacity-50')}>
                   <div className="flex items-center gap-3">
                     <div className="h-7 w-7 rounded-full border-2 border-[#9900ff]/60 text-xs flex items-center justify-center font-bold text-[#9900ff]">
                       3
@@ -449,11 +522,11 @@ export function Mission() {
                     After flying, submit the mission results to advance the campaign. Losses and
                     objectives will be updated.
                   </p>
-                  {isGenerated && (
+                  {isMissionStateReady && (
                     <div className="ml-10">
                       <button
                         onClick={handleSubmitMissionState}
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || !isMissionStateReady}
                         className="h-9 px-5 text-sm font-medium bg-[#9900ff] text-white rounded hover:bg-[#9900ff]/80 disabled:opacity-50 transition-colors shadow-[0_0_15px_rgba(153,0,255,0.5)]"
                       >
                         {isSubmitting ? 'Submitting...' : 'Submit Mission State'}

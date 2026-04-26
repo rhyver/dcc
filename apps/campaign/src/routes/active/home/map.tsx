@@ -119,6 +119,11 @@ type MeasurePoint = {
   lat: number
 }
 
+type MeasureState = {
+  mode: boolean
+  points: MeasurePoint[]
+}
+
 type MeasureSegment = {
   id: string
   from: MeasurePoint
@@ -306,7 +311,14 @@ export function Map({
   const scenarioId = useSelector(activeStore, (state) => state.context.scenarioId)
   const mapRef = useRef<MapRef | null>(null)
   const lastCenteredSelectionIdRef = useRef<string | null>(null)
-  const [measurePoints, setMeasurePoints] = useState<MeasurePoint[]>([])
+  const [measureState, setMeasureState] = useState<MeasureState>({
+    mode: measureMode,
+    points: []
+  })
+  const measurePoints = useMemo(
+    () => (measureState.mode === measureMode && measureMode ? measureState.points : []),
+    [measureMode, measureState]
+  )
 
   const scenarioQuery = useQuery(
     orpc.data.getScenario.queryOptions({
@@ -334,21 +346,20 @@ export function Map({
   }, [theatreQuery.data, zoom])
   const { mapItems, objectiveMarkers, frontline, flightGroups } = useMapItems()
 
-  useEffect(() => {
-    if (measureMode) return
-    setMeasurePoints([])
-  }, [measureMode])
-
   const measureSegments = useMemo<MeasureSegment[]>(() => {
-    return measurePoints.slice(1).map((point, index) => {
-      const from = measurePoints[index]
-      return {
-        id: `${from.id}-${point.id}`,
+    const segments: MeasureSegment[] = []
+    for (let i = 1; i < measurePoints.length; i++) {
+      const from = measurePoints[i - 1]
+      const to = measurePoints[i]
+      if (!from || !to) continue
+      segments.push({
+        id: `${from.id}-${to.id}`,
         from,
-        to: point,
-        distanceNm: getDistanceNm(from, point)
-      }
-    })
+        to,
+        distanceNm: getDistanceNm(from, to)
+      })
+    }
+    return segments
   }, [measurePoints])
 
   const measureTotalNm = useMemo(
@@ -356,35 +367,45 @@ export function Map({
     [measureSegments]
   )
 
-  const measureLineGeoJson = useMemo<GeoJSON.FeatureCollection<GeoJSON.LineString>>(
-    () => {
-      if (measurePoints.length < 2) {
-        return turf.featureCollection<GeoJSON.LineString>([])
-      }
+  const measureLineGeoJson = useMemo<GeoJSON.FeatureCollection<GeoJSON.LineString>>(() => {
+    if (measurePoints.length < 2) {
+      return turf.featureCollection<GeoJSON.LineString>([])
+    }
 
-      return turf.featureCollection([
-        turf.lineString(measurePoints.map((point) => [point.lng, point.lat]))
-      ])
-    },
-    [measurePoints]
-  )
+    return turf.featureCollection([
+      turf.lineString(measurePoints.map((point) => [point.lng, point.lat]))
+    ])
+  }, [measurePoints])
 
   const handleMapClick = useCallback(
     (event: MapLayerMouseEvent) => {
       if (!measureMode) return
       event.originalEvent.stopPropagation()
       const { lng, lat } = event.lngLat
-      setMeasurePoints((points) => [
-        ...points,
-        {
-          id: `${Date.now()}-${points.length}`,
-          lng,
-          lat
+      setMeasureState((state) => {
+        const points = state.mode === measureMode ? state.points : []
+        return {
+          mode: measureMode,
+          points: [
+            ...points,
+            {
+              id: `${Date.now()}-${points.length}`,
+              lng,
+              lat
+            }
+          ]
         }
-      ])
+      })
     },
     [measureMode]
   )
+
+  const handleResetMeasurement = useCallback(() => {
+    setMeasureState({
+      mode: measureMode,
+      points: []
+    })
+  }, [measureMode])
 
   const liveSelectedItem = useMemo(() => {
     if (!selectedItem) return null
@@ -494,7 +515,9 @@ export function Map({
   // Only show the map if the view state is available
   if (initialViewState == null) return null
   return (
-    <div className={cn('dcc-campaign-map w-full h-full relative', measureMode && 'cursor-crosshair')}>
+    <div
+      className={cn('dcc-campaign-map w-full h-full relative', measureMode && 'cursor-crosshair')}
+    >
       <MaplibreMap
         ref={mapRef}
         initialViewState={initialViewState}
@@ -686,7 +709,7 @@ export function Map({
           <button
             type="button"
             className="flex h-6 items-center gap-1.5 rounded border border-synthwave-pink/30 px-2 text-[10px] font-semibold uppercase text-secondary hover:bg-synthwave-pink/20 hover:text-white"
-            onClick={() => setMeasurePoints([])}
+            onClick={handleResetMeasurement}
             title="Reset measurement"
             aria-label="Reset measurement"
           >

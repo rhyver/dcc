@@ -346,13 +346,15 @@ export function Home() {
                           className="pb-0"
                         >
                           <div
-                            className={`rounded border px-2 py-1 ${entry.coalition === 'player'
+                            className={`rounded border px-2 py-1 ${
+                              entry.coalition === 'player'
                                 ? 'border-cyan-400/30 bg-cyan-950/25'
                                 : 'border-red-400/30 bg-red-950/25'
-                              } ${entry.entityId
+                            } ${
+                              entry.entityId
                                 ? 'cursor-pointer hover:ring-1 hover:ring-synthwave-pink/40'
                                 : ''
-                              }`}
+                            }`}
                             onClick={() => handleLogItemClick(entry)}
                             role={entry.entityId ? 'button' : undefined}
                             tabIndex={entry.entityId ? 0 : undefined}
@@ -367,8 +369,9 @@ export function Home() {
                             <div className="flex items-center justify-between gap-2">
                               <div className="flex items-center gap-2">
                                 <span
-                                  className={`uppercase tracking-wide ${entry.type === 'combat' ? 'text-red-300' : 'text-cyan-300'
-                                    }`}
+                                  className={`uppercase tracking-wide ${
+                                    entry.type === 'combat' ? 'text-red-300' : 'text-cyan-300'
+                                  }`}
                                 >
                                   {entry.type}
                                 </span>

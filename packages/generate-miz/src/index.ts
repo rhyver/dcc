@@ -405,8 +405,13 @@ export function generateMizFromCampaign(
   }
   const scriptConfigLua = scriptConfigLuaResult.value
   const trig = mission.trig as MissionTriggerTables
+  const trigrules = mission.trigrules as MissionTriggerRules
+  const configTriggerRule = trigrules[1]
+  if (!configTriggerRule) {
+    return err(new Error('Mission config trigger rule is missing'))
+  }
   trig.actions[1] = `a_do_script("config = ${scriptConfigLua}")`
-  mission.trigrules[1].actions[1] = {
+  configTriggerRule.actions[1] = {
     predicate: 'a_do_script',
     text: `config = ${scriptConfigLua}`
   }

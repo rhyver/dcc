@@ -4,13 +4,21 @@ import type { LayerSpecification, StyleSpecification } from 'maplibre-gl'
 const worldSource = 'protomaps-world'
 const caucasusSource = 'protomaps-caucasus'
 const worldPmtilesUrl = new URL('./maps/world-low.pmtiles', window.location.href).toString()
-const caucasusPmtilesUrl = new URL('./maps/caucasus/caucasus.pmtiles', window.location.href).toString()
+const caucasusPmtilesUrl = new URL(
+  './maps/caucasus/caucasus.pmtiles',
+  window.location.href
+).toString()
 const caucasusDetailBounds: [number, number, number, number] = [
   40.130612, 40.747635, 44.435577, 44.169509
 ]
 export const CAUCASUS_DETAIL_MAX_ZOOM = 12
 
-function prepareLayer(layer: LayerSpecification, source: string, minzoom?: number, maxzoom?: number) {
+function prepareLayer(
+  layer: LayerSpecification,
+  source: string,
+  minzoom?: number,
+  maxzoom?: number
+) {
   const preparedLayer = {
     ...layer,
     id: `${source}-${layer.id}`,
@@ -18,7 +26,11 @@ function prepareLayer(layer: LayerSpecification, source: string, minzoom?: numbe
     ...(maxzoom == null ? {} : { maxzoom })
   }
 
-  if (preparedLayer.type !== 'symbol' || !('layout' in preparedLayer) || preparedLayer.layout == null) {
+  if (
+    preparedLayer.type !== 'symbol' ||
+    !('layout' in preparedLayer) ||
+    preparedLayer.layout == null
+  ) {
     return preparedLayer
   }
   if (!('text-field' in preparedLayer.layout)) return preparedLayer

@@ -22,12 +22,12 @@ const AIRBASES: Airbase[] = [
   { id: 'kob', x: 16, y: 58, name: 'KOBULETI', side: 'friendly' },
   { id: 'vaz', x: 24, y: 32, name: 'VAZIANI', side: 'friendly' },
   { id: 'snr', x: 78, y: 30, name: 'MOZDOK', side: 'hostile' },
-  { id: 'krd', x: 70, y: 72, name: 'KRYMSK', side: 'hostile' },
+  { id: 'krd', x: 70, y: 72, name: 'KRYMSK', side: 'hostile' }
 ]
 
 const OBJECTIVES: Objective[] = [
   { id: 'obj1', x: 64, y: 36, label: 'TGT-01 SAM SITE' },
-  { id: 'obj2', x: 52, y: 64, label: 'TGT-02 CONVOY' },
+  { id: 'obj2', x: 52, y: 64, label: 'TGT-02 CONVOY' }
 ]
 
 const FLIGHTS: Flight[] = [
@@ -45,9 +45,9 @@ const FLIGHTS: Flight[] = [
       [52, 64],
       [44, 58],
       [30, 56],
-      [16, 58],
+      [16, 58]
     ],
-    speed: 0.00018,
+    speed: 0.00018
   },
   {
     id: 'magic-1',
@@ -60,9 +60,9 @@ const FLIGHTS: Flight[] = [
       [34, 42],
       [34, 52],
       [24, 52],
-      [24, 46],
+      [24, 46]
     ],
-    speed: 0.00009,
+    speed: 0.00009
   },
   {
     id: 'eagle-2',
@@ -77,9 +77,9 @@ const FLIGHTS: Flight[] = [
       [54, 46],
       [40, 44],
       [26, 40],
-      [24, 32],
+      [24, 32]
     ],
-    speed: 0.00014,
+    speed: 0.00014
   },
   {
     id: 'mig-3',
@@ -94,9 +94,9 @@ const FLIGHTS: Flight[] = [
       [58, 46],
       [64, 38],
       [72, 32],
-      [78, 30],
+      [78, 30]
     ],
-    speed: 0.00016,
+    speed: 0.00016
   },
   {
     id: 'frog-1',
@@ -111,10 +111,10 @@ const FLIGHTS: Flight[] = [
       [52, 64],
       [58, 68],
       [66, 72],
-      [70, 72],
+      [70, 72]
     ],
-    speed: 0.00013,
-  },
+    speed: 0.00013
+  }
 ]
 
 function lerp(a: number, b: number, t: number): number {
@@ -131,7 +131,7 @@ function getFlightPos(points: [number, number][], t: number) {
   return {
     x: lerp(a[0], b[0], frac),
     y: lerp(a[1], b[1], frac),
-    rot: (Math.atan2(b[1] - a[1], b[0] - a[0]) * 180) / Math.PI,
+    rot: (Math.atan2(b[1] - a[1], b[0] - a[0]) * 180) / Math.PI
   }
 }
 
@@ -148,7 +148,7 @@ const LOG_TEMPLATES: LogTemplate[] = [
   { who: 'f', whoLabel: 'EAGLE-2', msg: 'Fox-3 on lead bandit.' },
   { who: 'h', whoLabel: 'FROG-1', msg: 'Strike package egressing east.' },
   { who: 'f', whoLabel: 'VIPER-1', msg: 'RTB Kobuleti, bingo fuel.' },
-  { who: 'f', whoLabel: 'MAGIC-1', msg: 'New picture: 2 groups, bullseye 045/40.' },
+  { who: 'f', whoLabel: 'MAGIC-1', msg: 'New picture: 2 groups, bullseye 045/40.' }
 ]
 
 type LogEntry = LogTemplate & { id: number; time: string }
@@ -194,7 +194,8 @@ export function App() {
             </span>
           </h1>
           <div className="hero-tagline">
-            100% Flying, 0% Configuration<span className="caret" />
+            100% Flying, 0% Configuration
+            <span className="caret" />
           </div>
           <p className="hero-pitch">
             A dynamic campaign generator for DCS World. Spin up a persistent theatre, watch flight
@@ -304,7 +305,7 @@ function MissionPreview() {
   const [speed, setSpeed] = useState(1)
   const [paused, setPaused] = useState(false)
   const [log, setLog] = useState<LogEntry[]>(() => seedLog())
-  const startRef = useRef(performance.now())
+  const startRef = useRef<number | null>(null)
 
   useEffect(() => {
     let raf = 0
@@ -312,8 +313,8 @@ function MissionPreview() {
     const tick = (ts: number) => {
       if (!paused) {
         const dt = ts - last
-        startRef.current += dt * speed
-        setNow(ts - (ts - startRef.current))
+        startRef.current = (startRef.current ?? ts) + dt * speed
+        setNow(startRef.current)
       }
       last = ts
       raf = requestAnimationFrame(tick)
@@ -432,11 +433,7 @@ function MissionPreview() {
 
             {/* Objectives */}
             {OBJECTIVES.map((o) => (
-              <div
-                key={o.id}
-                className="objective"
-                style={{ left: `${o.x}%`, top: `${o.y}%` }}
-              >
+              <div key={o.id} className="objective" style={{ left: `${o.x}%`, top: `${o.y}%` }}>
                 <div className="label">{o.label}</div>
               </div>
             ))}
@@ -457,7 +454,7 @@ function MissionPreview() {
                     style={
                       {
                         '--rot': `${p.rot + 90}deg`,
-                        transform: isSel ? 'scale(1.25)' : 'scale(1)',
+                        transform: isSel ? 'scale(1.25)' : 'scale(1)'
                       } as React.CSSProperties
                     }
                   >
@@ -604,7 +601,7 @@ function seedLog(): LogEntry[] {
   return [0, 1, 2].map((i) => ({
     id: Math.random(),
     time: formatClock(Date.now() / 1000 - i * 240),
-    ...LOG_TEMPLATES[i % LOG_TEMPLATES.length]!,
+    ...LOG_TEMPLATES[i % LOG_TEMPLATES.length]!
   }))
 }
 function formatClock(s: number): string {
@@ -622,12 +619,7 @@ function formatMissionClock(s: number): string {
 /* ---------- Map decorative coastline ---------- */
 function MapCoastline() {
   return (
-    <svg
-      className="map-svg"
-      viewBox="0 0 100 100"
-      preserveAspectRatio="none"
-      style={{ zIndex: 1 }}
-    >
+    <svg className="map-svg" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ zIndex: 1 }}>
       <defs>
         <linearGradient id="seaGrad" x1="0" x2="1">
           <stop offset="0" stopColor="rgba(0,221,255,0.08)" />

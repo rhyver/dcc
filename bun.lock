@@ -132,8 +132,8 @@
         "vite": "^8.0.10",
       },
     },
-    "apps/landing": {
-      "name": "@dcc/landing",
+    "apps/website": {
+      "name": "@dcc/website",
       "version": "1.0.0",
       "dependencies": {
         "react": "^19.2.5",
@@ -296,9 +296,9 @@
 
     "@dcc/generate-miz": ["@dcc/generate-miz@workspace:packages/generate-miz"],
 
-    "@dcc/landing": ["@dcc/landing@workspace:apps/landing"],
-
     "@dcc/lua-table": ["@dcc/lua-table@workspace:packages/lua-table"],
+
+    "@dcc/website": ["@dcc/website@workspace:apps/website"],
 
     "@develar/schema-utils": ["@develar/schema-utils@2.6.5", "", { "dependencies": { "ajv": "6.12.6", "ajv-keywords": "3.5.2" } }, "sha512-0cp4PsWQ/9avqTVMCtZ+GirikIA36ikvjtHweU4/j8yLtgObI0+JUPhYFScgwlteveGB1rt3Cm8UhN04XayDig=="],
 

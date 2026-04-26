@@ -7,27 +7,6 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 
 type AiProvider = 'openai' | 'anthropic' | 'openrouter'
 
-const AI_DEFAULT_MODELS: Record<AiProvider, string> = {
-  openai: 'gpt-5-mini',
-  anthropic: 'claude-sonnet-4-6',
-  openrouter: 'anthropic/claude-sonnet-4'
-}
-
-const AI_MODEL_OPTIONS: Record<AiProvider, string[]> = {
-  openai: ['gpt-5', 'gpt-5-mini', 'gpt-5-nano', 'gpt-4.1', 'gpt-4.1-mini'],
-  anthropic: ['claude-sonnet-4-6', 'claude-opus-4-6', 'claude-sonnet-4-5', 'claude-haiku-4-5'],
-  openrouter: [
-    'anthropic/claude-sonnet-4',
-    'anthropic/claude-haiku-4',
-    'openai/gpt-5-mini',
-    'openai/gpt-4.1-mini',
-    'google/gemini-2.5-flash',
-    'meta-llama/llama-4-maverick',
-    'minimax/minimax-m2.5',
-    'moonshotai/kimi-k2.5'
-  ]
-}
-
 export function Settings() {
   const navigate = useNavigate()
   const [missionExportPath, setMissionExportPath] = useState<string>('')

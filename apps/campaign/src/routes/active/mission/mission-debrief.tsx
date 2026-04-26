@@ -149,9 +149,7 @@ export function MissionDebriefScreen({
               >
                 <div className="mb-4 flex items-center gap-2">
                   <Icon className={cn('h-5 w-5', accent)} />
-                  <span className="text-sm font-semibold uppercase tracking-[0.18em]">
-                    {label}
-                  </span>
+                  <span className="text-sm font-semibold uppercase tracking-[0.18em]">{label}</span>
                   <span className={cn('ml-auto text-2xl font-black tabular-nums', accent)}>
                     {units.length}
                   </span>

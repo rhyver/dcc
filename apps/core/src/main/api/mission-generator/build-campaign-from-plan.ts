@@ -9,6 +9,8 @@ import { getTheatre } from '../data/get-theatre'
 type MissionPlan = z.infer<typeof schemas.missionGenerator.missionPlan>
 type AircraftName = z.infer<typeof schemas.dcs.aircraftName>
 type FlightTarget = NonNullable<z.infer<typeof schemas.flightGroup>['target']>
+type Theatre = z.infer<typeof schemas.theatre>
+type TheatreTarget = z.infer<typeof schemas.target>
 
 function isValidAircraftName(value: string): value is AircraftName {
   return schemas.dcs.aircraftName.safeParse(value).success
@@ -151,6 +153,22 @@ function coerceTask(task: string): z.infer<typeof schemas.task> {
   return 'Ground Attack'
 }
 
+function findObjectiveTarget(
+  theatre: Theatre,
+  objectiveName: string,
+  targetType: TheatreTarget['type'] | TheatreTarget['type'][],
+  nameIncludes?: string
+) {
+  const allowedTypes = Array.isArray(targetType) ? new Set(targetType) : new Set([targetType])
+  const targets = (theatre.targets[objectiveName] ?? []).filter((target) => {
+    if (!allowedTypes.has(target.type)) return false
+    if (nameIncludes && !target.name.includes(nameIncludes)) return false
+    return true
+  })
+  if (targets.length === 0) return undefined
+  return targets[Math.floor(Math.random() * targets.length)]
+}
+
 export function buildCampaignFromPlan(
   plan: MissionPlan
 ): z.infer<typeof schemas.campaign.campaign> {
@@ -244,13 +262,21 @@ export function buildCampaignFromPlan(
 
   const casTargetGroundGroup =
     isCasMission && fallbackGroundUnitType
-      ? ({
-          id: crypto.randomUUID(),
-          objectiveId: primaryTargetObjective.name,
-          position: primaryTargetObjective.position,
-          state: 'idle',
-          units: [{ name: fallbackGroundUnitType, count: 4 }]
-        } satisfies z.infer<typeof schemas.groundGroup>)
+      ? (() => {
+          const target = findObjectiveTarget(
+            theatre,
+            primaryTargetObjective.name,
+            'Vehicle',
+            '|Vehicle|'
+          )
+          return {
+            id: crypto.randomUUID(),
+            objectiveId: primaryTargetObjective.name,
+            position: target?.position ?? primaryTargetObjective.position,
+            state: 'idle',
+            units: [{ name: fallbackGroundUnitType, count: 4 }]
+          } satisfies z.infer<typeof schemas.groundGroup>
+        })()
       : null
 
   const playerTarget: FlightTarget = casTargetGroundGroup
@@ -264,7 +290,14 @@ export function buildCampaignFromPlan(
         type: 'Objective',
         objectiveId: primaryTargetObjective.name
       }
-  const playerTargetPosition = casTargetGroundGroup?.position ?? primaryTargetObjective.position
+  const structureTarget = findObjectiveTarget(
+    theatre,
+    primaryTargetObjective.name,
+    'Structure',
+    '|Structure|'
+  )
+  const playerTargetPosition =
+    casTargetGroundGroup?.position ?? structureTarget?.position ?? primaryTargetObjective.position
 
   const playerFlightGroup = createFlightGroup({
     callsign: 'Hammer',
@@ -357,29 +390,33 @@ export function buildCampaignFromPlan(
     aaaGroundGroups.push({
       id: crypto.randomUUID(),
       objectiveId: placement.objectiveName,
-      position: objective.position,
+      position:
+        findObjectiveTarget(theatre, placement.objectiveName, 'Vehicle', '|Vehicle|')?.position ??
+        objective.position,
       state: 'idle',
       units: [{ name: unitName, count: placement.count }]
     })
   }
 
-  const targetStructure = {
-    id: playerFlightGroup.target?.id ?? crypto.randomUUID(),
-    type: 'Ammo Depot',
-    objectiveId: primaryTargetObjective.name,
-    position: primaryTargetObjective.position,
-    name: `Objective ${primaryTargetObjective.name}`,
-    resources: 100,
-    buildings: [
-      {
-        offset: { x: 0, y: 0 },
-        type: 'Workshop A',
-        alive: true
-      }
-    ]
-  } satisfies z.infer<
-    typeof schemas.campaign.campaign
-  >['coalitions']['opponent']['structures'][number]
+  const targetStructure = structureTarget
+    ? ({
+        id: playerFlightGroup.target?.id ?? crypto.randomUUID(),
+        type: 'Ammo Depot',
+        objectiveId: primaryTargetObjective.name,
+        position: structureTarget.position,
+        name: structureTarget.name,
+        resources: 100,
+        buildings: [
+          {
+            offset: { x: 0, y: 0 },
+            type: 'Workshop A',
+            alive: true
+          }
+        ]
+      } satisfies z.infer<
+        typeof schemas.campaign.campaign
+      >['coalitions']['opponent']['structures'][number])
+    : null
 
   const missionPackage = {
     id: packageId,
@@ -424,7 +461,7 @@ export function buildCampaignFromPlan(
         groundUnitTypes: opponentTemplate.groundUnitTypes,
         airdromeNames: [opponentHomeBase],
         objectiveIds: opponentObjectiveIds,
-        structures: isStrikeMission ? [targetStructure] : [],
+        structures: isStrikeMission && targetStructure ? [targetStructure] : [],
         samGroups,
         groundGroups: [...aaaGroundGroups, ...(casTargetGroundGroup ? [casTargetGroundGroup] : [])],
         flightGroups: opponentCapFlights,

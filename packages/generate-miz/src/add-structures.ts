@@ -3,6 +3,8 @@ import { buildings } from '@dcc/data'
 import { err, ok, Result } from 'neverthrow'
 import * as z from 'zod'
 
+import { findTargetPlacement, positionsMatch } from './target-placement'
+
 export function addStructures(
   mission: z.infer<typeof schemas.dcs.mission>,
   campaign: z.infer<typeof schemas.campaign.campaign>,
@@ -47,25 +49,42 @@ export function addStructures(
       const groupUnits: { x: number; y: number; [key: string]: unknown }[] = []
 
       const basePos = struct.position ?? objective.position
+      let target = findTargetPlacement(theatre, {
+        objectiveName: struct.objectiveId,
+        type: 'Structure',
+        nameIncludes: '|Structure|',
+        position: basePos
+      })
+      if (!target && positionsMatch(basePos, objective.position)) {
+        target = findTargetPlacement(theatre, {
+          objectiveName: struct.objectiveId,
+          type: 'Structure',
+          nameIncludes: '|Structure|'
+        })
+      }
 
       struct.buildings.forEach((building, index) => {
         const buildingInfo = buildings[building.type]
         if (!buildingInfo) return
 
         const unitId = nextId()
-        const posX = basePos.x + building.offset.x
-        const posY = basePos.y + building.offset.y
+        const targetPosition = target?.unitPositions[index]
+        const useTargetStatic = targetPosition != null
+        const posX = targetPosition?.x ?? basePos.x + building.offset.x
+        const posY = targetPosition?.y ?? basePos.y + building.offset.y
 
         groupUnits.push({
-          category: buildingInfo.category,
-          shape_name: buildingInfo.shapeName,
-          type: buildingInfo.type,
+          category: useTargetStatic
+            ? (target?.structureCategory ?? buildingInfo.category)
+            : buildingInfo.category,
+          shape_name: useTargetStatic && target?.structureType ? undefined : buildingInfo.shapeName,
+          type: useTargetStatic ? (target?.structureType ?? buildingInfo.type) : buildingInfo.type,
           unitId: unitId,
           rate: 100,
           y: posY,
           x: posX,
           name: `${groupName}-${index + 1}`,
-          heading: 0
+          heading: targetPosition?.heading ?? 0
         })
       })
 

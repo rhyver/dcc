@@ -40,6 +40,12 @@ export function assignStructures(
   objectives: ObjectiveInfo[],
   airbasePositions: Position[] = []
 ): StructureAssignment[] {
+  const structureObjectives = objectives.filter((objective) =>
+    objective.targets.some(
+      (target) => target.type === 'Structure' && target.name.includes('|Structure|')
+    )
+  )
+
   // State tracking
   const assignments = new Map<
     string,
@@ -75,7 +81,7 @@ export function assignStructures(
       let maxCoveredCount = -1
 
       // Consider candidates: objectives that don't have a structure assignment yet
-      let candidates = objectives.filter((obj) => !assignments.has(obj.id))
+      let candidates = structureObjectives.filter((obj) => !assignments.has(obj.id))
 
       // FARPs must not be within exclusion range of an airbase or another FARP
       if (type === 'Farp') {
@@ -115,14 +121,14 @@ export function assignStructures(
 
       if (bestCandidate) {
         // Assign structure
-        const structureTargets = bestCandidate.targets.filter((t) => t.type === 'Structure')
-        const target =
-          structureTargets.length > 0
-            ? structureTargets[Math.floor(Math.random() * structureTargets.length)]
-            : bestCandidate.targets[0]
+        const structureTargets = bestCandidate.targets.filter(
+          (target) => target.type === 'Structure' && target.name.includes('|Structure|')
+        )
+        const target = structureTargets[Math.floor(Math.random() * structureTargets.length)]
+        if (!target) break
 
-        const position = target ? target.position : bestCandidate.position
-        const name = target ? target.name : `Structure ${type} @ ${bestCandidate.id}`
+        const position = target.position
+        const name = target.name
 
         const templates = structureTemplates[type]
         const template = templates[Math.floor(Math.random() * templates.length)]

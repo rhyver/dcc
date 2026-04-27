@@ -3,6 +3,11 @@ import { samTemplates } from '@dcc/data'
 import { ok, Result } from 'neverthrow'
 import * as z from 'zod'
 
+import { findTargetPlacement, positionsMatch } from './target-placement'
+
+type Campaign = z.infer<typeof schemas.campaign.campaign>
+type CampaignCoalition = Campaign['coalitions'][z.infer<typeof schemas.coalition>]
+
 /**
  * Arrange units in a circle around a center point.
  * The first unit (typically the radar/command unit) is placed at center;
@@ -29,6 +34,39 @@ function arrangeUnits(
   }
 
   return positions
+}
+
+function positionUnits(
+  fallbackCenter: { x: number; y: number },
+  count: number,
+  spacing: number,
+  target?: z.infer<typeof schemas.target>
+) {
+  const fallbackPositions = arrangeUnits(fallbackCenter, count, spacing)
+
+  return Array.from({ length: count }).map((_, index) => {
+    const targetPosition = target?.unitPositions[index]
+    const fallbackPosition = fallbackPositions[index] ?? fallbackCenter
+
+    return {
+      x: targetPosition?.x ?? fallbackPosition.x,
+      y: targetPosition?.y ?? fallbackPosition.y,
+      heading: targetPosition?.heading ?? 0
+    }
+  })
+}
+
+function isAirDefenseUnit(unitName: string, coalition: CampaignCoalition) {
+  const airDefenseTypes = new Set([
+    ...coalition.groundUnitTypes.SAM,
+    ...coalition.groundUnitTypes['Shorad Vehicle'],
+    ...coalition.groundUnitTypes['Shorad Infantry']
+  ])
+
+  return (
+    airDefenseTypes.has(unitName) ||
+    /\b(aaa|sam|shorad|stinger|igla|linebacker|shilka|osa|tunguska|tor)\b/i.test(unitName)
+  )
 }
 
 export function addGroundGroups(
@@ -71,17 +109,21 @@ export function addGroundGroups(
 
         const groupId = nextId()
         const groupName = `SAM-${sam.id}-${sam.type}-${groupId}`
-        const positions = arrangeUnits(objective.position, template.units.length, 50)
+        const target = findTargetPlacement(theatre, {
+          objectiveName: sam.objectiveId,
+          type: 'SAM'
+        })
+        const positions = positionUnits(objective.position, template.units.length, 50, target)
 
         const units = template.units.map((unitType, index) => {
-          const pos = positions[index] ?? objective.position
+          const pos = positions[index] ?? { ...objective.position, heading: 0 }
           return {
             unitId: nextId(),
             name: `${groupName}-${index + 1}`,
             x: pos.x,
             y: pos.y,
             type: unitType,
-            heading: 0,
+            heading: pos.heading,
             skill: 'High'
           }
         })
@@ -131,14 +173,53 @@ export function addGroundGroups(
         const groupName = `Ground-${gg.id}-${groupId}`
 
         // Expand units: each entry has a name (DCS type) and count
-        const expandedUnits: { type: string; x: number; y: number }[] = []
+        let shouldUseObjectiveTargets = false
+        let target = findTargetPlacement(theatre, {
+          objectiveName: gg.objectiveId,
+          type: 'Vehicle',
+          nameIncludes: '|Vehicle|',
+          position: gg.position
+        })
+        if (target && gg.state === 'idle' && gg.objectiveId) {
+          shouldUseObjectiveTargets = true
+        }
+        if (!target && gg.state === 'idle') {
+          const objective = gg.objectiveId
+            ? theatre.objectives.find((entry) => entry.name === gg.objectiveId)
+            : undefined
+          if (objective && positionsMatch(gg.position, objective.position)) {
+            shouldUseObjectiveTargets = true
+            target = findTargetPlacement(theatre, {
+              objectiveName: gg.objectiveId,
+              type: 'Vehicle',
+              nameIncludes: '|Vehicle|'
+            })
+          }
+        }
+        const aaaTarget = shouldUseObjectiveTargets
+          ? findTargetPlacement(theatre, {
+              objectiveName: gg.objectiveId,
+              type: 'AAA',
+              nameIncludes: '|AAA|'
+            })
+          : undefined
+        const expandedUnits: { type: string; x: number; y: number; heading: number }[] = []
         let unitIndex = 0
+        let vehicleUnitIndex = 0
+        let airDefenseUnitIndex = 0
         for (const unitEntry of gg.units) {
           for (let i = 0; i < unitEntry.count; i++) {
+            const useAaaTarget = aaaTarget && isAirDefenseUnit(unitEntry.name, value)
+            const fallbackCenter = useAaaTarget ? aaaTarget.position : gg.position
+            const placementIndex = useAaaTarget ? airDefenseUnitIndex : unitIndex
+            const targetPosition = useAaaTarget
+              ? aaaTarget.unitPositions[airDefenseUnitIndex++]
+              : target?.unitPositions[vehicleUnitIndex++]
             expandedUnits.push({
               type: unitEntry.name,
-              x: gg.position.x + (unitIndex % 5) * 30,
-              y: gg.position.y + Math.floor(unitIndex / 5) * 30
+              x: targetPosition?.x ?? fallbackCenter.x + (placementIndex % 5) * 30,
+              y: targetPosition?.y ?? fallbackCenter.y + Math.floor(placementIndex / 5) * 30,
+              heading: targetPosition?.heading ?? 0
             })
             unitIndex++
           }
@@ -152,7 +233,7 @@ export function addGroundGroups(
           x: eu.x,
           y: eu.y,
           type: eu.type,
-          heading: 0,
+          heading: eu.heading,
           skill: 'High'
         }))
 

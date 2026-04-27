@@ -172,6 +172,12 @@ const saveSettings = base
         path: z.string(),
         message: z.string()
       })
+    },
+    INVALID_DCS_INSTALL_PATH: {
+      data: z.object({
+        path: z.string(),
+        message: z.string()
+      })
     }
   })
 

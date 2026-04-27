@@ -31,6 +31,7 @@ const api = {
   },
   logActionEntry: (entry: unknown) => ipcRenderer.send('campaign:log-action', entry),
   selectDirectory: () => ipcRenderer.invoke('dialog:openDirectory'),
+  selectDcsInstallDirectory: () => ipcRenderer.invoke('dialog:openDcsInstallDirectory'),
   getAppVersion: (): Promise<string> => ipcRenderer.invoke('app:getVersion'),
   minimizeWindow: () => ipcRenderer.invoke('window:minimize'),
   toggleMaximizeWindow: () => ipcRenderer.invoke('window:toggleMaximize'),

@@ -19,6 +19,7 @@ import { getScenarios } from '../data/get-scenarios'
 import { getTheatre } from '../data/get-theatre'
 import { syncDcsPersistenceForAppRuntime } from '../../dcs-persistence'
 import { campaignsDir, stateFile } from '../../app-data'
+import { validateDcsInstallPath } from '../../dcs-install'
 
 const missionStateFileName = 'dcc_state.json'
 console.log('stateFile', stateFile)
@@ -58,7 +59,7 @@ function detectDcsInstallPath() {
   for (const basePath of programFiles) {
     for (const variant of ['DCS World', 'DCS World OpenBeta']) {
       const candidate = path.join(basePath, 'Eagle Dynamics', variant)
-      if (existsSync(path.join(candidate, 'Scripts', 'MissionScripting.lua'))) {
+      if (validateDcsInstallPath(candidate).valid) {
         return candidate
       }
     }
@@ -307,7 +308,20 @@ const getSettings = pub.campaign.getSettings.handler(async () => {
   }
 })
 
-const saveSettings = pub.campaign.saveSettings.handler(async ({ input }) => {
+const saveSettings = pub.campaign.saveSettings.handler(async ({ input, errors }) => {
+  const dcsInstallPath = input.dcsInstallPath?.trim()
+  if (dcsInstallPath) {
+    const validation = validateDcsInstallPath(dcsInstallPath)
+    if (!validation.valid) {
+      throw errors.INVALID_DCS_INSTALL_PATH({
+        data: {
+          path: dcsInstallPath,
+          message: validation.message ?? 'Invalid DCS World install folder.'
+        }
+      })
+    }
+  }
+
   const state = await getState()
   const settings = {
     ...(state.settings ?? {}),

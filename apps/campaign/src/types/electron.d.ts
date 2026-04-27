@@ -8,6 +8,11 @@ interface API {
   onMenuRemoveFlightGroups: (callback: () => void) => () => void
   logActionEntry: (entry: unknown) => void
   selectDirectory: () => Promise<string | null>
+  selectDcsInstallDirectory: () => Promise<{
+    path: string
+    valid: boolean
+    message: string | null
+  } | null>
   getAppVersion: () => Promise<string>
   minimizeWindow: () => Promise<void>
   toggleMaximizeWindow: () => Promise<void>

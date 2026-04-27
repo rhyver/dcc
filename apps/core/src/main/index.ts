@@ -11,6 +11,7 @@ import { readFile, parseJson, writeFile } from './utils'
 import { enableDcsPersistenceForAppRuntime } from './dcs-persistence'
 import { registerMissionGeneratorChatHandlers } from './api/mission-generator/chat-handler'
 import { stateFile } from './app-data'
+import { validateDcsInstallPath } from './dcs-install'
 
 log.initialize()
 log.transports.file.level = 'info'
@@ -54,6 +55,7 @@ app.on('web-contents-created', (_event, contents) => {
 let mainWindow: BrowserWindow | null = null
 const rendererProtocol = 'dcc'
 const campaignRendererHost = 'campaign'
+const gotSingleInstanceLock = app.requestSingleInstanceLock()
 const RESTORABLE_PATHS = new Set([
   '/',
   '/mission',
@@ -62,6 +64,21 @@ const RESTORABLE_PATHS = new Set([
   '/settings',
   '/mission-generator'
 ])
+
+if (!gotSingleInstanceLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      return
+    }
+
+    if (mainWindow.isMinimized()) {
+      mainWindow.restore()
+    }
+    mainWindow.focus()
+  })
+}
 
 type CampaignActionLogEntry = {
   id: string
@@ -471,6 +488,10 @@ async function createWindow(): Promise<void> {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
+  if (!gotSingleInstanceLock) {
+    return
+  }
+
   console.log('whenReady')
   registerRendererProtocol()
   enableDcsPersistenceForAppRuntime()
@@ -500,6 +521,30 @@ app.whenReady().then(() => {
       return null
     } else {
       return filePaths[0]
+    }
+  })
+  ipcMain.handle('dialog:openDcsInstallDirectory', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow!, {
+      properties: ['openDirectory']
+    })
+    if (canceled) {
+      return null
+    }
+
+    const selectedPath = filePaths[0]
+    const validation = validateDcsInstallPath(selectedPath)
+    if (!validation.valid) {
+      return {
+        path: selectedPath,
+        valid: false,
+        message: validation.message ?? 'Invalid DCS World install folder.'
+      }
+    }
+
+    return {
+      path: selectedPath,
+      valid: true,
+      message: null
     }
   })
 

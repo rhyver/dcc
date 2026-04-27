@@ -19,6 +19,7 @@ export function Settings() {
   const [aiModel, setAiModel] = useState<string>('')
   const [enableAutoUpdate, setEnableAutoUpdate] = useState<boolean>(true)
   const [appVersion, setAppVersion] = useState<string>('')
+  const [dcsInstallPathError, setDcsInstallPathError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -47,23 +48,54 @@ export function Settings() {
   }
 
   const handleBrowseDcsInstallPath = async () => {
-    const path = await window.api?.selectDirectory()
-    if (path) {
-      setDcsInstallPath(path)
+    const result =
+      typeof window.api?.selectDcsInstallDirectory === 'function'
+        ? await window.api.selectDcsInstallDirectory()
+        : await window.api?.selectDirectory().then((path) =>
+            path == null
+              ? null
+              : {
+                  path,
+                  valid: true,
+                  message: null
+                }
+          )
+    if (!result) {
+      return
     }
+    if (!result.valid) {
+      setDcsInstallPathError(result.message)
+      return
+    }
+    setDcsInstallPathError(null)
+    setDcsInstallPath(result.path)
   }
 
   const handleSave = async () => {
-    await coreClient.campaign.saveSettings({
-      missionExportPath,
-      dcsInstallPath,
-      enableDcsPersistence,
-      aiProvider,
-      aiApiKey: aiApiKey.trim() || undefined,
-      aiModel: aiModel.trim() || undefined,
-      disableAutoUpdate: !enableAutoUpdate
-    })
-    navigate('/new')
+    try {
+      await coreClient.campaign.saveSettings({
+        missionExportPath,
+        dcsInstallPath,
+        enableDcsPersistence,
+        aiProvider,
+        aiApiKey: aiApiKey.trim() || undefined,
+        aiModel: aiModel.trim() || undefined,
+        disableAutoUpdate: !enableAutoUpdate
+      })
+      navigate('/new')
+    } catch (error) {
+      const message =
+        error != null &&
+        typeof error === 'object' &&
+        'data' in error &&
+        error.data != null &&
+        typeof error.data === 'object' &&
+        'message' in error.data &&
+        typeof error.data.message === 'string'
+          ? error.data.message
+          : 'Failed to save settings.'
+      setDcsInstallPathError(message)
+    }
   }
 
   return (
@@ -198,8 +230,15 @@ export function Settings() {
                         <span>No path set and no DCS World install was found.</span>
                       </div>
                     ) : null}
+                    {dcsInstallPathError ? (
+                      <div className="flex items-center gap-2 rounded border border-red-400/60 bg-red-950/60 px-2 py-1.5 text-xs text-red-100">
+                        <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-red-300" />
+                        <span>{dcsInstallPathError}</span>
+                      </div>
+                    ) : null}
                     <p className="text-xs text-gray-500">
-                      Select your DCS World installation folder (the one containing `Scripts`).
+                      Select the DCS World install root, for example the folder that contains
+                      `bin\DCS.exe`.
                     </p>
                   </div>
 

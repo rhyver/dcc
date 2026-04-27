@@ -99,6 +99,11 @@ function DCC_CAS.CreateMenu(groupName)
         return
     end
 
+    local flightGroup = Group.getByName(groupConfig.groupName)
+    if flightGroup and flightGroup.getID then
+        groupConfig.groupId = flightGroup:getID()
+    end
+
     missionCommands.removeItemForGroup(groupConfig.groupId, "CAS")
 
     local flightGroupUnitNames = getFlightGroupUnitNames(groupConfig.groupName)
@@ -196,6 +201,7 @@ function DCC_CAS:onEvent(event)
         local unit = event.initiator
         local group = unit:getGroup()
         if group and DCC_CAS.groups[group:getName()] then
+            DCC_CAS.groups[group:getName()].groupId = group:getID()
             DCC_CAS.CreateMenu(group:getName())
         end
     elseif event.id == world.event.S_EVENT_DEAD and event.initiator then

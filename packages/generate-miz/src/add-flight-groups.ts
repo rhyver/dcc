@@ -593,6 +593,7 @@ export function addFlightGroups(
 
   const usedParkingSlots = new Map<string, Set<string>>() // Airdrome Name -> Set of Slot IDs
   const casFlightConfigs: CasFlightConfig[] = []
+  const hotStart = campaign.campaignParams?.hotStart === true
 
   for (const [key, value] of Object.entries(campaign.coalitions)) {
     const missionCoalitionKey = key === 'player' ? 'blue' : key === 'opponent' ? 'red' : 'neutrals'
@@ -918,10 +919,10 @@ export function addFlightGroups(
         let type = 'Turning Point'
 
         if (wp.type === 'TakeOff') {
-          // If already in flight, use Turning Point instead of TakeOffParking
+          // If already in flight, use Turning Point instead of a ground start
           if (!isInFlight) {
-            action = 'From Parking Area'
-            type = 'TakeOffParking'
+            action = hotStart ? 'From Parking Area Hot' : 'From Parking Area'
+            type = hotStart ? 'TakeOffParkingHot' : 'TakeOffParking'
           }
         } else if (wp.type === 'Landing') {
           action = 'Landing'
@@ -1074,7 +1075,11 @@ export function addFlightGroups(
           name: wp.name
         }
 
-        if (type === 'TakeOffParking' && airdrome?.id && !isInFlight) {
+        if (
+          (type === 'TakeOffParking' || type === 'TakeOffParkingHot') &&
+          airdrome?.id &&
+          !isInFlight
+        ) {
           routePoint.airdromeId = airdrome.id
         }
 

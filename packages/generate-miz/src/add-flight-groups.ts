@@ -937,6 +937,7 @@ export function addFlightGroups(
         }
 
         const alt = wp.altitude
+        const altType = wp.altitudeType ?? 'BARO'
 
         // Calculate ETA
         let eta = currentEta
@@ -1055,7 +1056,7 @@ export function addFlightGroups(
         const routePoint: z.infer<typeof schemas.dcs.aircraftRoutePoint> = {
           alt: alt,
           action,
-          alt_type: 'BARO', // Default to BARO
+          alt_type: altType,
           speed: wp.speed,
           task: {
             id: 'ComboTask',

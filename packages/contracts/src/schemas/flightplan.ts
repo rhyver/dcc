@@ -8,6 +8,7 @@ export const waypoint = z.object({
   name: z.string(),
   position,
   altitude: z.number(),
+  altitudeType: z.enum(['BARO', 'RADIO']).optional(),
   speed: z.number(),
   type: waypointType
 })

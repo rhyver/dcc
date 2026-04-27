@@ -19,7 +19,7 @@ const DEFAULT_AWACS: Record<string, string> = {
 const RACETRACK_LEG_KM = 120
 const OFFSET_KM = 120
 const AWACS_FREQUENCY = 251.0
-const AWACS_ALTITUDE = 6096
+const AWACS_ALTITUDE = 9144
 
 /**
  * Compute the centroid (average position) of a set of airdromes.

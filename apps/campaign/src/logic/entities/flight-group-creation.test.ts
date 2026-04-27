@@ -152,6 +152,10 @@ describe('Pinpoint Strike flight group creation', () => {
     expect(group.packageId).toBe('package-1')
     expect(group.aircrafts).toHaveLength(config.packages['Pinpoint Strike'].aircraftsPerGroup)
     expectStandardFixedWingPlan(group, 'Target')
+    expect(group.flightplan.waypoints.find((wp) => wp.name === 'Target')).toMatchObject({
+      altitude: 0,
+      altitudeType: 'RADIO'
+    })
   })
 })
 
@@ -224,6 +228,10 @@ describe('CAS flight group creation', () => {
     expect(group.target).toEqual({ ...target, type: 'Ground Group' })
     expect(group.aircrafts).toHaveLength(config.packages.CAS.aircraftsPerGroup)
     expectStandardFixedWingPlan(group, 'Target')
+    expect(group.flightplan.waypoints.find((wp) => wp.name === 'Target')).toMatchObject({
+      altitude: 0,
+      altitudeType: 'RADIO'
+    })
   })
 })
 

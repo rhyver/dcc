@@ -43,7 +43,8 @@ export function buildAttackMissionWaypoints(
       position: targetPosition,
       speed: 275,
       type: 'Task',
-      altitude: 0
+      altitude: 0,
+      altitudeType: 'RADIO'
     },
     {
       name: 'Egress',

@@ -3,6 +3,8 @@ import { config, schemas } from '@dcc/contracts'
 import { structureTemplates } from '@dcc/data'
 import * as z from 'zod'
 
+const STRUCTURE_EXCLUSION_RANGE = 40_000
+
 export const StructureType = [
   'Barrack',
   'Depot',
@@ -81,7 +83,15 @@ export function assignStructures(
       let maxCoveredCount = -1
 
       // Consider candidates: objectives that don't have a structure assignment yet
-      let candidates = structureObjectives.filter((obj) => !assignments.has(obj.id))
+      let candidates = structureObjectives.filter(
+        (obj) =>
+          !assignments.has(obj.id) &&
+          !Array.from(assignments.values()).some(
+            (assignment) =>
+              assignment.type === type &&
+              getDistance(obj.position, assignment.position) < STRUCTURE_EXCLUSION_RANGE
+          )
+      )
 
       // FARPs must not be within exclusion range of an airbase or another FARP
       if (type === 'Farp') {
@@ -157,6 +167,14 @@ export function assignStructures(
       }
     }
   }
+
+  const emptyStructureObjectiveCount = structureObjectives.filter(
+    (objective) => !assignments.has(objective.id)
+  ).length
+
+  console.log(
+    `Structure assignment left ${emptyStructureObjectiveCount}/${structureObjectives.length} objectives with structure targets empty because no structure type was available`
+  )
 
   // Convert assignments map to array
   return Array.from(assignments.entries()).map(([objectiveId, info]) => ({

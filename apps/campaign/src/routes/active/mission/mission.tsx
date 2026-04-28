@@ -65,6 +65,51 @@ function getGeneratedUnitIndex(unitName: string): number | null {
   return Number.isFinite(index) ? index - 1 : null
 }
 
+function getGeneratedGroundGroupId(name: string): string | null {
+  const match = name.match(/^Ground-(.+)-\d+(?:-\d+)?$/)
+  return match?.[1] ?? null
+}
+
+function syncGroundGroupsFromMissionState(
+  draft: Campaign,
+  coalition: 'player' | 'opponent',
+  groups?: Array<{ name: string; x: number; y: number; units: Array<{ type: string }> }>
+) {
+  if (!groups) {
+    return
+  }
+
+  const groupsById = new Map<string, NonNullable<typeof groups>[number]>()
+  for (const group of groups) {
+    const id = getGeneratedGroundGroupId(group.name)
+    if (id) {
+      groupsById.set(id, group)
+    }
+  }
+
+  for (const groundGroup of draft.coalitions[coalition].groundGroups) {
+    const missionGroup = groupsById.get(groundGroup.id)
+    if (!missionGroup) {
+      groundGroup.units = []
+      continue
+    }
+
+    groundGroup.position.x = missionGroup.x
+    groundGroup.position.y = missionGroup.y
+
+    const countsByType = new Map<string, number>()
+    for (const unit of missionGroup.units) {
+      countsByType.set(unit.type, (countsByType.get(unit.type) ?? 0) + 1)
+    }
+
+    groundGroup.units = Array.from(countsByType, ([name, count]) => ({ name, count }))
+  }
+
+  draft.coalitions[coalition].groundGroups = draft.coalitions[coalition].groundGroups.filter(
+    (groundGroup) => groundGroup.units.reduce((sum, unit) => sum + Math.max(0, unit.count), 0) > 0
+  )
+}
+
 function applyMissionStateUpdate(campaign: Campaign, missionState: MissionState): Campaign {
   const lostUnitNames = new Set(missionState.lostUnits?.map((unit) => unit.name) ?? [])
   const groupPositions = missionState.groupPositions
@@ -143,6 +188,8 @@ function applyMissionStateUpdate(campaign: Campaign, missionState: MissionState)
 
     applyToCoalition('player', groupPositions?.blue?.aircraft)
     applyToCoalition('opponent', groupPositions?.red?.aircraft)
+    syncGroundGroupsFromMissionState(draft, 'player', groupPositions?.blue?.ground)
+    syncGroundGroupsFromMissionState(draft, 'opponent', groupPositions?.red?.ground)
 
     if (lostUnitNames.size > 0) {
       for (const coalition of ['player', 'opponent'] as const) {

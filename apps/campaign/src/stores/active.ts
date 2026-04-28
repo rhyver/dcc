@@ -98,9 +98,22 @@ const initialState: z.infer<typeof schemas.campaign.campaign> = {
   }
 }
 
-export function resetFlightGroupClientSelections(
-  campaign: z.infer<typeof schemas.campaign.campaign>
-) {
+type Campaign = z.infer<typeof schemas.campaign.campaign>
+
+function hasLiveGroundUnits(group: Campaign['coalitions']['player']['groundGroups'][number]) {
+  return group.units.reduce((sum, unit) => sum + Math.max(0, unit.count), 0) > 0
+}
+
+export function removeEmptyGroundGroups(campaign: Campaign): Campaign {
+  return produce(campaign, (draft) => {
+    draft.coalitions.player.groundGroups =
+      draft.coalitions.player.groundGroups.filter(hasLiveGroundUnits)
+    draft.coalitions.opponent.groundGroups =
+      draft.coalitions.opponent.groundGroups.filter(hasLiveGroundUnits)
+  })
+}
+
+export function resetFlightGroupClientSelections(campaign: Campaign) {
   return produce(campaign, (draft) => {
     const coalitions = [draft.coalitions.player, draft.coalitions.opponent]
 
@@ -122,8 +135,7 @@ export function resetFlightGroupClientSelections(
 export const activeStore = createStore({
   context: initialState,
   on: {
-    loadCampaign: (_, { campaign }: { campaign: z.infer<typeof schemas.campaign.campaign> }) =>
-      campaign,
+    loadCampaign: (_, { campaign }: { campaign: Campaign }) => removeEmptyGroundGroups(campaign),
 
     updateTime: (context, { time }: { time: Date }) =>
       produce(context, (draft) => {
@@ -158,6 +170,10 @@ export const activeStore = createStore({
     ) =>
       produce(context, (draft) => {
         logic(draft)
+        draft.coalitions.player.groundGroups =
+          draft.coalitions.player.groundGroups.filter(hasLiveGroundUnits)
+        draft.coalitions.opponent.groundGroups =
+          draft.coalitions.opponent.groundGroups.filter(hasLiveGroundUnits)
       }),
 
     removeAllFlightGroups: (context) =>

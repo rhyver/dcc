@@ -20,6 +20,18 @@ const CAPTURE_DISTANCE = 2000 // meters
 const BATTLE_RADIUS = 5000 // meters
 const BASE_ATTRITION_PER_SECOND = 0.4
 const DEFENDER_BONUS = 1.2
+const MIN_TACTICAL_ADVANTAGE = 1.2
+const MAX_TACTICAL_ADVANTAGE = 1.4
+
+type BattleSide = 'attacker' | 'defender'
+
+function getRandomTacticalAdvantage(): { side: BattleSide; multiplier: number } {
+  return {
+    side: Math.random() < 0.5 ? 'attacker' : 'defender',
+    multiplier:
+      MIN_TACTICAL_ADVANTAGE + Math.random() * (MAX_TACTICAL_ADVANTAGE - MIN_TACTICAL_ADVANTAGE)
+  }
+}
 
 function isInfantryGroup(units: { name: string; count: number }[]): boolean {
   return units.every((u) => /infantry|soldier/i.test(u.name))
@@ -37,6 +49,10 @@ function getUnitWeight(name: string): number {
 
 function getUnitCount(group: GroundGroup): number {
   return group.units.reduce((sum, unit) => sum + unit.count, 0)
+}
+
+function getTotalUnitCount(groups: GroundGroup[]): number {
+  return groups.reduce((sum, group) => sum + getUnitCount(group), 0)
 }
 
 function getGroupPower(group: GroundGroup): number {
@@ -102,13 +118,18 @@ function moveGroupTowardsObjective(
   group.position.y += dy * ratio
 }
 
-function applyCasualties(group: GroundGroup, expectedLosses: number): number {
+function applyCasualties(
+  group: GroundGroup,
+  expectedLosses: number,
+  maxCasualties = Infinity
+): number {
   if (expectedLosses <= 0 || group.units.length === 0) return 0
 
   let casualties = Math.floor(expectedLosses)
   if (Math.random() < expectedLosses - casualties) {
     casualties += 1
   }
+  casualties = Math.min(casualties, maxCasualties)
   if (casualties <= 0) return 0
 
   let applied = 0
@@ -135,17 +156,29 @@ function applyCasualties(group: GroundGroup, expectedLosses: number): number {
   return applied
 }
 
-function distributeCasualties(groups: GroundGroup[], expectedLosses: number): number {
+function distributeCasualties(
+  groups: GroundGroup[],
+  expectedLosses: number,
+  preserveOneUnit = false
+): number {
   if (expectedLosses <= 0 || groups.length === 0) return 0
 
   const powers = groups.map((group) => Math.max(getGroupPower(group), 1))
   const totalPower = powers.reduce((sum, power) => sum + power, 0)
   if (totalPower <= 0) return 0
 
+  let remainingCasualtyLimit = preserveOneUnit
+    ? Math.max(0, groups.reduce((sum, group) => sum + getUnitCount(group), 0) - 1)
+    : Number.POSITIVE_INFINITY
+
   let totalApplied = 0
   groups.forEach((group, idx) => {
+    if (remainingCasualtyLimit <= 0) return
+
     const groupExpectedLosses = expectedLosses * (powers[idx]! / totalPower)
-    totalApplied += applyCasualties(group, groupExpectedLosses)
+    const applied = applyCasualties(group, groupExpectedLosses, remainingCasualtyLimit)
+    totalApplied += applied
+    remainingCasualtyLimit -= applied
   })
   return totalApplied
 }
@@ -244,20 +277,30 @@ function resolveObjectiveBattle(
     }
 
     const deltaS = (delta * draft.timeMultiplier) / 1000
-    const attackerPower = getCombatPower(draft, coalition, attackers, targetObjectiveId, false)
-    const defenderPower = getCombatPower(
-      draft,
-      enemyCoalition,
-      defendersInRange,
-      targetObjectiveId,
-      true
-    )
+    const tacticalAdvantage = getRandomTacticalAdvantage()
+    const attackerPower =
+      getCombatPower(draft, coalition, attackers, targetObjectiveId, false) *
+      (tacticalAdvantage.side === 'attacker' ? tacticalAdvantage.multiplier : 1)
+    const defenderPower =
+      getCombatPower(draft, enemyCoalition, defendersInRange, targetObjectiveId, true) *
+      (tacticalAdvantage.side === 'defender' ? tacticalAdvantage.multiplier : 1)
 
     const expectedAttackerLosses = BASE_ATTRITION_PER_SECOND * deltaS * (defenderPower / 10)
     const expectedDefenderLosses = BASE_ATTRITION_PER_SECOND * deltaS * (attackerPower / 10)
+    const mutualDestructionPossible =
+      Math.ceil(expectedAttackerLosses) >= getTotalUnitCount(attackers) &&
+      Math.ceil(expectedDefenderLosses) >= getTotalUnitCount(defendersInRange)
 
-    const attackerCasualties = distributeCasualties(attackers, expectedAttackerLosses)
-    const defenderCasualties = distributeCasualties(defendersInRange, expectedDefenderLosses)
+    const attackerCasualties = distributeCasualties(
+      attackers,
+      expectedAttackerLosses,
+      mutualDestructionPossible && tacticalAdvantage.side === 'attacker'
+    )
+    const defenderCasualties = distributeCasualties(
+      defendersInRange,
+      expectedDefenderLosses,
+      mutualDestructionPossible && tacticalAdvantage.side === 'defender'
+    )
 
     if (attackerCasualties > 0 || defenderCasualties > 0) {
       const primaryAttacker = attackers[0]
@@ -416,20 +459,30 @@ function resolveAirdromeBattle(
     }
 
     const deltaS = (delta * draft.timeMultiplier) / 1000
-    const attackerPower = getCombatPower(draft, coalition, attackers, targetAirdromeName, false)
-    const defenderPower = getCombatPower(
-      draft,
-      enemyCoalition,
-      defendersInRange,
-      targetAirdromeName,
-      true
-    )
+    const tacticalAdvantage = getRandomTacticalAdvantage()
+    const attackerPower =
+      getCombatPower(draft, coalition, attackers, targetAirdromeName, false) *
+      (tacticalAdvantage.side === 'attacker' ? tacticalAdvantage.multiplier : 1)
+    const defenderPower =
+      getCombatPower(draft, enemyCoalition, defendersInRange, targetAirdromeName, true) *
+      (tacticalAdvantage.side === 'defender' ? tacticalAdvantage.multiplier : 1)
 
     const expectedAttackerLosses = BASE_ATTRITION_PER_SECOND * deltaS * (defenderPower / 10)
     const expectedDefenderLosses = BASE_ATTRITION_PER_SECOND * deltaS * (attackerPower / 10)
+    const mutualDestructionPossible =
+      Math.ceil(expectedAttackerLosses) >= getTotalUnitCount(attackers) &&
+      Math.ceil(expectedDefenderLosses) >= getTotalUnitCount(defendersInRange)
 
-    const attackerCasualties = distributeCasualties(attackers, expectedAttackerLosses)
-    const defenderCasualties = distributeCasualties(defendersInRange, expectedDefenderLosses)
+    const attackerCasualties = distributeCasualties(
+      attackers,
+      expectedAttackerLosses,
+      mutualDestructionPossible && tacticalAdvantage.side === 'attacker'
+    )
+    const defenderCasualties = distributeCasualties(
+      defendersInRange,
+      expectedDefenderLosses,
+      mutualDestructionPossible && tacticalAdvantage.side === 'defender'
+    )
 
     if (attackerCasualties > 0 || defenderCasualties > 0) {
       const primaryAttacker = attackers[0]

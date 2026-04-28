@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 import { schemas } from '@dcc/contracts'
 import { theatres } from '@dcc/data'
 import type * as z from 'zod'
@@ -13,6 +13,10 @@ type Theatre = z.infer<typeof schemas.theatre>
 
 const campaignTime = new Date('2026-01-01T12:00:00.000Z')
 const caucasus = theatres.find((theatre) => theatre.name === 'Caucasus')!
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
 
 function createSupply(current = 1_000) {
   return {
@@ -152,6 +156,35 @@ describe('airport capture', () => {
       objectiveId: 'Sukhumi-Babushara',
       targetAirdromeName: undefined
     })
+  })
+})
+
+describe('ground battle attrition', () => {
+  test('preserves the randomly advantaged side during otherwise mutual destruction', () => {
+    const campaign = createCampaign()
+    const objective = caucasus.objectives.find((entry) => entry.name === 'Bataria')!
+    campaign.coalitions.opponent.objectiveIds = [objective.name]
+    campaign.coalitions.player.groundGroups.push({
+      id: 'attacker-1',
+      position: { ...objective.position },
+      units: [{ name: 'BMP-2', count: 1 }],
+      state: 'moving',
+      targetObjectiveId: objective.name
+    })
+    campaign.coalitions.opponent.groundGroups.push({
+      id: 'defender-1',
+      objectiveId: objective.name,
+      position: { ...objective.position },
+      units: [{ name: 'BMP-2', count: 1 }],
+      state: 'idle'
+    })
+    vi.spyOn(Math, 'random').mockReturnValue(0)
+
+    updateGroundGroups(campaign, 'player', 60_000, { move: false })
+
+    expect(campaign.coalitions.player.groundGroups).toHaveLength(1)
+    expect(campaign.coalitions.player.groundGroups[0]?.units).toEqual([{ name: 'BMP-2', count: 1 }])
+    expect(campaign.coalitions.opponent.groundGroups).toHaveLength(0)
   })
 })
 

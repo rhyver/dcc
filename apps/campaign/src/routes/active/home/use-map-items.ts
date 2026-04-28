@@ -182,6 +182,11 @@ export function useMapItems(): {
       coalition: z.infer<typeof schemas.coalition>
     ) => {
       for (const group of groundGroups) {
+        const liveUnitCount = group.units.reduce((sum, unit) => sum + Math.max(0, unit.count), 0)
+        if (liveUnitCount <= 0) {
+          continue
+        }
+
         // Use the group's actual position (from target data)
         const latLng = LOtoLL({
           theatre: theatre.name as 'Caucasus',

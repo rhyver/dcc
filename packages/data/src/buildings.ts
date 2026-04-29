@@ -19,10 +19,20 @@ export const buildings: Record<
     shapeName: 'garage_b',
     type: 'Garage B'
   },
+  'Hangar A': {
+    category: 'Fortifications',
+    shapeName: 'angar_a',
+    type: 'Hangar A'
+  },
   'Tech hangar A': {
     category: 'Fortifications',
     shapeName: 'ceh_ang_a',
     type: 'Tech hangar A'
+  },
+  'Tech combine': {
+    category: 'Fortifications',
+    shapeName: 'kombinat',
+    type: 'Tech combine'
   },
   'Repair workshop': {
     category: 'Fortifications',
@@ -64,10 +74,40 @@ export const buildings: Record<
     shapeName: 'angar_b',
     type: 'Hangar B'
   },
+  Warehouse: {
+    category: 'Warehouses',
+    type: 'Warehouse',
+    shapeName: 'sklad'
+  },
+  Tank: {
+    category: 'Warehouses',
+    type: 'Tank',
+    shapeName: 'bak'
+  },
+  'Tank 2': {
+    category: 'Warehouses',
+    type: 'Tank 2',
+    shapeName: 'airbase_tbilisi_tank_01'
+  },
+  'Container 20ft': {
+    category: 'Cargos',
+    type: 'Container 20ft',
+    shapeName: 'container_20ft'
+  },
+  'Container 40ft': {
+    category: 'Cargos',
+    type: 'Container 40ft',
+    shapeName: 'container_40ft'
+  },
   'Workshop A': {
     category: 'Fortifications',
     shapeName: 'tec_a',
     type: 'Workshop A'
+  },
+  'Subsidiary structure 3': {
+    category: 'Fortifications',
+    type: 'Subsidiary structure 3',
+    shapeName: 'hozdomik3'
   },
   'Subsidiary structure 2': {
     category: 'Fortifications',
@@ -88,6 +128,11 @@ export const buildings: Record<
     category: 'Fortifications',
     shapeName: 's2',
     type: 'Small werehouse 2'
+  },
+  'Small werehouse 3': {
+    category: 'Fortifications',
+    shapeName: 's3',
+    type: 'Small werehouse 3'
   },
   'TV tower': {
     category: 'Fortifications',

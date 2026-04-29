@@ -109,6 +109,74 @@ export const structureTemplates: Record<
       ]
     }
   ],
+  Factory: [
+    {
+      buildings: [
+        {
+          offset: {
+            x: 0,
+            y: 0
+          },
+          type: 'Workshop A'
+        },
+        {
+          offset: {
+            x: 90,
+            y: 80
+          },
+          type: 'Warehouse'
+        },
+        {
+          offset: {
+            x: 160,
+            y: -40
+          },
+          type: 'Tank'
+        },
+        {
+          offset: {
+            x: -80,
+            y: -55
+          },
+          type: 'Subsidiary structure 3'
+        }
+      ]
+    }
+  ],
+  'Factory 2': [
+    {
+      buildings: [
+        {
+          offset: {
+            x: 0,
+            y: 0
+          },
+          type: 'Tech combine'
+        },
+        {
+          offset: {
+            x: 100,
+            y: 75
+          },
+          type: 'Hangar A'
+        },
+        {
+          offset: {
+            x: -85,
+            y: 80
+          },
+          type: 'Small werehouse 3'
+        },
+        {
+          offset: {
+            x: 150,
+            y: -45
+          },
+          type: 'Tank 2'
+        }
+      ]
+    }
+  ],
   Farp: [
     {
       buildings: [
@@ -187,6 +255,54 @@ export const structureTemplates: Record<
             y: 100
           },
           type: 'Hangar B'
+        }
+      ]
+    }
+  ],
+  'Logistics Hub': [
+    {
+      buildings: [
+        {
+          offset: {
+            x: 0,
+            y: 0
+          },
+          type: 'Warehouse'
+        },
+        {
+          offset: {
+            x: 100,
+            y: 55
+          },
+          type: 'Container 40ft'
+        },
+        {
+          offset: {
+            x: 100,
+            y: 90
+          },
+          type: 'Container 20ft'
+        },
+        {
+          offset: {
+            x: 128,
+            y: 55
+          },
+          type: 'Container 20ft'
+        },
+        {
+          offset: {
+            x: 128,
+            y: 90
+          },
+          type: 'Container 40ft'
+        },
+        {
+          offset: {
+            x: -75,
+            y: 55
+          },
+          type: 'Garage B'
         }
       ]
     }

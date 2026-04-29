@@ -56,14 +56,14 @@ export const config = {
       aircraftsPerGroup: 1
     }
   },
-  structureRanges: {
-    'Power Plant': 50_000,
-    'Ammo Depot': 50_000,
-    'Fuel Storage': 50_000,
-    Hospital: 50_000,
-    Barrack: 50_000,
+  structureExclusionRange: 40_000,
+  structureExclusionRanges: {
     Depot: 60_000,
-    Farp: 50_000
-  },
-  farpExclusionRange: 40_000
+    'Logistics Hub': 40_000,
+    'Factory 2': 35_000,
+    Factory: 35_000,
+    'Command Center': 60_000,
+    Hospital: 80_000,
+    Prison: 80_000
+  }
 }

@@ -3,11 +3,12 @@ import { config, schemas } from '@dcc/contracts'
 import { structureTemplates } from '@dcc/data'
 import * as z from 'zod'
 
-const STRUCTURE_EXCLUSION_RANGE = 40_000
-
 export const StructureType = [
   'Barrack',
   'Depot',
+  'Factory',
+  'Factory 2',
+  'Logistics Hub',
   'Power Plant',
   'Ammo Depot',
   'Fuel Storage',
@@ -57,8 +58,8 @@ export function assignStructures(
       name: string
       resources: number
       buildings: z.infer<typeof schemas.structureBuilding>[]
-    }
-  >() // objectiveId -> assignment info
+  }
+>() // objectiveId -> assignment info
   const coveredObjectives = new Map<StructureType, Set<string>>() // type -> Set<objectiveId>
 
   // Initialize coverage sets
@@ -67,9 +68,11 @@ export function assignStructures(
   })
 
   const requiredTypes = Object.values(StructureType)
+  const structureExclusionRangeOverrides: Partial<Record<StructureType, number>> =
+    config.structureExclusionRanges
 
   for (const type of requiredTypes) {
-    const range = config.structureRanges[type]
+    const range = structureExclusionRangeOverrides[type] ?? config.structureExclusionRange
     const coveredSet = coveredObjectives.get(type)!
 
     // Helper to check if an objective is covered by currently assigned structures of this type
@@ -89,23 +92,22 @@ export function assignStructures(
           !Array.from(assignments.values()).some(
             (assignment) =>
               assignment.type === type &&
-              getDistance(obj.position, assignment.position) < STRUCTURE_EXCLUSION_RANGE
+              getDistance(obj.position, assignment.position) < range
           )
       )
 
       // FARPs must not be within exclusion range of an airbase or another FARP
       if (type === 'Farp') {
-        const exclusionRange = config.farpExclusionRange
         const placedFarpPositions = Array.from(assignments.values())
           .filter((a) => a.type === 'Farp')
           .map((a) => a.position)
 
         candidates = candidates.filter((candidate) => {
           const tooCloseToAirbase = airbasePositions.some(
-            (ab) => getDistance(candidate.position, ab) < exclusionRange
+            (ab) => getDistance(candidate.position, ab) < range
           )
           const tooCloseToFarp = placedFarpPositions.some(
-            (fp) => getDistance(candidate.position, fp) < exclusionRange
+            (fp) => getDistance(candidate.position, fp) < range
           )
           return !tooCloseToAirbase && !tooCloseToFarp
         })

@@ -8,10 +8,11 @@ const sidcUnitCode = {
   armor: 'UCA---',
   infantry: 'UCI---',
   armamentProduction: 'IMG---',
-  fuelStorage: 'IRP---',
+  fuelStorage: 'USS3--',
   powerPlant: 'IUE---',
   depot: 'IMV---',
   ammoDepot: 'IME---',
+  commandCenter: 'UH1---',
   attack: 'MFA---',
   aew: 'MFRW--',
   fighter: 'MFF---',
@@ -23,6 +24,7 @@ const sidcUnitCode = {
   carrier: 'CLCV--',
   downedPilot: 'USS6--',
   hospital: 'IXH---',
+  prison: 'UULC--',
   attackHelicopter: 'MHA---',
   csar: 'MHH---'
 }
@@ -37,12 +39,21 @@ function getUnitCode(item: z.infer<typeof schemas.MapItem>): SidcUnitCodeKey {
           return 'fuelStorage'
         case 'Power Plant':
           return 'powerPlant'
+        case 'Factory':
+        case 'Factory 2':
+          return 'armamentProduction'
+        case 'Logistics Hub':
+          return 'transport'
         case 'Depot':
           return 'depot'
         case 'Ammo Depot':
           return 'ammoDepot'
         case 'Hospital':
           return 'hospital'
+        case 'Command Center':
+          return 'commandCenter'
+        case 'Prison':
+          return 'prison'
         case 'Farp':
           return 'militaryBase'
         case 'Barrack':

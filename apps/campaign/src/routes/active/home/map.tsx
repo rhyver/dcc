@@ -492,6 +492,7 @@ export function Map({
 
     for (const item of mapItems) {
       if (item.type !== 'SAM') continue
+      if (!item.active) continue
 
       // Create a circle with the SAM's range (range is in meters, turf expects km)
       const circle = turf.circle(

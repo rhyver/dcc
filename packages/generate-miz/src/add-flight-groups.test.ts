@@ -257,3 +257,69 @@ describe('addFlightGroups Link-16 output', () => {
     redUnitIds.forEach((unitId) => expect(blueNetworkIds.has(unitId)).toBe(false))
   })
 })
+
+describe('addFlightGroups parking assignment', () => {
+  test('skips blocked parking stands', () => {
+    const startTime = new Date('2026-01-01T00:00:00Z')
+    const mission = createMission()
+    const campaign = createCampaign(startTime)
+    campaign.coalitions.player.flightGroups = [createFlightGroup('blue-1', 'Enfield-1', startTime)]
+    campaign.coalitions.opponent.flightGroups = []
+
+    const theatreWithParking: Theatre = {
+      ...theatre,
+      airdromeDetails: {
+        'Test Base': {
+          id: 1,
+          name: 'Test Base',
+          x: 1000,
+          y: 1000,
+          runwayAngle: 90,
+          standlist: {
+            '01': {
+              id: '01',
+              crossroad_index: 1,
+              helicopter: true,
+              large: true,
+              plane: true,
+              shelter: false,
+              x: 100,
+              y: 100,
+              blocked: true
+            },
+            '02': {
+              id: '02',
+              crossroad_index: 2,
+              helicopter: true,
+              large: true,
+              plane: true,
+              shelter: false,
+              x: 200,
+              y: 200
+            },
+            '03': {
+              id: '03',
+              crossroad_index: 3,
+              helicopter: true,
+              large: true,
+              plane: true,
+              shelter: false,
+              x: 300,
+              y: 300
+            }
+          }
+        }
+      }
+    }
+
+    const result = addFlightGroups(mission, campaign, theatreWithParking)
+
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) throw result.error
+
+    const units = mission.coalition.blue.country?.[0]?.plane?.group?.[0]?.units ?? []
+
+    expect(units.map((unit) => unit.parking_id)).toEqual(['02', '03'])
+    expect(units.map((unit) => unit.parking)).toEqual(['2', '3'])
+  })
+})

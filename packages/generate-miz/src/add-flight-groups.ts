@@ -827,6 +827,7 @@ export function addFlightGroups(
 
           const slot = Object.values(airdrome.standlist).find((s) => {
             if (airdromeUsedSlots.has(s.id)) return false
+            if (s.blocked) return false
 
             if (isHelicopter && !s.helicopter) return false
             if (!isHelicopter && !s.plane) return false

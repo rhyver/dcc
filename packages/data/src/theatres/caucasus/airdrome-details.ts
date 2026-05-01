@@ -4096,7 +4096,8 @@ export const airdromeDetails: Record<string, z.infer<typeof schemas.airdromeDeta
         plane: true,
         shelter: false,
         x: -219753.375,
-        y: 564175.3125
+        y: 564175.3125,
+        blocked: true
       },
       '11': {
         id: '11',
@@ -4312,7 +4313,8 @@ export const airdromeDetails: Record<string, z.infer<typeof schemas.airdromeDeta
         plane: true,
         shelter: false,
         x: -219761.21875,
-        y: 564096.375
+        y: 564096.375,
+        blocked: true
       },
       '09': {
         id: '09',
@@ -4322,7 +4324,8 @@ export const airdromeDetails: Record<string, z.infer<typeof schemas.airdromeDeta
         plane: true,
         shelter: false,
         x: -219757.046875,
-        y: 564136.1875
+        y: 564136.1875,
+        blocked: true
       }
     },
     frequency: 258,

@@ -1,5 +1,5 @@
 import { config, schemas } from '@dcc/contracts'
-import { aircrafts } from '@dcc/data'
+import { aircrafts, callsigns } from '@dcc/data'
 import { err, ok, Result } from 'neverthrow'
 import * as z from 'zod'
 
@@ -19,6 +19,48 @@ const JTAC_LASER_CODE = 1688
 
 type Mission = z.infer<typeof schemas.dcs.mission>
 type MissionCountry = NonNullable<Mission['coalition']['blue']['country']>[number]
+
+const DEFAULT_CALLSIGN = 'Enfield'
+
+function parseGroupCallsign(groupCallsign: string) {
+  const match = groupCallsign.match(/^([A-Za-z]+)-(\d+)$/)
+  const callsignName = match?.[1] ?? DEFAULT_CALLSIGN
+  const flightNumber = Number.parseInt(match?.[2] ?? '1', 10)
+  const callsignIndex = callsigns.indexOf(callsignName) + 1
+  const dcsCallsignIndex =
+    callsignIndex > 0 ? callsignIndex : callsigns.indexOf(DEFAULT_CALLSIGN) + 1
+  const dcsFlightNumber = Number.isFinite(flightNumber) ? Math.max(1, Math.min(9, flightNumber)) : 1
+
+  return {
+    callsignIndex: dcsCallsignIndex,
+    callsignName: callsigns[dcsCallsignIndex - 1] ?? DEFAULT_CALLSIGN,
+    flightNumber: dcsFlightNumber
+  }
+}
+
+function createDcsCallsign(groupCallsign: string, unitIndex: number) {
+  const parsed = parseGroupCallsign(groupCallsign)
+  const unitNumber = Math.max(1, Math.min(9, unitIndex + 1))
+
+  return {
+    '1': parsed.callsignIndex,
+    '2': parsed.flightNumber,
+    name: `${parsed.callsignName}${parsed.flightNumber}${unitNumber}`,
+    '3': unitNumber
+  }
+}
+
+function createVoiceCallsignLabel(groupCallsign: string) {
+  const parsed = parseGroupCallsign(groupCallsign)
+  return parsed.callsignName
+    .replace(/[^A-Za-z]/g, '')
+    .slice(0, 2)
+    .toUpperCase()
+}
+
+function createAircraftUnitName(groupCallsign: string, unitIndex: number) {
+  return `${groupCallsign}-${unitIndex + 1}`
+}
 
 export type CasFlightConfig = {
   groupId: number
@@ -249,17 +291,25 @@ function cloneAircraftUnitOption<T>(value: T): T {
   return structuredClone(value)
 }
 
-function createAddPropAircraft(aircraftDef: z.infer<typeof schemas.dcs.aircraft>, index: number) {
+function createAddPropAircraft(
+  aircraftDef: z.infer<typeof schemas.dcs.aircraft>,
+  groupCallsign: string,
+  index: number
+) {
   if (!aircraftDef.AddPropAircraft) return undefined
 
   const addPropAircraft = cloneAircraftUnitOption(aircraftDef.AddPropAircraft)
+  const callsign = createDcsCallsign(groupCallsign, index)
 
   Object.entries(addPropAircraft).forEach(([key, value]) => {
     if (value === '{STN_L16}') {
       addPropAircraft[key] = `002${(index + 1).toString().padStart(2, '0')}`
     }
     if (value === '{VoiceCallsignNumber}') {
-      addPropAircraft[key] = `1${index + 1}`
+      addPropAircraft[key] = `${callsign['2']}${callsign['3']}`
+    }
+    if (key === 'VoiceCallsignLabel') {
+      addPropAircraft[key] = createVoiceCallsignLabel(groupCallsign)
     }
   })
 
@@ -727,7 +777,9 @@ export function addFlightGroups(
             airdromeUsedSlots.add(slot.id)
           } else {
             // eslint-disable-next-line no-console
-            console.warn(`No parking slot found for ${ac.unitName} at ${airdromeName}`)
+            console.warn(
+              `No parking slot found for ${createAircraftUnitName(fg.callsign, index)} at ${airdromeName}`
+            )
           }
         }
 
@@ -736,12 +788,7 @@ export function addFlightGroups(
           alt_type: 'BARO',
           hardpoint_racks: true,
           heading: heading,
-          callsign: {
-            _1: 1,
-            _2: 1,
-            name: 'Enfield11', // Placeholder
-            _3: 1
-          },
+          callsign: createDcsCallsign(fg.callsign, index),
           psi: 0,
           onboard_num: '010',
           parking: parking,
@@ -754,7 +801,7 @@ export function addFlightGroups(
             chaff: aircraftDef.chaff,
             gun: 100
           },
-          AddPropAircraft: createAddPropAircraft(aircraftDef, index),
+          AddPropAircraft: createAddPropAircraft(aircraftDef, fg.callsign, index),
           datalinks: createDatalinks(aircraftDef, index, unitIds),
           livery_id: 'default',
           skill: ac.client ? 'Client' : 'High',
@@ -763,7 +810,7 @@ export function addFlightGroups(
           unitId: unitId,
           x: x,
           y: y,
-          name: ac.unitName
+          name: createAircraftUnitName(fg.callsign, index)
         }
       })
 

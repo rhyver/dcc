@@ -43,6 +43,7 @@ const api = {
     return () => ipcRenderer.removeListener('window:maximized-change', listener)
   },
   openDevTools: () => ipcRenderer.invoke('devtools:open'),
+  createDebugBundle: (): Promise<string | null> => ipcRenderer.invoke('debug:createBundle'),
   openUserDataFolder: () => ipcRenderer.invoke('app:openUserData'),
   closeWindow: () => ipcRenderer.invoke('window:close'),
   sendMissionGeneratorChat: (messages: { role: 'user' | 'assistant'; content: string }[]) => {

@@ -39,7 +39,10 @@ export class FlightGroup {
 
     const newFlightGroupData: z.infer<typeof schemas.flightGroup> = {
       id,
-      aircrafts: params.aircrafts,
+      aircrafts: params.aircrafts.map((aircraft, index) => ({
+        ...aircraft,
+        unitName: `${callsign}-${index + 1}`
+      })),
       task: params.task,
       position: params.position,
       homeBase: params.homeBase,

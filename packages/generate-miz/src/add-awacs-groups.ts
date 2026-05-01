@@ -211,8 +211,9 @@ export function addAwacsGroups(
     // 1. SetImmortal
     // 2. SetInvisible
     // 3. SetUnlimitedFuel
-    // 4. AWACS
-    // 5. Racetrack orbit, no duration
+    // 4. EPLRS datalink
+    // 5. AWACS
+    // 6. Racetrack orbit, no duration
     const tasks: z.infer<typeof schemas.dcs.task>[] = [
       {
         enabled: true,
@@ -252,16 +253,28 @@ export function addAwacsGroups(
       },
       {
         enabled: true,
+        auto: true,
+        id: 'WrappedAction',
+        number: 4,
+        params: {
+          action: {
+            id: 'EPLRS',
+            params: { value: true }
+          }
+        }
+      },
+      {
+        enabled: true,
         auto: false,
         id: 'AWACS',
-        number: 4,
+        number: 5,
         params: {}
       },
       {
         enabled: true,
         auto: false,
         id: 'Orbit',
-        number: 5,
+        number: 6,
         params: {
           pattern: 'Race-Track',
           point: {

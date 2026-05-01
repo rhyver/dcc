@@ -19,6 +19,7 @@ interface API {
   getWindowMaximized: () => Promise<boolean>
   onWindowMaximizedChange: (callback: (isMaximized: boolean) => void) => () => void
   openDevTools: () => Promise<void>
+  createDebugBundle: () => Promise<string | null>
   openUserDataFolder: () => Promise<void>
   closeWindow: () => Promise<void>
   sendMissionGeneratorChat: (messages: { role: 'user' | 'assistant'; content: string }[]) => void

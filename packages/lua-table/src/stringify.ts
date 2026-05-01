@@ -188,6 +188,10 @@ function stringifyTableKey({
   if (!mixedKeyTypes) {
     return `"${key}"`
   }
+  const dcsNumericKey = key.match(/^_(\d+)$/)
+  if (dcsNumericKey?.[1]) {
+    return dcsNumericKey[1]
+  }
   const numKey = Number(key)
   if (!Number.isFinite(numKey)) {
     return `"${key}"`

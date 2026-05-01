@@ -63,14 +63,25 @@ export const missionState = z
       .default([]),
     lostUnits: z
       .array(
-        z.object({
-          name: z.coerce.string(),
-          groupName: z.coerce.string().nullable().optional(),
-          type: z.string().default('unknown'),
-          category: z.number().optional(),
-          x: z.number(),
-          y: z.number()
-        })
+        z
+          .object({
+            name: z.coerce.string(),
+            groupName: z.coerce.string().nullable().optional(),
+            type: z.string().default('unknown'),
+            category: z.number().optional(),
+            categoryName: z.string().optional(),
+            coalition: z.union([z.literal('blue'), z.literal('red'), z.number()]).optional(),
+            event: z.string().optional(),
+            lossType: z.string().optional(),
+            killerPlayerName: z.string().optional(),
+            killerUnitName: z.string().optional(),
+            killerGroupName: z.string().optional(),
+            weaponName: z.string().optional(),
+            killCause: z.string().optional(),
+            x: z.number(),
+            y: z.number()
+          })
+          .passthrough()
       )
       .default([]),
     cargoDeliveries: cargoDeliveries.default({}),

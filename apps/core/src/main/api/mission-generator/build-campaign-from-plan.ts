@@ -105,10 +105,15 @@ function createFlightplan(params: {
   }
 }
 
-function createAircraft(aircraftType: AircraftName, count: number, clientCount = 0) {
+function createAircraft(
+  aircraftType: AircraftName,
+  count: number,
+  callsign: string,
+  clientCount = 0
+) {
   return Array.from({ length: count }).map((_, index) => ({
     id: crypto.randomUUID(),
-    unitName: `${aircraftType}-${index + 1}`,
+    unitName: `${callsign}-${index + 1}`,
     aircraftName: aircraftType,
     ...(index < clientCount ? { client: true } : {})
   }))
@@ -129,7 +134,12 @@ function createFlightGroup(params: {
 }) {
   return {
     id: crypto.randomUUID(),
-    aircrafts: createAircraft(params.aircraftType, params.count, params.clientCount ?? 0),
+    aircrafts: createAircraft(
+      params.aircraftType,
+      params.count,
+      params.callsign,
+      params.clientCount ?? 0
+    ),
     task: params.task,
     position: params.homePosition,
     homeBase: params.homeBase,

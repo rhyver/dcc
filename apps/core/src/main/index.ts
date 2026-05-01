@@ -1,9 +1,11 @@
 import { app, shell, BrowserWindow, ipcMain, Menu, dialog, protocol, net } from 'electron'
-import { join, resolve, relative, isAbsolute } from 'path'
+import { join, resolve, relative, isAbsolute, basename, dirname } from 'path'
 import { pathToFileURL } from 'url'
-import { open, stat } from 'fs/promises'
+import { open, stat, readFile as readBinaryFile, readdir } from 'fs/promises'
+import { existsSync } from 'fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import log from 'electron-log/main'
+import AdmZip from 'adm-zip'
 import { autoUpdater } from 'electron-updater'
 import icon from '../../resources/icon.png?asset'
 import { rpcHandler } from './api'
@@ -110,6 +112,187 @@ function formatCampaignActionLogEntry(entry: CampaignActionLogEntry): string {
   const entity =
     entry.entityType && entry.entityId ? ` (${entry.entityType}:${entry.entityId})` : ''
   return `${entry.createdAt} | campaign=${entry.campaignTime} | ${entry.coalition}/${entry.type}${label}${entity} | ${entry.message}`
+}
+
+type DebugBundleCandidate = {
+  path: string
+  zipPath: string
+}
+
+type AppState = {
+  activeCampaignId?: string
+  settings?: {
+    missionExportPath?: string
+  }
+}
+
+const savedGamesVariants = ['DCS', 'DCS.openbeta', 'DCS.openbeta_server', 'DCS_server']
+
+function sanitizeZipPathSegment(value: string) {
+  return value.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').replace(/\.+$/g, '_') || 'unknown'
+}
+
+function detectMissionExportDirectory() {
+  const savedGamesRoot = join(app.getPath('home'), 'Saved Games')
+  const candidates = savedGamesVariants.map((variant) => join(savedGamesRoot, variant, 'Missions'))
+  return candidates.find((candidate) => existsSync(candidate))
+}
+
+function getDefaultMissionExportDirectory() {
+  return detectMissionExportDirectory() ?? app.getPath('downloads')
+}
+
+function resolveMissionExportDirectory(missionExportPath?: string) {
+  const configuredPath = missionExportPath?.trim()
+  const defaultDirectory = getDefaultMissionExportDirectory()
+
+  if (!configuredPath) {
+    return defaultDirectory
+  }
+
+  return isAbsolute(configuredPath) ? configuredPath : join(defaultDirectory, configuredPath)
+}
+
+async function readAppState(): Promise<AppState> {
+  const file = await readFile(stateFile)
+  if (file.isErr()) {
+    return {}
+  }
+
+  const parsed = parseJson(file.value)
+  if (parsed.isErr() || parsed.value == null || typeof parsed.value !== 'object') {
+    return {}
+  }
+
+  return parsed.value as AppState
+}
+
+async function addIfFile(candidates: DebugBundleCandidate[], filePath: string, zipPath: string) {
+  try {
+    const fileStat = await stat(filePath)
+    if (fileStat.isFile()) {
+      candidates.push({ path: filePath, zipPath })
+    }
+  } catch {
+    // Missing debug artifacts are expected; include only files that exist.
+  }
+}
+
+async function addDirectoryFiles(
+  candidates: DebugBundleCandidate[],
+  directory: string,
+  zipDirectory: string,
+  filter: (fileName: string) => boolean
+) {
+  try {
+    const entries = await readdir(directory, { withFileTypes: true })
+    for (const entry of entries) {
+      if (!entry.isFile() || !filter(entry.name)) {
+        continue
+      }
+      candidates.push({
+        path: join(directory, entry.name),
+        zipPath: `${zipDirectory}/${sanitizeZipPathSegment(entry.name)}`
+      })
+    }
+  } catch {
+    // Some DCS variants or log folders will not exist on every machine.
+  }
+}
+
+async function collectDebugBundleCandidates(): Promise<DebugBundleCandidate[]> {
+  const state = await readAppState()
+  const candidates: DebugBundleCandidate[] = []
+
+  if (state.activeCampaignId) {
+    await addIfFile(
+      candidates,
+      join(app.getPath('userData'), 'campaigns', `${state.activeCampaignId}.json`),
+      `active-campaign/${sanitizeZipPathSegment(state.activeCampaignId)}.json`
+    )
+  }
+
+  const savedGamesRoot = join(app.getPath('home'), 'Saved Games')
+  const missionDirectories = [
+    resolveMissionExportDirectory(state.settings?.missionExportPath),
+    ...savedGamesVariants.map((variant) => join(savedGamesRoot, variant, 'Missions'))
+  ]
+
+  await Promise.all(
+    missionDirectories.map(async (directory, index) => {
+      const prefix = index === 0 ? 'mission' : `mission-candidates/${sanitizeZipPathSegment(basename(dirname(directory)))}`
+      await addIfFile(candidates, join(directory, 'dcc_mission.miz'), `${prefix}/dcc_mission.miz`)
+      await addIfFile(candidates, join(directory, 'dcc_state.json'), `${prefix}/dcc_state.json`)
+    })
+  )
+
+  const logFile = log.transports.file.getFile().path
+  const actionLogFile = actionLog.transports.file.getFile().path
+  const logDirectories = Array.from(new Set([dirname(logFile), dirname(actionLogFile)]))
+  await Promise.all(
+    logDirectories.map((directory) =>
+      addDirectoryFiles(candidates, directory, 'dcc-logs', (fileName) =>
+        fileName.toLowerCase().endsWith('.log')
+      )
+    )
+  )
+
+  await Promise.all(
+    savedGamesVariants.map(async (variant) => {
+      await addDirectoryFiles(
+        candidates,
+        join(savedGamesRoot, variant, 'Logs'),
+        `dcs-logs/${sanitizeZipPathSegment(variant)}`,
+        (fileName) => fileName.toLowerCase().endsWith('.log')
+      )
+    })
+  )
+
+  const seen = new Set<string>()
+  return candidates.filter((candidate) => {
+    const key = candidate.path.toLowerCase()
+    if (seen.has(key)) {
+      return false
+    }
+    seen.add(key)
+    return true
+  })
+}
+
+async function createDebugBundle() {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+  const defaultPath = join(app.getPath('downloads'), `dcc-debug-bundle-${timestamp}.zip`)
+  const { canceled, filePath } = await dialog.showSaveDialog(mainWindow!, {
+    title: 'Save Debug Bundle',
+    defaultPath,
+    filters: [{ name: 'Zip Archive', extensions: ['zip'] }]
+  })
+
+  if (canceled || !filePath) {
+    return null
+  }
+
+  const candidates = await collectDebugBundleCandidates()
+  const zip = new AdmZip()
+  const manifest = {
+    createdAt: new Date().toISOString(),
+    appVersion: app.getVersion(),
+    includedFiles: candidates.map((candidate) => ({
+      sourcePath: candidate.path,
+      zipPath: candidate.zipPath
+    }))
+  }
+
+  zip.addFile('manifest.json', Buffer.from(JSON.stringify(manifest, null, 2), 'utf-8'))
+
+  for (const candidate of candidates) {
+    const data = await readBinaryFile(candidate.path)
+    zip.addFile(candidate.zipPath, data)
+  }
+
+  zip.writeZip(filePath)
+  void shell.showItemInFolder(filePath)
+  return filePath
 }
 
 protocol.registerSchemesAsPrivileged([
@@ -427,8 +610,8 @@ async function createWindow(): Promise<void> {
   console.log('createWindow')
   // Create the browser window.
   mainWindow = new BrowserWindow({
-    width: 900,
-    height: 670,
+    width: 1350,
+    height: 1005,
     show: false,
     autoHideMenuBar: true,
     frame: false,
@@ -571,6 +754,7 @@ app.whenReady().then(() => {
   ipcMain.handle('devtools:open', () => {
     mainWindow?.webContents.openDevTools({ mode: 'detach' })
   })
+  ipcMain.handle('debug:createBundle', () => createDebugBundle())
   ipcMain.handle('app:openUserData', () => {
     const userDataPath = app.getPath('userData')
     void shell.openPath(userDataPath)

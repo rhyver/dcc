@@ -1,4 +1,5 @@
 import { schemas, config } from '@dcc/contracts'
+import { aircrafts } from '@dcc/data'
 import * as z from 'zod'
 import { DeadFlightGroup } from '../../../entities/dead-flight-group'
 import { FlightGroupFactory } from '../../../entities/flight-group-factory'
@@ -35,6 +36,27 @@ function getAirbaseSpawnModifier(
   }
 }
 
+function getAvailableDeadAircraftTypes(
+  draft: z.infer<typeof schemas.campaign.campaign>,
+  coalition: z.infer<typeof schemas.coalition>
+) {
+  const configuredDeadAircraftTypes = draft.coalitions[coalition].aircraftTypes['DEAD']
+  if (configuredDeadAircraftTypes && configuredDeadAircraftTypes.length > 0) {
+    return configuredDeadAircraftTypes
+  }
+
+  const aircraftDefinitions = Object.values(aircrafts)
+  const coalitionAircraftTypes = new Set(
+    Object.values(draft.coalitions[coalition].aircraftTypes).flat()
+  )
+
+  return [...coalitionAircraftTypes].filter((aircraftType) =>
+    aircraftDefinitions.some(
+      (aircraft) => aircraft.name === aircraftType && aircraft.availableTasks.includes('DEAD')
+    )
+  )
+}
+
 export function spawnDead(
   draft: z.infer<typeof schemas.campaign.campaign>,
   coalition: z.infer<typeof schemas.coalition>
@@ -61,7 +83,7 @@ export function spawnDead(
   const { theatre, enemyCoalition } = context
 
   // Get available aircraft types for DEAD missions
-  const availableAircraftTypes = draft.coalitions[coalition].aircraftTypes['DEAD']
+  const availableAircraftTypes = getAvailableDeadAircraftTypes(draft, coalition)
   if (!availableAircraftTypes || availableAircraftTypes.length === 0) {
     debugLog('No aircraft types available for DEAD')
     return

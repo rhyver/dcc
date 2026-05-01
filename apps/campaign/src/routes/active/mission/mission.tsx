@@ -11,9 +11,9 @@ import { activeStore, resetFlightGroupClientSelections } from '@/stores/active'
 import { coreClient, orpc } from '@/lib/orpc'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
-import { getAircraftDisplayName } from '@/lib/aircraft-display'
 import { cn } from '@/lib/utils'
 
+import { FlightGroupCard } from '../components/flight-group-card'
 import { MissionDebriefScreen, type MissionDebrief } from './mission-debrief'
 
 const KNOTS_PER_MS = 1.94384
@@ -160,9 +160,10 @@ function applyMissionStateUpdate(campaign: Campaign, missionState: MissionState)
         }
 
         if (lostUnitNames.size > 0) {
-          flightGroup.aircrafts = flightGroup.aircrafts.filter(
-            (aircraft) => !lostUnitNames.has(aircraft.unitName)
-          )
+          flightGroup.aircrafts = flightGroup.aircrafts.filter((aircraft, index) => {
+            const missionUnitName = `${flightGroup.callsign}-${index + 1}`
+            return !lostUnitNames.has(aircraft.unitName) && !lostUnitNames.has(missionUnitName)
+          })
         }
 
         if (flightGroup.task === 'Transport') {
@@ -296,6 +297,18 @@ function buildErrorToast(error: unknown): {
       }
     }
 
+    if (orpcError.code === 'FAILED_TO_WRITE_FILE') {
+      const isLocked = orpcError.data?.message?.includes('EBUSY')
+      return {
+        title: 'Could Not Write File',
+        message: isLocked
+          ? 'The mission file is currently locked. Close it in DCS or another app, then try again.'
+          : (orpcError.data?.message ?? 'Could not write the mission file.'),
+        details: orpcError.data?.path,
+        tone: 'error'
+      }
+    }
+
     return {
       title: orpcError.code,
       message: orpcError.message ?? 'Mission state submission failed.',
@@ -354,6 +367,7 @@ export function Mission() {
 
   const weather = theatreQuery.data?.info.weather
   const scenario = scenarioQuery.data
+  const currentTime = campaignTime ? new Date(campaignTime) : new Date()
 
   const handleGenerate = async () => {
     if (isGenerating) return
@@ -364,6 +378,7 @@ export function Mission() {
       setIsMissionStateReady(false)
     } catch (error) {
       console.error('Failed to generate mission', error)
+      setToast(buildErrorToast(error))
     } finally {
       setIsGenerating(false)
     }
@@ -442,7 +457,7 @@ export function Mission() {
   return (
     <div className="min-h-full bg-[#0b0014]">
       {toast && (
-        <div className="fixed right-6 top-6 z-50 w-[min(560px,calc(100vw-3rem))] rounded-lg border border-red-500/40 bg-red-950/90 text-red-100 shadow-[0_0_30px_rgba(255,0,0,0.35)] backdrop-blur">
+        <div className="fixed right-6 top-24 z-50 w-[min(560px,calc(100vw-3rem))] rounded-lg border border-red-500/40 bg-red-950/90 text-red-100 shadow-[0_0_30px_rgba(255,0,0,0.35)] backdrop-blur">
           <div className="flex items-start justify-between gap-3 border-b border-red-500/30 px-4 py-3">
             <div className="text-sm font-semibold uppercase tracking-wider text-red-200">
               {toast.title}
@@ -627,34 +642,13 @@ export function Mission() {
               </span>
             </div>
             <div className="flex-1 overflow-auto space-y-2">
-              {clientFlightGroups.map((group) => {
-                const clientCount = group.aircrafts.filter((ac) => ac.client).length
-                return (
-                  <div
-                    key={group.id}
-                    className="border border-[#9900ff]/30 rounded bg-[#9900ff]/10 px-3 py-2.5"
-                  >
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm font-bold text-white">{group.callsign}</span>
-                      <span className="text-sm text-[#00ddff]">
-                        {clientCount}/{group.aircrafts.length}
-                      </span>
-                    </div>
-                    <div className="flex gap-3 mt-1 text-sm text-white/50">
-                      <span>
-                        {group.aircrafts[0]
-                          ? getAircraftDisplayName(group.aircrafts[0].aircraftName)
-                          : 'Unknown'}
-                      </span>
-                      <span className="text-[#ff00aa]">{group.task}</span>
-                    </div>
-                    <div className="text-sm text-white/40 mt-1">
-                      Start {formatTime(group.flightplan.startTime)}{' '}
-                      {group.tot && `• ToT ${formatTime(group.tot)}`}
-                    </div>
-                  </div>
-                )
-              })}
+              {clientFlightGroups.map((group) => (
+                <FlightGroupCard
+                  key={group.id}
+                  group={group}
+                  isAirborne={new Date(group.flightplan.startTime) <= currentTime}
+                />
+              ))}
             </div>
           </div>
 

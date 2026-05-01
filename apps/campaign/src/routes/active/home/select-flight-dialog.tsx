@@ -45,6 +45,7 @@ export function SelectFlightDialog({ open, onOpenChange }: SelectFlightDialogPro
   const groupsByTask = new Map<string, typeof flightGroups>()
   for (const group of flightGroups) {
     if (!featureFlags.transportFlightGroups && group.task === 'Transport') continue
+    if (group.aircrafts.length === 0) continue
 
     const existing = groupsByTask.get(group.task)
     if (existing) {

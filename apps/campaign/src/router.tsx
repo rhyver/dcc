@@ -14,6 +14,7 @@ import { useNavigate } from 'react-router'
 import { useSelector } from '@xstate/store/react'
 import {
   AlertTriangle,
+  Archive,
   FolderOpen,
   Maximize2,
   Minimize2,
@@ -206,6 +207,20 @@ function AppTitleBar() {
                 <span className="flex items-center gap-2">
                   <FolderOpen className="h-3.5 w-3.5" />
                   Open User Data Folder
+                </span>
+              </button>
+              <button
+                type="button"
+                className="titlebar-menu-item"
+                role="menuitem"
+                onClick={() => {
+                  setIsDevMenuOpen(false)
+                  void window.api?.createDebugBundle?.()
+                }}
+              >
+                <span className="flex items-center gap-2">
+                  <Archive className="h-3.5 w-3.5" />
+                  Create Debug Bundle
                 </span>
               </button>
             </div>

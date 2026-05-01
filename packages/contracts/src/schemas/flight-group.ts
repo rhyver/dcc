@@ -21,6 +21,7 @@ export const flightGroup = z.object({
   target: structureTarget.optional(),
   targetDestroyed: z.boolean().optional(),
   tot: z.date().optional(),
+  originalTot: z.date().optional(),
   flightplan: flightplan,
   packageId: z.string().optional(),
   // Transport-specific fields

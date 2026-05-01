@@ -1,4 +1,4 @@
-import { schemas } from '@dcc/contracts'
+import { schemas, config } from '@dcc/contracts'
 import * as z from 'zod'
 
 import { getFactions } from '../data/get-factions'
@@ -153,6 +153,10 @@ function createFlightGroup(params: {
     }),
     packageId: params.packageId
   } satisfies z.infer<typeof schemas.flightGroup>
+}
+
+function resolveFlightGroupCount(task: z.infer<typeof schemas.task>, requestedCount: number) {
+  return task === 'CAP' ? config.packages.CAP.aircraftsPerGroup : requestedCount
 }
 
 function coerceTask(task: string): z.infer<typeof schemas.task> {
@@ -313,7 +317,7 @@ export function buildCampaignFromPlan(
     callsign: 'Hammer',
     task: playerPrimaryTask,
     aircraftType: playerPrimaryAircraftType,
-    count: plan.playerCoalition.primaryFlight.count,
+    count: resolveFlightGroupCount(playerPrimaryTask, plan.playerCoalition.primaryFlight.count),
     clientCount: 1,
     homeBase: playerHomeBase,
     homePosition: playerHomePosition,
@@ -332,7 +336,7 @@ export function buildCampaignFromPlan(
         preferredTask: 'CAP',
         factionAircraftTypes: opponentFaction.aircraftTypes as Record<string, string[]>
       }),
-      count: capFlight.count,
+      count: resolveFlightGroupCount('CAP', capFlight.count),
       homeBase: opponentHomeBase,
       homePosition: opponentHomePosition,
       target: {

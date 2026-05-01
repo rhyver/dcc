@@ -12,6 +12,8 @@ interface FlightGroupCardProps {
   isAirborne?: boolean
   selected?: boolean
   onClick?: () => void
+  onMouseEnter?: () => void
+  onMouseLeave?: () => void
 }
 
 function formatTime(date: Date | string) {
@@ -28,7 +30,9 @@ export function FlightGroupCard({
   group,
   isAirborne = false,
   selected = false,
-  onClick
+  onClick,
+  onMouseEnter,
+  onMouseLeave
 }: FlightGroupCardProps) {
   const hasClients = group.aircrafts.some((aircraft) => aircraft.client)
   const clientCount = group.aircrafts.filter((aircraft) => aircraft.client).length
@@ -51,6 +55,8 @@ export function FlightGroupCard({
               : 'border-synthwave-pink/10 bg-synthwave-pink/5 hover:bg-synthwave-pink/10'
       )}
       onClick={onClick}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
     >
       <div className="flex flex-col gap-0.5">
         <div className="flex items-center gap-2">

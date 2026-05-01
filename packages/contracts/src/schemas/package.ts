@@ -18,5 +18,6 @@ export const missionPackage = z.object({
   targetObjectiveId: z.string(),
   members: z.array(packageMember),
   tot: z.date(),
+  originalTot: z.date().optional(),
   status: packageStatus
 })

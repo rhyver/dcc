@@ -297,12 +297,14 @@ const GroundGroupPathOverlay = memo(function GroundGroupPathOverlay({
 
 export function Map({
   selectedItem,
+  previewItem,
   onSelect,
   zoom,
   measureMode,
   overlaySafeLeft = 0
 }: {
   selectedItem: SelectedItem
+  previewItem?: SelectedItem
   onSelect: (item: SelectedItem) => void
   zoom: number
   measureMode: boolean
@@ -414,6 +416,24 @@ export function Map({
     }
     return mapItems.find((item) => item.id === selectedItem.id) ?? selectedItem
   }, [selectedItem, flightGroups, mapItems])
+
+  const livePreviewItem = useMemo(() => {
+    if (!previewItem) return null
+    if ('flightplan' in previewItem) {
+      return flightGroups.find((fg) => fg.id === previewItem.id) ?? previewItem
+    }
+    return mapItems.find((item) => item.id === previewItem.id) ?? previewItem
+  }, [previewItem, flightGroups, mapItems])
+
+  const flightPlanDisplayItem = useMemo(() => {
+    if (livePreviewItem && 'flightplan' in livePreviewItem) {
+      return livePreviewItem
+    }
+    if (liveSelectedItem && 'flightplan' in liveSelectedItem) {
+      return liveSelectedItem
+    }
+    return null
+  }, [livePreviewItem, liveSelectedItem])
 
   const campaign = useSelector(activeStore, (state) => state.context)
   const groundGroupPath = useMemo(() => {
@@ -527,9 +547,9 @@ export function Map({
         maxZoom={CAUCASUS_DETAIL_MAX_ZOOM}
         onClick={handleMapClick}
       >
-        {liveSelectedItem && 'flightplan' in liveSelectedItem && theatreQuery.data && (
+        {flightPlanDisplayItem && theatreQuery.data && (
           <FlightPlanOverlay
-            flightplan={liveSelectedItem.flightplan}
+            flightplan={flightPlanDisplayItem.flightplan}
             theatreName={theatreQuery.data.name}
           />
         )}
@@ -540,9 +560,9 @@ export function Map({
             theatreName={theatreQuery.data.name}
           />
         )}
-        {liveSelectedItem && 'flightplan' in liveSelectedItem && theatreQuery.data && (
+        {flightPlanDisplayItem && theatreQuery.data && (
           <>
-            {liveSelectedItem.flightplan.waypoints.map((waypoint, index) => (
+            {flightPlanDisplayItem.flightplan.waypoints.map((waypoint, index) => (
               <WaypointLabelMarker
                 key={`${waypoint.name}-${index}`}
                 waypoint={waypoint}

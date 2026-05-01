@@ -101,9 +101,157 @@ const initialState: z.infer<typeof schemas.campaign.campaign> = {
 }
 
 type Campaign = z.infer<typeof schemas.campaign.campaign>
+type CoalitionData = Campaign['coalitions']['player']
+type FlightGroup = CoalitionData['flightGroups'][number]
+type MissionPackage = CoalitionData['packages'][number]
 
 function hasLiveGroundUnits(group: Campaign['coalitions']['player']['groundGroups'][number]) {
   return group.units.reduce((sum, unit) => sum + Math.max(0, unit.count), 0) > 0
+}
+
+function addMs(date: Date | string, ms: number) {
+  return new Date(new Date(date).getTime() + ms)
+}
+
+function ensureOriginalFlightGroupTiming(group: FlightGroup) {
+  group.flightplan.originalStartTime ??= group.flightplan.startTime
+  if (group.tot && !group.originalTot) {
+    group.originalTot = group.tot
+  }
+}
+
+function ensureOriginalPackageTiming(missionPackage: MissionPackage | undefined) {
+  if (missionPackage && !missionPackage.originalTot) {
+    missionPackage.originalTot = missionPackage.tot
+  }
+}
+
+function shiftFlightGroupTiming(group: FlightGroup, deltaMs: number) {
+  group.flightplan.startTime = addMs(group.flightplan.startTime, deltaMs)
+  if (group.tot) {
+    group.tot = addMs(group.tot, deltaMs)
+  }
+}
+
+function restoreFlightGroupTiming(group: FlightGroup) {
+  if (group.flightplan.originalStartTime) {
+    group.flightplan.startTime = group.flightplan.originalStartTime
+    group.flightplan.originalStartTime = undefined
+  }
+
+  if (group.originalTot) {
+    group.tot = group.originalTot
+    group.originalTot = undefined
+  }
+}
+
+function restorePackageTiming(missionPackage: MissionPackage) {
+  if (missionPackage.originalTot) {
+    missionPackage.tot = missionPackage.originalTot
+    missionPackage.originalTot = undefined
+  }
+}
+
+function getFlightGroupPackageMembers(coalition: CoalitionData, group: FlightGroup) {
+  if (!group.packageId) {
+    return [group]
+  }
+
+  const packageMembers = coalition.flightGroups.filter(
+    (candidate) => candidate.packageId === group.packageId
+  )
+  return packageMembers.length > 0 ? packageMembers : [group]
+}
+
+function syncPackageTimingForClientGroups(draft: Campaign) {
+  const coalitions = [draft.coalitions.player, draft.coalitions.opponent]
+  const allFlightGroups = coalitions.flatMap((coalition) => coalition.flightGroups)
+  const groupsWithClients = allFlightGroups.filter((group) =>
+    group.aircrafts.some((aircraft) => aircraft.client)
+  )
+
+  if (groupsWithClients.length === 0) {
+    for (const coalition of coalitions) {
+      for (const group of coalition.flightGroups) {
+        restoreFlightGroupTiming(group)
+      }
+      for (const missionPackage of coalition.packages) {
+        restorePackageTiming(missionPackage)
+      }
+    }
+    return
+  }
+
+  const clientPackageIds = new Set(
+    groupsWithClients.map((group) => group.packageId).filter((id): id is string => id != null)
+  )
+
+  for (const coalition of coalitions) {
+    for (const group of coalition.flightGroups) {
+      if (
+        !group.aircrafts.some((aircraft) => aircraft.client) &&
+        !clientPackageIds.has(group.packageId ?? '')
+      ) {
+        restoreFlightGroupTiming(group)
+      }
+    }
+
+    for (const missionPackage of coalition.packages) {
+      if (!clientPackageIds.has(missionPackage.id)) {
+        restorePackageTiming(missionPackage)
+      }
+    }
+  }
+
+  if (groupsWithClients.length <= 1) {
+    return
+  }
+
+  const earliestStartTime = groupsWithClients.reduce((earliest, group) => {
+    const originalTime = group.flightplan.originalStartTime ?? group.flightplan.startTime
+    return originalTime < earliest ? originalTime : earliest
+  }, groupsWithClients[0]!.flightplan.originalStartTime ?? groupsWithClients[0]!.flightplan.startTime)
+
+  const shiftedKeys = new Set<string>()
+
+  for (const coalition of coalitions) {
+    for (const clientGroup of coalition.flightGroups.filter((group) =>
+      group.aircrafts.some((aircraft) => aircraft.client)
+    )) {
+      const packageKey = clientGroup.packageId ?? clientGroup.id
+      const shiftKey = `${coalition.id}:${packageKey}`
+      if (shiftedKeys.has(shiftKey)) {
+        continue
+      }
+      shiftedKeys.add(shiftKey)
+
+      const originalClientStart =
+        clientGroup.flightplan.originalStartTime ?? clientGroup.flightplan.startTime
+      const deltaMs = earliestStartTime.getTime() - new Date(originalClientStart).getTime()
+      const packageMembers = getFlightGroupPackageMembers(coalition, clientGroup)
+      const missionPackage = clientGroup.packageId
+        ? coalition.packages.find((candidate) => candidate.id === clientGroup.packageId)
+        : undefined
+
+      for (const group of packageMembers) {
+        ensureOriginalFlightGroupTiming(group)
+        const currentStart = new Date(group.flightplan.startTime)
+        const originalStart = new Date(
+          group.flightplan.originalStartTime ?? group.flightplan.startTime
+        )
+        const desiredStart = addMs(originalStart, deltaMs)
+        shiftFlightGroupTiming(group, desiredStart.getTime() - currentStart.getTime())
+      }
+
+      ensureOriginalPackageTiming(missionPackage)
+      if (missionPackage) {
+        const currentTot = new Date(missionPackage.tot)
+        const originalTot = new Date(missionPackage.originalTot ?? missionPackage.tot)
+        const desiredTot = addMs(originalTot, deltaMs)
+        missionPackage.tot = addMs(currentTot, desiredTot.getTime() - currentTot.getTime())
+      }
+    }
+  }
 }
 
 export function removeEmptyGroundGroups(campaign: Campaign): Campaign {
@@ -126,9 +274,12 @@ export function resetFlightGroupClientSelections(campaign: Campaign) {
         }
 
         if (group.flightplan.originalStartTime) {
-          group.flightplan.startTime = group.flightplan.originalStartTime
-          group.flightplan.originalStartTime = undefined
+          restoreFlightGroupTiming(group)
         }
+      }
+
+      for (const missionPackage of coalition.packages) {
+        restorePackageTiming(missionPackage)
       }
     }
   })
@@ -216,35 +367,11 @@ export const activeStore = createStore({
               aircraft.client = index < count
             })
 
-            // Restore original start time when all clients removed
-            if (hadClient && !willHaveClient && group.flightplan.originalStartTime) {
-              group.flightplan.startTime = group.flightplan.originalStartTime
-              group.flightplan.originalStartTime = undefined
-            }
-
             break
           }
         }
 
-        // Sync start times for all groups with clients to the earliest one
-        const allFlightGroups = [
-          ...draft.coalitions.player.flightGroups,
-          ...draft.coalitions.opponent.flightGroups
-        ]
-        const groupsWithClients = allFlightGroups.filter((g) => g.aircrafts.some((ac) => ac.client))
-
-        if (groupsWithClients.length > 1) {
-          // Find the earliest original start time among groups with clients
-          const earliestStartTime = groupsWithClients.reduce((earliest, g) => {
-            const originalTime = g.flightplan.originalStartTime ?? g.flightplan.startTime
-            return originalTime < earliest ? originalTime : earliest
-          }, groupsWithClients[0]!.flightplan.originalStartTime ?? groupsWithClients[0]!.flightplan.startTime)
-
-          // Apply the earliest start time to all groups with clients
-          for (const g of groupsWithClients) {
-            g.flightplan.startTime = earliestStartTime
-          }
-        }
+        syncPackageTimingForClientGroups(draft)
       })
   }
 })

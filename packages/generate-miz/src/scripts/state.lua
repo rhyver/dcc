@@ -93,6 +93,7 @@ local missionState = {
     missionEnded = false,
     ejectedPilots = {},
     lostUnits = {},
+    landedUnits = {},
     cargoDeliveries = {},
     groupPositions = {
         blue = {
@@ -109,6 +110,7 @@ local missionState = {
 local transportGroups = {}
 local unitCache = {}
 local lostUnitIndexesByName = {}
+local landedUnitIndexesByName = {}
 local getInitiatorGroup
 
 local function safeCall(callback, fallback)
@@ -268,6 +270,101 @@ local function recordLostUnit(unit, eventName, attribution)
         y = position and position.z or cached.y or 0
     }, attribution)
     debugLog("Lost unit recorded: "..name.." ("..(eventName or "unknown")..")")
+end
+
+local function rebuildLandedUnitIndexes()
+    landedUnitIndexesByName = {}
+
+    for index, landedUnit in ipairs(missionState.landedUnits) do
+        if landedUnit and landedUnit.name then
+            landedUnitIndexesByName[landedUnit.name] = index
+        end
+    end
+end
+
+local function removeLandedUnit(unit)
+    if not unit or not unit.getName then
+        return false
+    end
+
+    local name = stringifyName(safeCall(function() return unit:getName() end, nil))
+    if not name then
+        return false
+    end
+
+    local cached = unitCache[name] or {}
+    name = cached.name or name
+    local existingIndex = landedUnitIndexesByName[name]
+    if not existingIndex then
+        return false
+    end
+
+    table.remove(missionState.landedUnits, existingIndex)
+    rebuildLandedUnitIndexes()
+    debugLog("Landed unit cleared after takeoff: "..name)
+    return true
+end
+
+local function addOrUpdateLandedUnit(landedUnit)
+    if not landedUnit or not landedUnit.name then
+        return
+    end
+
+    local existingIndex = landedUnitIndexesByName[landedUnit.name]
+    if existingIndex then
+        missionState.landedUnits[existingIndex] = landedUnit
+        return
+    end
+
+    missionState.landedUnits[#missionState.landedUnits + 1] = landedUnit
+    landedUnitIndexesByName[landedUnit.name] = #missionState.landedUnits
+end
+
+local function recordLandedUnit(unit, eventName)
+    if not unit or not unit.getName then
+        return false
+    end
+
+    local group = getInitiatorGroup(unit)
+    local category = group and safeCall(function() return group:getCategory() end, nil) or nil
+
+    if category ~= Group.Category.AIRPLANE and category ~= Group.Category.HELICOPTER then
+        return false
+    end
+
+    local name = stringifyName(safeCall(function() return unit:getName() end, nil))
+    if not name then
+        return false
+    end
+
+    local cached = unitCache[name] or {}
+    name = cached.name or name
+    local position = safeCall(function() return unit:getPosition().p end, nil)
+    if not position then
+        local point = safeCall(function() return unit:getPoint() end, nil)
+        if point then
+            position = { x = point.x, z = point.z }
+        end
+    end
+
+    local groupName = stringifyName(group and safeCall(function() return group:getName() end, nil) or cached.groupName)
+    local coalitionId = group and safeCall(function() return group:getCoalition() end, nil) or nil
+    local coalitionName = coalitionId == coalition.side.BLUE and "blue" or coalitionId == coalition.side.RED and "red" or cached.coalition
+
+    addOrUpdateLandedUnit({
+        name = name,
+        groupName = groupName,
+        type = safeCall(function() return unit:getTypeName() end, cached.type or "unknown"),
+        category = category,
+        categoryName = cached.categoryName,
+        coalition = coalitionName,
+        event = eventName,
+        time = timer.getAbsTime(),
+        x = position and position.x or cached.x or 0,
+        y = position and position.z or cached.y or 0
+    })
+    debugLog("Landed unit recorded: "..name.." ("..(eventName or "unknown")..")")
+    return true
 end
 
 local function recordUnitKill(data)
@@ -646,7 +743,14 @@ local function handleEvent(event)
         saveState('pilot dead')
     end
 
-    -- LANDING (for cargo deliveries)
+    if event.id == world.event.S_EVENT_TAKEOFF then
+        debugLog('S_EVENT_TAKEOFF')
+        if removeLandedUnit(event.initiator) then
+            saveState('takeoff')
+        end
+    end
+
+    -- LANDING
     if event.id == world.event.S_EVENT_LAND then
         debugLog('S_EVENT_LAND')
         local initiator = event.initiator
@@ -654,15 +758,21 @@ local function handleEvent(event)
         if not initiator then return end
         if not initiator:isExist() then return end
 
+        local recordedLanding = recordLandedUnit(initiator, 'land')
         local group = getInitiatorGroup(initiator)
         if not group then return end
 
         local groupName = stringifyName(group:getName())
+        local recordedCargoDelivery = false
 
         if groupName and transportGroups[groupName] then
             local position = initiator:getPosition().p
             recordCargoDelivery(groupName, position, 'landing')
-            saveState('cargo landing')
+            recordedCargoDelivery = true
+        end
+
+        if recordedLanding or recordedCargoDelivery then
+            saveState('land')
         end
     end
 

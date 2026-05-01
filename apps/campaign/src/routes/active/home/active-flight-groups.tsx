@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { Plane } from 'lucide-react'
 import { useSelector } from '@xstate/store/react'
 
@@ -11,15 +12,30 @@ import type { SelectedItem } from './map'
 interface ActiveFlightGroupsProps {
   selectedItem: SelectedItem
   onSelect: (item: SelectedItem) => void
+  onPreview: (item: SelectedItem) => void
 }
 
-export function ActiveFlightGroups({ selectedItem, onSelect }: ActiveFlightGroupsProps) {
+export function ActiveFlightGroups({ selectedItem, onSelect, onPreview }: ActiveFlightGroupsProps) {
   const flightGroups = useSelector(
     activeStore,
     (state) => state.context.coalitions.player.flightGroups
   )
   const campaignTime = useSelector(activeStore, (state) => state.context.time)
   const currentTime = campaignTime ? new Date(campaignTime) : new Date()
+  const orderedFlightGroups = useMemo(
+    () =>
+      [...flightGroups].sort((a, b) => {
+        const startA = new Date(a.flightplan.startTime).getTime()
+        const startB = new Date(b.flightplan.startTime).getTime()
+
+        if (startA !== startB) {
+          return startA - startB
+        }
+
+        return a.callsign.localeCompare(b.callsign)
+      }),
+    [flightGroups]
+  )
 
   return (
     <Card className="pointer-events-auto flex-1 overflow-hidden border-synthwave-pink/30 bg-synthwave-dark/80 text-synthwave-light shadow-[0_0_15px_rgba(255,0,170,0.3)] backdrop-blur-md flex flex-col min-h-0 gap-0 py-0">
@@ -31,17 +47,19 @@ export function ActiveFlightGroups({ selectedItem, onSelect }: ActiveFlightGroup
       </CardHeader>
       <ScrollArea className="flex-1 min-h-0 overflow-hidden">
         <CardContent>
-          {flightGroups.length === 0 ? (
+          {orderedFlightGroups.length === 0 ? (
             <div className="text-sm text-secondary/60 text-center italic">No active flights</div>
           ) : (
             <div className="space-y-2">
-              {flightGroups.map((group) => (
+              {orderedFlightGroups.map((group) => (
                 <FlightGroupCard
                   key={group.id}
                   group={group}
                   isAirborne={hasFlightGroupTakenOff(group, currentTime)}
                   selected={selectedItem?.id === group.id}
                   onClick={() => onSelect(selectedItem?.id === group.id ? null : group)}
+                  onMouseEnter={() => onPreview(group)}
+                  onMouseLeave={() => onPreview(null)}
                 />
               ))}
             </div>

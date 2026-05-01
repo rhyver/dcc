@@ -60,6 +60,7 @@ export function Home() {
   const [isMeasureMode, setIsMeasureMode] = React.useState(false)
   const [isBriefingOpen, setIsBriefingOpen] = React.useState(false)
   const [selectedItem, setSelectedItem] = React.useState<SelectedItem>(null)
+  const [previewItem, setPreviewItem] = React.useState<SelectedItem>(null)
   const timeMultiplier = useSelector(activeStore, (state) => state.context.timeMultiplier)
   const logEntries = useSelector(activeStore, (state) => state.context.logs)
   const isLogOpen = useSelector(uiStore, (state) => state.context.isLogOpen)
@@ -191,6 +192,7 @@ export function Home() {
           <React.Suspense fallback={<div className="h-full w-full bg-synthwave-dark" />}>
             <CampaignMap
               selectedItem={selectedItem}
+              previewItem={previewItem}
               onSelect={setSelectedItem}
               zoom={mapZoom}
               measureMode={isMeasureMode}
@@ -303,7 +305,11 @@ export function Home() {
         </Card>
 
         {/* Active Flight Groups */}
-        <ActiveFlightGroups selectedItem={selectedItem} onSelect={setSelectedItem} />
+        <ActiveFlightGroups
+          selectedItem={selectedItem}
+          onSelect={setSelectedItem}
+          onPreview={setPreviewItem}
+        />
 
         {isLogOpen && (
           <Card className="pointer-events-auto border-synthwave-pink/30 bg-synthwave-dark/80 text-synthwave-light shadow-[0_0_15px_rgba(255,0,170,0.3)] backdrop-blur-md p-2 h-[240px]">

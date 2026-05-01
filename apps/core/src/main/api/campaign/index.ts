@@ -57,7 +57,12 @@ function detectDcsInstallPath() {
   )
 
   for (const basePath of programFiles) {
-    for (const variant of ['DCS World', 'DCS World OpenBeta']) {
+    for (const variant of [
+      'DCS World',
+      'DCS World OpenBeta',
+      'DCS World Server',
+      'DCS World OpenBeta Server'
+    ]) {
       const candidate = path.join(basePath, 'Eagle Dynamics', variant)
       if (validateDcsInstallPath(candidate).valid) {
         return candidate

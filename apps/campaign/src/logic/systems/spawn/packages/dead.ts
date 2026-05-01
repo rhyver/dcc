@@ -1,5 +1,5 @@
 import { schemas, config } from '@dcc/contracts'
-import { aircrafts } from '@dcc/data'
+import { aircrafts, isSamFullyDestroyed } from '@dcc/data'
 import * as z from 'zod'
 import { DeadFlightGroup } from '../../../entities/dead-flight-group'
 import { FlightGroupFactory } from '../../../entities/flight-group-factory'
@@ -91,7 +91,7 @@ export function spawnDead(
 
   // Find enemy SAM groups that are not destroyed and not already targeted
   const enemySamGroups = draft.coalitions[enemyCoalition].samGroups.filter(
-    (sam) => !sam.destroyed && !targetedSamIds.has(sam.id)
+    (sam) => !isSamFullyDestroyed(sam) && !targetedSamIds.has(sam.id)
   )
 
   if (enemySamGroups.length === 0) {

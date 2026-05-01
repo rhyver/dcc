@@ -238,7 +238,7 @@ export function Settings() {
                     ) : null}
                     <p className="text-xs text-gray-500">
                       Select the DCS World install root, for example the folder that contains
-                      `bin\DCS.exe`.
+                      `bin\DCS.exe` or `bin\DCS_server.exe`.
                     </p>
                   </div>
 

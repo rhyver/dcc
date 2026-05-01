@@ -62,7 +62,7 @@ function readBackupMeta(backupMetaPath: string): BackupMeta | null {
   }
 }
 
-function findMissionScriptingPath(settingsInstallPath: string | null) {
+export function findMissionScriptingPath(settingsInstallPath: string | null) {
   const candidates: string[] = []
   const explicitPath = process.env.DCS_INSTALL_PATH
 
@@ -81,6 +81,8 @@ function findMissionScriptingPath(settingsInstallPath: string | null) {
   for (const basePath of programFiles) {
     candidates.push(path.join(basePath, 'Eagle Dynamics', 'DCS World'))
     candidates.push(path.join(basePath, 'Eagle Dynamics', 'DCS World OpenBeta'))
+    candidates.push(path.join(basePath, 'Eagle Dynamics', 'DCS World Server'))
+    candidates.push(path.join(basePath, 'Eagle Dynamics', 'DCS World OpenBeta Server'))
   }
 
   for (const installPath of candidates) {

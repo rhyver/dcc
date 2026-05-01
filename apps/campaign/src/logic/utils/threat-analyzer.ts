@@ -1,5 +1,5 @@
 import { schemas } from '@dcc/contracts'
-import { samTemplates } from '@dcc/data'
+import { isSamOperational, samTemplates } from '@dcc/data'
 import * as z from 'zod'
 import { calculateDistance } from './calculate-distance'
 import { getObjectivePosition } from './get-objective-position'
@@ -44,8 +44,8 @@ export function findThreateningSams(
   const threateningSams: ThreateningSam[] = []
 
   for (const samGroup of enemySamGroups) {
-    // Skip destroyed or suppressed SAMs
-    if (samGroup.destroyed || samGroup.suppressed) {
+    // Skip SAMs that have lost required fire-control components.
+    if (!isSamOperational(samGroup)) {
       continue
     }
 

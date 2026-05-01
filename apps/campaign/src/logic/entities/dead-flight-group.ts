@@ -112,7 +112,8 @@ export class DeadFlightGroup extends FlightGroup {
       // Each aircraft makes one attack attempt
       for (const aircraft of this._data.aircrafts) {
         if (Math.random() <= 0.5) {
-          // Successful attack - mark SAM as destroyed
+          // Successful attack - mark every SAM component as destroyed.
+          samGroup.deadUnitIndexes = samTemplate.units.map((_, index) => index)
           samGroup.destroyed = true
           debugLog(`DEAD aircraft ${aircraft.unitName} destroyed ${samGroup.type}`)
           logCombatAction(

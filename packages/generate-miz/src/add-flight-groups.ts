@@ -344,21 +344,40 @@ function ensureFirstWaypointEplrs(
   const firstWaypoint = routePoints[0]
   if (!firstWaypoint) return
 
-  firstWaypoint.task ??= {
-    id: 'ComboTask',
-    params: {
-      tasks: []
+  type ComboTask = {
+    id: 'ComboTask'
+    params: { tasks: unknown[] }
+  }
+
+  const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null
+
+  const isComboTask = (value: unknown): value is ComboTask => {
+    if (!isRecord(value)) return false
+    if (value.id !== 'ComboTask') return false
+    if (!isRecord(value.params)) return false
+    return Array.isArray(value.params.tasks)
+  }
+
+  const isEplrsWrappedActionTask = (value: unknown): boolean => {
+    if (!isRecord(value)) return false
+    if (value.id !== 'WrappedAction') return false
+    if (!isRecord(value.params)) return false
+    if (!isRecord(value.params.action)) return false
+    if (value.params.action.id !== 'EPLRS') return false
+    if (!isRecord(value.params.action.params)) return false
+    return value.params.action.params.value === true
+  }
+
+  if (!isComboTask(firstWaypoint.task)) {
+    firstWaypoint.task = {
+      id: 'ComboTask',
+      params: { tasks: [] }
     }
   }
-  firstWaypoint.task.params.tasks ??= []
 
-  const tasks = firstWaypoint.task.params.tasks
-  const hasEplrs = tasks.some(
-    (task: z.infer<typeof schemas.dcs.task>) =>
-      task.id === 'WrappedAction' &&
-      task.params?.action?.id === 'EPLRS' &&
-      task.params.action.params?.value === true
-  )
+  const tasks = (firstWaypoint.task as ComboTask).params.tasks
+  const hasEplrs = tasks.some(isEplrsWrappedActionTask)
 
   if (hasEplrs) return
 

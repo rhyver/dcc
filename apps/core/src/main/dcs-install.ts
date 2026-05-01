@@ -1,7 +1,12 @@
 import path from 'path'
 import { existsSync } from 'fs'
 
-const dcsExecutablePaths = ['bin/DCS.exe', 'bin-mt/DCS.exe']
+const dcsExecutablePaths = [
+  'bin/DCS.exe',
+  'bin-mt/DCS.exe',
+  'bin/DCS_server.exe',
+  'bin-mt/DCS_server.exe'
+]
 
 export function validateDcsInstallPath(installPath: string) {
   const trimmedPath = installPath.trim()
@@ -16,7 +21,8 @@ export function validateDcsInstallPath(installPath: string) {
   if (!existsSync(missionScriptingPath)) {
     return {
       valid: false,
-      message: 'This does not look like the DCS World install root. Select the folder that contains bin/DCS.exe.'
+      message:
+        'This does not look like the DCS World install root. Select the folder that contains bin/DCS.exe or bin/DCS_server.exe.'
     }
   }
 
@@ -27,7 +33,8 @@ export function validateDcsInstallPath(installPath: string) {
   if (!hasDcsExecutable) {
     return {
       valid: false,
-      message: 'This does not look like the DCS World install root. Select the folder that contains bin/DCS.exe.'
+      message:
+        'This does not look like the DCS World install root. Select the folder that contains bin/DCS.exe or bin/DCS_server.exe.'
     }
   }
 

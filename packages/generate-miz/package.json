@@ -8,6 +8,7 @@
     "tsc": "tsc --noEmit",
     "lint": "eslint ./src",
     "lint:fix": "eslint ./src --fix",
+    "test": "vitest run --exclude \"dist/**\"",
     "clean": "rm -rf .turbo node_modules dist",
     "build": "tsc"
   },

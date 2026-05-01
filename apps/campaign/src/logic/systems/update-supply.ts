@@ -1,4 +1,5 @@
 import { schemas } from '@dcc/contracts'
+import { isSamOperational } from '@dcc/data'
 import type * as z from 'zod'
 
 type Campaign = z.infer<typeof schemas.campaign.campaign>
@@ -56,7 +57,7 @@ export function calculateConsumptionRate(
 
   // SAM sites: 5 points per tick when active
   const samGroups = draft.coalitions[coalition].samGroups.filter(
-    (sam) => sam.objectiveId === nodeId
+    (sam) => sam.objectiveId === nodeId && isSamOperational(sam)
   )
   rate += samGroups.length * 5
 

@@ -118,3 +118,106 @@ export const samTemplates: Record<
     range: 47_400
   }
 }
+
+type SamState = {
+  type: z.infer<typeof schemas.samType>
+  destroyed?: boolean
+  suppressed?: boolean
+  deadUnitIndexes?: number[]
+}
+
+export function getSamDeadUnitIndexes(sam: SamState): Set<number> {
+  return new Set(
+    (sam.deadUnitIndexes ?? []).filter((index) => Number.isInteger(index) && index >= 0)
+  )
+}
+
+export function isSamFullyDestroyed(sam: SamState): boolean {
+  const template = samTemplates[sam.type]
+  if (!template) return Boolean(sam.destroyed)
+
+  if (sam.destroyed && (sam.deadUnitIndexes?.length ?? 0) === 0) return true
+
+  const deadUnitIndexes = getSamDeadUnitIndexes(sam)
+  return template.units.every((_, index) => deadUnitIndexes.has(index))
+}
+
+type SamComponentRole = 'launcher' | 'searchRadar' | 'trackRadar' | 'radar'
+
+function getSamComponentRoles(unitName: string): Set<SamComponentRole> {
+  const normalized = unitName.toLowerCase()
+  const roles = new Set<SamComponentRole>()
+
+  if (
+    normalized.includes('launcher') ||
+    normalized.includes('volhov') ||
+    normalized.endsWith(' ln') ||
+    normalized.includes(' ln ')
+  ) {
+    roles.add('launcher')
+  }
+
+  if (
+    normalized.includes(' str') ||
+    normalized.includes(' tr') ||
+    normalized.includes('snr') ||
+    normalized.includes('rpc') ||
+    normalized.includes('cwar')
+  ) {
+    roles.add('trackRadar')
+    roles.add('radar')
+  }
+
+  if (
+    normalized.includes(' str') ||
+    normalized.includes(' sr') ||
+    normalized.includes('rls') ||
+    normalized.includes('p-19') ||
+    normalized.includes('64h6')
+  ) {
+    roles.add('searchRadar')
+    roles.add('radar')
+  }
+
+  return roles
+}
+
+function isLauncherUnit(unitName: string): boolean {
+  return getSamComponentRoles(unitName).has('launcher')
+}
+
+function everyComponentRoleDestroyed(
+  template: z.infer<typeof schemas.samTemplate>,
+  deadUnitIndexes: Set<number>,
+  role: SamComponentRole
+): boolean {
+  const roleIndexes = template.units
+    .map((unitName, index) => ({ roles: getSamComponentRoles(unitName), index }))
+    .filter((unit) => unit.roles.has(role))
+    .map((unit) => unit.index)
+
+  return roleIndexes.length > 0 && roleIndexes.every((index) => deadUnitIndexes.has(index))
+}
+
+export function isSamHardwareCapable(sam: SamState): boolean {
+  if (isSamFullyDestroyed(sam)) return false
+  const template = samTemplates[sam.type]
+  if (!template) return false
+
+  const deadUnitIndexes = getSamDeadUnitIndexes(sam)
+  if (
+    everyComponentRoleDestroyed(template, deadUnitIndexes, 'searchRadar') ||
+    everyComponentRoleDestroyed(template, deadUnitIndexes, 'trackRadar') ||
+    everyComponentRoleDestroyed(template, deadUnitIndexes, 'radar')
+  ) {
+    return false
+  }
+
+  return template.units.some(
+    (unitName, index) => !deadUnitIndexes.has(index) && isLauncherUnit(unitName)
+  )
+}
+
+export function isSamOperational(sam: SamState): boolean {
+  return !sam.suppressed && isSamHardwareCapable(sam)
+}

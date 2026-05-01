@@ -59,6 +59,7 @@ export const campaignSamGroup = z.object({
   id: z.string(),
   type: samType,
   objectiveId: z.string(),
+  deadUnitIndexes: z.array(z.number().int().nonnegative()).optional(),
   suppressed: z.boolean().optional(),
   destroyed: z.boolean().optional()
 })

@@ -5,6 +5,7 @@ import { ArrowLeft, Clock, CloudSun, Plane, Sun, Target, Wind, X } from 'lucide-
 import { useNavigate } from 'react-router'
 import { produce } from 'immer'
 import { schemas } from '@dcc/contracts'
+import { samTemplates } from '@dcc/data'
 import * as z from 'zod'
 
 import { activeStore, resetFlightGroupClientSelections } from '@/stores/active'
@@ -70,6 +71,36 @@ function getGeneratedGroundGroupId(name: string): string | null {
   return match?.[1] ?? null
 }
 
+function addLostSamUnitIndex(
+  sam: Campaign['coalitions']['player']['samGroups'][number],
+  lostUnit: MissionState['lostUnits'][number],
+  deadUnitIndexes: Set<number>
+): boolean {
+  const namePrefix = `SAM-${sam.id}-`
+  const groupName = lostUnit.groupName ?? undefined
+
+  if (!lostUnit.name.startsWith(namePrefix) && !groupName?.startsWith(namePrefix)) {
+    return false
+  }
+
+  const generatedIndex = getGeneratedUnitIndex(lostUnit.name)
+  if (generatedIndex != null) {
+    deadUnitIndexes.add(generatedIndex)
+    return true
+  }
+
+  const template = samTemplates[sam.type]
+  const typeIndex = template?.units.findIndex(
+    (unitType, index) => unitType === lostUnit.type && !deadUnitIndexes.has(index)
+  )
+  if (typeIndex != null && typeIndex >= 0) {
+    deadUnitIndexes.add(typeIndex)
+    return true
+  }
+
+  return true
+}
+
 function syncGroundGroupsFromMissionState(
   draft: Campaign,
   coalition: 'player' | 'opponent',
@@ -111,7 +142,8 @@ function syncGroundGroupsFromMissionState(
 }
 
 function applyMissionStateUpdate(campaign: Campaign, missionState: MissionState): Campaign {
-  const lostUnitNames = new Set(missionState.lostUnits?.map((unit) => unit.name) ?? [])
+  const lostUnits = missionState.lostUnits ?? []
+  const lostUnitNames = new Set(lostUnits.map((unit) => unit.name))
   const groupPositions = missionState.groupPositions
   const cargoDeliveries = missionState.cargoDeliveries ?? {}
   const transportDeliveryRadiusMeters = 2000
@@ -195,9 +227,22 @@ function applyMissionStateUpdate(campaign: Campaign, missionState: MissionState)
     if (lostUnitNames.size > 0) {
       for (const coalition of ['player', 'opponent'] as const) {
         for (const sam of draft.coalitions[coalition].samGroups) {
-          const namePrefix = `SAM-${sam.id}-`
-          if ([...lostUnitNames].some((name) => name.startsWith(namePrefix))) {
+          const deadUnitIndexes = new Set(sam.deadUnitIndexes ?? [])
+          let sawLostSamUnit = false
+
+          for (const lostUnit of lostUnits) {
+            sawLostSamUnit = addLostSamUnitIndex(sam, lostUnit, deadUnitIndexes) || sawLostSamUnit
+          }
+
+          if (deadUnitIndexes.size > 0) {
+            sam.deadUnitIndexes = [...deadUnitIndexes].sort((a, b) => a - b)
+          }
+
+          const template = samTemplates[sam.type]
+          if (template && template.units.every((_, index) => deadUnitIndexes.has(index))) {
             sam.destroyed = true
+          } else if (sawLostSamUnit) {
+            sam.destroyed = false
           }
         }
 

@@ -10,7 +10,7 @@ import { autoUpdater } from 'electron-updater'
 import icon from '../../resources/icon.png?asset'
 import { rpcHandler } from './api'
 import { readFile, parseJson, writeFile } from './utils'
-import { enableDcsPersistenceForAppRuntime } from './dcs-persistence'
+import { enableDcsPersistenceForAppRuntime, findMissionScriptingPath } from './dcs-persistence'
 import { registerMissionGeneratorChatHandlers } from './api/mission-generator/chat-handler'
 import { stateFile } from './app-data'
 import { validateDcsInstallPath } from './dcs-install'
@@ -123,13 +123,18 @@ type AppState = {
   activeCampaignId?: string
   settings?: {
     missionExportPath?: string
+    dcsInstallPath?: string
   }
 }
 
 const savedGamesVariants = ['DCS', 'DCS.openbeta', 'DCS.openbeta_server', 'DCS_server']
 
 function sanitizeZipPathSegment(value: string) {
-  return value.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').replace(/\.+$/g, '_') || 'unknown'
+  const replaced = value.replace(/[<>:"/\\|?*]/g, '_')
+  const withoutControlChars = Array.from(replaced, (ch) => (ch.charCodeAt(0) < 32 ? '_' : ch)).join(
+    ''
+  )
+  return withoutControlChars.replace(/\.+$/g, '_') || 'unknown'
 }
 
 function detectMissionExportDirectory() {
@@ -212,6 +217,11 @@ async function collectDebugBundleCandidates(): Promise<DebugBundleCandidate[]> {
     )
   }
 
+  const missionScriptingPath = findMissionScriptingPath(state.settings?.dcsInstallPath ?? null)
+  if (missionScriptingPath) {
+    await addIfFile(candidates, missionScriptingPath, 'dcs/MissionScripting.lua')
+  }
+
   const savedGamesRoot = join(app.getPath('home'), 'Saved Games')
   const missionDirectories = [
     resolveMissionExportDirectory(state.settings?.missionExportPath),
@@ -220,7 +230,10 @@ async function collectDebugBundleCandidates(): Promise<DebugBundleCandidate[]> {
 
   await Promise.all(
     missionDirectories.map(async (directory, index) => {
-      const prefix = index === 0 ? 'mission' : `mission-candidates/${sanitizeZipPathSegment(basename(dirname(directory)))}`
+      const prefix =
+        index === 0
+          ? 'mission'
+          : `mission-candidates/${sanitizeZipPathSegment(basename(dirname(directory)))}`
       await addIfFile(candidates, join(directory, 'dcc_mission.miz'), `${prefix}/dcc_mission.miz`)
       await addIfFile(candidates, join(directory, 'dcc_state.json'), `${prefix}/dcc_state.json`)
     })

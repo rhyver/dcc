@@ -9,6 +9,13 @@ import { addFlightGroups, type CasFlightConfig } from './add-flight-groups'
 import { addGroundGroups } from './add-ground-groups'
 import { addStructures } from './add-structures'
 import { dictionary, mapResource } from './l10n'
+import {
+  createDoScriptAction,
+  createDoScriptFileAction,
+  createLoggedStartupAction,
+  createTriggerFunction,
+  createTriggerFunctionMap
+} from './mission-config-trigger'
 import { options } from './options'
 import casLuaScript from './scripts/cas.lua?raw'
 import ctldLuaScript from './scripts/ctld.lua?raw'
@@ -114,8 +121,7 @@ function addTransportCargoTriggers(
         'a_out_text_delay(getValueDictByKey("DictKey_ActionText_6"), 10, false, 0);'
       trig.conditions[actionIndex] = `return(c_cargo_unhooked_in_zone("ANY_BLUE", ${zoneId}) )`
       trig.flag[actionIndex] = true
-      trig.funcStartup[actionIndex] =
-        `if mission.trig.conditions[${actionIndex}]() then mission.trig.actions[${actionIndex}]() end`
+      trig.funcStartup[actionIndex] = createTriggerFunction(actionIndex)
 
       trigrules[ruleIndex] = {
         rules: {
@@ -288,23 +294,22 @@ export function generateMizFromCampaign(
     },
     trig: {
       actions: {
-        1: `a_do_script("config = { missionId = '${campaign.id}', flightGroups = {} }")`,
-        2: 'a_do_script_file(getValueResourceByKey("mist"))',
-        3: 'a_do_script_file(getValueResourceByKey("state"))',
-        4: 'a_do_script_file(getValueResourceByKey("ctld"))',
-        5: 'a_do_script_file(getValueResourceByKey("splash_damage"))',
-        6: 'a_do_script_file(getValueResourceByKey("cas"))'
+        1: createLoggedStartupAction(
+          'Loading config',
+          `a_do_script("config = { missionId = '${campaign.id}', flightGroups = {} }")`
+        ),
+        2: createLoggedStartupAction('Loading mist', createDoScriptFileAction('ResKey_Action_10')),
+        3: createLoggedStartupAction('Loading state', createDoScriptFileAction('ResKey_Action_8')),
+        4: createLoggedStartupAction('Loading ctld', createDoScriptFileAction('ResKey_Action_17')),
+        5: createLoggedStartupAction(
+          'Loading splash damage',
+          createDoScriptFileAction('ResKey_Action_7')
+        ),
+        6: createLoggedStartupAction('Loading cas', createDoScriptFileAction('ResKey_Action_16'))
       },
       events: {},
       custom: {},
-      func: {
-        1: 'if true then return true end',
-        2: 'if true then return true end',
-        3: 'if true then return true end',
-        4: 'if true then return true end',
-        5: 'if true then return true end',
-        6: 'if true then return true end'
-      },
+      func: {},
       flag: {
         1: true,
         2: true,
@@ -314,21 +319,21 @@ export function generateMizFromCampaign(
         6: true
       },
       conditions: {
-        1: 'return(c_time_after(1))',
-        2: 'return(c_time_after(2))',
-        3: 'return(c_time_after(3))',
-        4: 'return(c_time_after(4))',
-        5: 'return(c_time_after(5))',
-        6: 'return(c_time_after(6))'
+        1: 'return(true)',
+        2: 'return(true)',
+        3: 'return(true)',
+        4: 'return(true)',
+        5: 'return(true)',
+        6: 'return(true)'
       },
       customStartup: {},
-      funcStartup: {}
+      funcStartup: createTriggerFunctionMap([1, 2, 3, 4, 5, 6])
     },
     trigrules: {
       1: {
-        rules: { 1: { coalitionlist: 'all', seconds: 1, predicate: 'c_time_after' } },
+        rules: {},
         eventlist: '',
-        predicate: 'triggerOnce',
+        predicate: 'triggerStart',
         comment: 'DCC Config',
         actions: {
           1: { predicate: 'a_do_script', text: `config = { missionId = '${campaign.id}' }` }
@@ -336,43 +341,43 @@ export function generateMizFromCampaign(
         colorItem: '0x00ffffff'
       },
       2: {
-        rules: { 1: { coalitionlist: 'all', seconds: 2, predicate: 'c_time_after' } },
+        rules: {},
         eventlist: '',
-        predicate: 'triggerOnce',
+        predicate: 'triggerStart',
         comment: 'MIST Script',
-        actions: { 1: { predicate: 'a_do_script_file', file: 'mist' } },
+        actions: { 1: { predicate: 'a_do_script_file', file: 'ResKey_Action_10' } },
         colorItem: '0x00ffffff'
       },
       3: {
-        rules: { 1: { coalitionlist: 'all', seconds: 3, predicate: 'c_time_after' } },
+        rules: {},
         eventlist: '',
-        predicate: 'triggerOnce',
+        predicate: 'triggerStart',
         comment: 'DCC State Script',
-        actions: { 1: { predicate: 'a_do_script_file', file: 'state' } },
+        actions: { 1: { predicate: 'a_do_script_file', file: 'ResKey_Action_8' } },
         colorItem: '0x00ffffff'
       },
       4: {
-        rules: { 1: { coalitionlist: 'all', seconds: 4, predicate: 'c_time_after' } },
+        rules: {},
         eventlist: '',
-        predicate: 'triggerOnce',
+        predicate: 'triggerStart',
         comment: 'CTLD Script',
-        actions: { 1: { predicate: 'a_do_script_file', file: 'ctld' } },
+        actions: { 1: { predicate: 'a_do_script_file', file: 'ResKey_Action_17' } },
         colorItem: '0x00ffffff'
       },
       5: {
-        rules: { 1: { coalitionlist: 'all', seconds: 5, predicate: 'c_time_after' } },
+        rules: {},
         eventlist: '',
-        predicate: 'triggerOnce',
+        predicate: 'triggerStart',
         comment: 'Splash Damage Script',
-        actions: { 1: { predicate: 'a_do_script_file', file: 'splash_damage' } },
+        actions: { 1: { predicate: 'a_do_script_file', file: 'ResKey_Action_7' } },
         colorItem: '0x00ffffff'
       },
       6: {
-        rules: { 1: { coalitionlist: 'all', seconds: 6, predicate: 'c_time_after' } },
+        rules: {},
         eventlist: '',
-        predicate: 'triggerOnce',
+        predicate: 'triggerStart',
         comment: 'CAS JTAC Script',
-        actions: { 1: { predicate: 'a_do_script_file', file: 'cas' } },
+        actions: { 1: { predicate: 'a_do_script_file', file: 'ResKey_Action_16' } },
         colorItem: '0x00ffffff'
       }
     },
@@ -399,7 +404,10 @@ export function generateMizFromCampaign(
     missionId: campaign.id,
     flightGroups: flightGroupsResult.value
   }
-  const scriptConfigLuaResult = luaTable.stringify(scriptConfig, { mixedKeyTypes: true })
+  const scriptConfigLuaResult = luaTable.stringify(scriptConfig, {
+    mixedKeyTypes: true,
+    pretty: false
+  })
   if (scriptConfigLuaResult.isErr()) {
     return err(scriptConfigLuaResult.error)
   }
@@ -410,10 +418,11 @@ export function generateMizFromCampaign(
   if (!configTriggerRule) {
     return err(new Error('Mission config trigger rule is missing'))
   }
-  trig.actions[1] = `a_do_script("config = ${scriptConfigLua}")`
+  const configScript = `config = ${scriptConfigLua}`
+  trig.actions[1] = createLoggedStartupAction('Loading config', createDoScriptAction(configScript))
   configTriggerRule.actions[1] = {
     predicate: 'a_do_script',
-    text: `config = ${scriptConfigLua}`
+    text: configScript
   }
 
   addTransportCargoTriggers(mission, campaign)

@@ -58,8 +58,8 @@ export function assignStructures(
       name: string
       resources: number
       buildings: z.infer<typeof schemas.structureBuilding>[]
-  }
->() // objectiveId -> assignment info
+    }
+  >() // objectiveId -> assignment info
   const coveredObjectives = new Map<StructureType, Set<string>>() // type -> Set<objectiveId>
 
   // Initialize coverage sets
@@ -91,8 +91,7 @@ export function assignStructures(
           !assignments.has(obj.id) &&
           !Array.from(assignments.values()).some(
             (assignment) =>
-              assignment.type === type &&
-              getDistance(obj.position, assignment.position) < range
+              assignment.type === type && getDistance(obj.position, assignment.position) < range
           )
       )
 

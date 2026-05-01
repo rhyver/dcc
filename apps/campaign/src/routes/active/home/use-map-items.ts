@@ -3,7 +3,7 @@ import { useSelector } from '@xstate/store/react'
 import { useMemo } from 'react'
 import * as z from 'zod'
 import { schemas } from '@dcc/contracts'
-import { samTemplates } from '@dcc/data'
+import { isSamOperational, samTemplates } from '@dcc/data'
 import { useQuery } from '@tanstack/react-query'
 import { orpc } from '@/lib/orpc'
 import { LOtoLL } from '@kilcekru/dcs-coordinates'
@@ -235,7 +235,7 @@ export function useMapItems(): {
     }
 
     const addSamMarkers = (
-      samGroups: Array<{ id: string; type: z.infer<typeof schemas.samType>; objectiveId: string }>,
+      samGroups: Array<z.infer<typeof schemas.campaign.campaignSamGroup>>,
       coalition: z.infer<typeof schemas.coalition>
     ) => {
       for (const samGroup of samGroups) {
@@ -259,7 +259,7 @@ export function useMapItems(): {
           coalition,
           position: latLng,
           range: samTemplate.range,
-          active: true
+          active: isSamOperational(samGroup)
         })
       }
     }

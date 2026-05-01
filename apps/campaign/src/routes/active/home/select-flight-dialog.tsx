@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Plane, ChevronLeft, User, PlaneTakeoff, RotateCcw, X } from 'lucide-react'
+import { Plane, ChevronLeft, User, PlaneTakeoff, RotateCcw, X, Plus } from 'lucide-react'
 import { useSelector } from '@xstate/store/react'
+import { schemas } from '@dcc/contracts'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -15,6 +16,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { activeStore } from '@/stores/active'
 import { getAircraftDisplayName } from '@/lib/aircraft-display'
 import { featureFlags } from '@/lib/feature-flags'
+import { canCreateManualFlightGroup } from '@/logic/systems/spawn/manual-flight-group'
 
 function formatTime(date: Date | string) {
   const d = new Date(date)
@@ -39,6 +41,10 @@ export function SelectFlightDialog({ open, onOpenChange }: SelectFlightDialogPro
     (state) => state.context.coalitions.player.flightGroups
   )
   const campaignTime = useSelector(activeStore, (state) => state.context.time)
+  const canCreateSelectedTask = useSelector(activeStore, (state) => {
+    const task = schemas.task.safeParse(selectedTask)
+    return task.success ? canCreateManualFlightGroup(state.context, 'player', task.data) : false
+  })
   const currentTime = campaignTime ? new Date(campaignTime) : new Date()
 
   // Group flight groups by task, only include tasks that have groups
@@ -235,6 +241,29 @@ export function SelectFlightDialog({ open, onOpenChange }: SelectFlightDialogPro
             <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
             Reset
           </Button>
+          {selectedTask && (
+            <>
+              {canCreateSelectedTask && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-synthwave-cyan/40 text-synthwave-cyan hover:bg-synthwave-cyan/20 hover:text-white"
+                  onClick={() => {
+                    const task = schemas.task.safeParse(selectedTask)
+                    if (!task.success) return
+
+                    activeStore.send({
+                      type: 'createManualPlayerFlightGroup',
+                      task: task.data
+                    })
+                  }}
+                >
+                  <Plus className="mr-1.5 h-3.5 w-3.5" />
+                  New
+                </Button>
+              )}
+            </>
+          )}
           {selectedTask && (
             <Button
               variant="outline"

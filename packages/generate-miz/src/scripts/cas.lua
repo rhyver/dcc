@@ -26,6 +26,19 @@ local function sendMessageToUnits(text, unitNames, duration)
     trigger.action.outText(text, duration or 5)
 end
 
+local function getObjectName(object)
+    if not object or not object.getName then
+        return nil
+    end
+
+    local ok, name = pcall(function() return object:getName() end)
+    if ok then
+        return name
+    end
+
+    return nil
+end
+
 local function getFlightGroupUnitNames(groupName)
     local unitNames = {}
     local group = Group.getByName(groupName)
@@ -197,15 +210,24 @@ function DCC_CAS.OnTargetDead(groupName, unitName)
 end
 
 function DCC_CAS:onEvent(event)
-    if event.id == world.event.S_EVENT_BIRTH and event.initiator then
+    if not event or not event.initiator then
+        return
+    end
+
+    if event.id == world.event.S_EVENT_BIRTH then
         local unit = event.initiator
+        if not unit.getGroup then return end
+
         local group = unit:getGroup()
-        if group and DCC_CAS.groups[group:getName()] then
-            DCC_CAS.groups[group:getName()].groupId = group:getID()
-            DCC_CAS.CreateMenu(group:getName())
+        local groupName = getObjectName(group)
+        if groupName and DCC_CAS.groups[groupName] then
+            DCC_CAS.groups[groupName].groupId = group:getID()
+            DCC_CAS.CreateMenu(groupName)
         end
-    elseif event.id == world.event.S_EVENT_DEAD and event.initiator then
-        local unitName = event.initiator:getName()
+    elseif event.id == world.event.S_EVENT_DEAD then
+        local unitName = getObjectName(event.initiator)
+        if not unitName then return end
+
         local groupName = DCC_CAS.targets[unitName]
         if groupName then
             DCC_CAS.OnTargetDead(groupName, unitName)

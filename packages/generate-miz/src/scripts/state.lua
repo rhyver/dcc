@@ -1,5 +1,10 @@
 local logName = 'DCC.STATE'
 local function debugLog(message) log.write(logName, log.INFO, tostring(message)) end
+local autosaveIntervalSeconds = 30
+
+local function debugError(context, error)
+    debugLog(tostring(context)..": "..tostring(error))
+end
 
 local function isArray(value)
     if type(value) ~= 'table' then
@@ -73,7 +78,11 @@ end
 
 local function encodeMissionState(value)
     if json and json.encode then
-        return json:encode(value)
+        local ok, encoded = pcall(function() return json:encode(value) end)
+        if ok and encoded then
+            return encoded
+        end
+        debugError('json.encode failed, using fallback encoder', encoded)
     end
 
     return encodeJsonValue(value)
@@ -352,7 +361,7 @@ local function messageAll(message, displayTime)
 end
 
 local function canWrite(name)
-    local f = io.open(name, "w")
+    local f = io.open(name, "a")
     if f then
         f:close()
         return true
@@ -495,26 +504,82 @@ end
 
 local function export()
     if io and filePath then
-        local fp = io.open(filePath, 'w')
-        if fp then
-            fp:write(encodeMissionState(missionState))
-            fp:close()
-            debugLog('State exported successfully')
+        local ok, error = pcall(function()
+            local encodedState = encodeMissionState(missionState)
+            local fp = io.open(filePath, 'w')
+            if fp then
+                fp:write(encodedState)
+                fp:close()
+                debugLog('State exported successfully')
+            else
+                debugLog('State export failed: could not open file for writing')
+            end
+        end)
+
+        if not ok then
+            debugError('State export failed', error)
         end
     end
 end
 
+local function collectPositions(label, callback, fallback)
+    local ok, result = pcall(callback)
+    if ok then
+        return result
+    end
+
+    debugError('Failed to collect '..label, result)
+    return fallback or {}
+end
+
 local function writeState()
-    -- Collect aircraft group positions
-    missionState.groupPositions.blue.aircraft = getAircraftGroupPositions("blue")
-    missionState.groupPositions.red.aircraft = getAircraftGroupPositions("red")
-    
-    -- Collect ground group positions
-    missionState.groupPositions.blue.ground = getGroundGroupPositions("blue")
-    missionState.groupPositions.red.ground = getGroundGroupPositions("red")
+    missionState.groupPositions.blue.aircraft = collectPositions(
+        'blue aircraft positions',
+        function() return getAircraftGroupPositions("blue") end,
+        missionState.groupPositions.blue.aircraft
+    )
+    missionState.groupPositions.red.aircraft = collectPositions(
+        'red aircraft positions',
+        function() return getAircraftGroupPositions("red") end,
+        missionState.groupPositions.red.aircraft
+    )
+    missionState.groupPositions.blue.ground = collectPositions(
+        'blue ground positions',
+        function() return getGroundGroupPositions("blue") end,
+        missionState.groupPositions.blue.ground
+    )
+    missionState.groupPositions.red.ground = collectPositions(
+        'red ground positions',
+        function() return getGroundGroupPositions("red") end,
+        missionState.groupPositions.red.ground
+    )
     
     missionState.time = timer.getAbsTime()
     export()
+end
+
+local function saveState(reason)
+    debugLog('Saving state: '..tostring(reason or 'unspecified'))
+    local ok, error = pcall(writeState)
+    if not ok then
+        debugError('Save state failed', error)
+    end
+end
+
+local function scheduleAutosave()
+    if not timer or not timer.scheduleFunction then
+        return
+    end
+
+    timer.scheduleFunction(function()
+        if missionState.missionEnded then
+            return nil
+        end
+
+        debugLog('Autosaving state')
+        saveState('autosave')
+        return timer.getTime() + autosaveIntervalSeconds
+    end, {}, timer.getTime() + 5)
 end
 
 getInitiatorGroup = function(initiator)
@@ -522,8 +587,7 @@ getInitiatorGroup = function(initiator)
     return safeCall(function() return initiator:getGroup() end, nil)
 end
 
-local ev = {}
-function ev:onEvent(event)
+local function handleEvent(event)
     debugLog('onEvent: '..event.id)
     
     -- UNIT DESTRUCTION
@@ -532,6 +596,7 @@ function ev:onEvent(event)
         recordLostUnit(event.initiator, 'unit_lost', {
             lossType = 'lost'
         })
+        saveState('unit lost')
     end
 
     if event.id == world.event.S_EVENT_DEAD then
@@ -539,6 +604,7 @@ function ev:onEvent(event)
         recordLostUnit(event.initiator, 'dead', {
             lossType = 'destroyed'
         })
+        saveState('dead')
     end
 
     if event.id == world.event.S_EVENT_KILL then
@@ -553,6 +619,7 @@ function ev:onEvent(event)
             killCause = 'direct',
             lossType = 'killed'
         })
+        saveState('kill')
     end
 
     if event.id == world.event.S_EVENT_CRASH then
@@ -560,6 +627,7 @@ function ev:onEvent(event)
         recordLostUnit(event.initiator, 'crash', {
             lossType = 'crashed'
         })
+        saveState('crash')
     end
 
     if event.id == world.event.S_EVENT_EJECTION then
@@ -567,6 +635,7 @@ function ev:onEvent(event)
         recordLostUnit(event.initiator, 'ejection', {
             lossType = 'ejected'
         })
+        saveState('ejection')
     end
 
     if event.id == world.event.S_EVENT_PILOT_DEAD then
@@ -574,6 +643,7 @@ function ev:onEvent(event)
         recordLostUnit(event.initiator, 'pilot_dead', {
             lossType = 'pilot_dead'
         })
+        saveState('pilot dead')
     end
 
     -- LANDING (for cargo deliveries)
@@ -592,6 +662,7 @@ function ev:onEvent(event)
         if groupName and transportGroups[groupName] then
             local position = initiator:getPosition().p
             recordCargoDelivery(groupName, position, 'landing')
+            saveState('cargo landing')
         end
     end
 
@@ -616,8 +687,19 @@ function ev:onEvent(event)
                     x = position.x,
                     y = position.z
                 }
+                saveState('pilot landed after ejection')
             end
         end
+    end
+
+    if world.event.S_EVENT_PLAYER_LEAVE_UNIT and event.id == world.event.S_EVENT_PLAYER_LEAVE_UNIT then
+        debugLog('S_EVENT_PLAYER_LEAVE_UNIT - Saving state')
+        saveState('player leave unit')
+    end
+
+    if world.event.S_EVENT_DISCONNECT and event.id == world.event.S_EVENT_DISCONNECT then
+        debugLog('S_EVENT_DISCONNECT - Saving state')
+        saveState('disconnect')
     end
 
     -- PLAYER BIRTH (for logging)
@@ -636,10 +718,20 @@ function ev:onEvent(event)
     if event.id == world.event.S_EVENT_MISSION_END then
         debugLog('S_EVENT_MISSION_END - Saving final state')
         missionState.missionEnded = true
-        writeState()
+        saveState('mission end')
+    end
+end
+
+local ev = {}
+function ev:onEvent(event)
+    local ok, error = pcall(handleEvent, event)
+    if not ok then
+        debugError('Event handler failed', error)
     end
 end
 
 world.addEventHandler(ev)
+saveState('startup')
+scheduleAutosave()
 
 debugLog('DCC State tracking initialized')

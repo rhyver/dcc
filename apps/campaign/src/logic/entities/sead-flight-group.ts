@@ -1,5 +1,5 @@
 import { schemas, config } from '@dcc/contracts'
-import { samTemplates } from '@dcc/data'
+import { isSamHardwareCapable, samTemplates } from '@dcc/data'
 import * as z from 'zod'
 import { FlightGroup } from './flight-group'
 import { calculateDistance } from '../utils/calculate-distance'
@@ -93,6 +93,11 @@ export class SeadFlightGroup extends FlightGroup {
 
     const samTemplate = samTemplates[samGroup.type]
     if (!samTemplate) {
+      return
+    }
+
+    if (!isSamHardwareCapable(samGroup)) {
+      samGroup.suppressed = false
       return
     }
 

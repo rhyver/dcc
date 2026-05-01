@@ -11,7 +11,15 @@ const worldOutputPath = join(mapsRoot, 'world-low.pmtiles')
 const fontsRoot = join(import.meta.dirname, '..', 'public', 'maps', 'fonts')
 const cliRoot = join(import.meta.dirname, '..', '.cache', 'pmtiles-cli')
 const fontStacks = ['Noto Sans Regular', 'Noto Sans Medium', 'Noto Sans Italic']
-const fontRanges = ['0-255']
+const fontRanges = [
+  '0-255',
+  '256-511',
+  '512-767',
+  '768-1023',
+  '1024-1279',
+  '1280-1535',
+  '4096-4351'
+]
 
 type GitHubAsset = {
   name: string

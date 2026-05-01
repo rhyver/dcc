@@ -43,18 +43,20 @@ export function FlightGroupCard({
             ? 'border-amber-400 bg-amber-400/10'
             : 'border-amber-400/40 bg-amber-400/5 hover:bg-amber-400/10'
           : selected
-          ? hasClients
-            ? 'border-cyan-400 bg-cyan-500/20'
-            : 'border-synthwave-pink bg-synthwave-pink/20'
-          : hasClients
-            ? 'border-cyan-400/30 bg-cyan-500/10 hover:bg-cyan-500/20'
-            : 'border-synthwave-pink/10 bg-synthwave-pink/5 hover:bg-synthwave-pink/10'
+            ? hasClients
+              ? 'border-cyan-400 bg-cyan-500/20'
+              : 'border-synthwave-pink bg-synthwave-pink/20'
+            : hasClients
+              ? 'border-cyan-400/30 bg-cyan-500/10 hover:bg-cyan-500/20'
+              : 'border-synthwave-pink/10 bg-synthwave-pink/5 hover:bg-synthwave-pink/10'
       )}
       onClick={onClick}
     >
       <div className="flex flex-col gap-0.5">
         <div className="flex items-center gap-2">
-          <span className={cn('text-sm font-medium', hasClients ? 'text-cyan-300' : 'text-primary')}>
+          <span
+            className={cn('text-sm font-medium', hasClients ? 'text-cyan-300' : 'text-primary')}
+          >
             {group.callsign}
           </span>
           {isAirborne && (

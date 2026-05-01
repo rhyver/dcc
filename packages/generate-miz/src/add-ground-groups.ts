@@ -1,5 +1,5 @@
 import { schemas } from '@dcc/contracts'
-import { samTemplates } from '@dcc/data'
+import { getSamDeadUnitIndexes, isSamFullyDestroyed, samTemplates } from '@dcc/data'
 import { ok, Result } from 'neverthrow'
 import * as z from 'zod'
 
@@ -99,13 +99,20 @@ export function addGroundGroups(
       )
 
       for (const sam of samGroups) {
-        if (sam.destroyed) continue
+        if (isSamFullyDestroyed(sam)) continue
 
         const objective = theatre.objectives.find((o) => o.name === sam.objectiveId)
         if (!objective) continue
 
         const template = samTemplates[sam.type]
         if (!template) continue
+
+        const deadUnitIndexes = getSamDeadUnitIndexes(sam)
+        const liveTemplateUnits = template.units
+          .map((unitType, index) => ({ unitType, index }))
+          .filter((unit) => !deadUnitIndexes.has(unit.index))
+
+        if (liveTemplateUnits.length === 0) continue
 
         const groupId = nextId()
         const groupName = `SAM-${sam.id}-${sam.type}-${groupId}`
@@ -115,7 +122,7 @@ export function addGroundGroups(
         })
         const positions = positionUnits(objective.position, template.units.length, 50, target)
 
-        const units = template.units.map((unitType, index) => {
+        const units = liveTemplateUnits.map(({ unitType, index }) => {
           const pos = positions[index] ?? { ...objective.position, heading: 0 }
           return {
             unitId: nextId(),

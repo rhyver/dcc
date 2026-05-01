@@ -6,6 +6,7 @@ import { spawnCap } from './cap'
 import { spawnCas } from './cas'
 import { spawnTransport } from './transport'
 import { featureFlags } from '@/lib/feature-flags'
+import { enforcePackageStartSpacing } from './package-start-spacing'
 
 export function spawnPackages(
   draft: z.infer<typeof schemas.campaign.campaign>,
@@ -21,4 +22,5 @@ export function spawnPackages(
   if (featureFlags.transportFlightGroups) {
     spawnTransport(draft, coalition)
   }
+  enforcePackageStartSpacing(draft, coalition)
 }

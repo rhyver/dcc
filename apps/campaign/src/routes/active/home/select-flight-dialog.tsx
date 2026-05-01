@@ -17,6 +17,7 @@ import { activeStore } from '@/stores/active'
 import { getAircraftDisplayName } from '@/lib/aircraft-display'
 import { featureFlags } from '@/lib/feature-flags'
 import { canCreateManualFlightGroup } from '@/logic/systems/spawn/manual-flight-group'
+import { hasFlightGroupTakenOff } from '@/logic/entities/flight-status'
 
 function formatTime(date: Date | string) {
   const d = new Date(date)
@@ -113,8 +114,8 @@ export function SelectFlightDialog({ open, onOpenChange }: SelectFlightDialogPro
                 (sum, g) => sum + g.aircrafts.filter((a) => a.client).length,
                 0
               )
-              const airborneCount = groups.filter(
-                (g) => new Date(g.flightplan.startTime) <= currentTime
+              const airborneCount = groups.filter((g) =>
+                hasFlightGroupTakenOff(g, currentTime)
               ).length
               return (
                 <button
@@ -152,7 +153,7 @@ export function SelectFlightDialog({ open, onOpenChange }: SelectFlightDialogPro
           <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
             {groupsByTask.get(selectedTask)!.map((group) => {
               const clientCount = group.aircrafts.filter((a) => a.client).length
-              const isAirborne = new Date(group.flightplan.startTime) <= currentTime
+              const isAirborne = hasFlightGroupTakenOff(group, currentTime)
               return (
                 <div
                   key={group.id}

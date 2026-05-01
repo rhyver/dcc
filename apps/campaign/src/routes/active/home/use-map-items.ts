@@ -8,6 +8,7 @@ import { useQuery } from '@tanstack/react-query'
 import { orpc } from '@/lib/orpc'
 import { LOtoLL } from '@kilcekru/dcs-coordinates'
 import * as turf from '@turf/turf'
+import { hasFlightGroupTakenOff } from '@/logic/entities/flight-status'
 import { getGroundGroupSpawnCost } from '@/logic/systems/spawn/ground-group-costs'
 
 export type ObjectiveMarker = {
@@ -269,9 +270,7 @@ export function useMapItems(): {
       coalition: z.infer<typeof schemas.coalition>
     ) => {
       for (const group of flightGroups) {
-        // Check if group has taken off
-        const startTime = new Date(group.flightplan.startTime)
-        if (campaignTime < startTime) continue
+        if (!hasFlightGroupTakenOff(group, campaignTime)) continue
 
         const latLng = LOtoLL({
           theatre: theatre.name as 'Caucasus',

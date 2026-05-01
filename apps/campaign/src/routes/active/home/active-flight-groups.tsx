@@ -4,6 +4,7 @@ import { useSelector } from '@xstate/store/react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { activeStore } from '@/stores/active'
+import { hasFlightGroupTakenOff } from '@/logic/entities/flight-status'
 import { FlightGroupCard } from '../components/flight-group-card'
 import type { SelectedItem } from './map'
 
@@ -38,7 +39,7 @@ export function ActiveFlightGroups({ selectedItem, onSelect }: ActiveFlightGroup
                 <FlightGroupCard
                   key={group.id}
                   group={group}
-                  isAirborne={new Date(group.flightplan.startTime) <= currentTime}
+                  isAirborne={hasFlightGroupTakenOff(group, currentTime)}
                   selected={selectedItem?.id === group.id}
                   onClick={() => onSelect(selectedItem?.id === group.id ? null : group)}
                 />

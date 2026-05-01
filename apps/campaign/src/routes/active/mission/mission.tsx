@@ -9,6 +9,7 @@ import { samTemplates } from '@dcc/data'
 import * as z from 'zod'
 
 import { activeStore, resetFlightGroupClientSelections } from '@/stores/active'
+import { hasFlightGroupTakenOff } from '@/logic/entities/flight-status'
 import { coreClient, orpc } from '@/lib/orpc'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
@@ -691,7 +692,7 @@ export function Mission() {
                 <FlightGroupCard
                   key={group.id}
                   group={group}
-                  isAirborne={new Date(group.flightplan.startTime) <= currentTime}
+                  isAirborne={hasFlightGroupTakenOff(group, currentTime)}
                 />
               ))}
             </div>

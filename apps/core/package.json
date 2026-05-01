@@ -1,6 +1,6 @@
 {
   "name": "@dcc/core",
-  "version": "0.5.0-2026050102",
+  "version": "0.5.0-2026050103",
   "private": true,
   "main": "./out/main/index.js",
   "scripts": {

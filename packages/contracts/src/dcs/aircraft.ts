@@ -41,7 +41,13 @@ export const aircraft = z.object({
                 missionUnitId: z.number()
               })
             ),
-            donors: z.record(z.string(), z.any())
+            donors: z
+              .array(
+                z.object({
+                  missionUnitId: z.number()
+                })
+              )
+              .or(z.record(z.string(), z.any()))
           })
           .optional()
       })

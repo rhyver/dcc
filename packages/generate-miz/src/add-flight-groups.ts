@@ -294,7 +294,8 @@ function cloneAircraftUnitOption<T>(value: T): T {
 function createAddPropAircraft(
   aircraftDef: z.infer<typeof schemas.dcs.aircraft>,
   groupCallsign: string,
-  index: number
+  index: number,
+  link16StationNumber?: string
 ) {
   if (!aircraftDef.AddPropAircraft) return undefined
 
@@ -303,7 +304,7 @@ function createAddPropAircraft(
 
   Object.entries(addPropAircraft).forEach(([key, value]) => {
     if (value === '{STN_L16}') {
-      addPropAircraft[key] = `002${(index + 1).toString().padStart(2, '0')}`
+      addPropAircraft[key] = link16StationNumber ?? `002${(index + 1).toString().padStart(2, '0')}`
     }
     if (value === '{VoiceCallsignNumber}') {
       addPropAircraft[key] = `${callsign['2']}${callsign['3']}`
@@ -319,19 +320,23 @@ function createAddPropAircraft(
 function createDatalinks(
   aircraftDef: z.infer<typeof schemas.dcs.aircraft>,
   index: number,
-  unitIds: number[]
+  flightUnitIds: number[],
+  coalitionLink16UnitIds: number[]
 ) {
   if (!aircraftDef.datalinks) return undefined
 
   const datalinks = cloneAircraftUnitOption(aircraftDef.datalinks)
+  const networkUnitIds = [...new Set([...flightUnitIds, ...coalitionLink16UnitIds])]
+  const teamMemberUnitIds = networkUnitIds.slice(0, 8)
+  const donorUnitIds = networkUnitIds.slice(8, 12)
 
   datalinks.Link16.settings.flightLead = index === 0
   datalinks.Link16.network = {
-    teamMembers: unitIds.map((unitId) => ({
+    teamMembers: teamMemberUnitIds.map((unitId) => ({
       TDOA: true,
       missionUnitId: unitId
     })),
-    donors: {}
+    donors: donorUnitIds.map((unitId) => ({ missionUnitId: unitId }))
   }
 
   return datalinks
@@ -633,16 +638,57 @@ export function addFlightGroups(
     })
   })
 
-  // First pass: Pre-assign DCS group IDs to all flight groups
-  // This is needed so SEAD flights can reference their escort target's groupId
+  // First pass: Pre-assign DCS group/unit IDs to all flight groups.
+  // Group IDs are needed so SEAD flights can reference their escort target's groupId.
+  // Unit IDs are needed before rendering units so Link-16 networks can include other friendly flights.
   const flightGroupIdToGroupId = new Map<string, number>()
-  for (const [, value] of Object.entries(campaign.coalitions)) {
+  const flightGroupIdToUnitIds = new Map<string, number[]>()
+  const coalitionLink16UnitIds = new Map<string, number[]>()
+  const link16StationNumberByUnitId = new Map<number, string>()
+
+  for (const [key, value] of Object.entries(campaign.coalitions)) {
     const flightGroups = value.flightGroups
     if (!flightGroups) continue
+
+    let link16FlightNumber = 2
 
     for (const fg of flightGroups) {
       const groupId = nextId()
       flightGroupIdToGroupId.set(fg.id, groupId)
+
+      const unitIds = fg.aircrafts.map(() => nextId())
+      flightGroupIdToUnitIds.set(fg.id, unitIds)
+
+      const link16Units = fg.aircrafts
+        .map((aircraft, index) => ({
+          aircraftDef: aircraftMap.get(aircraft.aircraftName),
+          index,
+          unitId: unitIds[index]
+        }))
+        .filter(
+          (
+            unit
+          ): unit is {
+            aircraftDef: z.infer<typeof schemas.dcs.aircraft>
+            index: number
+            unitId: number
+          } => unit.aircraftDef?.datalinks != null && unit.unitId != null
+        )
+
+      if (link16Units.length === 0) continue
+
+      const link16FlightPrefix = link16FlightNumber.toString().padStart(3, '0')
+      link16FlightNumber += 1
+      const link16UnitIds = coalitionLink16UnitIds.get(key) ?? []
+
+      link16Units.forEach(({ index, unitId }) => {
+        link16UnitIds.push(unitId)
+        link16StationNumberByUnitId.set(
+          unitId,
+          `${link16FlightPrefix}${(index + 1).toString().padStart(2, '0')}`
+        )
+      })
+      coalitionLink16UnitIds.set(key, link16UnitIds)
     }
   }
 
@@ -753,7 +799,8 @@ export function addFlightGroups(
       }
 
       // Add units
-      const unitIds = fg.aircrafts.map(() => nextId())
+      const unitIds = flightGroupIdToUnitIds.get(fg.id) ?? fg.aircrafts.map(() => nextId())
+      const link16NetworkUnitIds = coalitionLink16UnitIds.get(key) ?? unitIds
       const units: z.infer<typeof schemas.dcs.aircraftUnit>[] = fg.aircrafts.map((ac, index) => {
         const unitId = unitIds[index] ?? nextId()
 
@@ -820,8 +867,13 @@ export function addFlightGroups(
             chaff: aircraftDef.chaff,
             gun: 100
           },
-          AddPropAircraft: createAddPropAircraft(aircraftDef, fg.callsign, index),
-          datalinks: createDatalinks(aircraftDef, index, unitIds),
+          AddPropAircraft: createAddPropAircraft(
+            aircraftDef,
+            fg.callsign,
+            index,
+            link16StationNumberByUnitId.get(unitId)
+          ),
+          datalinks: createDatalinks(aircraftDef, index, unitIds, link16NetworkUnitIds),
           livery_id: 'default',
           skill: ac.client ? 'Client' : 'High',
           speed: speed,
@@ -1162,13 +1214,19 @@ export function addFlightGroups(
         start_time: 0,
         task: fg.task,
         uncontrollable: false,
+        uncontrolled: false,
+        tasks: [],
+        taskSelected: true,
+        hiddenOnMFD: false,
+        hiddenOnPlanner: false,
+        radioSet: false,
         units: units,
         x: units[0]?.x ?? fg.position.x,
         y: units[0]?.y ?? fg.position.y,
         route: {
           points: routePoints
         },
-        modulation: false,
+        modulation: 0,
         hidden: false,
         communication: true,
         frequency: 124.0

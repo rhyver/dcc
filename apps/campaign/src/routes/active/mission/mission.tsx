@@ -328,7 +328,7 @@ export function Mission() {
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 grid grid-cols-3 gap-4 min-h-0">
+        <div className="flex-1 grid grid-cols-[1.45fr_1fr_1fr] gap-4 min-h-0">
           {/* Left Column - Actions */}
           <div className="flex flex-col gap-4">
             {/* Step-by-step guide */}

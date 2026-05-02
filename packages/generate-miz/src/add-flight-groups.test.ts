@@ -325,6 +325,45 @@ describe('addFlightGroups parking assignment', () => {
 })
 
 describe('addFlightGroups mission script config', () => {
+  test('sets a single selected client aircraft to player skill', () => {
+    const startTime = new Date('2026-01-01T00:00:00Z')
+    const mission = createMission()
+    const campaign = createCampaign(startTime)
+    const clientGroup = createFlightGroup('blue-client', 'Enfield-1', startTime)
+    clientGroup.aircrafts[0]!.client = true
+    campaign.coalitions.player.flightGroups = [clientGroup]
+    campaign.coalitions.opponent.flightGroups = []
+
+    const result = addFlightGroups(mission, campaign, theatre)
+
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) throw result.error
+
+    const units = mission.coalition.blue.country?.[0]?.plane?.group?.[0]?.units ?? []
+
+    expect(units.map((unit) => unit.skill)).toEqual(['Player', 'High'])
+  })
+
+  test('keeps multiple selected client aircraft as client skill', () => {
+    const startTime = new Date('2026-01-01T00:00:00Z')
+    const mission = createMission()
+    const campaign = createCampaign(startTime)
+    const clientGroup = createFlightGroup('blue-client', 'Enfield-1', startTime)
+    clientGroup.aircrafts[0]!.client = true
+    clientGroup.aircrafts[1]!.client = true
+    campaign.coalitions.player.flightGroups = [clientGroup]
+    campaign.coalitions.opponent.flightGroups = []
+
+    const result = addFlightGroups(mission, campaign, theatre)
+
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) throw result.error
+
+    const units = mission.coalition.blue.country?.[0]?.plane?.group?.[0]?.units ?? []
+
+    expect(units.map((unit) => unit.skill)).toEqual(['Client', 'Client'])
+  })
+
   test('returns client flight unit names for mission scripts', () => {
     const startTime = new Date('2026-01-01T00:00:00Z')
     const mission = createMission()

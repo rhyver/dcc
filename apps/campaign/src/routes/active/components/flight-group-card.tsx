@@ -96,7 +96,10 @@ export function FlightGroupCard({
               ? getAircraftDisplayName(group.aircrafts[0].aircraftName)
               : 'Unknown'}
           </span>
-          <div className="flex items-center gap-1" title="Client slots">
+          <div
+            className={cn('flex items-center gap-1', hasClients && 'text-cyan-300')}
+            title="Client slots"
+          >
             <User className="h-3 w-3" />
             <span>{clientCount}</span>
           </div>

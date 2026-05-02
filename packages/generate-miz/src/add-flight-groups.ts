@@ -811,6 +811,7 @@ export function addFlightGroups(
       // Add units
       const unitIds = flightGroupIdToUnitIds.get(fg.id) ?? fg.aircrafts.map(() => nextId())
       const link16NetworkUnitIds = coalitionLink16UnitIds.get(key) ?? unitIds
+      const clientAircraftCount = fg.aircrafts.filter((ac) => ac.client).length
       const units: z.infer<typeof schemas.dcs.aircraftUnit>[] = fg.aircrafts.map((ac, index) => {
         const unitId = unitIds[index] ?? nextId()
 
@@ -886,7 +887,7 @@ export function addFlightGroups(
           ),
           datalinks: createDatalinks(aircraftDef, index, unitIds, link16NetworkUnitIds),
           livery_id: 'default',
-          skill: ac.client ? 'Client' : 'High',
+          skill: ac.client ? (clientAircraftCount === 1 ? 'Player' : 'Client') : 'High',
           speed: speed,
           type: aircraftDef.name,
           unitId: unitId,

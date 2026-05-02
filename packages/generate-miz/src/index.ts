@@ -8,6 +8,7 @@ import { addAwacsGroups } from './add-awacs-groups'
 import { addFlightGroups, type MissionFlightConfig } from './add-flight-groups'
 import { addGroundGroups } from './add-ground-groups'
 import { addStructures } from './add-structures'
+import { getFrontlineSegments } from './frontline'
 import { dictionary, mapResource } from './l10n'
 import {
   createDoScriptAction,
@@ -52,6 +53,96 @@ type MissionTriggerRules = Record<number, MissionTriggerRule>
 type MissionScriptConfig = {
   missionId: string
   flightGroups: MissionFlightConfig[]
+}
+
+type DrawingLine = {
+  visible: boolean
+  colorString: string
+  lineMode: string
+  mapY: number
+  primitiveType: string
+  style: string
+  closed: boolean
+  thickness: number
+  mapX: number
+  layerName: string
+  name: string
+  points: Record<number, { x: number; y: number }>
+}
+
+type MissionDrawings = {
+  layers: Array<{
+    visible: boolean
+    name: string
+    objects: DrawingLine[]
+  }>
+}
+
+const DCS_DRAWING_LAYER_NAMES = ['Author', 'Red', 'Blue', 'Common'] as const
+
+function addFrontlineDrawings(
+  mission: z.infer<typeof schemas.dcs.mission>,
+  campaign: z.infer<typeof schemas.campaign.campaign>,
+  theatre: z.infer<typeof schemas.theatre>
+): void {
+  const segments = getFrontlineSegments(campaign, theatre)
+  if (segments.length === 0) return
+
+  const missionWithDrawings = mission as typeof mission & {
+    drawings?: MissionDrawings
+  }
+  const drawings = missionWithDrawings.drawings ?? { layers: [] }
+  missionWithDrawings.drawings = drawings
+  const existingLayers = new Map(drawings.layers.map((layer) => [layer.name, layer]))
+  drawings.layers = DCS_DRAWING_LAYER_NAMES.map(
+    (name) => existingLayers.get(name) ?? { visible: true, name, objects: [] }
+  )
+  const commonLayer = drawings.layers[3]
+  if (!commonLayer) return
+
+  const offsetSegment = (segment: (typeof segments)[number], offset: number) => {
+    const dx = segment.end.x - segment.start.x
+    const dy = segment.end.y - segment.start.y
+    const length = Math.hypot(dx, dy)
+    if (length === 0) return segment
+    const ox = (-dy / length) * offset
+    const oy = (dx / length) * offset
+    return {
+      start: { x: segment.start.x + ox, y: segment.start.y + oy },
+      end: { x: segment.end.x + ox, y: segment.end.y + oy }
+    }
+  }
+
+  const addLine = (
+    name: string,
+    segment: (typeof segments)[number],
+    colorString: string
+  ): DrawingLine => ({
+    visible: true,
+    colorString,
+    lineMode: 'segments',
+    mapY: segment.start.y,
+    primitiveType: 'Line',
+    style: 'solid',
+    closed: false,
+    thickness: 4,
+    mapX: segment.start.x,
+    layerName: commonLayer.name,
+    name,
+    points: {
+      1: { x: 0, y: 0 },
+      2: { x: segment.end.x - segment.start.x, y: segment.end.y - segment.start.y }
+    }
+  })
+
+  segments.forEach((segment, index) => {
+    const blueSegment = offsetSegment(segment, -250)
+    const redSegment = offsetSegment(segment, 250)
+    commonLayer.objects.push(
+      addLine(`DCC Frontline Blue ${index + 1}`, blueSegment, '0x00ddffd9'),
+      addLine(`DCC Frontline Red ${index + 1}`, redSegment, '0xff4d4fd9')
+    )
+  })
 }
 
 function addTransportCargoTriggers(
@@ -312,7 +403,10 @@ export function generateMizFromCampaign(
         6: createLoggedStartupAction('Loading cas', createDoScriptFileAction('ResKey_Action_16')),
         ...(ewrEnabled
           ? {
-              7: createLoggedStartupAction('Loading ewr', createDoScriptFileAction('ResKey_Action_18'))
+              7: createLoggedStartupAction(
+                'Loading ewr',
+                createDoScriptFileAction('ResKey_Action_18')
+              )
             }
           : {})
       },
@@ -454,6 +548,8 @@ export function generateMizFromCampaign(
   if (awacsResult.isErr()) {
     return awacsResult
   }
+
+  addFrontlineDrawings(mission, campaign, theatre)
 
   const missionLuaResult = luaTable.stringify(mission, { mixedKeyTypes: true })
   if (missionLuaResult.isErr()) {

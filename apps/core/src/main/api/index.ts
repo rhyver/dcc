@@ -25,6 +25,8 @@ export const rpcHandler = new RPCHandler(router, {
 
         if (e.code === 'FAILED_TO_READ_FILE') return
 
+        if (e.code === 'MISSION_ID_MISMATCH') return
+
         if (e.code === 'INVALID_STATE_FILE') {
           const msg = e.data?.message ?? ''
           // Happens when the exporter truncates/writes the JSON in multiple chunks.

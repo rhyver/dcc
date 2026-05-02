@@ -158,6 +158,7 @@ export function Mission() {
   const timeMultiplier = useSelector(activeStore, (state) => state.context.timeMultiplier)
   const hotStart = useSelector(activeStore, (state) => state.context.campaignParams?.hotStart)
   const culling = useSelector(activeStore, (state) => state.context.campaignParams?.culling ?? true)
+  const ewr = useSelector(activeStore, (state) => state.context.campaignParams?.ewr ?? true)
   const playerFlightGroups = useSelector(
     activeStore,
     (state) => state.context.coalitions.player.flightGroups
@@ -383,6 +384,20 @@ export function Mission() {
                           checked={!!culling}
                           onCheckedChange={(checked) =>
                             activeStore.send({ type: 'setCulling', culling: checked })
+                          }
+                        />
+                      </div>
+                      <div className="border border-[#ff00aa]/20 rounded-lg bg-[#ff00aa]/5 p-3 flex items-center justify-between">
+                        <div>
+                          <div className="text-sm font-medium text-white">EWR</div>
+                          <div className="text-sm text-white/40">
+                            Add player radio-menu bogey callouts during the mission
+                          </div>
+                        </div>
+                        <Switch
+                          checked={!!ewr}
+                          onCheckedChange={(checked) =>
+                            activeStore.send({ type: 'setEwr', ewr: checked })
                           }
                         />
                       </div>

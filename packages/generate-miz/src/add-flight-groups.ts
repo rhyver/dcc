@@ -66,10 +66,20 @@ export type CasFlightConfig = {
   groupId: number
   name: string
   task: 'CAS'
+  unitNames: string[]
   jtacName: string
   targetGroupName: string
   laserCode: number
 }
+
+export type MissionFlightConfig =
+  | CasFlightConfig
+  | {
+      groupId: number
+      name: string
+      task: z.infer<typeof schemas.task>
+      unitNames: string[]
+    }
 
 /**
  * Creates a SEADEscort task for SEAD flight groups.
@@ -621,7 +631,7 @@ export function addFlightGroups(
   mission: z.infer<typeof schemas.dcs.mission>,
   campaign: z.infer<typeof schemas.campaign.campaign>,
   theatre: z.infer<typeof schemas.theatre>
-): Result<CasFlightConfig[], Error> {
+): Result<MissionFlightConfig[], Error> {
   const nextId = () => {
     mission.currentKey += 1
     return mission.currentKey
@@ -707,7 +717,7 @@ export function addFlightGroups(
   }
 
   const usedParkingSlots = new Map<string, Set<string>>() // Airdrome Name -> Set of Slot IDs
-  const casFlightConfigs: CasFlightConfig[] = []
+  const flightConfigs: MissionFlightConfig[] = []
   const hotStart = campaign.campaignParams?.hotStart === true
 
   for (const [key, value] of Object.entries(campaign.coalitions)) {
@@ -1239,6 +1249,15 @@ export function addFlightGroups(
         country.plane?.group.push(group)
       }
 
+      if (fg.aircrafts.some((ac) => ac.client)) {
+        flightConfigs.push({
+          groupId,
+          name: groupName,
+          task: fg.task,
+          unitNames: units.map((unit) => unit.name)
+        })
+      }
+
       if (fg.task === 'CAS' && fg.aircrafts.some((ac) => ac.client) && fg.target) {
         const enemyCoalition = key === 'player' ? 'opponent' : 'player'
         const enemyMissionCoalitionKey = enemyCoalition === 'player' ? 'blue' : 'red'
@@ -1266,19 +1285,20 @@ export function addFlightGroups(
               groupId
             })
 
-            casFlightConfigs.push({
-              groupId,
-              name: groupName,
-              task: 'CAS',
-              jtacName,
-              targetGroupName,
-              laserCode: JTAC_LASER_CODE
-            })
+            const existingConfig = flightConfigs.find((config) => config.name === groupName)
+            if (existingConfig) {
+              Object.assign(existingConfig, {
+                task: 'CAS',
+                jtacName,
+                targetGroupName,
+                laserCode: JTAC_LASER_CODE
+              })
+            }
           }
         }
       }
     })
   }
 
-  return ok(casFlightConfigs)
+  return ok(flightConfigs)
 }

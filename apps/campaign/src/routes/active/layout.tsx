@@ -2,34 +2,40 @@ import { Outlet, useNavigate } from 'react-router'
 import { useTick } from './tick'
 import { useEffect, useRef } from 'react'
 import { coreClient } from '@/lib/orpc'
-import { activeStore } from '@/stores/active'
+import { activeStore, onActiveCampaignSaveRequest } from '@/stores/active'
 import { useSelector } from '@xstate/store/react'
 
-const AUTOSAVE_INTERVAL_MS = 5_000
+const AUTOSAVE_INTERVAL_MS = 1_000
 
 export function ActiveLayout() {
   useTick()
   const navigate = useNavigate()
   const timeMultiplier = useSelector(activeStore, (state) => state.context.timeMultiplier)
   const autosaveInFlightRef = useRef(false)
+  const pendingAutosaveRef = useRef(false)
 
   const saveCurrentCampaign = async (setTimeMultiplierToZero = false) => {
     if (autosaveInFlightRef.current) {
+      pendingAutosaveRef.current = true
       return
     }
 
-    autosaveInFlightRef.current = true
-    try {
-      const snapshot = activeStore.getSnapshot().context
-      await coreClient.campaign.saveActiveCampaign({
-        ...snapshot,
-        ...(setTimeMultiplierToZero ? { timeMultiplier: 0 } : {})
-      })
-    } catch (error) {
-      console.error('Failed to save campaign:', error)
-    } finally {
-      autosaveInFlightRef.current = false
-    }
+    do {
+      pendingAutosaveRef.current = false
+      autosaveInFlightRef.current = true
+
+      try {
+        const snapshot = activeStore.getSnapshot().context
+        await coreClient.campaign.saveActiveCampaign({
+          ...snapshot,
+          ...(setTimeMultiplierToZero ? { timeMultiplier: 0 } : {})
+        })
+      } catch (error) {
+        console.error('Failed to save campaign:', error)
+      } finally {
+        autosaveInFlightRef.current = false
+      }
+    } while (pendingAutosaveRef.current)
   }
 
   useEffect(() => {
@@ -78,6 +84,12 @@ export function ActiveLayout() {
       clearInterval(autosaveInterval)
     }
   }, [timeMultiplier])
+
+  useEffect(() => {
+    return onActiveCampaignSaveRequest(() => {
+      void saveCurrentCampaign(false)
+    })
+  }, [])
 
   return (
     <div className="h-full">

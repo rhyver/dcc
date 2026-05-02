@@ -52,6 +52,7 @@ function createCampaign(): Campaign {
 function createFlightGroup(params: {
   id: string
   callsign: string
+  task?: FlightGroup['task']
   startTime: string
   homeBase?: string
   packageId?: string
@@ -61,7 +62,7 @@ function createFlightGroup(params: {
   return {
     id: params.id,
     callsign: params.callsign,
-    task: 'CAP',
+    task: params.task ?? 'CAP',
     homeBase: params.homeBase ?? 'Home',
     position: { x: 0, y: 0 },
     aircrafts: [
@@ -96,6 +97,7 @@ describe('package start spacing', () => {
       createFlightGroup({
         id: 'sead-1',
         callsign: 'Enfield-2',
+        task: 'SEAD',
         startTime: '2026-01-01T12:11:00.000Z',
         packageId: 'package-1',
         tot: '2026-01-01T12:28:00.000Z'
@@ -111,16 +113,16 @@ describe('package start spacing', () => {
     enforcePackageStartSpacing(campaign, 'player')
 
     expect(campaign.coalitions.player.flightGroups[0]!.flightplan.startTime).toEqual(
-      new Date('2026-01-01T12:10:00.000Z')
+      new Date('2026-01-01T12:13:00.000Z')
     )
     expect(campaign.coalitions.player.flightGroups[1]!.flightplan.startTime).toEqual(
-      new Date('2026-01-01T12:12:00.000Z')
+      new Date('2026-01-01T12:11:00.000Z')
     )
     expect(campaign.coalitions.player.flightGroups[2]!.flightplan.startTime).toEqual(
-      new Date('2026-01-01T12:22:00.000Z')
+      new Date('2026-01-01T12:23:00.000Z')
     )
     expect(campaign.coalitions.player.flightGroups[2]!.tot).toEqual(
-      new Date('2026-01-01T12:52:00.000Z')
+      new Date('2026-01-01T12:53:00.000Z')
     )
   })
 
@@ -152,6 +154,35 @@ describe('package start spacing', () => {
     )
     expect(campaign.coalitions.player.flightGroups[2]!.flightplan.startTime).toEqual(
       new Date('2026-01-01T12:25:00.000Z')
+    )
+  })
+
+  test('starts SEAD escort before the primary package flight', () => {
+    const campaign = createCampaign()
+    campaign.coalitions.player.flightGroups = [
+      createFlightGroup({
+        id: 'strike-1',
+        callsign: 'Enfield-1',
+        task: 'Pinpoint Strike',
+        startTime: '2026-01-01T12:10:00.000Z',
+        packageId: 'package-1'
+      }),
+      createFlightGroup({
+        id: 'sead-1',
+        callsign: 'Enfield-2',
+        task: 'SEAD',
+        startTime: '2026-01-01T12:15:00.000Z',
+        packageId: 'package-1'
+      })
+    ]
+
+    enforcePackageStartSpacing(campaign, 'player')
+
+    expect(campaign.coalitions.player.flightGroups[1]!.flightplan.startTime).toEqual(
+      new Date('2026-01-01T12:15:00.000Z')
+    )
+    expect(campaign.coalitions.player.flightGroups[0]!.flightplan.startTime).toEqual(
+      new Date('2026-01-01T12:17:00.000Z')
     )
   })
 })

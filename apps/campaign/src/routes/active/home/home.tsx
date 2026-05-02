@@ -63,9 +63,21 @@ export function Home() {
   const [previewItem, setPreviewItem] = React.useState<SelectedItem>(null)
   const timeMultiplier = useSelector(activeStore, (state) => state.context.timeMultiplier)
   const logEntries = useSelector(activeStore, (state) => state.context.logs)
+  const playerFlightGroups = useSelector(
+    activeStore,
+    (state) => state.context.coalitions.player.flightGroups
+  )
+  const opponentFlightGroups = useSelector(
+    activeStore,
+    (state) => state.context.coalitions.opponent.flightGroups
+  )
   const isLogOpen = useSelector(uiStore, (state) => state.context.isLogOpen)
   const timerState = timeMultiplier === 0 ? 'pause' : timeMultiplier === 1 ? 'play' : 'fast-forward'
   const visibleLogs = React.useMemo(() => [...logEntries].reverse(), [logEntries])
+  const activeFlightGroupIds = React.useMemo(
+    () => new Set([...playerFlightGroups, ...opponentFlightGroups].map((group) => group.id)),
+    [playerFlightGroups, opponentFlightGroups]
+  )
   const logViewportRef = React.useRef<HTMLDivElement | null>(null)
   const [logScrollTop, setLogScrollTop] = React.useState(0)
   const [logViewportHeight, setLogViewportHeight] = React.useState(190)
@@ -81,6 +93,13 @@ export function Home() {
     observer.observe(viewport)
     return () => observer.disconnect()
   }, [isLogOpen])
+
+  React.useEffect(() => {
+    setSelectedItem((item) => {
+      if (!item || !('flightplan' in item)) return item
+      return activeFlightGroupIds.has(item.id) ? item : null
+    })
+  }, [activeFlightGroupIds])
 
   const totalLogHeight = visibleLogs.length * LOG_ROW_HEIGHT
   const startIndex = Math.max(0, Math.floor(logScrollTop / LOG_ROW_HEIGHT) - LOG_OVERSCAN)

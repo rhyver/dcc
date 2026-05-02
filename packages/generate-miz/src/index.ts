@@ -5,7 +5,7 @@ import { err, ok, Result } from 'neverthrow'
 import * as z from 'zod'
 
 import { addAwacsGroups } from './add-awacs-groups'
-import { addFlightGroups, type CasFlightConfig } from './add-flight-groups'
+import { addFlightGroups, type MissionFlightConfig } from './add-flight-groups'
 import { addGroundGroups } from './add-ground-groups'
 import { addStructures } from './add-structures'
 import { dictionary, mapResource } from './l10n'
@@ -19,6 +19,7 @@ import {
 import { options } from './options'
 import casLuaScript from './scripts/cas.lua?raw'
 import ctldLuaScript from './scripts/ctld.lua?raw'
+import ewrLuaScript from './scripts/ewr.lua?raw'
 import mistLuaScript from './scripts/mist_4_5_126.lua?raw'
 import splashDamageLuaScript from './scripts/splash_damage.lua?raw'
 import stateLuaScript from './scripts/state.lua?raw'
@@ -50,7 +51,7 @@ type MissionTriggerRules = Record<number, MissionTriggerRule>
 
 type MissionScriptConfig = {
   missionId: string
-  flightGroups: CasFlightConfig[]
+  flightGroups: MissionFlightConfig[]
 }
 
 function addTransportCargoTriggers(
@@ -158,6 +159,9 @@ export function generateMizFromCampaign(
 ): Result<void, Error> {
   // eslint-disable-next-line no-console
   console.log('generating miz file')
+
+  const ewrEnabled = campaign.campaignParams?.ewr !== false
+  const startupTriggerIndexes = ewrEnabled ? [1, 2, 3, 4, 5, 6, 7] : [1, 2, 3, 4, 5, 6]
 
   const mission: z.infer<typeof schemas.dcs.mission> = {
     version: 23,
@@ -305,7 +309,12 @@ export function generateMizFromCampaign(
           'Loading splash damage',
           createDoScriptFileAction('ResKey_Action_7')
         ),
-        6: createLoggedStartupAction('Loading cas', createDoScriptFileAction('ResKey_Action_16'))
+        6: createLoggedStartupAction('Loading cas', createDoScriptFileAction('ResKey_Action_16')),
+        ...(ewrEnabled
+          ? {
+              7: createLoggedStartupAction('Loading ewr', createDoScriptFileAction('ResKey_Action_18'))
+            }
+          : {})
       },
       events: {},
       custom: {},
@@ -316,7 +325,8 @@ export function generateMizFromCampaign(
         3: true,
         4: true,
         5: true,
-        6: true
+        6: true,
+        ...(ewrEnabled ? { 7: true } : {})
       },
       conditions: {
         1: 'return(true)',
@@ -324,10 +334,11 @@ export function generateMizFromCampaign(
         3: 'return(true)',
         4: 'return(true)',
         5: 'return(true)',
-        6: 'return(true)'
+        6: 'return(true)',
+        ...(ewrEnabled ? { 7: 'return(true)' } : {})
       },
       customStartup: {},
-      funcStartup: createTriggerFunctionMap([1, 2, 3, 4, 5, 6])
+      funcStartup: createTriggerFunctionMap(startupTriggerIndexes)
     },
     trigrules: {
       1: {
@@ -379,7 +390,19 @@ export function generateMizFromCampaign(
         comment: 'CAS JTAC Script',
         actions: { 1: { predicate: 'a_do_script_file', file: 'ResKey_Action_16' } },
         colorItem: '0x00ffffff'
-      }
+      },
+      ...(ewrEnabled
+        ? {
+            7: {
+              rules: {},
+              eventlist: '',
+              predicate: 'triggerStart',
+              comment: 'EWR Script',
+              actions: { 1: { predicate: 'a_do_script_file', file: 'ResKey_Action_18' } },
+              colorItem: '0x00ffffff'
+            }
+          }
+        : {})
     },
     triggers: {
       zones: []
@@ -476,6 +499,7 @@ export function generateMizFromCampaign(
   zip.addFile('l10n/DEFAULT/ctld.lua', Buffer.from(ctldLuaScript, 'utf-8'))
   zip.addFile('l10n/DEFAULT/splash_damage.lua', Buffer.from(splashDamageLuaScript, 'utf-8'))
   zip.addFile('l10n/DEFAULT/cas.lua', Buffer.from(casLuaScript, 'utf-8'))
+  zip.addFile('l10n/DEFAULT/ewr.lua', Buffer.from(ewrLuaScript, 'utf-8'))
   try {
     zip.writeZip(path)
     // eslint-disable-next-line no-console

@@ -14,7 +14,8 @@ const initialState: z.infer<typeof schemas.campaign.campaign> = {
   version: '0.0.1',
   campaignParams: {
     hotStart: false,
-    culling: true
+    culling: true,
+    ewr: true
   },
   logs: [],
   scenarioId: 'red-bullet',
@@ -316,6 +317,13 @@ export const activeStore = createStore({
         }
         draft.campaignParams.culling = culling
       }),
+    setEwr: (context, { ewr }: { ewr: boolean }) =>
+      produce(context, (draft) => {
+        if (!draft.campaignParams) {
+          draft.campaignParams = {}
+        }
+        draft.campaignParams.ewr = ewr
+      }),
 
     tick: (
       context,
@@ -375,3 +383,36 @@ export const activeStore = createStore({
       })
   }
 })
+
+type ActiveStoreEvent = Parameters<typeof activeStore.send>[0]
+type ActiveCampaignSaveRequestListener = (event: ActiveStoreEvent) => void
+
+const activeCampaignSaveRequestEventTypes = new Set<string>([
+  'setHotStart',
+  'setCulling',
+  'setEwr',
+  'removeAllFlightGroups',
+  'clearLogs',
+  'clearFlightGroupClientSelections',
+  'createManualPlayerFlightGroup',
+  'setFlightGroupClientCount'
+])
+
+const activeCampaignSaveRequestListeners = new Set<ActiveCampaignSaveRequestListener>()
+const sendActiveStoreEvent = activeStore.send.bind(activeStore)
+
+activeStore.send = ((event: ActiveStoreEvent) => {
+  sendActiveStoreEvent(event)
+
+  if (activeCampaignSaveRequestEventTypes.has(event.type)) {
+    activeCampaignSaveRequestListeners.forEach((listener) => listener(event))
+  }
+}) as typeof activeStore.send
+
+export function onActiveCampaignSaveRequest(listener: ActiveCampaignSaveRequestListener) {
+  activeCampaignSaveRequestListeners.add(listener)
+
+  return () => {
+    activeCampaignSaveRequestListeners.delete(listener)
+  }
+}

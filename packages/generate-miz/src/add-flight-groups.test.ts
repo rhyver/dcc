@@ -323,3 +323,29 @@ describe('addFlightGroups parking assignment', () => {
     expect(units.map((unit) => unit.parking)).toEqual(['2', '3'])
   })
 })
+
+describe('addFlightGroups mission script config', () => {
+  test('returns client flight unit names for mission scripts', () => {
+    const startTime = new Date('2026-01-01T00:00:00Z')
+    const mission = createMission()
+    const campaign = createCampaign(startTime)
+    const clientGroup = createFlightGroup('blue-client', 'Enfield-1', startTime)
+    clientGroup.aircrafts[0]!.client = true
+    campaign.coalitions.player.flightGroups = [clientGroup]
+    campaign.coalitions.opponent.flightGroups = []
+
+    const result = addFlightGroups(mission, campaign, theatre)
+
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) throw result.error
+
+    expect(result.value).toEqual([
+      {
+        groupId: expect.any(Number),
+        name: 'Enfield-1',
+        task: 'CAP',
+        unitNames: ['Enfield-1-1', 'Enfield-1-2']
+      }
+    ])
+  })
+})

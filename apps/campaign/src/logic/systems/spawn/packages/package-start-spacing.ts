@@ -3,6 +3,9 @@ import * as z from 'zod'
 
 const PACKAGE_START_SPACING_MS = 10 * 60 * 1000
 const FLIGHT_START_SPACING_WITHIN_PACKAGE_MS = 2 * 60 * 1000
+const PACKAGE_FLIGHT_START_PRIORITY: Partial<Record<FlightGroup['task'], number>> = {
+  SEAD: 0
+}
 
 type Campaign = z.infer<typeof schemas.campaign.campaign>
 type Coalition = z.infer<typeof schemas.coalition>
@@ -87,6 +90,8 @@ function collectSchedules(groups: FlightGroup[]): PackageSchedule[] {
 function enforceFlightSpacingWithinPackage(schedule: PackageSchedule) {
   schedule.groups.sort(
     (a, b) =>
+      (PACKAGE_FLIGHT_START_PRIORITY[a.task] ?? 1) -
+        (PACKAGE_FLIGHT_START_PRIORITY[b.task] ?? 1) ||
       new Date(a.flightplan.startTime).getTime() - new Date(b.flightplan.startTime).getTime()
   )
 

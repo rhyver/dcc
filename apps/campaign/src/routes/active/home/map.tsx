@@ -51,23 +51,51 @@ const Marker = memo(function Marker({
     return symbol.asSVG()
   }, [item])
 
+  const isAirdrome = item.type === 'Airdrome'
+  const showTitleCard = isAirdrome || isSelected
+  const coalitionColor =
+    item.coalition === 'player' ? 'var(--synthwave-cyan)' : 'var(--enemy-red)'
+
   return (
     <MaplibreMarker
       longitude={item.position.lng}
       latitude={item.position.lat}
       anchor="center"
+      style={{ zIndex: showTitleCard ? 40 : 20 }}
       onClick={(e) => {
         e.originalEvent.stopPropagation()
         onClick()
       }}
     >
-      <div
-        className={cn(
-          'transition-all',
-          isSelected && 'ring-2 ring-synthwave-pink rounded-full drop-shadow-md scale-110'
-        )}
-        dangerouslySetInnerHTML={{ __html: symbol }}
-      />
+      {showTitleCard ? (
+        <div
+          className={cn(
+            'flex translate-x-12 items-center gap-2 rounded-md border bg-synthwave-dark/65 py-1 pr-3 pl-1.5 shadow-[0_0_14px_rgba(0,0,0,0.65)] backdrop-blur-sm transition-all',
+            isSelected && 'ring-2 ring-synthwave-pink drop-shadow-md scale-110'
+          )}
+          style={{
+            borderColor: coalitionColor,
+            boxShadow: `0 0 0 1px color-mix(in srgb, ${coalitionColor} 35%, transparent), 0 0 16px color-mix(in srgb, ${coalitionColor} 22%, transparent), 0 0 14px rgba(0, 0, 0, 0.65)`
+          }}
+          title={item.name}
+        >
+          <div
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-black/20"
+            dangerouslySetInnerHTML={{ __html: symbol }}
+          />
+          <span className="max-w-32 truncate text-xs font-semibold leading-tight text-synthwave-light drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+            {item.name}
+          </span>
+        </div>
+      ) : (
+        <div
+          className={cn(
+            'transition-all',
+            isSelected && 'ring-2 ring-synthwave-pink rounded-full drop-shadow-md scale-110'
+          )}
+          dangerouslySetInnerHTML={{ __html: symbol }}
+        />
+      )}
     </MaplibreMarker>
   )
 })

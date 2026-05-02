@@ -71,9 +71,6 @@ export function FlightGroupCard({
               Airborne
             </span>
           )}
-          <span className="rounded-full border border-secondary/20 bg-secondary/10 px-1.5 py-0.5 text-xs text-secondary/80">
-            {group.task}
-          </span>
         </div>
         <div className="mt-1 flex items-center gap-3 text-[10px] text-secondary/70">
           <div className="flex items-center gap-1" title="Start Time">
@@ -89,11 +86,16 @@ export function FlightGroupCard({
         </div>
       </div>
       <div className="flex flex-col items-end gap-0.5">
-        <span className="text-xs font-medium text-secondary">
-          {group.aircrafts[0] ? getAircraftDisplayName(group.aircrafts[0].aircraftName) : 'Unknown'}
+        <span className="rounded-full border border-secondary/20 bg-secondary/10 px-1.5 py-0.5 text-xs text-secondary/80">
+          {group.task}
         </span>
         <div className="flex items-center gap-2 text-[10px] text-secondary/60">
-          <span>{group.aircrafts.length} Aircraft</span>
+          <span>
+            {group.aircrafts.length}{' '}
+            {group.aircrafts[0]
+              ? getAircraftDisplayName(group.aircrafts[0].aircraftName)
+              : 'Unknown'}
+          </span>
           <div className="flex items-center gap-1" title="Client slots">
             <User className="h-3 w-3" />
             <span>{clientCount}</span>

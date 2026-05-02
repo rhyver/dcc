@@ -213,6 +213,15 @@
   color: white;
 }
 
+.dcc-campaign-map .maplibregl-canvas-container.maplibregl-interactive,
+.dcc-campaign-map .maplibregl-canvas-container.maplibregl-interactive.maplibregl-track-pointer {
+  cursor: default;
+}
+
+.dcc-campaign-map .maplibregl-canvas-container.maplibregl-interactive:active {
+  cursor: grabbing;
+}
+
 .window-control-button {
   display: inline-flex;
   height: 28px;

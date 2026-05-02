@@ -293,6 +293,14 @@ export function useMapItems(): {
 
     //_addObjectiveMarkers(playerCoalition.objectiveIds ?? [], 'player')
     //_addObjectiveMarkers(opponentCoalition.objectiveIds ?? [], 'opponent')
+    for (const objectiveId of playerCoalition.objectiveIds ?? []) {
+      const objective = objectivesByName.get(objectiveId)
+      if (objective != null) playerObjectives.push(objective.position)
+    }
+    for (const objectiveId of opponentCoalition.objectiveIds ?? []) {
+      const objective = objectivesByName.get(objectiveId)
+      if (objective != null) opponentObjectives.push(objective.position)
+    }
     addStructureMarkers(playerCoalition.structures ?? [], 'player')
     addStructureMarkers(opponentCoalition.structures ?? [], 'opponent')
     addGroundGroupMarkers(playerCoalition.groundGroups ?? [], 'player')
@@ -336,59 +344,62 @@ export function useMapItems(): {
       })
 
       if (playerPolys.length > 0 && opponentPolys.length > 0) {
-        const playerTerritory = turf.union(turf.featureCollection(playerPolys))
-        const opponentTerritory = turf.union(turf.featureCollection(opponentPolys))
+        // Find shared edges between player and opponent Voronoi cells.
+        // Adjacent Voronoi cells share an edge with identical endpoint coordinates,
+        // so we can match by canonical (rounded, order-independent) endpoint key.
+        const round = (n: number) => Math.round(n * 100) / 100
+        const segKey = (a: number[], b: number[]) => {
+          const ax = a[0]
+          const ay = a[1]
+          const bx = b[0]
+          const by = b[1]
+          if (ax == null || ay == null || bx == null || by == null) return null
+          const ka = `${round(ax)},${round(ay)}`
+          const kb = `${round(bx)},${round(by)}`
+          return ka < kb ? `${ka}|${kb}` : `${kb}|${ka}`
+        }
 
-        if (playerTerritory && opponentTerritory) {
-          const playerBoundary = turf.polygonToLine(playerTerritory)
-          const opponentBoundary = turf.polygonToLine(opponentTerritory)
-
-          if (playerBoundary && opponentBoundary) {
-            // lineOverlap requires LineString or Polygon, but polygonToLine might return FeatureCollection.
-            // Ensure we have geometries compatible with lineOverlap.
-            // Actually turf.lineOverlap handles Feature<LineString|Polygon> etc.
-            // But we need to be careful with FeatureCollections.
-
-            // Helper to ensure we pass a Feature or Geometry to lineOverlap, not FeatureCollection if possible,
-            // or handle FeatureCollection by flattening.
-            // However, polygonToLine returns FeatureCollection<LineString> if input is MultiPolygon.
-
-            // Let's simplify: convert everything to a list of LineStrings and check overlap?
-            // No, turf.lineOverlap is efficient.
-
-            // Hack: if FeatureCollection, take the features.
-            // If single Feature, wrap in array.
-
-            // Better approach: turf.lineOverlap accepts FeatureCollection in recent versions?
-            // Docs say: source: Feature<LineString | MultiLineString | Polygon | MultiPolygon>
-            // It does NOT say FeatureCollection.
-
-            // So if playerBoundary is a FeatureCollection, we might need to union it or iterate.
-            // But playerTerritory is a Feature<Polygon|MultiPolygon>.
-            // We can pass playerTerritory directly to lineOverlap!
-            // "Takes any LineString or Polygon and returns the overlapping lines between them."
-
-            const overlapping = turf.lineOverlap(playerTerritory, opponentTerritory, {
-              tolerance: 0.1
-            })
-
-            if (overlapping && overlapping.features.length > 0) {
-              // Convert coordinates
-              turf.coordEach(overlapping, (coord) => {
-                const x = coord[0]
-                const z = coord[1]
-                if (x == null || z == null) return
-                const ll = LOtoLL({
-                  theatre: theatre.name as 'Caucasus',
-                  x,
-                  z
-                })
-                coord[0] = ll.lng
-                coord[1] = ll.lat
-              })
-              frontline = overlapping
-            }
+        const opponentEdges = new Set<string>()
+        for (const poly of opponentPolys) {
+          const ring = poly.geometry.coordinates[0]
+          if (!ring) continue
+          for (let i = 0; i < ring.length - 1; i++) {
+            const a = ring[i]
+            const b = ring[i + 1]
+            if (!a || !b) continue
+            const key = segKey(a, b)
+            if (key) opponentEdges.add(key)
           }
+        }
+
+        const frontlineSegments: GeoJSON.Feature<GeoJSON.LineString>[] = []
+        for (const poly of playerPolys) {
+          const ring = poly.geometry.coordinates[0]
+          if (!ring) continue
+          for (let i = 0; i < ring.length - 1; i++) {
+            const a = ring[i]
+            const b = ring[i + 1]
+            if (!a || !b) continue
+            const key = segKey(a, b)
+            if (!key || !opponentEdges.has(key)) continue
+            const ax = a[0]
+            const az = a[1]
+            const bx = b[0]
+            const bz = b[1]
+            if (ax == null || az == null || bx == null || bz == null) continue
+            const aLL = LOtoLL({ theatre: theatre.name as 'Caucasus', x: ax, z: az })
+            const bLL = LOtoLL({ theatre: theatre.name as 'Caucasus', x: bx, z: bz })
+            frontlineSegments.push(
+              turf.lineString([
+                [aLL.lng, aLL.lat],
+                [bLL.lng, bLL.lat]
+              ])
+            )
+          }
+        }
+
+        if (frontlineSegments.length > 0) {
+          frontline = turf.featureCollection(frontlineSegments)
         }
       }
     }

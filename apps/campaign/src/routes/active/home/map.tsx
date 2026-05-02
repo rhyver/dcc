@@ -623,12 +623,25 @@ export function Map({
         {frontline && (
           <Source id="frontline-source" type="geojson" data={frontline}>
             <Layer
-              id="frontline-layer"
+              id="frontline-player"
               type="line"
               paint={{
-                'line-color': 'blue',
+                'line-color': '#00ddff',
                 'line-width': 2,
-                'line-dasharray': [2, 2]
+                'line-opacity': 0.85,
+                'line-offset': -4,
+                'line-dasharray': [3, 2]
+              }}
+            />
+            <Layer
+              id="frontline-opponent"
+              type="line"
+              paint={{
+                'line-color': '#ff4d4f',
+                'line-width': 2,
+                'line-opacity': 0.85,
+                'line-offset': 4,
+                'line-dasharray': [3, 2]
               }}
             />
           </Source>

@@ -325,7 +325,7 @@ export function Home() {
       </div>
 
       {/* Sidebar - Left Panel */}
-      <div className="absolute top-[73px] left-0 bottom-0 w-[380px] z-10 flex flex-col overflow-hidden bg-synthwave-dark/88 border-r border-synthwave-pink/20 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)] text-synthwave-light">
+      <div className="absolute top-[72px] left-0 bottom-0 w-[380px] z-10 flex flex-col overflow-hidden bg-synthwave-dark/88 border-r border-synthwave-pink/20 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)] text-synthwave-light">
         {/* Active Flight Groups */}
         <ActiveFlightGroups
           selectedItem={selectedItem}

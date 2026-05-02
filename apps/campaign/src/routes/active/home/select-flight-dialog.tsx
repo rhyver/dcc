@@ -15,9 +15,9 @@ import {
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { activeStore } from '@/stores/active'
 import { getAircraftDisplayName } from '@/lib/aircraft-display'
-import { featureFlags } from '@/lib/feature-flags'
 import { canCreateManualFlightGroup } from '@/logic/systems/spawn/manual-flight-group'
 import { hasFlightGroupTakenOff } from '@/logic/entities/flight-status'
+import { getFlightGroupsByTask, getSortedFlightGroupTasks } from './flight-group-task-groups'
 
 function formatTime(date: Date | string) {
   const d = new Date(date)
@@ -48,21 +48,8 @@ export function SelectFlightDialog({ open, onOpenChange }: SelectFlightDialogPro
   })
   const currentTime = campaignTime ? new Date(campaignTime) : new Date()
 
-  // Group flight groups by task, only include tasks that have groups
-  const groupsByTask = new Map<string, typeof flightGroups>()
-  for (const group of flightGroups) {
-    if (!featureFlags.transportFlightGroups && group.task === 'Transport') continue
-    if (group.aircrafts.length === 0) continue
-
-    const existing = groupsByTask.get(group.task)
-    if (existing) {
-      existing.push(group)
-    } else {
-      groupsByTask.set(group.task, [group])
-    }
-  }
-
-  const tasks = Array.from(groupsByTask.keys()).sort()
+  const groupsByTask = getFlightGroupsByTask(flightGroups)
+  const tasks = getSortedFlightGroupTasks(groupsByTask)
 
   const handleClose = () => {
     onOpenChange(false)

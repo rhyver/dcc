@@ -454,6 +454,8 @@ export function buildCampaignFromPlan(
     createdAt: new Date(),
     time: missionTime,
     timeMultiplier: 0,
+    status: 'active',
+    goal: scenario.goal,
     logs: [],
     scenarioId: scenario.id,
     coalitions: {

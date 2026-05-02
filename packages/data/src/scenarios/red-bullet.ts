@@ -9,15 +9,21 @@ export const RedBullet: z.infer<typeof schemas.scenario> = {
   date: new Date('2022-06-01T09:00:00Z'),
   era: 'Modern',
   briefing:
-    '<p>In May 2004, the conflict between Russia-Georgia escalated into a full-scale military conflict, with Russia military forces launching an invasion of Georgia.</p><p>The United States, along with several other Western nations, came to the aid of Georgia during the conflict. The U.S. provided diplomatic, economic, and military support to Georgia, including the deployment of military forces.</p><p>Main goal for the NATO coalition is the <strong>recapture of the Enguri Dam</strong>. To limit the damage to the Geogian infrastructure</p>',
+    'Russian forces have seized key crossings in western Georgia, including the Enguri Dam, and are using the valley to anchor their advance toward the coast.\n\nNATO forces staging from Kobuleti must break through the coastal front, disrupt Russian air defenses, and recapture the dam before the region is cut off. The operation depends on keeping Georgian infrastructure intact while pushing hostile ground forces back across the river.',
+  goal: {
+    coalition: 'player',
+    objectiveIds: ['Enguri Dam']
+  },
   start: {
     player: {
       airdromeNames: ['Kobuleti'],
       carrierObjectiveId: 'Alpha',
+      groundGroupSpawnMultiplier: 2,
       objectiveIds: ['Maharadze', 'Hidmagala']
     },
     opponent: {
       airdromeNames: ['Sukhumi-Babushara', 'Nalchik'],
+      groundGroupSpawnMultiplier: 1,
       objectiveIds: ['Sukhumi-Babushara', 'Enguri Dam', 'Sarakoni', 'Bataria']
     }
   }

@@ -8,6 +8,11 @@ import { createManualFlightGroup } from '@/logic/systems/spawn/manual-flight-gro
 const initialState: z.infer<typeof schemas.campaign.campaign> = {
   time: new Date(),
   timeMultiplier: 1,
+  status: 'active',
+  goal: {
+    coalition: 'player',
+    objectiveIds: ['Enguri Dam']
+  },
   name: 'Active Campaign',
   createdAt: new Date(),
   id: crypto.randomUUID(),

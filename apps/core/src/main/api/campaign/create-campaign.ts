@@ -270,6 +270,8 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
     name: scenario.name,
     time: scenario.date,
     timeMultiplier: 0,
+    status: 'active',
+    goal: scenario.goal,
     logs: [],
     scenarioId: scenario.id,
     coalitions: {

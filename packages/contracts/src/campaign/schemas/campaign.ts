@@ -11,7 +11,7 @@ import { task } from '../../schemas/task'
 
 const campaignLogEntry = z.object({
   id: z.string(),
-  type: z.enum(['spawn', 'combat', 'landing']),
+  type: z.enum(['spawn', 'combat', 'landing', 'campaign']),
   coalition: coalition,
   label: z.string().optional(),
   entityType: z.enum(['flightGroup', 'groundGroup']).optional(),
@@ -19,6 +19,13 @@ const campaignLogEntry = z.object({
   campaignTime: z.string(),
   message: z.string(),
   createdAt: z.string()
+})
+
+const campaignStatus = z.enum(['active', 'won', 'lost'])
+
+const campaignGoal = z.object({
+  coalition,
+  objectiveIds: z.array(z.string()).min(1)
 })
 
 const campaignStructure = z.preprocess(
@@ -86,6 +93,8 @@ export const campaign = z.object({
   time: z.date(),
   timeMultiplier: z.number(),
   timeTarget: z.date().optional(),
+  status: campaignStatus.optional(),
+  goal: campaignGoal.optional(),
   campaignParams: z
     .object({
       hotStart: z.boolean().optional(),

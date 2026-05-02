@@ -11,7 +11,7 @@ const MAX_LOG_ENTRIES = 500
 
 function appendLog(
   draft: Campaign,
-  type: 'spawn' | 'combat',
+  type: 'spawn' | 'combat' | 'campaign',
   coalition: Coalition,
   message: string,
   label?: string,
@@ -53,4 +53,8 @@ export function logCombatAction(
   entityRef?: LogEntityRef
 ): void {
   appendLog(draft, 'combat', coalition, message, label, entityRef)
+}
+
+export function logCampaignAction(draft: Campaign, coalition: Coalition, message: string): void {
+  appendLog(draft, 'campaign', coalition, message)
 }

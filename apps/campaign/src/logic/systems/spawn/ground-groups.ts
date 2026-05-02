@@ -11,6 +11,7 @@ const MAX_SPAWNS_PER_TICK = 3
 const NM_TO_METERS = 1852
 const INFANTRY_MAX_TARGET_RANGE_METERS = 20 * NM_TO_METERS
 const VEHICLE_MAX_TARGET_RANGE_METERS = 40 * NM_TO_METERS
+const DEFAULT_GROUND_GROUP_SPAWN_MULTIPLIER = 1
 
 export function spawnGroundGroups(
   draft: z.infer<typeof schemas.campaign.campaign>,
@@ -25,6 +26,14 @@ export function spawnGroundGroups(
 
   const enemyCoalition = coalition === 'player' ? 'opponent' : 'player'
   const enemyObjectiveIds = draft.coalitions[enemyCoalition].objectiveIds
+  const maxSpawnsThisTick = Math.max(
+    0,
+    Math.floor(
+      MAX_SPAWNS_PER_TICK *
+        (scenario.start[coalition].groundGroupSpawnMultiplier ??
+          DEFAULT_GROUND_GROUP_SPAWN_MULTIPLIER)
+    )
+  )
 
   const structures = draft.coalitions[coalition].structures
   const coalitionData = draft.coalitions[coalition]
@@ -40,7 +49,7 @@ export function spawnGroundGroups(
   )
 
   for (const structure of structures) {
-    if (spawnsThisTick >= MAX_SPAWNS_PER_TICK) break
+    if (spawnsThisTick >= maxSpawnsThisTick) break
 
     // Only Barrack and Depot structures can spawn ground groups
     if (structure.type !== 'Barrack' && structure.type !== 'Depot') continue
@@ -49,7 +58,7 @@ export function spawnGroundGroups(
     if (aliveBuildings.length === 0) continue
 
     for (let i = 0; i < aliveBuildings.length; i++) {
-      if (spawnsThisTick >= MAX_SPAWNS_PER_TICK) break
+      if (spawnsThisTick >= maxSpawnsThisTick) break
 
       if (structure.type === 'Barrack' && (structure.resources || 0) >= INFANTRY_COST) {
         const infantryTypes = coalitionData.groundUnitTypes['Infantry']

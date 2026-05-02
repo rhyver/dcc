@@ -15,13 +15,14 @@ export type ObjectiveMarker = {
   id: string
   name: string
   coalition: z.infer<typeof schemas.coalition>
+  isGoal?: boolean
   position: {
     lng: number
     lat: number
   }
 }
 
-export function useMapItems(): {
+export function useMapItems(options: { showGoalMarkers?: boolean } = {}): {
   mapItems: z.infer<typeof schemas.MapItem>[]
   objectiveMarkers: ObjectiveMarker[]
   frontline: GeoJSON.FeatureCollection<GeoJSON.LineString> | null
@@ -29,6 +30,7 @@ export function useMapItems(): {
 } {
   const playerCoalition = useSelector(activeStore, (state) => state.context.coalitions.player)
   const opponentCoalition = useSelector(activeStore, (state) => state.context.coalitions.opponent)
+  const campaignGoal = useSelector(activeStore, (state) => state.context.goal)
   const scenarioId = useSelector(activeStore, (state) => state.context.scenarioId)
   const scenarioQuery = useQuery(
     orpc.data.getScenario.queryOptions({
@@ -42,6 +44,7 @@ export function useMapItems(): {
     })
   )
   const theatre = theatreQuery.data
+  const scenarioGoal = scenarioQuery.data?.goal
   const campaignTime = useSelector(activeStore, (state) => state.context.time)
 
   return useMemo(() => {
@@ -91,10 +94,16 @@ export function useMapItems(): {
 
     const playerObjectives: { x: number; y: number }[] = []
     const opponentObjectives: { x: number; y: number }[] = []
+    const getControllingCoalition = (objectiveId: string): z.infer<typeof schemas.coalition> => {
+      if (playerCoalition.objectiveIds?.includes(objectiveId)) return 'player'
+      if (opponentCoalition.objectiveIds?.includes(objectiveId)) return 'opponent'
+      return 'player'
+    }
 
     const _addObjectiveMarkers = (
       objectiveIds: string[],
-      coalition: z.infer<typeof schemas.coalition>
+      coalition: z.infer<typeof schemas.coalition>,
+      options: { goal?: boolean } = {}
     ) => {
       for (const objectiveId of objectiveIds) {
         const objective = objectivesByName.get(objectiveId)
@@ -107,7 +116,8 @@ export function useMapItems(): {
         objectiveMarkers.push({
           id: `objective-${coalition}-${objectiveId}`,
           name: objectiveId,
-          coalition,
+          coalition: options.goal ? getControllingCoalition(objectiveId) : coalition,
+          isGoal: options.goal,
           position: latLng
         })
 
@@ -293,6 +303,10 @@ export function useMapItems(): {
 
     //_addObjectiveMarkers(playerCoalition.objectiveIds ?? [], 'player')
     //_addObjectiveMarkers(opponentCoalition.objectiveIds ?? [], 'opponent')
+    const goal = campaignGoal ?? scenarioGoal
+    if (options.showGoalMarkers && goal) {
+      _addObjectiveMarkers(goal.objectiveIds, goal.coalition, { goal: true })
+    }
     for (const objectiveId of playerCoalition.objectiveIds ?? []) {
       const objective = objectivesByName.get(objectiveId)
       if (objective != null) playerObjectives.push(objective.position)
@@ -415,5 +429,13 @@ export function useMapItems(): {
       frontline,
       flightGroups: allFlightGroups
     }
-  }, [playerCoalition, opponentCoalition, theatre, campaignTime])
+  }, [
+    playerCoalition,
+    opponentCoalition,
+    campaignGoal,
+    scenarioGoal,
+    theatre,
+    campaignTime,
+    options.showGoalMarkers
+  ])
 }

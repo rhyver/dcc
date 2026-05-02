@@ -3,6 +3,7 @@ import { scenarios, theatres } from '@dcc/data'
 import * as z from 'zod'
 import { calculateDistance } from '@/logic/utils/calculate-distance'
 import { logCombatAction } from '@/logic/simulation-log'
+import { updateCampaignGoal } from './campaign-goal'
 import {
   getAirdromePosition,
   isAirdromeVulnerable,
@@ -358,6 +359,7 @@ function resolveObjectiveBattle(
   }
   draft.coalitions[coalition].objectiveIds.push(targetObjectiveId)
   logCombatAction(draft, coalition, `Objective captured: ${targetObjectiveId}`)
+  updateCampaignGoal(draft)
 
   draft.coalitions[enemyCoalition].structures = draft.coalitions[enemyCoalition].structures.filter(
     (structure) => structure.objectiveId !== targetObjectiveId

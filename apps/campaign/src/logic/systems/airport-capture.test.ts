@@ -159,6 +159,31 @@ describe('airport capture', () => {
   })
 })
 
+describe('campaign goals', () => {
+  test('wins Red Bullet when the player captures Enguri Dam', () => {
+    const campaign = createCampaign()
+    const objective = caucasus.objectives.find((entry) => entry.name === 'Enguri Dam')!
+    campaign.goal = {
+      coalition: 'player',
+      objectiveIds: ['Enguri Dam']
+    }
+    campaign.coalitions.opponent.objectiveIds = [objective.name]
+    campaign.coalitions.player.groundGroups.push({
+      id: 'attacker-1',
+      position: { ...objective.position },
+      units: [{ name: 'BMP-2', count: 3 }],
+      state: 'moving',
+      targetObjectiveId: objective.name
+    })
+
+    updateGroundGroups(campaign, 'player', 1_000, { move: false })
+
+    expect(campaign.status).toBe('won')
+    expect(campaign.timeMultiplier).toBe(0)
+    expect(campaign.logs.at(-1)?.message).toBe('Campaign won: player controls Enguri Dam')
+  })
+})
+
 describe('ground battle attrition', () => {
   test('preserves the randomly advantaged side during otherwise mutual destruction', () => {
     const campaign = createCampaign()

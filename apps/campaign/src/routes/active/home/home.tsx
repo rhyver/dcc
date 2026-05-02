@@ -20,6 +20,7 @@ import React from 'react'
 import * as ScrollAreaPrimitive from '@radix-ui/react-scroll-area'
 import { useSelector } from '@xstate/store/react'
 import { useNavigate } from 'react-router'
+import { useQuery } from '@tanstack/react-query'
 
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -35,7 +36,7 @@ import {
 import type { SelectedItem } from './map'
 import { activeStore } from '@/stores/active'
 import { uiStore } from '@/stores/ui'
-import { coreClient } from '@/lib/orpc'
+import { coreClient, orpc } from '@/lib/orpc'
 import { Clock } from './clock'
 import { ActiveFlightGroups } from './active-flight-groups'
 import { TakeoffButton } from './takeoff-button'
@@ -62,6 +63,8 @@ export function Home() {
   const [selectedItem, setSelectedItem] = React.useState<SelectedItem>(null)
   const [previewItem, setPreviewItem] = React.useState<SelectedItem>(null)
   const timeMultiplier = useSelector(activeStore, (state) => state.context.timeMultiplier)
+  const scenarioId = useSelector(activeStore, (state) => state.context.scenarioId)
+  const campaignGoal = useSelector(activeStore, (state) => state.context.goal)
   const logEntries = useSelector(activeStore, (state) => state.context.logs)
   const playerFlightGroups = useSelector(
     activeStore,
@@ -81,6 +84,22 @@ export function Home() {
   const logViewportRef = React.useRef<HTMLDivElement | null>(null)
   const [logScrollTop, setLogScrollTop] = React.useState(0)
   const [logViewportHeight, setLogViewportHeight] = React.useState(190)
+  const scenarioQuery = useQuery(
+    orpc.data.getScenario.queryOptions({
+      input: scenarioId
+    })
+  )
+  const scenarioBriefing = scenarioQuery.data?.briefing ?? campaignData.description
+  const briefingParagraphs = React.useMemo(
+    () => scenarioBriefing.split(/\n{2,}/).filter((paragraph) => paragraph.trim().length > 0),
+    [scenarioBriefing]
+  )
+  const scenarioGoal = campaignGoal ?? scenarioQuery.data?.goal
+  const primaryObjectives = scenarioGoal?.objectiveIds ?? campaignData.objectives
+  const formatPrimaryObjective = React.useCallback(
+    (objective: string) => (scenarioGoal ? `Capture ${objective}` : objective),
+    [scenarioGoal]
+  )
 
   React.useEffect(() => {
     const viewport = logViewportRef.current
@@ -216,6 +235,7 @@ export function Home() {
               zoom={mapZoom}
               measureMode={isMeasureMode}
               overlaySafeLeft={MAP_OVERLAY_SAFE_LEFT_PX}
+              showGoalMarkers={isBriefingOpen}
             />
           </React.Suspense>
         </div>
@@ -294,8 +314,10 @@ export function Home() {
         {isBriefingOpen && (
           <Card className="pointer-events-auto absolute right-4 mt-2 w-[400px] border-synthwave-pink/30 bg-synthwave-dark/90 text-synthwave-light shadow-[0_0_15px_rgba(255,0,170,0.3)] backdrop-blur-md p-3">
             <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1">
-              <div className="space-y-1 text-sm text-secondary/80">
-                {campaignData.description}
+              <div className="space-y-3 text-sm leading-relaxed text-secondary/80">
+                {briefingParagraphs.map((paragraph, index) => (
+                  <p key={index}>{paragraph}</p>
+                ))}
               </div>
 
               <div>
@@ -304,17 +326,17 @@ export function Home() {
                     Primary Objectives
                   </h4>
                   <span className="text-xs text-secondary">
-                    {campaignData.objectives.length} Targets
+                    {primaryObjectives.length} Targets
                   </span>
                 </div>
                 <ul className="space-y-2 text-sm">
-                  {campaignData.objectives.map((objective, index) => (
+                  {primaryObjectives.map((objective, index) => (
                     <li
                       key={index}
                       className="flex items-start gap-2 p-2 rounded bg-synthwave-pink/5 border border-synthwave-pink/10"
                     >
                       <Target className="h-4 w-4 mt-0.5 text-synthwave-pink shrink-0" />
-                      <span>{objective}</span>
+                      <span>{formatPrimaryObjective(objective)}</span>
                     </li>
                   ))}
                 </ul>

@@ -221,18 +221,16 @@ export function Home() {
         </div>
       </div>
 
-      {/* Sidebar - Floating Left Panel */}
-      <div className="absolute top-4 left-4 bottom-4 w-[380px] z-10 flex flex-col gap-3 pointer-events-none overflow-hidden">
-        {/* Controls - Now at the top */}
-        <Card className="pointer-events-auto border-synthwave-pink/30 bg-synthwave-dark/80 text-synthwave-light shadow-[0_0_15px_rgba(255,0,170,0.3)] backdrop-blur-md p-3">
-          <div className="flex flex-col gap-2">
-            <div className="relative flex items-center justify-center border-b border-synthwave-pink/10 pb-2">
-              <div className="absolute left-0">
-                <CampaignMenu />
-              </div>
+      {/* Top Bar - Full Width */}
+      <div className="absolute top-0 left-0 right-0 z-20 pointer-events-none">
+        <Card className="pointer-events-auto rounded-none border-x-0 border-t-0 border-b border-synthwave-pink/20 bg-synthwave-dark/88 text-synthwave-light shadow-[0_10px_30px_rgba(0,0,0,0.22)] backdrop-blur-md px-3 py-5">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <CampaignMenu />
               <Clock />
             </div>
-            <div className="flex items-center justify-center gap-2">
+
+            <div className="flex items-center gap-2">
               <ToggleGroup
                 type="single"
                 value={timerState}
@@ -275,54 +273,59 @@ export function Home() {
               </ToggleGroup>
             </div>
 
-            <TakeoffButton />
-
-            {/* Briefing Toggle */}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full justify-between text-secondary hover:text-white hover:bg-synthwave-pink/10"
-              onClick={() => setIsBriefingOpen(!isBriefingOpen)}
-            >
-              <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
+              <div className="w-[200px]">
+                <TakeoffButton />
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-secondary hover:text-white hover:bg-synthwave-pink/10"
+                onClick={() => setIsBriefingOpen(!isBriefingOpen)}
+              >
                 <Info className="h-4 w-4 text-synthwave-pink" />
                 <span className="retro-font text-xs">Mission Briefing</span>
-              </div>
-            </Button>
-
-            {/* Briefing Content */}
-            {isBriefingOpen && (
-              <div className="border-t border-synthwave-pink/10 pt-2 space-y-4 max-h-[400px] overflow-y-auto pr-1">
-                <div className="space-y-1 text-sm text-secondary/80">
-                  {campaignData.description}
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="retro-font text-xs font-medium uppercase text-primary">
-                      Primary Objectives
-                    </h4>
-                    <span className="text-xs text-secondary">
-                      {campaignData.objectives.length} Targets
-                    </span>
-                  </div>
-                  <ul className="space-y-2 text-sm">
-                    {campaignData.objectives.map((objective, index) => (
-                      <li
-                        key={index}
-                        className="flex items-start gap-2 p-2 rounded bg-synthwave-pink/5 border border-synthwave-pink/10"
-                      >
-                        <Target className="h-4 w-4 mt-0.5 text-synthwave-pink shrink-0" />
-                        <span>{objective}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            )}
+              </Button>
+            </div>
           </div>
         </Card>
 
+        {/* Briefing Content - drops down from top bar */}
+        {isBriefingOpen && (
+          <Card className="pointer-events-auto absolute right-4 mt-2 w-[400px] border-synthwave-pink/30 bg-synthwave-dark/90 text-synthwave-light shadow-[0_0_15px_rgba(255,0,170,0.3)] backdrop-blur-md p-3">
+            <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1">
+              <div className="space-y-1 text-sm text-secondary/80">
+                {campaignData.description}
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="retro-font text-xs font-medium uppercase text-primary">
+                    Primary Objectives
+                  </h4>
+                  <span className="text-xs text-secondary">
+                    {campaignData.objectives.length} Targets
+                  </span>
+                </div>
+                <ul className="space-y-2 text-sm">
+                  {campaignData.objectives.map((objective, index) => (
+                    <li
+                      key={index}
+                      className="flex items-start gap-2 p-2 rounded bg-synthwave-pink/5 border border-synthwave-pink/10"
+                    >
+                      <Target className="h-4 w-4 mt-0.5 text-synthwave-pink shrink-0" />
+                      <span>{objective}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </Card>
+        )}
+      </div>
+
+      {/* Sidebar - Left Panel */}
+      <div className="absolute top-[73px] left-0 bottom-0 w-[380px] z-10 flex flex-col overflow-hidden bg-synthwave-dark/88 border-r border-synthwave-pink/20 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)] text-synthwave-light">
         {/* Active Flight Groups */}
         <ActiveFlightGroups
           selectedItem={selectedItem}
@@ -331,7 +334,7 @@ export function Home() {
         />
 
         {isLogOpen && (
-          <Card className="pointer-events-auto border-synthwave-pink/30 bg-synthwave-dark/80 text-synthwave-light shadow-[0_0_15px_rgba(255,0,170,0.3)] backdrop-blur-md p-2 h-[240px]">
+          <div className="border-t border-synthwave-pink/20 p-2 h-[240px] shrink-0">
             <div className="mb-2 flex items-center justify-between">
               <span className="retro-font text-xs uppercase text-primary">Action Log</span>
               <Button
@@ -425,7 +428,7 @@ export function Home() {
               <ScrollBar />
               <ScrollAreaPrimitive.Corner />
             </ScrollAreaPrimitive.Root>
-          </Card>
+          </div>
         )}
       </div>
     </div>

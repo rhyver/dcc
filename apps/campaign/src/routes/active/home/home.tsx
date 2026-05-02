@@ -8,7 +8,6 @@ import {
   Play,
   Menu,
   Save,
-  FileOutput,
   FolderOpen,
   Home as HomeIcon,
   Settings as SettingsIcon,
@@ -56,10 +55,25 @@ const LOG_OVERSCAN = 6
 const MAP_OVERLAY_SAFE_LEFT_PX = 412
 const CampaignMap = React.lazy(() => import('./map').then(({ Map }) => ({ default: Map })))
 
+function isTextEntryElement(element: EventTarget | null) {
+  if (!(element instanceof HTMLElement)) {
+    return false
+  }
+
+  const tagName = element.tagName.toLowerCase()
+  return (
+    element.isContentEditable ||
+    tagName === 'input' ||
+    tagName === 'textarea' ||
+    tagName === 'select'
+  )
+}
+
 export function Home() {
   const [mapZoom, setMapZoom] = React.useState(7)
   const [isMeasureMode, setIsMeasureMode] = React.useState(false)
   const [isBriefingOpen, setIsBriefingOpen] = React.useState(false)
+  const [isCampaignMenuOpen, setIsCampaignMenuOpen] = React.useState(false)
   const [selectedItem, setSelectedItem] = React.useState<SelectedItem>(null)
   const [previewItem, setPreviewItem] = React.useState<SelectedItem>(null)
   const timeMultiplier = useSelector(activeStore, (state) => state.context.timeMultiplier)
@@ -82,6 +96,7 @@ export function Home() {
     [playerFlightGroups, opponentFlightGroups]
   )
   const logViewportRef = React.useRef<HTMLDivElement | null>(null)
+  const lastRunningTimeMultiplierRef = React.useRef(timeMultiplier > 0 ? timeMultiplier : 1)
   const [logScrollTop, setLogScrollTop] = React.useState(0)
   const [logViewportHeight, setLogViewportHeight] = React.useState(190)
   const scenarioQuery = useQuery(
@@ -100,6 +115,49 @@ export function Home() {
     (objective: string) => (scenarioGoal ? `Capture ${objective}` : objective),
     [scenarioGoal]
   )
+
+  React.useEffect(() => {
+    if (timeMultiplier > 0) {
+      lastRunningTimeMultiplierRef.current = timeMultiplier
+    }
+  }, [timeMultiplier])
+
+  const pauseTimer = React.useCallback(() => {
+    const { timeMultiplier: currentTimeMultiplier } = activeStore.getSnapshot().context
+    if (currentTimeMultiplier > 0) {
+      lastRunningTimeMultiplierRef.current = currentTimeMultiplier
+    }
+    activeStore.trigger.updateTimeMultiplier({ timeMultiplier: 0 })
+  }, [])
+
+  const resumeTimer = React.useCallback(() => {
+    activeStore.trigger.updateTimeMultiplier({
+      timeMultiplier: lastRunningTimeMultiplierRef.current
+    })
+  }, [])
+
+  const toggleTimerPaused = React.useCallback(() => {
+    const { timeMultiplier: currentTimeMultiplier } = activeStore.getSnapshot().context
+    if (currentTimeMultiplier === 0) {
+      resumeTimer()
+    } else {
+      pauseTimer()
+    }
+  }, [pauseTimer, resumeTimer])
+
+  React.useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.key !== ' ' || isTextEntryElement(event.target)) {
+        return
+      }
+
+      event.preventDefault()
+      toggleTimerPaused()
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [toggleTimerPaused])
 
   React.useEffect(() => {
     const viewport = logViewportRef.current
@@ -148,6 +206,38 @@ export function Home() {
       setSelectedItem(groundGroup)
     }
   }, [])
+
+  React.useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.key !== 'Escape' || isTextEntryElement(event.target)) {
+        return
+      }
+
+      if (selectedItem) {
+        event.preventDefault()
+        setSelectedItem(null)
+        return
+      }
+
+      if (isBriefingOpen) {
+        event.preventDefault()
+        setIsBriefingOpen(false)
+        return
+      }
+
+      if (isMeasureMode) {
+        event.preventDefault()
+        setIsMeasureMode(false)
+        return
+      }
+
+      event.preventDefault()
+      setIsCampaignMenuOpen((isOpen) => !isOpen)
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [isBriefingOpen, isMeasureMode, selectedItem])
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-background">
@@ -244,13 +334,26 @@ export function Home() {
       {/* Top Bar - Full Width */}
       <div className="absolute top-0 left-0 right-0 z-20 pointer-events-none">
         <Card className="pointer-events-auto rounded-none border-x-0 border-t-0 border-b border-synthwave-pink/20 bg-synthwave-dark/88 text-synthwave-light shadow-[0_10px_30px_rgba(0,0,0,0.22)] backdrop-blur-md px-3 py-5">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <CampaignMenu />
-              <Clock />
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
+            <div className="flex items-center gap-2 justify-self-start">
+              <CampaignMenu open={isCampaignMenuOpen} onOpenChange={setIsCampaignMenuOpen} />
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-secondary hover:text-white hover:bg-synthwave-pink/10"
+                onClick={() => setIsBriefingOpen(!isBriefingOpen)}
+              >
+                <Info className="h-4 w-4 text-synthwave-pink" />
+                <span className="retro-font text-xs">Mission Briefing</span>
+              </Button>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="justify-self-center">
+              <TakeoffButton />
+            </div>
+
+            <div className="flex items-center gap-6 justify-self-end">
+              <Clock />
               <ToggleGroup
                 type="single"
                 value={timerState}
@@ -258,10 +361,10 @@ export function Home() {
                   if (!value) return
                   switch (value) {
                     case 'pause':
-                      activeStore.trigger.updateTimeMultiplier({ timeMultiplier: 0 })
+                      pauseTimer()
                       break
                     case 'play':
-                      activeStore.trigger.updateTimeMultiplier({ timeMultiplier: 1 })
+                      resumeTimer()
                       break
                     case 'fast-forward':
                       activeStore.trigger.updateTimeMultiplier({ timeMultiplier: 300 })
@@ -292,27 +395,12 @@ export function Home() {
                 </ToggleGroupItem>
               </ToggleGroup>
             </div>
-
-            <div className="flex items-center gap-2">
-              <div className="w-[200px]">
-                <TakeoffButton />
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-secondary hover:text-white hover:bg-synthwave-pink/10"
-                onClick={() => setIsBriefingOpen(!isBriefingOpen)}
-              >
-                <Info className="h-4 w-4 text-synthwave-pink" />
-                <span className="retro-font text-xs">Mission Briefing</span>
-              </Button>
-            </div>
           </div>
         </Card>
 
         {/* Briefing Content - drops down from top bar */}
         {isBriefingOpen && (
-          <Card className="pointer-events-auto absolute right-4 mt-2 w-[400px] border-synthwave-pink/30 bg-synthwave-dark/90 text-synthwave-light shadow-[0_0_15px_rgba(255,0,170,0.3)] backdrop-blur-md p-3">
+          <Card className="pointer-events-auto absolute left-4 mt-2 w-[400px] border-synthwave-pink/30 bg-synthwave-dark/90 text-synthwave-light shadow-[0_0_15px_rgba(255,0,170,0.3)] backdrop-blur-md p-3">
             <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1">
               <div className="space-y-3 text-sm leading-relaxed text-secondary/80">
                 {briefingParagraphs.map((paragraph, index) => (
@@ -457,8 +545,13 @@ export function Home() {
   )
 }
 
-function CampaignMenu() {
-  const [open, setOpen] = React.useState(false)
+function CampaignMenu({
+  open,
+  onOpenChange
+}: {
+  open: boolean
+  onOpenChange: React.Dispatch<React.SetStateAction<boolean>>
+}) {
   const navigate = useNavigate()
 
   const handleSave = async () => {
@@ -467,21 +560,16 @@ function CampaignMenu() {
       ...snapshot,
       timeMultiplier: 0
     })
-    setOpen(false)
-  }
-
-  const handleExportMission = async () => {
-    await coreClient.campaign.generateMiz(activeStore.getSnapshot().context)
-    setOpen(false)
+    onOpenChange(false)
   }
 
   const handleReturnToStart = () => {
-    setOpen(false)
+    onOpenChange(false)
     navigate('/new')
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
         <Button
           variant="ghost"
@@ -512,16 +600,8 @@ function CampaignMenu() {
           <Button
             variant="ghost"
             className="w-full justify-start gap-3 text-secondary hover:text-white hover:bg-synthwave-pink/10"
-            onClick={handleExportMission}
-          >
-            <FileOutput className="h-4 w-4 text-synthwave-pink" />
-            Export Mission
-          </Button>
-          <Button
-            variant="ghost"
-            className="w-full justify-start gap-3 text-secondary hover:text-white hover:bg-synthwave-pink/10"
             onClick={() => {
-              setOpen(false)
+              onOpenChange(false)
               navigate('/load')
             }}
           >
@@ -533,7 +613,7 @@ function CampaignMenu() {
             variant="ghost"
             className="w-full justify-start gap-3 text-secondary hover:text-white hover:bg-synthwave-pink/10"
             onClick={() => {
-              setOpen(false)
+              onOpenChange(false)
               navigate('/settings')
             }}
           >

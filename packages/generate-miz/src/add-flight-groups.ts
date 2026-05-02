@@ -719,6 +719,7 @@ export function addFlightGroups(
   const usedParkingSlots = new Map<string, Set<string>>() // Airdrome Name -> Set of Slot IDs
   const flightConfigs: MissionFlightConfig[] = []
   const hotStart = campaign.campaignParams?.hotStart === true
+  const casJtac = campaign.campaignParams?.casJtac ?? true
 
   for (const [key, value] of Object.entries(campaign.coalitions)) {
     const missionCoalitionKey = key === 'player' ? 'blue' : key === 'opponent' ? 'red' : 'neutrals'
@@ -1084,9 +1085,9 @@ export function addFlightGroups(
         const tasks: z.infer<typeof schemas.dcs.task>[] = []
         const nextWp = waypointsToUse[index + 1]
 
-        // Add SEAD escort task for SEAD flight groups at the IP waypoint
+        // Add SEAD escort task for SEAD flight groups at their task waypoint
         // This makes the SEAD aircraft follow the strike group while engaging SAMs
-        if (wp.name === 'IP' && fg.task === 'SEAD' && fg.packageId) {
+        if (wp.type === 'Task' && fg.task === 'SEAD' && fg.packageId) {
           // Find the primary flight group in this package (the strike group to escort)
           const primaryFlightGroupId = packagePrimaryFlightGroupId.get(fg.packageId)
           if (primaryFlightGroupId) {
@@ -1155,7 +1156,7 @@ export function addFlightGroups(
           })
         }
 
-        if (wp.name === 'IP' && fg.target && fg.task === 'Pinpoint Strike') {
+        if (wp.name === 'Target' && fg.target && fg.task === 'Pinpoint Strike') {
           const targetStructure = structureMap.get(fg.target.id)
 
           if (targetStructure) {
@@ -1259,7 +1260,7 @@ export function addFlightGroups(
         })
       }
 
-      if (fg.task === 'CAS' && fg.aircrafts.some((ac) => ac.client) && fg.target) {
+      if (casJtac && fg.task === 'CAS' && fg.aircrafts.some((ac) => ac.client) && fg.target) {
         const enemyCoalition = key === 'player' ? 'opponent' : 'player'
         const enemyMissionCoalitionKey = enemyCoalition === 'player' ? 'blue' : 'red'
         const targetGroundGroup = campaign.coalitions[enemyCoalition].groundGroups.find(

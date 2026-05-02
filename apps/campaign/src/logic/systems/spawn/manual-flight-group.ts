@@ -4,7 +4,11 @@ import * as z from 'zod'
 
 import {
   buildAttackMissionWaypoints,
+  buildCasMissionWaypoints,
   buildCapMissionWaypoints,
+  buildDeadMissionWaypoints,
+  buildSeadMissionWaypoints,
+  buildStrikeMissionWaypoints,
   buildTransportMissionWaypoints,
   spawnPlannedFlightGroup
 } from '../../entities/flight-group-spawn'
@@ -44,6 +48,8 @@ type ManualSpawnPlan =
         id: string
         type: string
         objectiveId: string
+        position?: Position
+        buildings?: z.infer<typeof schemas.structureBuilding>[]
       }
       targetPosition: Position
     }
@@ -217,7 +223,9 @@ function createManualSpawnPlan(
               target: {
                 id: structure.id,
                 type: structure.type,
-                objectiveId: structure.objectiveId
+                objectiveId: structure.objectiveId,
+                position: structure.position,
+                buildings: structure.buildings
               },
               position
             }
@@ -447,7 +455,27 @@ export function createManualFlightGroup(
     }).flightGroupId
   }
 
-  const missionWaypoints = buildAttackMissionWaypoints(plan.homeBasePosition, plan.targetPosition)
+  const missionWaypoints =
+    plan.task === 'Pinpoint Strike'
+      ? buildStrikeMissionWaypoints(
+          plan.homeBasePosition,
+          plan.targetPosition,
+          draft.campaignParams?.exactTarget === true &&
+            plan.target.position &&
+            plan.target.buildings?.[0]
+            ? {
+                x: plan.target.position.x + plan.target.buildings[0].offset.x,
+                y: plan.target.position.y + plan.target.buildings[0].offset.y
+              }
+            : plan.targetPosition
+        )
+      : plan.task === 'SEAD'
+        ? buildSeadMissionWaypoints(plan.homeBasePosition, plan.targetPosition)
+        : plan.task === 'DEAD'
+          ? buildDeadMissionWaypoints(plan.homeBasePosition, plan.targetPosition)
+          : plan.task === 'CAS'
+            ? buildCasMissionWaypoints(plan.homeBasePosition, plan.targetPosition)
+            : buildAttackMissionWaypoints(plan.homeBasePosition, plan.targetPosition)
   return spawnPlannedFlightGroup({
     draft,
     coalition,

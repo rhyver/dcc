@@ -1,7 +1,7 @@
 import { schemas, config } from '@dcc/contracts'
 import * as z from 'zod'
 import { FlightGroup } from './flight-group'
-import { buildAttackMissionWaypoints, spawnPlannedFlightGroup } from './flight-group-spawn'
+import { buildStrikeMissionWaypoints, spawnPlannedFlightGroup } from './flight-group-spawn'
 import { logCombatAction } from '../simulation-log'
 import { debugLog } from '@/lib/debug'
 
@@ -16,17 +16,29 @@ export class StrikeFlightGroup extends FlightGroup {
         id: string
         type: string
         objectiveId: string
+        position?: z.infer<typeof schemas.position>
+        buildings?: z.infer<typeof schemas.structureBuilding>[]
       }
       targetPosition: z.infer<typeof schemas.position>
       runwayAngle?: number
       aircraftType: z.infer<typeof schemas.dcs.aircraftName>
       packageId?: string
+      exactTarget?: boolean
     }
   ): { flightGroupId: string; tot: Date } {
     const numAircraft = config.packages['Pinpoint Strike'].aircraftsPerGroup
-    const missionWaypoints = buildAttackMissionWaypoints(
+    const firstBuilding = params.target.buildings?.[0]
+    const aimpointPosition =
+      params.exactTarget === true && params.target.position && firstBuilding
+        ? {
+            x: params.target.position.x + firstBuilding.offset.x,
+            y: params.target.position.y + firstBuilding.offset.y
+          }
+        : params.targetPosition
+    const missionWaypoints = buildStrikeMissionWaypoints(
       params.homeBasePosition,
-      params.targetPosition
+      params.targetPosition,
+      aimpointPosition
     )
 
     const startTime = new Date(

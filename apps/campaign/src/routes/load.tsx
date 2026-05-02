@@ -1,6 +1,6 @@
 import { ArrowLeft, Calendar, FolderOpen, Trash2, X, CheckCircle2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'motion/react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { cn } from '@/lib/utils'
@@ -14,8 +14,23 @@ export function Load() {
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null)
   const [isDeleteMode, setIsDeleteMode] = useState(false)
   const [campaignsToDelete, setCampaignsToDelete] = useState<Set<string>>(new Set())
+  const [hasActiveCampaign, setHasActiveCampaign] = useState(false)
 
   const campaignsQuery = useQuery(orpc.campaign.listCampaigns.queryOptions({}))
+
+  useEffect(() => {
+    let cancelled = false
+
+    coreClient.campaign.getActiveCampaign().then((campaign) => {
+      if (!cancelled) {
+        setHasActiveCampaign(campaign != null)
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const deleteCampaign = useMutation({
     mutationFn: (id: string) => coreClient.campaign.deleteCampaign({ id }),
@@ -73,11 +88,11 @@ export function Load() {
         >
           <Button
             variant="outline"
-            onClick={() => navigate('/new')}
+            onClick={() => navigate(hasActiveCampaign ? '/' : '/new')}
             className="border-synthwave-purple bg-synthwave-dark/80 text-synthwave-cyan hover:border-synthwave-pink hover:bg-synthwave-purple/10 hover:text-white"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Menu
+            {hasActiveCampaign ? 'Back to Campaign' : 'Back to Menu'}
           </Button>
         </motion.div>
 

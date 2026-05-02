@@ -148,7 +148,8 @@ export function spawnStrike(
         targetPosition: selectedAssignment.targetPosition,
         runwayAngle: selectedAssignment.homeBase.runwayAngle,
         aircraftType,
-        packageId
+        packageId,
+        exactTarget: draft.campaignParams?.exactTarget === true
       }
     )
 
@@ -208,7 +209,8 @@ export function spawnStrike(
       target: selectedTarget,
       targetPosition: selectedAssignment.targetPosition,
       runwayAngle: selectedAssignment.homeBase.runwayAngle,
-      aircraftType
+      aircraftType,
+      exactTarget: draft.campaignParams?.exactTarget === true
     })
   }
 }

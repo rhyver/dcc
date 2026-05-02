@@ -4,7 +4,7 @@ import * as z from 'zod'
 import { FlightGroup } from './flight-group'
 import { calculateDistance } from '../utils/calculate-distance'
 import { getObjectivePosition } from '../utils/get-objective-position'
-import { buildAttackMissionWaypoints, spawnPlannedFlightGroup } from './flight-group-spawn'
+import { buildDeadMissionWaypoints, spawnPlannedFlightGroup } from './flight-group-spawn'
 import { logCombatAction } from '../simulation-log'
 import { debugLog } from '@/lib/debug'
 
@@ -27,7 +27,7 @@ export class DeadFlightGroup extends FlightGroup {
     }
   ): { flightGroupId: string; tot: Date } {
     const numAircraft = config.packages.DEAD.aircraftsPerGroup
-    const missionWaypoints = buildAttackMissionWaypoints(
+    const missionWaypoints = buildDeadMissionWaypoints(
       params.homeBasePosition,
       params.targetPosition
     )

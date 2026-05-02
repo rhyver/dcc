@@ -20,7 +20,9 @@ const initialState: z.infer<typeof schemas.campaign.campaign> = {
   campaignParams: {
     hotStart: false,
     culling: true,
-    ewr: true
+    ewr: true,
+    exactTarget: true,
+    casJtac: true
   },
   logs: [],
   scenarioId: 'red-bullet',
@@ -328,6 +330,20 @@ export const activeStore = createStore({
           draft.campaignParams = {}
         }
         draft.campaignParams.ewr = ewr
+      }),
+    setExactTarget: (context, { exactTarget }: { exactTarget: boolean }) =>
+      produce(context, (draft) => {
+        if (!draft.campaignParams) {
+          draft.campaignParams = {}
+        }
+        draft.campaignParams.exactTarget = exactTarget
+      }),
+    setCasJtac: (context, { casJtac }: { casJtac: boolean }) =>
+      produce(context, (draft) => {
+        if (!draft.campaignParams) {
+          draft.campaignParams = {}
+        }
+        draft.campaignParams.casJtac = casJtac
       }),
 
     tick: (

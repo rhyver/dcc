@@ -98,6 +98,18 @@ function createFlightGroup(id: string, callsign: string, startTime: Date): Fligh
   }
 }
 
+function createClientCasFlightGroup(startTime: Date): FlightGroup {
+  const group = createFlightGroup('blue-cas', 'Enfield-1', startTime)
+  group.task = 'CAS'
+  group.aircrafts[0]!.client = true
+  group.target = {
+    id: 'ground-1',
+    type: 'Ground Group',
+    objectiveId: 'objective-1'
+  }
+  return group
+}
+
 function createCampaign(startTime: Date): Campaign {
   const createAircraftTypes = (): CampaignCoalition['aircraftTypes'] =>
     Object.fromEntries(
@@ -383,6 +395,43 @@ describe('addFlightGroups mission script config', () => {
         groupId: expect.any(Number),
         name: 'Enfield-1',
         task: 'CAP',
+        unitNames: ['Enfield-1-1', 'Enfield-1-2']
+      }
+    ])
+  })
+
+  test('skips CAS JTAC support when disabled in campaign params', () => {
+    const startTime = new Date('2026-01-01T00:00:00Z')
+    const mission = createMission()
+    const campaign = createCampaign(startTime)
+    campaign.campaignParams = { casJtac: false }
+    campaign.coalitions.player.flightGroups = [createClientCasFlightGroup(startTime)]
+    campaign.coalitions.opponent.flightGroups = []
+    campaign.coalitions.opponent.groundGroups = [
+      {
+        id: 'ground-1',
+        units: [],
+        position: { x: 3000, y: 3000 },
+        objectiveId: 'objective-1',
+        state: 'idle'
+      }
+    ]
+
+    const result = addFlightGroups(mission, campaign, {
+      ...theatre,
+      objectives: [{ name: 'objective-1', type: 'Frontline', position: { x: 3000, y: 3000 } }]
+    })
+
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) throw result.error
+
+    const blueGroups = mission.coalition.blue.country?.[0]?.plane?.group ?? []
+    expect(blueGroups.map((group) => group.name)).toEqual(['Enfield-1'])
+    expect(result.value).toEqual([
+      {
+        groupId: expect.any(Number),
+        name: 'Enfield-1',
+        task: 'CAS',
         unitNames: ['Enfield-1-1', 'Enfield-1-2']
       }
     ])

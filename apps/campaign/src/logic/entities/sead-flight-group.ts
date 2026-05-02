@@ -4,7 +4,7 @@ import * as z from 'zod'
 import { FlightGroup } from './flight-group'
 import { calculateDistance } from '../utils/calculate-distance'
 import { getObjectivePosition } from '../utils/get-objective-position'
-import { buildAttackMissionWaypoints, spawnPlannedFlightGroup } from './flight-group-spawn'
+import { buildSeadMissionWaypoints, spawnPlannedFlightGroup } from './flight-group-spawn'
 import { logCombatAction } from '../simulation-log'
 import { debugLog } from '@/lib/debug'
 
@@ -28,7 +28,7 @@ export class SeadFlightGroup extends FlightGroup {
     }
   ): string {
     const numAircraft = config.packages.SEAD.aircraftsPerGroup
-    const missionWaypoints = buildAttackMissionWaypoints(
+    const missionWaypoints = buildSeadMissionWaypoints(
       params.homeBasePosition,
       params.targetPosition
     )

@@ -20,10 +20,17 @@ export function Settings() {
   const [enableAutoUpdate, setEnableAutoUpdate] = useState<boolean>(true)
   const [appVersion, setAppVersion] = useState<string>('')
   const [dcsInstallPathError, setDcsInstallPathError] = useState<string | null>(null)
+  const [hasActiveCampaign, setHasActiveCampaign] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    let cancelled = false
+
     coreClient.campaign.getSettings().then((settings) => {
+      if (cancelled) {
+        return
+      }
+
       setMissionExportPath(settings.missionExportPath || '')
       setDcsInstallPath(settings.dcsInstallPath || '')
       setDetectedMissionExportPath(settings.detectedMissionExportPath ?? '')
@@ -35,9 +42,20 @@ export function Settings() {
       setEnableAutoUpdate(!(settings.disableAutoUpdate ?? false))
       setLoading(false)
     })
-    window.api?.getAppVersion?.().then((version) => {
-      setAppVersion(version)
+    coreClient.campaign.getActiveCampaign().then((campaign) => {
+      if (!cancelled) {
+        setHasActiveCampaign(campaign != null)
+      }
     })
+    window.api?.getAppVersion?.().then((version) => {
+      if (!cancelled) {
+        setAppVersion(version)
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const handleBrowseMissionExportPath = async () => {
@@ -82,7 +100,7 @@ export function Settings() {
         aiModel: aiModel.trim() || undefined,
         disableAutoUpdate: !enableAutoUpdate
       })
-      navigate('/new')
+      navigate(hasActiveCampaign ? '/' : '/new')
     } catch (error) {
       const message =
         error != null &&
@@ -119,10 +137,11 @@ export function Settings() {
               <h2 className="retro-font text-3xl text-synthwave-cyan">SETTINGS</h2>
               <Button
                 variant="ghost"
-                onClick={() => navigate('/new')}
+                onClick={() => navigate(hasActiveCampaign ? '/' : '/new')}
                 className="text-synthwave-pink hover:text-white"
               >
-                <ArrowLeft className="mr-2 h-4 w-4" /> Back
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                {hasActiveCampaign ? 'Back to Campaign' : 'Back'}
               </Button>
             </div>
 

@@ -1,7 +1,7 @@
 import { config, schemas } from '@dcc/contracts'
 import * as z from 'zod'
 import {
-  buildAttackMissionWaypoints,
+  buildCasMissionWaypoints,
   spawnPlannedFlightGroup
 } from '../../../entities/flight-group-spawn'
 import { FlightGroupFactory } from '../../../entities/flight-group-factory'
@@ -83,8 +83,7 @@ export function spawnCas(
     const objectiveId = group.objectiveId
     if (!objectiveId) continue
 
-    const objectivePosition = getObjectivePosition(theatre, objectiveId)
-    if (!objectivePosition) continue
+    if (!getObjectivePosition(theatre, objectiveId)) continue
 
     availableTargets.push({
       target: {
@@ -92,7 +91,7 @@ export function spawnCas(
         type: 'Ground Group',
         objectiveId
       },
-      position: objectivePosition
+      position: group.position
     })
   }
 
@@ -116,7 +115,7 @@ export function spawnCas(
     return
   }
 
-  const missionWaypoints = buildAttackMissionWaypoints(
+  const missionWaypoints = buildCasMissionWaypoints(
     selectedAssignment.homeBase.position,
     selectedAssignment.targetPosition
   )

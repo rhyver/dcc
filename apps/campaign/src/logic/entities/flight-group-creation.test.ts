@@ -5,7 +5,10 @@ import type * as z from 'zod'
 import { CapFlightGroup } from './cap-flight-group'
 import { DeadFlightGroup } from './dead-flight-group'
 import { FlightGroup } from './flight-group'
-import { buildAttackMissionWaypoints, spawnPlannedFlightGroup } from './flight-group-spawn'
+import {
+  buildStrikeMissionWaypoints,
+  spawnPlannedFlightGroup
+} from './flight-group-spawn'
 import { SeadFlightGroup } from './sead-flight-group'
 import { StrikeFlightGroup } from './strike-flight-group'
 import { TransportFlightGroup } from './transport-flight-group'
@@ -97,6 +100,22 @@ function expectStandardFixedWingPlan(group: FlightGroupData, taskWaypointName: s
   expect(group.tot).toBeInstanceOf(Date)
 }
 
+function expectStrikeFixedWingPlan(group: FlightGroupData) {
+  expect(group.flightplan.waypoints.map((wp) => wp.name)).toEqual([
+    'TakeOff',
+    'Ascend',
+    'IP',
+    'Attack',
+    'Target',
+    'Egress',
+    'Descent',
+    'Landing'
+  ])
+  expect(group.flightplan.waypoints[0]?.type).toBe('TakeOff')
+  expect(group.flightplan.waypoints.at(-1)?.type).toBe('Landing')
+  expect(group.tot).toBeInstanceOf(Date)
+}
+
 beforeEach(() => {
   vi.spyOn(Math, 'random').mockReturnValue(0)
 })
@@ -123,27 +142,34 @@ describe('CAP flight group creation', () => {
     expect(group.flightplan.waypoints.map((wp) => wp.name)).toEqual([
       'TakeOff',
       'Ascend',
+      'Patrol Entry',
       'Racetrack Start',
       'Racetrack End',
       'Descent',
       'Landing'
     ])
-    expect(group.flightplan.waypoints[2]?.type).toBe('Task')
-    expect(group.flightplan.waypoints[3]?.type).toBe('RaceTrack End')
+    expect(group.flightplan.waypoints[2]?.type).toBe('Nav')
+    expect(group.flightplan.waypoints[3]?.type).toBe('Task')
+    expect(group.flightplan.waypoints[4]?.type).toBe('RaceTrack End')
   })
 })
 
 describe('Pinpoint Strike flight group creation', () => {
-  test('creates a strike group with target metadata and attack flightplan', () => {
+  test('creates a strike group with objective-level target waypoint when exact target is disabled', () => {
     const campaign = createCampaign()
 
     const result = StrikeFlightGroup.spawn(campaign, 'player', {
       homeBase: 'Home',
       homeBasePosition,
-      target,
+      target: {
+        ...target,
+        position: targetPosition,
+        buildings: [{ offset: { x: 500, y: -250 }, type: 'Tech hangar A', alive: true }]
+      },
       targetPosition,
       aircraftType: 'F-16C_50',
-      packageId: 'package-1'
+      packageId: 'package-1',
+      exactTarget: false
     })
 
     const group = getCreatedFlightGroup(campaign, result.flightGroupId)
@@ -151,10 +177,48 @@ describe('Pinpoint Strike flight group creation', () => {
     expect(group.target).toEqual(target)
     expect(group.packageId).toBe('package-1')
     expect(group.aircrafts).toHaveLength(config.packages['Pinpoint Strike'].aircraftsPerGroup)
-    expectStandardFixedWingPlan(group, 'Target')
+    expectStrikeFixedWingPlan(group)
+    expect(group.flightplan.waypoints.find((wp) => wp.name === 'Attack')).toMatchObject({
+      altitude: 6000,
+      altitudeType: 'BARO',
+      type: 'Task'
+    })
     expect(group.flightplan.waypoints.find((wp) => wp.name === 'Target')).toMatchObject({
+      position: targetPosition,
       altitude: 0,
-      altitudeType: 'RADIO'
+      altitudeType: 'RADIO',
+      type: 'Nav'
+    })
+    expect(group.flightplan.waypoints.find((wp) => wp.name === 'Egress')?.position).not.toEqual(
+      group.flightplan.waypoints.find((wp) => wp.name === 'IP')?.position
+    )
+    expect(group.flightplan.waypoints.find((wp) => wp.name === 'Egress')?.position).not.toEqual(
+      group.flightplan.waypoints.find((wp) => wp.name === 'Target')?.position
+    )
+  })
+
+  test('places strike target waypoint on the first building when exact target is enabled', () => {
+    const campaign = createCampaign()
+
+    const result = StrikeFlightGroup.spawn(campaign, 'player', {
+      homeBase: 'Home',
+      homeBasePosition,
+      target: {
+        ...target,
+        position: targetPosition,
+        buildings: [{ offset: { x: 500, y: -250 }, type: 'Tech hangar A', alive: true }]
+      },
+      targetPosition,
+      aircraftType: 'F-16C_50',
+      exactTarget: true
+    })
+
+    const group = getCreatedFlightGroup(campaign, result.flightGroupId)
+    expect(group.flightplan.waypoints.find((wp) => wp.name === 'Target')).toMatchObject({
+      position: { x: 100_500, y: -250 },
+      altitude: 0,
+      altitudeType: 'RADIO',
+      type: 'Nav'
     })
   })
 })
@@ -180,7 +244,21 @@ describe('SEAD flight group creation', () => {
     expect(group.packageId).toBe('package-1')
     expect(group.tot).toEqual(desiredTot)
     expect(group.aircrafts).toHaveLength(config.packages.SEAD.aircraftsPerGroup)
-    expectStandardFixedWingPlan(group, 'Target')
+    expect(group.flightplan.waypoints.map((wp) => wp.name)).toEqual([
+      'TakeOff',
+      'Ascend',
+      'Ingress',
+      'Suppress',
+      'Emitter',
+      'Egress',
+      'Descent',
+      'Landing'
+    ])
+    expect(group.flightplan.waypoints.find((wp) => wp.name === 'Suppress')).toMatchObject({
+      altitude: 7500,
+      altitudeType: 'BARO',
+      type: 'Task'
+    })
   })
 })
 
@@ -200,14 +278,60 @@ describe('DEAD flight group creation', () => {
     expect(group.task).toBe('DEAD')
     expect(group.target).toEqual({ ...target, type: 'SA-6' })
     expect(group.aircrafts).toHaveLength(config.packages.DEAD.aircraftsPerGroup)
-    expectStandardFixedWingPlan(group, 'Target')
+    expect(group.flightplan.waypoints.map((wp) => wp.name)).toEqual([
+      'TakeOff',
+      'Ascend',
+      'IP',
+      'Attack',
+      'Emitter',
+      'Egress',
+      'Descent',
+      'Landing'
+    ])
+    expect(group.flightplan.waypoints.find((wp) => wp.name === 'Emitter')).toMatchObject({
+      altitude: 0,
+      altitudeType: 'RADIO',
+      type: 'Nav'
+    })
   })
 })
 
 describe('CAS flight group creation', () => {
   test('creates a CAS group through the shared planned-flight helper', () => {
     const campaign = createCampaign()
-    const missionWaypoints = buildAttackMissionWaypoints(homeBasePosition, targetPosition)
+    const missionWaypoints = [
+      {
+        name: 'Contact',
+        position: { x: 90_000, y: 0 },
+        altitude: 3500,
+        altitudeType: 'BARO' as const,
+        speed: 200,
+        type: 'Task' as const
+      },
+      {
+        name: 'Target',
+        position: targetPosition,
+        altitude: 0,
+        altitudeType: 'RADIO' as const,
+        speed: 180,
+        type: 'Nav' as const
+      },
+      {
+        name: 'Hold',
+        position: { x: 90_000, y: 12_000 },
+        altitude: 3500,
+        altitudeType: 'BARO' as const,
+        speed: 190,
+        type: 'Hold' as const
+      },
+      {
+        name: 'Egress',
+        position: { x: 90_000, y: -12_000 },
+        altitude: 3500,
+        speed: 220,
+        type: 'Nav' as const
+      }
+    ]
 
     const result = spawnPlannedFlightGroup({
       draft: campaign,
@@ -227,7 +351,16 @@ describe('CAS flight group creation', () => {
     expect(group.task).toBe('CAS')
     expect(group.target).toEqual({ ...target, type: 'Ground Group' })
     expect(group.aircrafts).toHaveLength(config.packages.CAS.aircraftsPerGroup)
-    expectStandardFixedWingPlan(group, 'Target')
+    expect(group.flightplan.waypoints.map((wp) => wp.name)).toEqual([
+      'TakeOff',
+      'Ascend',
+      'Contact',
+      'Target',
+      'Hold',
+      'Egress',
+      'Descent',
+      'Landing'
+    ])
     expect(group.flightplan.waypoints.find((wp) => wp.name === 'Target')).toMatchObject({
       altitude: 0,
       altitudeType: 'RADIO'
@@ -278,7 +411,15 @@ describe('Generic flight group creation', () => {
     const flightplan = FlightGroup.createFlightPlan(
       homeBasePosition,
       targetPosition,
-      buildAttackMissionWaypoints(homeBasePosition, targetPosition),
+      [
+        {
+          name: 'Target',
+          position: targetPosition,
+          altitude: 6000,
+          speed: 250,
+          type: 'Task'
+        }
+      ],
       new Date('2026-01-01T12:45:00.000Z')
     )
 
@@ -301,5 +442,31 @@ describe('Generic flight group creation', () => {
     expect(group.homeBase).toBe('Home')
     expect(group.flightplan).toBe(flightplan)
     expect(group.tot).toEqual(FlightGroup.calculateTot(flightplan))
+  })
+})
+
+describe('Strike mission waypoint builder', () => {
+  test('keeps the aimpoint as a flyable attack waypoint and offsets egress', () => {
+    const aimpointPosition = { x: 100_500, y: -250 }
+    const waypoints = buildStrikeMissionWaypoints(
+      homeBasePosition,
+      targetPosition,
+      aimpointPosition
+    )
+
+    expect(waypoints.map((wp) => wp.name)).toEqual(['IP', 'Attack', 'Target', 'Egress'])
+    expect(waypoints[1]).toMatchObject({
+      altitude: 6000,
+      altitudeType: 'BARO',
+      type: 'Task'
+    })
+    expect(waypoints[2]).toMatchObject({
+      position: aimpointPosition,
+      altitude: 0,
+      altitudeType: 'RADIO',
+      type: 'Nav'
+    })
+    expect(waypoints[3]?.position).not.toEqual(waypoints[0]?.position)
+    expect(waypoints[3]?.position).not.toEqual(targetPosition)
   })
 })

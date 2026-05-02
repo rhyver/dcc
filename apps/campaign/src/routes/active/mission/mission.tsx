@@ -159,6 +159,11 @@ export function Mission() {
   const hotStart = useSelector(activeStore, (state) => state.context.campaignParams?.hotStart)
   const culling = useSelector(activeStore, (state) => state.context.campaignParams?.culling ?? true)
   const ewr = useSelector(activeStore, (state) => state.context.campaignParams?.ewr ?? true)
+  const exactTarget = useSelector(
+    activeStore,
+    (state) => state.context.campaignParams?.exactTarget ?? true
+  )
+  const casJtac = useSelector(activeStore, (state) => state.context.campaignParams?.casJtac ?? true)
   const playerFlightGroups = useSelector(
     activeStore,
     (state) => state.context.coalitions.player.flightGroups
@@ -398,6 +403,34 @@ export function Mission() {
                           checked={!!ewr}
                           onCheckedChange={(checked) =>
                             activeStore.send({ type: 'setEwr', ewr: checked })
+                          }
+                        />
+                      </div>
+                      <div className="border border-[#ff00aa]/20 rounded-lg bg-[#ff00aa]/5 p-3 flex items-center justify-between">
+                        <div>
+                          <div className="text-sm font-medium text-white">Exact Strike Target</div>
+                          <div className="text-sm text-white/40">
+                            Use precise target steerpoints for Strike missions
+                          </div>
+                        </div>
+                        <Switch
+                          checked={!!exactTarget}
+                          onCheckedChange={(checked) =>
+                            activeStore.send({ type: 'setExactTarget', exactTarget: checked })
+                          }
+                        />
+                      </div>
+                      <div className="border border-[#ff00aa]/20 rounded-lg bg-[#ff00aa]/5 p-3 flex items-center justify-between">
+                        <div>
+                          <div className="text-sm font-medium text-white">CAS JTAC</div>
+                          <div className="text-sm text-white/40">
+                            Add JTAC support for player CAS tasking
+                          </div>
+                        </div>
+                        <Switch
+                          checked={!!casJtac}
+                          onCheckedChange={(checked) =>
+                            activeStore.send({ type: 'setCasJtac', casJtac: checked })
                           }
                         />
                       </div>

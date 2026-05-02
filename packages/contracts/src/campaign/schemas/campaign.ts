@@ -99,7 +99,9 @@ export const campaign = z.object({
     .object({
       hotStart: z.boolean().optional(),
       culling: z.boolean().optional(),
-      ewr: z.boolean().optional()
+      ewr: z.boolean().optional(),
+      exactTarget: z.boolean().optional(),
+      casJtac: z.boolean().optional()
     })
     .optional(),
   logs: z.array(campaignLogEntry).default([]),

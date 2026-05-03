@@ -1,5 +1,5 @@
 import { app } from 'electron'
-import { buildCampaignFromPlan } from '@dcc/campaign/mission-generator'
+import { buildCampaignFromPlan } from '@dcc/frontend/mission-generator'
 import { generateMizFromCampaign } from '@dcc/generate-miz'
 import { schemas } from '@dcc/contracts'
 import { existsSync, promises as fs } from 'fs'

@@ -4,7 +4,7 @@
   "private": true,
   "main": "./out/main/index.js",
   "scripts": {
-    "dev": "cross-env CAMPAIGN_URL=http://localhost:5173 DOCUMENT_URL=http://localhost:5174 electron-vite dev",
+    "dev": "cross-env FRONTEND_URL=http://localhost:5173 DOCUMENT_URL=http://localhost:5174 electron-vite dev",
     "build": "electron-vite build",
     "clean:dist": "node -e \"require('node:fs').rmSync('../../dist', { recursive: true, force: true })\"",
     "build:unpack": "bun run clean:dist && electron-builder --projectDir ../.. -c apps/core/electron-builder.yml --dir",
@@ -32,9 +32,9 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@dcc/campaign": "workspace:*",
     "@dcc/contracts": "workspace:*",
     "@dcc/data": "workspace:*",
+    "@dcc/frontend": "workspace:*",
     "@dcc/generate-miz": "workspace:*",
     "@electron-toolkit/eslint-config-prettier": "^3.0.0",
     "@electron-toolkit/eslint-config-ts": "^3.1.0",

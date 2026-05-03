@@ -56,7 +56,7 @@ app.on('web-contents-created', (_event, contents) => {
 
 let mainWindow: BrowserWindow | null = null
 const rendererProtocol = 'dcc'
-const campaignRendererHost = 'campaign'
+const frontendRendererHost = 'frontend'
 const gotSingleInstanceLock = app.requestSingleInstanceLock()
 const RESTORABLE_PATHS = new Set([
   '/',
@@ -323,11 +323,11 @@ protocol.registerSchemesAsPrivileged([
 function registerRendererProtocol() {
   protocol.handle(rendererProtocol, async (request) => {
     const url = new URL(request.url)
-    if (url.host !== campaignRendererHost) {
+    if (url.host !== frontendRendererHost) {
       return new Response('Not found', { status: 404 })
     }
 
-    const rendererRoot = resolve(process.resourcesPath, 'renderer/campaign')
+    const rendererRoot = resolve(process.resourcesPath, 'renderer/frontend')
     const requestedPath = decodeURIComponent(url.pathname === '/' ? '/index.html' : url.pathname)
     const filePath = resolve(rendererRoot, `.${requestedPath}`)
     const relativePath = relative(rendererRoot, filePath)
@@ -670,12 +670,12 @@ async function createWindow(): Promise<void> {
   // HMR for renderer base on electron-vite cli.
   // Load the remote URL for development or the local html file for production.
   const startupPath = await getLastViewPath()
-  const CAMPAIGN_URL = process.env.CAMPAIGN_URL
-  if (is.dev && CAMPAIGN_URL) {
-    await mainWindow.loadURL(withHashPath(CAMPAIGN_URL, startupPath))
+  const FRONTEND_URL = process.env.FRONTEND_URL
+  if (is.dev && FRONTEND_URL) {
+    await mainWindow.loadURL(withHashPath(FRONTEND_URL, startupPath))
   } else {
     await mainWindow.loadURL(
-      withHashPath(`${rendererProtocol}://${campaignRendererHost}/index.html`, startupPath)
+      withHashPath(`${rendererProtocol}://${frontendRendererHost}/index.html`, startupPath)
     )
   }
 }

@@ -9,7 +9,7 @@ import path from 'path'
 import { getTheatre } from '../data/get-theatre'
 import { assignObjectivesToCoalitions } from './assign-objectives-to-coalitions'
 import { assignSams } from './assign-sams'
-import { assignStructures } from '@dcc/campaign/mission-generator'
+import { assignStructures } from '@dcc/frontend/mission-generator'
 import { assignGroundGroups } from './assign-ground-groups'
 import { campaignsDir, stateFile } from '../../app-data'
 

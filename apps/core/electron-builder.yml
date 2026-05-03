@@ -22,8 +22,8 @@ files:
 asarUnpack:
   - resources/**
 extraResources:
-  - from: apps/campaign/dist
-    to: renderer/campaign
+  - from: apps/frontend/dist
+    to: renderer/frontend
   - from: apps/document/dist
     to: renderer/document
 win:

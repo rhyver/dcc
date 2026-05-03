@@ -27,7 +27,7 @@ export default defineConfig({
     build: {
       rollupOptions: {
         input: {
-          index: resolve('src/renderer/campaign/index.html'),
+          index: resolve('src/renderer/frontend/index.html'),
           document: resolve('src/renderer/document/index.html')
         }
       }

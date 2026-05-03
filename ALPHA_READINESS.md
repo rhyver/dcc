@@ -30,7 +30,7 @@ alpha/testing release and lists missing features grouped by priority.
    default — change to something like `at.digitalcrewchief.dcc` before any
    installer ships. Changing later breaks update channels.
 3. **High-frequency `console.log` in the simulation loop.**
-   `apps/campaign/src/logic/index.ts` ("fast tick" / "logic tick") plus ~45
+   `apps/frontend/src/logic/index.ts` ("fast tick" / "logic tick") plus ~45
    other call sites will hammer the renderer console. Gate behind a `DEBUG`
    flag.
 4. **No global error boundary.** The router only handles `INVALID_APP_STATE`;

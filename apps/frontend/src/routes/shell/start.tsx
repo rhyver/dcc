@@ -21,7 +21,7 @@ const menuOptions: MenuOption[] = [
   { id: 'exit', label: 'EXIT', icon: LogOut }
 ]
 
-export function New() {
+export function Start() {
   const navigate = useNavigate()
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
 

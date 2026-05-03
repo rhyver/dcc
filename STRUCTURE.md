@@ -23,13 +23,13 @@ Applications are the entry points of the system.
 The main Electron backend process.
 - **Role:** Orchestrates the application window, handles OS-level operations, and serves as the RPC server.
 - **Key Responsibilities:**
-  - Spawns the main window (loading `@dcc/campaign`).
+  - Spawns the main window (loading `@dcc/frontend`).
   - Spawns secondary windows (loading `@dcc/document`).
   - Implements backend logic for mission generation (`@dcc/generate-miz`).
   - Exposes API endpoints via ORPC.
 - **Dependencies:** `@dcc/contracts`, `@dcc/data`, `@dcc/generate-miz`.
 
-#### 2. `@dcc/campaign` (`apps/campaign`)
+#### 2. `@dcc/frontend` (`apps/frontend`)
 The primary user interface for the campaign manager.
 - **Role:** Main frontend application running inside the Electron window.
 - **Tech Stack:** React, Vite, MapLibre (for maps), Tailwind CSS.
@@ -52,7 +52,7 @@ Shared libraries used across applications to ensure type safety and code reuse.
 #### 1. `@dcc/contracts` (`packages/contracts`)
 Defines the API contract between the frontend (Client) and backend (Server).
 - **Role:** Shared type definitions and RPC contracts.
-- **Usage:** Imported by both `apps/campaign` (client) and `apps/core` (server) to ensure type-safe communication.
+- **Usage:** Imported by both `apps/frontend` (client) and `apps/core` (server) to ensure type-safe communication.
 - **Tech:** ORPC, Zod.
 
 #### 2. `@dcc/data` (`packages/data`)
@@ -63,7 +63,7 @@ Contains static data and definitions for the DCS world.
   - Faction templates (`src/factions/`)
   - Theatre/Map data (`src/theatres/`)
   - Scenario definitions (`src/scenarios/`)
-- **Usage:** Used by `apps/campaign` for UI display and `apps/core` for logic.
+- **Usage:** Used by `apps/frontend` for UI display and `apps/core` for logic.
 
 #### 3. `@dcc/generate-miz` (`packages/generate-miz`)
 Logic for creating DCS mission files.
@@ -88,13 +88,13 @@ Placeholder package, currently empty (no `src/`). Reserved for future shared def
 - **Development (`bun dev`):**
   - Starts all applications in parallel via `turbo run dev`.
   - `apps/core` runs the Electron main process.
-  - `apps/campaign` is served at `http://localhost:5173`.
+  - `apps/frontend` is served at `http://localhost:5173`.
   - `apps/document` is served at `http://localhost:5174`.
-  - These URLs are injected into Core via environment variables (`CAMPAIGN_URL`, `DOCUMENT_URL`).
+  - These URLs are injected into Core via environment variables (`FRONTEND_URL`, `DOCUMENT_URL`).
 - **Production (`bun run build`):**
-  1. `apps/campaign` and `apps/document` are built using Vite, outputting to their respective `dist/` folders.
+  1. `apps/frontend` and `apps/document` are built using Vite, outputting to their respective `dist/` folders.
   2. `apps/core` is built using Electron Vite.
-  3. **Packaging:** `electron-builder` packages the Electron app and copies the `dist/` folders of the frontend apps into the application's resources directory (`renderer/campaign` and `renderer/document`).
+  3. **Packaging:** `electron-builder` packages the Electron app and copies the `dist/` folders of the frontend apps into the application's resources directory (`renderer/frontend` and `renderer/document`).
 
 ### Data Flow
 1. **Frontend (`campaign`):** User requests an action (e.g., "Start Campaign").

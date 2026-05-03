@@ -287,8 +287,8 @@ export const router = createHashRouter([
       {
         path: '/',
         lazy: async () => {
-          const { ActiveLayout } = await import('./routes/active/layout')
-          return { Component: ActiveLayout }
+          const { CampaignLayout } = await import('./routes/campaign/layout')
+          return { Component: CampaignLayout }
         },
         middleware: [activeCampaignMiddleware],
         ErrorBoundary: ActiveCampaignErrorBoundary,
@@ -296,14 +296,14 @@ export const router = createHashRouter([
           {
             index: true,
             lazy: async () => {
-              const { Home } = await import('./routes/active/home/home')
+              const { Home } = await import('./routes/campaign/home/home')
               return { Component: Home }
             }
           },
           {
             path: 'mission',
             lazy: async () => {
-              const { Mission } = await import('./routes/active/mission/mission')
+              const { Mission } = await import('./routes/campaign/mission/mission')
               return { Component: Mission }
             }
           }
@@ -312,21 +312,21 @@ export const router = createHashRouter([
       {
         path: '/new',
         lazy: async () => {
-          const { New } = await import('./routes/new')
-          return { Component: New }
+          const { Start } = await import('./routes/shell/start')
+          return { Component: Start }
         }
       },
       {
         path: '/load',
         lazy: async () => {
-          const { Load } = await import('./routes/load')
+          const { Load } = await import('./routes/shell/load')
           return { Component: Load }
         }
       },
       {
         path: '/settings',
         lazy: async () => {
-          const { Settings } = await import('./routes/settings')
+          const { Settings } = await import('./routes/shell/settings')
           return { Component: Settings }
         }
       },

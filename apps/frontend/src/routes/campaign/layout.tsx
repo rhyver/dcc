@@ -19,7 +19,7 @@ import { ArrowLeft, Flag, Plane, PlaneTakeoff, Target, type LucideIcon } from 'l
 
 const AUTOSAVE_INTERVAL_MS = 1_000
 
-export function ActiveLayout() {
+export function CampaignLayout() {
   useTick()
   const navigate = useNavigate()
   const location = useLocation()

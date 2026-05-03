@@ -78,7 +78,7 @@
     },
     "apps/core": {
       "name": "@dcc/core",
-      "version": "0.5.0-2026050103",
+      "version": "0.5.0-2026050301",
       "dependencies": {
         "@ai-sdk/anthropic": "^3.0.71",
         "@ai-sdk/openai": "^3.0.53",
@@ -95,6 +95,7 @@
         "zod": "^4.3.6",
       },
       "devDependencies": {
+        "@dcc/campaign": "workspace:*",
         "@dcc/contracts": "workspace:*",
         "@dcc/data": "workspace:*",
         "@dcc/generate-miz": "workspace:*",

@@ -1,7 +1,14 @@
-import { getDistance, Position } from './utils'
 import { config, schemas } from '@dcc/contracts'
 import { structureTemplates } from '@dcc/data'
 import * as z from 'zod'
+
+type Position = z.infer<typeof schemas.position>
+
+function getDistance(a: Position, b: Position) {
+  const dx = a.x - b.x
+  const dy = a.y - b.y
+  return Math.hypot(dx, dy)
+}
 
 export const StructureType = [
   'Barrack',

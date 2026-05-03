@@ -1,10 +1,12 @@
 import { schemas, config } from '@dcc/contracts'
+import {
+  factions as dataFactions,
+  scenarios as dataScenarios,
+  templates as dataTemplates,
+  theatres
+} from '@dcc/data'
 import * as z from 'zod'
 
-import { getFactions } from '../data/get-factions'
-import { getScenarios } from '../data/get-scenarios'
-import { getTemplates } from '../data/get-templates'
-import { getTheatre } from '../data/get-theatre'
 import { ensureRequiredSpawnStructures } from '../campaign/assign-structures'
 
 type MissionPlan = z.infer<typeof schemas.missionGenerator.missionPlan>
@@ -12,6 +14,10 @@ type AircraftName = z.infer<typeof schemas.dcs.aircraftName>
 type FlightTarget = NonNullable<z.infer<typeof schemas.flightGroup>['target']>
 type Theatre = z.infer<typeof schemas.theatre>
 type TheatreTarget = z.infer<typeof schemas.target>
+
+function getTheatre(name: string): Theatre | null {
+  return theatres.find((theatre) => theatre.name === name) ?? null
+}
 
 function isValidAircraftName(value: string): value is AircraftName {
   return schemas.dcs.aircraftName.safeParse(value).success
@@ -187,7 +193,7 @@ function findObjectiveTarget(
 export function buildCampaignFromPlan(
   plan: MissionPlan
 ): z.infer<typeof schemas.campaign.campaign> {
-  const scenarios = getScenarios()
+  const scenarios = dataScenarios
   const scenario = scenarios.find((entry) => entry.theatreName === plan.theatreName) ?? scenarios[0]
   if (scenario == null) {
     throw new Error('No scenario available to build mission.')
@@ -198,8 +204,8 @@ export function buildCampaignFromPlan(
     throw new Error(`Theatre not found: ${plan.theatreName}`)
   }
 
-  const factions = getFactions()
-  const templates = getTemplates()
+  const factions = dataFactions
+  const templates = dataTemplates
 
   const playerFaction =
     factions.find((faction) => faction.id === plan.playerCoalition.factionId) ??

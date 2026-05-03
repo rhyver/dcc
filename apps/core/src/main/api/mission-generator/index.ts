@@ -1,4 +1,5 @@
 import { app } from 'electron'
+import { buildCampaignFromPlan } from '@dcc/campaign/mission-generator'
 import { generateMizFromCampaign } from '@dcc/generate-miz'
 import { schemas } from '@dcc/contracts'
 import { existsSync, promises as fs } from 'fs'
@@ -18,7 +19,6 @@ import {
 import { getScenarios } from '../data/get-scenarios'
 import { getTheatre } from '../data/get-theatre'
 import { createModel } from './ai-provider'
-import { buildCampaignFromPlan } from './build-campaign-from-plan'
 import { intakeMissionPlan } from './mission-plan-intake'
 import { isMissionChatAllowed, MISSION_TOPIC_REJECTION_MESSAGE } from './topic-guard'
 import { missionBriefingsDir, stateFile } from '../../app-data'

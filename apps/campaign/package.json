@@ -3,6 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "exports": {
+    "./mission-generator": {
+      "types": "./src/logic/mission-generator/index.ts",
+      "default": "./src/logic/mission-generator/index.ts"
+    }
+  },
   "scripts": {
     "dev": "vite",
     "cache:map": "bun scripts/cache-caucasus-map.ts",

@@ -263,9 +263,12 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
     objectiveAssignments.opponent ?? []
   )
 
+  const now = new Date()
+
   const defaultState: z.infer<typeof schemas.campaign.campaign> = {
     version: '0.0.1',
-    createdAt: new Date(),
+    createdAt: now,
+    updatedAt: now,
     id: crypto.randomUUID(),
     name: scenario.name,
     time: scenario.date,

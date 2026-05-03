@@ -85,32 +85,47 @@ const campaignCoalition = z.object({
   supplyNodes: z.record(z.string(), supply).optional()
 })
 
-export const campaign = z.object({
-  version: z.string(),
-  id: z.string(),
-  name: z.string(),
-  createdAt: z.date(),
-  time: z.date(),
-  timeMultiplier: z.number(),
-  timeTarget: z.date().optional(),
-  status: campaignStatus.optional(),
-  goal: campaignGoal.optional(),
-  campaignParams: z
-    .object({
-      hotStart: z.boolean().optional(),
-      culling: z.boolean().optional(),
-      ewr: z.boolean().optional(),
-      exactTarget: z.boolean().optional(),
-      casJtac: z.boolean().optional()
-    })
-    .optional(),
-  logs: z.array(campaignLogEntry).default([]),
-  scenarioId: z.string(),
-  coalitions: z.record(coalition, campaignCoalition)
-})
+export const campaign = z.preprocess(
+  (input) => {
+    if (input == null || typeof input !== 'object') return input
+
+    const rawCampaign = input as { createdAt?: unknown; updatedAt?: unknown }
+    if (rawCampaign.updatedAt != null) return input
+
+    return {
+      ...rawCampaign,
+      updatedAt: rawCampaign.createdAt
+    }
+  },
+  z.object({
+    version: z.string(),
+    id: z.string(),
+    name: z.string(),
+    createdAt: z.date(),
+    updatedAt: z.date(),
+    time: z.date(),
+    timeMultiplier: z.number(),
+    timeTarget: z.date().optional(),
+    status: campaignStatus.optional(),
+    goal: campaignGoal.optional(),
+    campaignParams: z
+      .object({
+        hotStart: z.boolean().optional(),
+        culling: z.boolean().optional(),
+        ewr: z.boolean().optional(),
+        exactTarget: z.boolean().optional(),
+        casJtac: z.boolean().optional()
+      })
+      .optional(),
+    logs: z.array(campaignLogEntry).default([]),
+    scenarioId: z.string(),
+    coalitions: z.record(coalition, campaignCoalition)
+  })
+)
 
 export const campaignSummary = z.object({
   id: z.string(),
   name: z.string(),
-  createdAt: z.date()
+  createdAt: z.date(),
+  updatedAt: z.date()
 })

@@ -258,7 +258,7 @@ export function Load() {
                       <div className="flex items-center gap-2 text-sm opacity-70 pl-8">
                         <Calendar className="h-4 w-4" />
                         <span className="pixel-font">
-                          {new Date(campaign.createdAt).toLocaleDateString(undefined, {
+                          {new Date(campaign.updatedAt).toLocaleDateString(undefined, {
                             year: 'numeric',
                             month: 'short',
                             day: 'numeric',

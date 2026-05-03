@@ -66,19 +66,22 @@ export function ActiveFlightGroups({ selectedItem, onSelect, onPreview }: Active
   const selectedTaskGroups = taskGroups.find(({ task }) => task === selectedTask)?.groups ?? []
   const orderedFlightGroups = taskGroups.flatMap(({ groups }) => groups)
   const visibleFlightGroups = selectedTask ? selectedTaskGroups : orderedFlightGroups
+  const hasSelectedClients = orderedFlightGroups.some((group) =>
+    group.aircrafts.some((aircraft) => aircraft.client)
+  )
 
   return (
     <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-      <div className="px-4 py-4 shrink-0">
-        <div className="flex items-center gap-2 text-sm font-medium text-white">
-          <Plane className="h-4 w-4 text-synthwave-pink" />
+      <div className="px-5 pb-8 pt-6 shrink-0">
+        <div className="flex items-center gap-3 text-lg font-semibold text-white">
+          <Plane className="h-5 w-5 text-synthwave-pink" />
           <span className="retro-font">Flight Groups</span>
         </div>
       </div>
       <ScrollArea className="flex-1 min-h-0 overflow-hidden">
         <CardContent>
           <div className="space-y-3">
-            <div className="flex items-center justify-center gap-2">
+            <div className="relative flex min-h-8 items-center justify-center">
               <ToggleGroup
                 type="single"
                 size="sm"
@@ -111,33 +114,37 @@ export function ActiveFlightGroups({ selectedItem, onSelect, onPreview }: Active
                   <List className="h-3.5 w-3.5" />
                 </ToggleGroupItem>
               </ToggleGroup>
-              <button
-                onClick={() => setIsNewDialogOpen(true)}
-                disabled={creatableTasks.size === 0}
-                className="flex h-8 w-8 items-center justify-center rounded-lg border border-synthwave-pink/20 bg-synthwave-pink/5 text-secondary transition-colors hover:bg-synthwave-pink/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-synthwave-pink/5 disabled:hover:text-secondary"
-                title="Create flight group"
-                aria-label="Create flight group"
-              >
-                <Plus className="h-3.5 w-3.5" />
-              </button>
-              <button
-                onClick={() => {
-                  for (const group of orderedFlightGroups) {
-                    if (group.aircrafts.some((aircraft) => aircraft.client)) {
-                      activeStore.send({
-                        type: 'setFlightGroupClientCount',
-                        flightGroupId: group.id,
-                        count: 0
-                      })
-                    }
-                  }
-                }}
-                className="flex h-8 w-8 items-center justify-center rounded-lg border border-synthwave-pink/20 bg-synthwave-pink/5 text-secondary transition-colors hover:bg-synthwave-pink/10 hover:text-white"
-                title="Reset client slots"
-                aria-label="Reset client slots"
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-              </button>
+              <div className="absolute right-0 top-1/2 flex -translate-y-1/2 items-center gap-2">
+                {hasSelectedClients && (
+                  <button
+                    onClick={() => {
+                      for (const group of orderedFlightGroups) {
+                        if (group.aircrafts.some((aircraft) => aircraft.client)) {
+                          activeStore.send({
+                            type: 'setFlightGroupClientCount',
+                            flightGroupId: group.id,
+                            count: 0
+                          })
+                        }
+                      }
+                    }}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-synthwave-pink/20 bg-synthwave-pink/5 text-secondary transition-colors hover:bg-synthwave-pink/10 hover:text-white"
+                    title="Reset client slots"
+                    aria-label="Reset client slots"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                  </button>
+                )}
+                <button
+                  onClick={() => setIsNewDialogOpen(true)}
+                  disabled={creatableTasks.size === 0}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-synthwave-pink/20 bg-synthwave-pink/5 text-secondary transition-colors hover:bg-synthwave-pink/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-synthwave-pink/5 disabled:hover:text-secondary"
+                  title="Create flight group"
+                  aria-label="Create flight group"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </div>
 
             {taskGroups.length === 0 ? (

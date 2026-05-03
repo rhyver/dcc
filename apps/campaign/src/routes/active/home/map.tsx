@@ -67,35 +67,43 @@ const Marker = memo(function Marker({
         onClick()
       }}
     >
-      {showTitleCard ? (
-        <div
-          className={cn(
-            'flex translate-x-12 items-center gap-2 rounded-md border bg-synthwave-dark/65 py-1 pr-3 pl-1.5 shadow-[0_0_14px_rgba(0,0,0,0.65)] backdrop-blur-sm transition-all',
-            isSelected && 'ring-2 ring-synthwave-pink drop-shadow-md scale-110'
-          )}
-          style={{
-            borderColor: coalitionColor,
-            boxShadow: `0 0 0 1px color-mix(in srgb, ${coalitionColor} 35%, transparent), 0 0 16px color-mix(in srgb, ${coalitionColor} 22%, transparent), 0 0 14px rgba(0, 0, 0, 0.65)`
-          }}
-          title={item.name}
-        >
+      <div
+        className="pointer-events-auto"
+        onPointerDown={(e) => {
+          e.stopPropagation()
+          onClick()
+        }}
+      >
+        {showTitleCard ? (
           <div
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-black/20"
+            className={cn(
+              'flex translate-x-12 items-center gap-2 rounded-md border bg-synthwave-dark/65 py-1 pr-3 pl-1.5 shadow-[0_0_14px_rgba(0,0,0,0.65)] backdrop-blur-sm transition-all',
+              isSelected && 'ring-2 ring-synthwave-pink drop-shadow-md scale-110'
+            )}
+            style={{
+              borderColor: coalitionColor,
+              boxShadow: `0 0 0 1px color-mix(in srgb, ${coalitionColor} 35%, transparent), 0 0 16px color-mix(in srgb, ${coalitionColor} 22%, transparent), 0 0 14px rgba(0, 0, 0, 0.65)`
+            }}
+            title={item.name}
+          >
+            <div
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-black/20"
+              dangerouslySetInnerHTML={{ __html: symbol }}
+            />
+            <span className="max-w-32 truncate text-xs font-semibold leading-tight text-synthwave-light drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+              {item.name}
+            </span>
+          </div>
+        ) : (
+          <div
+            className={cn(
+              'transition-all',
+              isSelected && 'ring-2 ring-synthwave-pink rounded-full drop-shadow-md scale-110'
+            )}
             dangerouslySetInnerHTML={{ __html: symbol }}
           />
-          <span className="max-w-32 truncate text-xs font-semibold leading-tight text-synthwave-light drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
-            {item.name}
-          </span>
-        </div>
-      ) : (
-        <div
-          className={cn(
-            'transition-all',
-            isSelected && 'ring-2 ring-synthwave-pink rounded-full drop-shadow-md scale-110'
-          )}
-          dangerouslySetInnerHTML={{ __html: symbol }}
-        />
-      )}
+        )}
+      </div>
     </MaplibreMarker>
   )
 })
@@ -123,52 +131,63 @@ const ObjectiveCircleMarker = memo(function ObjectiveCircleMarker({
         onClick()
       }}
     >
-      {showTitleCard ? (
-        <div
-          className={cn(
-            'flex translate-x-12 items-center gap-2 rounded-md border bg-synthwave-dark/65 py-1 pr-3 pl-1.5 shadow-[0_0_14px_rgba(0,0,0,0.65)] backdrop-blur-sm transition-all',
-            isSelected && 'ring-2 ring-synthwave-pink drop-shadow-md scale-110'
-          )}
-          style={{
-            borderColor: color,
-            boxShadow: `0 0 0 1px color-mix(in srgb, ${color} 35%, transparent), 0 0 16px color-mix(in srgb, ${color} 22%, transparent), 0 0 14px rgba(0, 0, 0, 0.65)`
-          }}
-          title={marker.name}
-        >
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-black/20">
-            {marker.isGoal ? (
-              <Star
-                className="h-5 w-5"
-                fill={color}
-                stroke={color}
-                strokeWidth={1.75}
-                aria-hidden="true"
-              />
-            ) : (
-              <span className="block h-3 w-3 rounded-full border-2" style={{ borderColor: color }}>
-                <span
-                  className="m-0.5 block h-1.5 w-1.5 rounded-full"
-                  style={{ backgroundColor: color }}
-                />
-              </span>
+      <div
+        className="pointer-events-auto"
+        onPointerDown={(e) => {
+          e.stopPropagation()
+          onClick()
+        }}
+      >
+        {showTitleCard ? (
+          <div
+            className={cn(
+              'flex translate-x-12 items-center gap-2 rounded-md border bg-synthwave-dark/65 py-1 pr-3 pl-1.5 shadow-[0_0_14px_rgba(0,0,0,0.65)] backdrop-blur-sm transition-all',
+              isSelected && 'ring-2 ring-synthwave-pink drop-shadow-md scale-110'
             )}
+            style={{
+              borderColor: color,
+              boxShadow: `0 0 0 1px color-mix(in srgb, ${color} 35%, transparent), 0 0 16px color-mix(in srgb, ${color} 22%, transparent), 0 0 14px rgba(0, 0, 0, 0.65)`
+            }}
+            title={marker.name}
+          >
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-black/20">
+              {marker.isGoal ? (
+                <Star
+                  className="h-5 w-5"
+                  fill={color}
+                  stroke={color}
+                  strokeWidth={1.75}
+                  aria-hidden="true"
+                />
+              ) : (
+                <span
+                  className="block h-3 w-3 rounded-full border-2"
+                  style={{ borderColor: color }}
+                >
+                  <span
+                    className="m-0.5 block h-1.5 w-1.5 rounded-full"
+                    style={{ backgroundColor: color }}
+                  />
+                </span>
+              )}
+            </div>
+            <span className="max-w-32 truncate text-xs font-semibold leading-tight text-synthwave-light drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+              {marker.name}
+            </span>
           </div>
-          <span className="max-w-32 truncate text-xs font-semibold leading-tight text-synthwave-light drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
-            {marker.name}
-          </span>
-        </div>
-      ) : (
-        <div
-          className={cn(
-            'flex h-4 w-4 items-center justify-center rounded-full border-2 bg-black/70 transition-all',
-            isSelected && 'ring-2 ring-white scale-125'
-          )}
-          style={{ borderColor: color }}
-          title={marker.name}
-        >
-          <span className="block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
-        </div>
-      )}
+        ) : (
+          <div
+            className={cn(
+              'flex h-4 w-4 items-center justify-center rounded-full border-2 bg-black/70 transition-all',
+              isSelected && 'ring-2 ring-white scale-125'
+            )}
+            style={{ borderColor: color }}
+            title={marker.name}
+          >
+            <span className="block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
+          </div>
+        )}
+      </div>
     </MaplibreMarker>
   )
 })

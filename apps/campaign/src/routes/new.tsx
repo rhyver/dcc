@@ -93,7 +93,7 @@ export function New() {
                   window.setTimeout(async () => {
                     if (option.id === 'campaign') {
                       await coreClient.campaign.createCampaign()
-                      navigate('/')
+                      navigate('/', { state: { showWelcomeDialog: true } })
                     } else if (option.id === 'loadCampaign') {
                       navigate('/load')
                     } else if (option.id === 'settings') {

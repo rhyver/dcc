@@ -60,6 +60,7 @@ function createCampaign(): Campaign {
     id: 'campaign-1',
     name: 'Test Campaign',
     createdAt: campaignTime,
+    updatedAt: campaignTime,
     time: campaignTime,
     timeMultiplier: 1,
     logs: [],

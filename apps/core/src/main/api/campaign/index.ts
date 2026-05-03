@@ -195,6 +195,7 @@ const saveActiveCampaign = pub.campaign.saveActiveCampaign.handler(async ({ erro
 
   const campaignToSave = {
     ...input,
+    updatedAt: new Date(),
     timeMultiplier: 0
   }
 
@@ -243,11 +244,13 @@ const listCampaigns = pub.campaign.listCampaigns.handler(async ({ errors }) => {
         id: string
         name: string
         createdAt: string | Date
+        updatedAt?: string | Date
       }
       return {
         id: campaign.id,
         name: campaign.name,
-        createdAt: new Date(campaign.createdAt)
+        createdAt: new Date(campaign.createdAt),
+        updatedAt: new Date(campaign.updatedAt ?? campaign.createdAt)
       }
     })
   )

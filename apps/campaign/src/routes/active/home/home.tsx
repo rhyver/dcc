@@ -13,7 +13,8 @@ import {
   Settings as SettingsIcon,
   Plus,
   Minus,
-  Ruler
+  Ruler,
+  X
 } from 'lucide-react'
 import React from 'react'
 import * as ScrollAreaPrimitive from '@radix-ui/react-scroll-area'
@@ -42,6 +43,7 @@ import { TakeoffButton } from './takeoff-button'
 import { CAUCASUS_DETAIL_MAX_ZOOM } from './offline-map-style'
 
 const campaignData = {
+  name: 'Mission Briefing',
   description:
     'A daring raid on a heavily fortified enemy airbase. Intelligence suggests they are preparing a large-scale offensive. Your mission: cripple their air power before they can launch.',
   windSpeed: '15 knots',
@@ -105,6 +107,7 @@ export function Home() {
     })
   )
   const scenarioBriefing = scenarioQuery.data?.briefing ?? campaignData.description
+  const scenarioName = scenarioQuery.data?.name ?? campaignData.name
   const briefingParagraphs = React.useMemo(
     () => scenarioBriefing.split(/\n{2,}/).filter((paragraph) => paragraph.trim().length > 0),
     [scenarioBriefing]
@@ -401,6 +404,21 @@ export function Home() {
         {/* Briefing Content - drops down from top bar */}
         {isBriefingOpen && (
           <Card className="pointer-events-auto absolute left-4 mt-2 w-[400px] border-synthwave-pink/30 bg-synthwave-dark/90 text-synthwave-light shadow-[0_0_15px_rgba(255,0,170,0.3)] backdrop-blur-md p-3">
+            <div className="mb-1 flex min-h-9 items-center justify-between gap-3">
+              <h3 className="retro-font truncate text-base font-medium uppercase tracking-wide text-primary">
+                {scenarioName}
+              </h3>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Close mission briefing"
+                className="h-7 w-7 shrink-0 text-secondary hover:bg-synthwave-pink/10 hover:text-synthwave-pink"
+                onClick={() => setIsBriefingOpen(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
             <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1">
               <div className="space-y-3 text-sm leading-relaxed text-secondary/80">
                 {briefingParagraphs.map((paragraph, index) => (

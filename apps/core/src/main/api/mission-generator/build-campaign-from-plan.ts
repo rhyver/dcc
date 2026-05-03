@@ -447,11 +447,14 @@ export function buildCampaignFromPlan(
     status: 'active'
   } satisfies z.infer<typeof schemas.missionPackage>
 
+  const now = new Date()
+
   const campaign: z.infer<typeof schemas.campaign.campaign> = {
     version: '0.0.1',
     id: crypto.randomUUID(),
     name: plan.title,
-    createdAt: new Date(),
+    createdAt: now,
+    updatedAt: now,
     time: missionTime,
     timeMultiplier: 0,
     status: 'active',

@@ -15,6 +15,7 @@ const initialState: z.infer<typeof schemas.campaign.campaign> = {
   },
   name: 'Active Campaign',
   createdAt: new Date(),
+  updatedAt: new Date(),
   id: crypto.randomUUID(),
   version: '0.0.1',
   campaignParams: {

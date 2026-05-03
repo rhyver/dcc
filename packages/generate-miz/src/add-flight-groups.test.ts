@@ -139,6 +139,7 @@ function createCampaign(startTime: Date): Campaign {
     id: 'campaign',
     name: 'Campaign',
     createdAt: startTime,
+    updatedAt: startTime,
     time: startTime,
     timeMultiplier: 1,
     logs: [],

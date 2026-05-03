@@ -90,8 +90,7 @@ function collectSchedules(groups: FlightGroup[]): PackageSchedule[] {
 function enforceFlightSpacingWithinPackage(schedule: PackageSchedule) {
   schedule.groups.sort(
     (a, b) =>
-      (PACKAGE_FLIGHT_START_PRIORITY[a.task] ?? 1) -
-        (PACKAGE_FLIGHT_START_PRIORITY[b.task] ?? 1) ||
+      (PACKAGE_FLIGHT_START_PRIORITY[a.task] ?? 1) - (PACKAGE_FLIGHT_START_PRIORITY[b.task] ?? 1) ||
       new Date(a.flightplan.startTime).getTime() - new Date(b.flightplan.startTime).getTime()
   )
 
@@ -103,7 +102,7 @@ function enforceFlightSpacingWithinPackage(schedule: PackageSchedule) {
       continue
     }
 
-    const earliestAllowedStart = new Date(
+    const earliestAllowedStart: Date = new Date(
       previousStartTime.getTime() + FLIGHT_START_SPACING_WITHIN_PACKAGE_MS
     )
     if (startTime < earliestAllowedStart) {
@@ -150,7 +149,7 @@ export function enforcePackageStartSpacing(draft: Campaign, coalition: Coalition
         continue
       }
 
-      const earliestAllowedStart = new Date(
+      const earliestAllowedStart: Date = new Date(
         previousLatestStartTime.getTime() + PACKAGE_START_SPACING_MS
       )
       if (schedule.startTime < earliestAllowedStart) {

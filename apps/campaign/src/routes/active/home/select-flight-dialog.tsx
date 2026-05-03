@@ -12,22 +12,11 @@ import {
   DialogTitle,
   DialogDescription
 } from '@/components/ui/dialog'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { activeStore } from '@/stores/active'
-import { getAircraftDisplayName } from '@/lib/aircraft-display'
 import { canCreateManualFlightGroup } from '@/logic/systems/spawn/manual-flight-group'
 import { hasFlightGroupTakenOff } from '@/logic/entities/flight-status'
+import { FlightGroupCard } from '../components/flight-group-card'
 import { getFlightGroupsByTask, getSortedFlightGroupTasks } from './flight-group-task-groups'
-
-function formatTime(date: Date | string) {
-  const d = new Date(date)
-  return new Intl.DateTimeFormat('en-GB', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-    timeZone: 'UTC'
-  }).format(d)
-}
 
 interface SelectFlightDialogProps {
   open: boolean
@@ -138,74 +127,21 @@ export function SelectFlightDialog({ open, onOpenChange }: SelectFlightDialogPro
         ) : (
           // Flight groups for selected task
           <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
-            {groupsByTask.get(selectedTask)!.map((group) => {
-              const clientCount = group.aircrafts.filter((a) => a.client).length
-              const isAirborne = hasFlightGroupTakenOff(group, currentTime)
-              return (
-                <div
-                  key={group.id}
-                  className={
-                    isAirborne
-                      ? 'rounded-lg border border-amber-400/40 bg-amber-400/5 p-3 space-y-2'
-                      : 'rounded-lg border border-synthwave-pink/20 bg-synthwave-pink/5 p-3 space-y-2'
-                  }
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-primary">{group.callsign}</span>
-                        {isAirborne && (
-                          <span className="flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-400/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">
-                            <PlaneTakeoff className="h-2.5 w-2.5" />
-                            Airborne
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-3 text-[10px] text-secondary/70 mt-0.5">
-                        <span>
-                          {group.aircrafts[0]
-                            ? getAircraftDisplayName(group.aircrafts[0].aircraftName)
-                            : 'Unknown'}
-                        </span>
-                        <span>{group.aircrafts.length} aircraft</span>
-                        <span>{formatTime(group.flightplan.startTime)}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-secondary/70 flex items-center gap-1">
-                      <User className="h-3 w-3" />
-                      Clients
-                    </span>
-                    <ToggleGroup
-                      type="single"
-                      variant="outline"
-                      size="sm"
-                      value={clientCount.toString()}
-                      onValueChange={(val) => {
-                        if (!val) return
-                        activeStore.send({
-                          type: 'setFlightGroupClientCount',
-                          flightGroupId: group.id,
-                          count: parseInt(val)
-                        })
-                      }}
-                    >
-                      {Array.from({ length: group.aircrafts.length + 1 }).map((_, i) => (
-                        <ToggleGroupItem
-                          key={i}
-                          value={i.toString()}
-                          className="h-6 w-6 p-0 text-xs"
-                        >
-                          {i}
-                        </ToggleGroupItem>
-                      ))}
-                    </ToggleGroup>
-                  </div>
-                </div>
-              )
-            })}
+            {groupsByTask.get(selectedTask)!.map((group) => (
+              <FlightGroupCard
+                key={group.id}
+                group={group}
+                isAirborne={hasFlightGroupTakenOff(group, currentTime)}
+                showClientControls
+                onClientCountChange={(count) =>
+                  activeStore.send({
+                    type: 'setFlightGroupClientCount',
+                    flightGroupId: group.id,
+                    count
+                  })
+                }
+              />
+            ))}
           </div>
         )}
 

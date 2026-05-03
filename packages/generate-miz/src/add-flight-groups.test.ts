@@ -391,9 +391,9 @@ describe('addFlightGroups mission script config', () => {
     expect(result.isOk()).toBe(true)
     if (result.isErr()) throw result.error
 
-    expect(result.value).toEqual([
+    expect(result.value[0]?.groupId).toEqual(expect.any(Number))
+    expect(result.value.map(({ groupId: _groupId, ...group }) => group)).toEqual([
       {
-        groupId: expect.any(Number),
         name: 'Enfield-1',
         task: 'CAP',
         unitNames: ['Enfield-1-1', 'Enfield-1-2']
@@ -428,9 +428,9 @@ describe('addFlightGroups mission script config', () => {
 
     const blueGroups = mission.coalition.blue.country?.[0]?.plane?.group ?? []
     expect(blueGroups.map((group) => group.name)).toEqual(['Enfield-1'])
-    expect(result.value).toEqual([
+    expect(result.value[0]?.groupId).toEqual(expect.any(Number))
+    expect(result.value.map(({ groupId: _groupId, ...group }) => group)).toEqual([
       {
-        groupId: expect.any(Number),
         name: 'Enfield-1',
         task: 'CAS',
         unitNames: ['Enfield-1-1', 'Enfield-1-2']

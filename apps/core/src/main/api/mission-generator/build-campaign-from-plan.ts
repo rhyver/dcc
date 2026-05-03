@@ -5,6 +5,7 @@ import { getFactions } from '../data/get-factions'
 import { getScenarios } from '../data/get-scenarios'
 import { getTemplates } from '../data/get-templates'
 import { getTheatre } from '../data/get-theatre'
+import { ensureRequiredSpawnStructures } from '../campaign/assign-structures'
 
 type MissionPlan = z.infer<typeof schemas.missionGenerator.missionPlan>
 type AircraftName = z.infer<typeof schemas.dcs.aircraftName>
@@ -381,6 +382,41 @@ export function buildCampaignFromPlan(
       ...missionObjectives.map((objective) => objective.name)
     ])
   )
+  const playerObjectiveIds = scenario.start.player.objectiveIds.filter((id) => objectiveMap.has(id))
+
+  const getObjectiveInfos = (objectiveIds: string[]) =>
+    objectiveIds
+      .map((id) => objectiveMap.get(id))
+      .filter((objective): objective is z.infer<typeof schemas.objective> => objective != null)
+      .map((objective) => ({
+        id: objective.name,
+        position: objective.position,
+        targets: (theatre.targets[objective.name] ?? []).map((target) => ({
+          name: target.name,
+          type: target.type,
+          position: target.position
+        }))
+      }))
+
+  const withStructureIds = (
+    assignments: ReturnType<typeof ensureRequiredSpawnStructures>
+  ): z.infer<typeof schemas.campaign.campaign>['coalitions']['player']['structures'] =>
+    assignments.map((assignment) => ({
+      id: crypto.randomUUID(),
+      type: assignment.type,
+      objectiveId: assignment.objectiveId,
+      position: assignment.position,
+      name: assignment.name,
+      resources: assignment.resources,
+      buildings: assignment.buildings
+    }))
+
+  const playerSpawnStructures = withStructureIds(
+    ensureRequiredSpawnStructures([], getObjectiveInfos(playerObjectiveIds))
+  )
+  const opponentSpawnStructures = withStructureIds(
+    ensureRequiredSpawnStructures([], getObjectiveInfos(opponentObjectiveIds))
+  )
 
   const samGroups = plan.opponentCoalition.samPlacements
     .filter((placement) => objectiveMap.has(placement.objectiveName))
@@ -467,8 +503,8 @@ export function buildCampaignFromPlan(
         aircraftTypes: playerFaction.aircraftTypes,
         groundUnitTypes: playerTemplate.groundUnitTypes,
         airdromeNames: [playerHomeBase],
-        objectiveIds: scenario.start.player.objectiveIds.filter((id) => objectiveMap.has(id)),
-        structures: [],
+        objectiveIds: playerObjectiveIds,
+        structures: playerSpawnStructures,
         samGroups: [],
         groundGroups: [],
         flightGroups: [playerFlightGroup, ...supportFlights],
@@ -480,7 +516,10 @@ export function buildCampaignFromPlan(
         groundUnitTypes: opponentTemplate.groundUnitTypes,
         airdromeNames: [opponentHomeBase],
         objectiveIds: opponentObjectiveIds,
-        structures: isStrikeMission && targetStructure ? [targetStructure] : [],
+        structures: [
+          ...opponentSpawnStructures,
+          ...(isStrikeMission && targetStructure ? [targetStructure] : [])
+        ],
         samGroups,
         groundGroups: [...aaaGroundGroups, ...(casTargetGroundGroup ? [casTargetGroundGroup] : [])],
         flightGroups: opponentCapFlights,

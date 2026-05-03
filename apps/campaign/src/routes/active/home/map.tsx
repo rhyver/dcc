@@ -53,8 +53,7 @@ const Marker = memo(function Marker({
 
   const isAirdrome = item.type === 'Airdrome'
   const showTitleCard = isAirdrome || isSelected
-  const coalitionColor =
-    item.coalition === 'player' ? 'var(--synthwave-cyan)' : 'var(--enemy-red)'
+  const coalitionColor = item.coalition === 'player' ? 'var(--synthwave-cyan)' : 'var(--enemy-red)'
 
   return (
     <MaplibreMarker
@@ -77,7 +76,7 @@ const Marker = memo(function Marker({
         {showTitleCard ? (
           <div
             className={cn(
-              'flex translate-x-12 items-center gap-2 rounded-md border bg-synthwave-dark/65 py-1 pr-3 pl-1.5 shadow-[0_0_14px_rgba(0,0,0,0.65)] backdrop-blur-sm transition-all',
+              'tactical-panel flex translate-x-12 items-center gap-2 rounded-md py-1 pr-3 pl-1.5 backdrop-blur-sm transition-all',
               isSelected && 'ring-2 ring-synthwave-pink drop-shadow-md scale-110'
             )}
             style={{
@@ -87,7 +86,7 @@ const Marker = memo(function Marker({
             title={item.name}
           >
             <div
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-black/20"
+              className="tactical-inset flex h-8 w-8 shrink-0 items-center justify-center rounded-sm"
               dangerouslySetInnerHTML={{ __html: symbol }}
             />
             <span className="max-w-32 truncate text-xs font-semibold leading-tight text-synthwave-light drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
@@ -141,7 +140,7 @@ const ObjectiveCircleMarker = memo(function ObjectiveCircleMarker({
         {showTitleCard ? (
           <div
             className={cn(
-              'flex translate-x-12 items-center gap-2 rounded-md border bg-synthwave-dark/65 py-1 pr-3 pl-1.5 shadow-[0_0_14px_rgba(0,0,0,0.65)] backdrop-blur-sm transition-all',
+              'tactical-panel flex translate-x-12 items-center gap-2 rounded-md py-1 pr-3 pl-1.5 backdrop-blur-sm transition-all',
               isSelected && 'ring-2 ring-synthwave-pink drop-shadow-md scale-110'
             )}
             style={{
@@ -150,7 +149,7 @@ const ObjectiveCircleMarker = memo(function ObjectiveCircleMarker({
             }}
             title={marker.name}
           >
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-black/20">
+            <div className="tactical-inset flex h-8 w-8 shrink-0 items-center justify-center rounded-sm">
               {marker.isGoal ? (
                 <Star
                   className="h-5 w-5"
@@ -627,7 +626,10 @@ export function Map({
   if (initialViewState == null) return null
   return (
     <div
-      className={cn('dcc-campaign-map w-full h-full relative', measureMode && 'cursor-crosshair')}
+      className={cn(
+        'dcc-campaign-map tactical-map-glass h-full w-full relative shadow-[inset_10px_0_24px_rgba(0,0,0,0.38),inset_0_1px_0_rgba(255,255,255,0.05)]',
+        measureMode && 'cursor-crosshair'
+      )}
     >
       <MaplibreMap
         ref={mapRef}
@@ -818,7 +820,7 @@ export function Map({
       />
       {measureMode && (
         <div
-          className="pointer-events-auto absolute top-4 z-20 flex -translate-x-1/2 items-center gap-3 rounded border border-synthwave-cyan/40 bg-synthwave-dark/90 px-3 py-2 text-synthwave-light shadow-[0_0_18px_rgba(0,221,255,0.22)] backdrop-blur-md"
+          className="tactical-panel pointer-events-auto absolute top-4 z-20 flex -translate-x-1/2 items-center gap-3 rounded-md px-3 py-2 text-synthwave-light backdrop-blur-md"
           style={{
             left: `max(50%, calc((100% + ${overlaySafeLeft}px) / 2))`,
             maxWidth: `calc(100% - ${overlaySafeLeft}px - 2rem)`
@@ -832,7 +834,7 @@ export function Map({
           </div>
           <button
             type="button"
-            className="flex h-6 items-center gap-1.5 rounded border border-synthwave-pink/30 px-2 text-[10px] font-semibold uppercase text-secondary hover:bg-synthwave-pink/20 hover:text-white"
+            className="tactical-button flex h-6 items-center gap-1.5 rounded px-2 text-[10px] font-semibold uppercase text-secondary"
             onClick={handleResetMeasurement}
             title="Reset measurement"
             aria-label="Reset measurement"

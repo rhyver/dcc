@@ -39,6 +39,79 @@ type StructureAssignment = {
   buildings: z.infer<typeof schemas.structureBuilding>[]
 }
 
+const requiredSpawnStructureTypes = ['Barrack', 'Depot'] as const satisfies readonly StructureType[]
+const requiredSpawnStructureTypeSet = new Set<StructureType>(requiredSpawnStructureTypes)
+
+function createStructureAssignment(
+  objective: ObjectiveInfo,
+  type: StructureType,
+  positionOffset: Position = { x: 0, y: 0 }
+): StructureAssignment | undefined {
+  const structureTargets = objective.targets.filter(
+    (target) => target.type === 'Structure' && target.name.includes('|Structure|')
+  )
+  const target = structureTargets[0]
+  if (!target) return undefined
+
+  const templates = structureTemplates[type]
+  const template = templates[0]
+  if (!template) return undefined
+
+  return {
+    objectiveId: objective.id,
+    type,
+    position: {
+      x: target.position.x + positionOffset.x,
+      y: target.position.y + positionOffset.y
+    },
+    name: target.name,
+    resources: 0,
+    buildings: template.buildings.map((building) => ({
+      ...building,
+      alive: building.alive ?? true
+    }))
+  }
+}
+
+export function ensureRequiredSpawnStructures(
+  assignments: StructureAssignment[],
+  objectives: ObjectiveInfo[]
+): StructureAssignment[] {
+  const structureObjectives = objectives.filter((objective) =>
+    objective.targets.some(
+      (target) => target.type === 'Structure' && target.name.includes('|Structure|')
+    )
+  )
+
+  if (structureObjectives.length === 0) {
+    return assignments
+  }
+
+  const ensuredAssignments = [...assignments]
+  for (const type of requiredSpawnStructureTypes) {
+    if (ensuredAssignments.some((assignment) => assignment.type === type)) continue
+
+    const objective =
+      structureObjectives.find((candidate) =>
+        ensuredAssignments.every((assignment) => assignment.objectiveId !== candidate.id)
+      ) ?? structureObjectives[0]
+    if (!objective) continue
+
+    const sameObjectiveCount = ensuredAssignments.filter(
+      (assignment) => assignment.objectiveId === objective.id
+    ).length
+    const assignment = createStructureAssignment(objective, type, {
+      x: sameObjectiveCount * 180,
+      y: 0
+    })
+    if (assignment) {
+      ensuredAssignments.push(assignment)
+    }
+  }
+
+  return ensuredAssignments
+}
+
 export function assignStructures(
   objectives: ObjectiveInfo[],
   airbasePositions: Position[] = []
@@ -67,7 +140,10 @@ export function assignStructures(
     coveredObjectives.set(type, new Set())
   })
 
-  const requiredTypes = Object.values(StructureType)
+  const requiredTypes = [
+    ...requiredSpawnStructureTypes,
+    ...StructureType.filter((type) => !requiredSpawnStructureTypeSet.has(type))
+  ]
   const structureExclusionRangeOverrides: Partial<Record<StructureType, number>> =
     config.structureExclusionRanges
 
@@ -132,23 +208,16 @@ export function assignStructures(
 
       if (bestCandidate) {
         // Assign structure
-        const structureTargets = bestCandidate.targets.filter(
-          (target) => target.type === 'Structure' && target.name.includes('|Structure|')
-        )
-        const target = structureTargets[Math.floor(Math.random() * structureTargets.length)]
-        if (!target) break
+        const assignment = createStructureAssignment(bestCandidate, type)
+        if (!assignment) break
 
-        const position = target.position
-        const name = target.name
-
-        const templates = structureTemplates[type]
-        const template = templates[Math.floor(Math.random() * templates.length)]
-        const buildings = template.buildings.map((building) => ({
-          ...building,
-          alive: building.alive ?? true
-        }))
-
-        assignments.set(bestCandidate.id, { type, position, name, resources: 0, buildings })
+        assignments.set(bestCandidate.id, {
+          type: assignment.type,
+          position: assignment.position,
+          name: assignment.name,
+          resources: assignment.resources,
+          buildings: assignment.buildings
+        })
 
         // Update coverage
         // We need to find ALL objectives this new structure covers, not just the currently uncovered ones, to maintain accurate state if we were tracking partials,
@@ -178,12 +247,15 @@ export function assignStructures(
   )
 
   // Convert assignments map to array
-  return Array.from(assignments.entries()).map(([objectiveId, info]) => ({
-    objectiveId,
-    type: info.type,
-    position: info.position,
-    name: info.name,
-    resources: info.resources,
-    buildings: info.buildings
-  }))
+  return ensureRequiredSpawnStructures(
+    Array.from(assignments.entries()).map(([objectiveId, info]) => ({
+      objectiveId,
+      type: info.type,
+      position: info.position,
+      name: info.name,
+      resources: info.resources,
+      buildings: info.buildings
+    })),
+    objectives
+  )
 }

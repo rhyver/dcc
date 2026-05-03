@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useSelector } from '@xstate/store/react'
-import { FastForward, Plane } from 'lucide-react'
+import { FastForward, Plane, PlaneTakeoff } from 'lucide-react'
 import { useNavigate } from 'react-router'
 
 import { Button } from '@/components/ui/button'
@@ -23,11 +23,13 @@ export function TakeoffButton() {
   const currentTime = campaignTime ? new Date(campaignTime) : new Date()
   const isBeforeTakeoff = startTime && currentTime < startTime
 
-  const selectFlightButton = (
+  const selectFlightButton = (primary = false) => (
     <Button
       size="sm"
       variant="outline"
-      className="h-8 w-full border-synthwave-pink/30 bg-synthwave-dark/50 text-secondary hover:bg-synthwave-pink/20 hover:text-white"
+      className={`tactical-button h-10 w-full rounded-md px-4 ${
+        primary ? 'tactical-action-button text-white' : 'text-secondary'
+      }`}
       onClick={() => setDialogOpen(true)}
     >
       <Plane className="mr-1.5 h-4 w-4" />
@@ -38,7 +40,7 @@ export function TakeoffButton() {
   if (!hasClient) {
     return (
       <div className="grid flex-1 min-w-0 grid-cols-1">
-        {selectFlightButton}
+        {selectFlightButton(true)}
         <SelectFlightDialog open={dialogOpen} onOpenChange={setDialogOpen} />
       </div>
     )
@@ -47,10 +49,10 @@ export function TakeoffButton() {
   if (isBeforeTakeoff && startTime) {
     return (
       <div className="grid flex-1 min-w-0 grid-cols-2 gap-2">
-        {selectFlightButton}
+        {selectFlightButton()}
         <Button
           size="sm"
-          className="h-8 w-full bg-synthwave-pink hover:bg-synthwave-pink/80 text-white border-none shadow-[0_0_10px_rgba(255,0,170,0.5)]"
+          className="tactical-button tactical-action-button h-10 w-full rounded-md text-white"
           onClick={() => {
             activeStore.trigger.setTimeTarget({ timeTarget: startTime })
             activeStore.trigger.updateTimeMultiplier({ timeMultiplier: 300 })
@@ -66,10 +68,10 @@ export function TakeoffButton() {
 
   return (
     <div className="grid flex-1 min-w-0 grid-cols-2 gap-2">
-      {selectFlightButton}
+      {selectFlightButton()}
       <Button
         size="sm"
-        className="h-8 w-full bg-synthwave-pink hover:bg-synthwave-pink/80 text-white border-none shadow-[0_0_10px_rgba(255,0,170,0.5)]"
+        className="tactical-button tactical-action-button h-10 w-full rounded-md text-white"
         onClick={async () => {
           if (!hasClient || isSaving) return
           setIsSaving(true)
@@ -82,6 +84,7 @@ export function TakeoffButton() {
         }}
         disabled={!hasClient || isSaving}
       >
+        {!isSaving && <PlaneTakeoff className="mr-2 h-4 w-4" />}
         {isSaving ? 'Saving…' : 'Takeoff'}
       </Button>
       <SelectFlightDialog open={dialogOpen} onOpenChange={setDialogOpen} />

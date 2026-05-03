@@ -17,7 +17,11 @@ import { hasFlightGroupTakenOff } from '@/logic/entities/flight-status'
 import { canCreateManualFlightGroup } from '@/logic/systems/spawn/manual-flight-group'
 import { FlightGroupCard } from '../components/flight-group-card'
 import type { SelectedItem } from './map'
-import { getFlightGroupsByTask, getSortedFlightGroupTasks } from './flight-group-task-groups'
+import {
+  getFlightGroupsByTask,
+  getSortedFlightGroupTasks,
+  sortFlightGroupsByStartTime
+} from './flight-group-task-groups'
 
 const MANUAL_FLIGHT_TASKS = ['CAP', 'CAS', 'DEAD', 'Pinpoint Strike', 'SEAD'] as const
 
@@ -46,17 +50,7 @@ export function ActiveFlightGroups({ selectedItem, onSelect, onPreview }: Active
   const campaignTime = useSelector(activeStore, (state) => state.context.time)
   const currentTime = campaignTime ? new Date(campaignTime) : new Date()
   const taskGroups = useMemo(() => {
-    const orderedFlightGroups = [...flightGroups].sort((a, b) => {
-      const startA = new Date(a.flightplan.startTime).getTime()
-      const startB = new Date(b.flightplan.startTime).getTime()
-
-      if (startA !== startB) {
-        return startA - startB
-      }
-
-      return a.callsign.localeCompare(b.callsign)
-    })
-    const groupsByTask = getFlightGroupsByTask(orderedFlightGroups)
+    const groupsByTask = getFlightGroupsByTask(flightGroups)
 
     return getSortedFlightGroupTasks(groupsByTask).map((task) => ({
       task,
@@ -64,7 +58,10 @@ export function ActiveFlightGroups({ selectedItem, onSelect, onPreview }: Active
     }))
   }, [flightGroups])
   const selectedTaskGroups = taskGroups.find(({ task }) => task === selectedTask)?.groups ?? []
-  const orderedFlightGroups = taskGroups.flatMap(({ groups }) => groups)
+  const orderedFlightGroups = useMemo(
+    () => sortFlightGroupsByStartTime(taskGroups.flatMap(({ groups }) => groups)),
+    [taskGroups]
+  )
   const visibleFlightGroups = selectedTask ? selectedTaskGroups : orderedFlightGroups
   const hasSelectedClients = orderedFlightGroups.some((group) =>
     group.aircrafts.some((aircraft) => aircraft.client)
@@ -72,8 +69,8 @@ export function ActiveFlightGroups({ selectedItem, onSelect, onPreview }: Active
 
   return (
     <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-      <div className="px-5 pb-8 pt-6 shrink-0">
-        <div className="flex items-center gap-3 text-lg font-semibold text-white">
+      <div className="shrink-0 px-7 pb-8 pt-8">
+        <div className="flex items-center gap-4 text-lg font-semibold text-white">
           <Plane className="h-5 w-5 text-synthwave-pink" />
           <span className="retro-font">Flight Groups</span>
         </div>
@@ -95,11 +92,11 @@ export function ActiveFlightGroups({ selectedItem, onSelect, onPreview }: Active
                     setSelectedTask(null)
                   }
                 }}
-                className="grid w-24 grid-cols-2 rounded-lg border border-synthwave-pink/20 bg-synthwave-pink/5 p-0.5"
+                className="tactical-inset grid w-28 grid-cols-2 rounded-md p-1"
               >
                 <ToggleGroupItem
                   value="tasks"
-                  className="h-7 border-0 bg-transparent p-0 text-secondary shadow-none hover:bg-synthwave-pink/10 hover:text-white data-[state=on]:bg-synthwave-pink/20 data-[state=on]:text-synthwave-pink data-[state=on]:shadow-none"
+                  className="tactical-button h-8 rounded-sm border-0 p-0 text-secondary data-[state=on]:text-synthwave-pink"
                   title="Task view"
                   aria-label="Task view"
                 >
@@ -107,7 +104,7 @@ export function ActiveFlightGroups({ selectedItem, onSelect, onPreview }: Active
                 </ToggleGroupItem>
                 <ToggleGroupItem
                   value="all"
-                  className="h-7 border-0 bg-transparent p-0 text-secondary shadow-none hover:bg-synthwave-pink/10 hover:text-white data-[state=on]:bg-synthwave-pink/20 data-[state=on]:text-synthwave-pink data-[state=on]:shadow-none"
+                  className="tactical-button h-8 rounded-sm border-0 p-0 text-secondary data-[state=on]:text-synthwave-pink"
                   title="All flights"
                   aria-label="All flights"
                 >
@@ -128,7 +125,7 @@ export function ActiveFlightGroups({ selectedItem, onSelect, onPreview }: Active
                         }
                       }
                     }}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-synthwave-pink/20 bg-synthwave-pink/5 text-secondary transition-colors hover:bg-synthwave-pink/10 hover:text-white"
+                    className="tactical-button flex h-9 w-9 items-center justify-center rounded-md text-secondary transition-colors"
                     title="Reset client slots"
                     aria-label="Reset client slots"
                   >
@@ -138,7 +135,7 @@ export function ActiveFlightGroups({ selectedItem, onSelect, onPreview }: Active
                 <button
                   onClick={() => setIsNewDialogOpen(true)}
                   disabled={creatableTasks.size === 0}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-synthwave-pink/20 bg-synthwave-pink/5 text-secondary transition-colors hover:bg-synthwave-pink/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-synthwave-pink/5 disabled:hover:text-secondary"
+                  className="tactical-button flex h-9 w-9 items-center justify-center rounded-md text-secondary transition-colors disabled:cursor-not-allowed disabled:opacity-40"
                   title="Create flight group"
                   aria-label="Create flight group"
                 >
@@ -153,7 +150,7 @@ export function ActiveFlightGroups({ selectedItem, onSelect, onPreview }: Active
               <div className="space-y-2">
                 {selectedTask && (
                   <div className="mb-1 flex justify-center">
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-synthwave-pink/30 bg-synthwave-pink/10 px-2 py-1 text-xs text-synthwave-pink">
+                    <span className="tactical-inset inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs text-synthwave-pink">
                       <span className="retro-font">{selectedTask}</span>
                       <button
                         onClick={() => setSelectedTask(null)}
@@ -187,7 +184,7 @@ export function ActiveFlightGroups({ selectedItem, onSelect, onPreview }: Active
                 ))}
               </div>
             ) : !selectedTask ? (
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-3">
                 {taskGroups.map(({ task, groups }) => {
                   const totalClients = groups.reduce(
                     (sum, group) =>
@@ -205,7 +202,7 @@ export function ActiveFlightGroups({ selectedItem, onSelect, onPreview }: Active
                         setSelectedTask(task)
                         setViewMode('all')
                       }}
-                      className="flex min-h-[74px] flex-col items-center justify-center gap-1.5 rounded-lg border border-synthwave-pink/20 bg-synthwave-pink/5 p-3 text-center transition-colors hover:border-synthwave-pink/50 hover:bg-synthwave-pink/15"
+                      className="tactical-key flex min-h-[84px] flex-col items-center justify-center gap-1.5 rounded-md p-3 text-center transition-colors"
                     >
                       <span className="text-sm font-medium text-primary">{task}</span>
                       <div className="flex items-center gap-2 text-[10px] text-secondary/70">
@@ -238,7 +235,7 @@ export function ActiveFlightGroups({ selectedItem, onSelect, onPreview }: Active
       </ScrollArea>
       <Dialog open={isNewDialogOpen} onOpenChange={setIsNewDialogOpen}>
         <DialogContent
-          className="border-synthwave-pink/30 bg-synthwave-dark/95 text-synthwave-light shadow-[0_0_30px_rgba(255,0,170,0.4)] backdrop-blur-xl sm:max-w-md"
+          className="tactical-panel text-synthwave-light backdrop-blur-xl sm:max-w-md"
           showCloseButton={false}
         >
           <DialogHeader>
@@ -278,7 +275,7 @@ export function ActiveFlightGroups({ selectedItem, onSelect, onPreview }: Active
                     setViewMode('all')
                     setIsNewDialogOpen(false)
                   }}
-                  className="flex min-h-[74px] flex-col items-center justify-center gap-1.5 rounded-lg border border-synthwave-pink/20 bg-synthwave-pink/5 p-3 text-center transition-colors hover:border-synthwave-pink/50 hover:bg-synthwave-pink/15 disabled:cursor-not-allowed disabled:border-synthwave-pink/10 disabled:bg-synthwave-pink/[0.02] disabled:opacity-40 disabled:hover:border-synthwave-pink/10 disabled:hover:bg-synthwave-pink/[0.02]"
+                  className="tactical-button flex min-h-[74px] flex-col items-center justify-center gap-1.5 rounded-md p-3 text-center transition-colors hover:border-synthwave-pink/50 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <span className="text-sm font-medium text-primary">{task}</span>
                   <div className="flex items-center gap-2 text-[10px] text-secondary/70">

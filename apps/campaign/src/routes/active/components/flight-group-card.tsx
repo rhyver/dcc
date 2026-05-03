@@ -41,23 +41,23 @@ export function FlightGroupCard({
 }: FlightGroupCardProps) {
   const hasClients = group.aircrafts.some((aircraft) => aircraft.client)
   const clientCount = group.aircrafts.filter((aircraft) => aircraft.client).length
+  const availableClientCount = group.aircrafts.length
 
   return (
     <div
       className={cn(
-        'rounded border p-2 transition-colors',
-        onClick && 'cursor-pointer',
+        'rounded-md border p-2 transition-all shadow-[inset_0_1px_0_rgba(255,255,255,0.065),0_8px_18px_rgba(0,0,0,0.2)]',
         isAirborne
           ? selected
-            ? 'border-amber-400 bg-amber-400/10'
-            : 'border-amber-400/40 bg-amber-400/5 hover:bg-amber-400/10'
+            ? 'border-amber-400 bg-amber-400/15 shadow-[inset_0_2px_8px_rgba(0,0,0,0.32),0_0_18px_rgba(251,191,36,0.14)]'
+            : 'border-amber-400/40 bg-amber-400/7 hover:bg-amber-400/12'
           : selected
             ? hasClients
-              ? 'border-cyan-400 bg-cyan-500/20'
-              : 'border-synthwave-pink bg-synthwave-pink/20'
+              ? 'border-cyan-400 bg-cyan-500/20 shadow-[inset_0_2px_8px_rgba(0,0,0,0.35),0_0_20px_rgba(34,211,238,0.16)]'
+              : 'border-synthwave-pink bg-synthwave-pink/20 shadow-[inset_0_2px_8px_rgba(0,0,0,0.35),0_0_20px_rgba(255,0,170,0.16)]'
             : hasClients
-              ? 'border-cyan-400/30 bg-cyan-500/10 hover:bg-cyan-500/20'
-              : 'border-synthwave-pink/10 bg-synthwave-pink/5 hover:bg-synthwave-pink/10'
+              ? 'border-cyan-400/30 bg-cyan-500/10 hover:border-cyan-400/45 hover:bg-cyan-500/16'
+              : 'border-synthwave-pink/16 bg-synthwave-pink/[0.055] hover:border-synthwave-pink/34 hover:bg-synthwave-pink/10'
       )}
       onClick={onClick}
       onMouseEnter={onMouseEnter}
@@ -72,7 +72,7 @@ export function FlightGroupCard({
               {group.callsign}
             </span>
             {isAirborne && (
-              <span className="flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-400/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">
+              <span className="flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-400/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
                 <PlaneTakeoff className="h-2.5 w-2.5" />
                 Airborne
               </span>
@@ -93,7 +93,7 @@ export function FlightGroupCard({
         </div>
 
         <div className="flex flex-col items-end gap-0.5">
-          <span className="rounded-full border border-secondary/20 bg-secondary/10 px-1.5 py-0.5 text-xs text-secondary/80">
+          <span className="rounded-full border border-secondary/20 bg-secondary/10 px-1.5 py-0.5 text-xs text-secondary/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)]">
             {group.task}
           </span>
           <div className="flex items-center gap-2 text-[10px] text-secondary/60">
@@ -123,26 +123,61 @@ export function FlightGroupCard({
             <User className="h-3 w-3" />
             Clients
           </span>
-          <ToggleGroup
-            type="single"
-            size="sm"
-            value={clientCount.toString()}
-            className="rounded-lg border border-synthwave-pink/20 bg-synthwave-pink/5 p-0.5"
-            onValueChange={(value) => {
-              if (!value) return
-              onClientCountChange(parseInt(value))
-            }}
-          >
-            {Array.from({ length: group.aircrafts.length + 1 }).map((_, index) => (
-              <ToggleGroupItem
-                key={index}
-                value={index.toString()}
-                className="h-6 w-6 border-0 bg-transparent p-0 text-xs text-secondary shadow-none hover:bg-synthwave-pink/10 hover:text-white data-[state=on]:bg-cyan-500/20 data-[state=on]:text-cyan-300 data-[state=on]:shadow-none"
+          {hasClients ? (
+            <ToggleGroup
+              type="single"
+              size="sm"
+              value={clientCount.toString()}
+              className="tactical-inset rounded-md"
+              onValueChange={(value) => {
+                if (!value) return
+                onClientCountChange(parseInt(value))
+              }}
+            >
+              {Array.from({ length: group.aircrafts.length + 1 }).map((_, index) => (
+                <ToggleGroupItem
+                  key={index}
+                  value={index.toString()}
+                  className="tactical-button h-6 w-6 rounded-sm border-0 p-0 text-xs text-secondary data-[state=on]:text-cyan-300"
+                >
+                  {index}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          ) : (
+            <div className="inline-flex rounded-md shadow-[0_0_18px_rgba(255,0,170,0.14)]">
+              <button
+                type="button"
+                className={cn(
+                  'tactical-button tactical-action-button h-7 border-0 px-3 text-xs font-medium text-white transition-colors',
+                  availableClientCount > 1 ? 'rounded-l-sm rounded-r-none' : 'rounded-sm'
+                )}
+                onClick={() => onClientCountChange(1)}
               >
-                {index}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
+                Join
+              </button>
+              {Array.from({ length: Math.max(availableClientCount - 1, 0) }).map((_, index) => {
+                const count = index + 2
+                const isLast = count === availableClientCount
+
+                return (
+                  <button
+                    key={count}
+                    type="button"
+                    className={cn(
+                      'tactical-button tactical-action-button h-7 w-7 rounded-none border-0 border-l border-white/18 p-0 text-xs font-semibold text-white transition-colors',
+                      isLast && 'rounded-r-sm'
+                    )}
+                    onClick={() => onClientCountChange(count)}
+                    title={`Add ${count} client slots`}
+                    aria-label={`Add ${count} client slots`}
+                  >
+                    {count}
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>

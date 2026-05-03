@@ -10,18 +10,45 @@ type FlightGroup = CoalitionData['flightGroups'][number]
 
 const campaignTime = new Date('2026-01-01T12:00:00.000Z')
 
+function createAircraftTypes(): CoalitionData['aircraftTypes'] {
+  return {
+    DEAD: [],
+    AWACS: [],
+    CAP: [],
+    Escort: [],
+    'Pinpoint Strike': [],
+    CAS: [],
+    CSAR: [],
+    'Air Assault': [],
+    SEAD: [],
+    Intercept: [],
+    'Antiship Strike': [],
+    'Fighter Sweep': [],
+    'Ground Attack': [],
+    'Runway Attack': [],
+    Transport: [],
+    Refueling: [],
+    RescueHelo: [],
+    AFAC: []
+  }
+}
+
+function createGroundUnitTypes(): CoalitionData['groundUnitTypes'] {
+  return {
+    SAM: [],
+    Vehicle: [],
+    Infantry: [],
+    'Shorad Vehicle': [],
+    'Shorad Infantry': [],
+    EWS: []
+  }
+}
+
 function createCoalition(id: 'player' | 'opponent'): CoalitionData {
   return {
     id,
-    aircraftTypes: {
-      CAP: [],
-      'Pinpoint Strike': [],
-      SEAD: [],
-      DEAD: [],
-      CAS: [],
-      Transport: []
-    },
-    groundUnitTypes: {},
+    aircraftTypes: createAircraftTypes(),
+    groundUnitTypes: createGroundUnitTypes(),
     airdromeNames: ['Home'],
     objectiveIds: [],
     structures: [],
@@ -29,7 +56,7 @@ function createCoalition(id: 'player' | 'opponent'): CoalitionData {
     groundGroups: [],
     flightGroups: [],
     packages: []
-  } as CoalitionData
+  }
 }
 
 function createCampaign(): Campaign {

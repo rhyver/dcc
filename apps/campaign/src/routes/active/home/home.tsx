@@ -97,6 +97,10 @@ export function Home() {
     () => new Set([...playerFlightGroups, ...opponentFlightGroups].map((group) => group.id)),
     [playerFlightGroups, opponentFlightGroups]
   )
+  const visibleSelectedItem = React.useMemo(() => {
+    if (!selectedItem || !('flightplan' in selectedItem)) return selectedItem
+    return activeFlightGroupIds.has(selectedItem.id) ? selectedItem : null
+  }, [activeFlightGroupIds, selectedItem])
   const logViewportRef = React.useRef<HTMLDivElement | null>(null)
   const lastRunningTimeMultiplierRef = React.useRef(timeMultiplier > 0 ? timeMultiplier : 1)
   const [logScrollTop, setLogScrollTop] = React.useState(0)
@@ -174,13 +178,6 @@ export function Home() {
     return () => observer.disconnect()
   }, [isLogOpen])
 
-  React.useEffect(() => {
-    setSelectedItem((item) => {
-      if (!item || !('flightplan' in item)) return item
-      return activeFlightGroupIds.has(item.id) ? item : null
-    })
-  }, [activeFlightGroupIds])
-
   const totalLogHeight = visibleLogs.length * LOG_ROW_HEIGHT
   const startIndex = Math.max(0, Math.floor(logScrollTop / LOG_ROW_HEIGHT) - LOG_OVERSCAN)
   const endIndex = Math.min(
@@ -248,16 +245,14 @@ export function Home() {
       <div className="absolute inset-0 z-0">
         <div className="absolute inset-0 flex flex-col overflow-hidden">
           {/* Map Controls & Weather - Floating bottom right */}
-          <div className="absolute bottom-16 right-2 z-1100 flex flex-col items-end gap-3">
+          <div className="absolute right-3 bottom-16 z-1100 flex flex-col items-end gap-3">
             {/* Zoom Controls */}
-            <div className="flex flex-col gap-2">
+            <div className="tactical-inset flex flex-col gap-2 rounded-full p-2">
               <Button
                 variant="outline"
                 size="sm"
-                className={`h-[30px] w-[30px] rounded-full border-synthwave-pink/30 p-0 text-secondary backdrop-blur-md hover:bg-synthwave-pink/20 ${
-                  isMeasureMode
-                    ? 'bg-synthwave-pink/25 text-synthwave-light ring-1 ring-synthwave-pink/60'
-                    : 'bg-synthwave-dark/80'
+                className={`tactical-button h-[30px] w-[30px] rounded-full p-0 text-secondary backdrop-blur-md ${
+                  isMeasureMode ? 'text-synthwave-light ring-1 ring-synthwave-pink/60' : ''
                 }`}
                 onClick={() => setIsMeasureMode((value) => !value)}
                 title="Measure distance"
@@ -269,7 +264,7 @@ export function Home() {
               <Button
                 variant="outline"
                 size="sm"
-                className="h-[30px] w-[30px] rounded-full border-synthwave-pink/30 bg-synthwave-dark/80 p-0 text-secondary backdrop-blur-md hover:bg-synthwave-pink/20"
+                className="tactical-button h-[30px] w-[30px] rounded-full p-0 text-secondary backdrop-blur-md"
                 onClick={() => setMapZoom(Math.min(CAUCASUS_DETAIL_MAX_ZOOM, mapZoom + 1))}
               >
                 <Plus className="h-3.5 w-3.5" />
@@ -277,7 +272,7 @@ export function Home() {
               <Button
                 variant="outline"
                 size="sm"
-                className="h-[30px] w-[30px] rounded-full border-synthwave-pink/30 bg-synthwave-dark/80 p-0 text-secondary backdrop-blur-md hover:bg-synthwave-pink/20"
+                className="tactical-button h-[30px] w-[30px] rounded-full p-0 text-secondary backdrop-blur-md"
                 onClick={() => setMapZoom(Math.max(3, mapZoom - 1))}
               >
                 <Minus className="h-3.5 w-3.5" />
@@ -285,7 +280,7 @@ export function Home() {
             </div>
 
             {/* Weather Widget */}
-            <Card className="pointer-events-auto border-synthwave-pink/30 bg-synthwave-dark/80 text-synthwave-light shadow-[0_0_15px_rgba(255,0,170,0.3)] backdrop-blur-md p-2">
+            <Card className="tactical-panel pointer-events-auto rounded-md p-2 text-synthwave-light backdrop-blur-md">
               <div className="flex items-center gap-4 text-xs font-medium">
                 <div className="flex items-center gap-1.5">
                   <Wind className="h-3.5 w-3.5 text-synthwave-pink" />
@@ -322,7 +317,7 @@ export function Home() {
 
           <React.Suspense fallback={<div className="h-full w-full bg-synthwave-dark" />}>
             <CampaignMap
-              selectedItem={selectedItem}
+              selectedItem={visibleSelectedItem}
               previewItem={previewItem}
               onSelect={setSelectedItem}
               zoom={mapZoom}
@@ -336,14 +331,14 @@ export function Home() {
 
       {/* Top Bar - Full Width */}
       <div className="absolute top-0 left-0 right-0 z-20 pointer-events-none">
-        <Card className="pointer-events-auto rounded-none border-x-0 border-t-0 border-b border-synthwave-pink/20 bg-synthwave-dark/88 text-synthwave-light shadow-[0_10px_30px_rgba(0,0,0,0.22)] backdrop-blur-md px-3 py-5">
+        <Card className="tactical-topbar pointer-events-auto rounded-none border-x-0 border-t-0 px-5 py-6 text-synthwave-light backdrop-blur-md">
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
             <div className="flex items-center gap-2 justify-self-start">
               <CampaignMenu open={isCampaignMenuOpen} onOpenChange={setIsCampaignMenuOpen} />
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-secondary hover:text-white hover:bg-synthwave-pink/10"
+                className="tactical-button h-10 rounded-md px-4 text-secondary"
                 onClick={() => setIsBriefingOpen(!isBriefingOpen)}
               >
                 <Info className="h-4 w-4 text-synthwave-pink" />
@@ -360,6 +355,7 @@ export function Home() {
               <ToggleGroup
                 type="single"
                 value={timerState}
+                className="tactical-inset rounded-md p-1.5"
                 onValueChange={(value) => {
                   if (!value) return
                   switch (value) {
@@ -378,23 +374,23 @@ export function Home() {
                 <ToggleGroupItem
                   value="pause"
                   size="sm"
-                  className="h-8 w-8 border border-synthwave-pink/20 data-[state=on]:bg-synthwave-pink/20 data-[state=on]:text-synthwave-pink hover:bg-synthwave-pink/10"
+                  className="tactical-button h-11 w-11 rounded-sm border-0 p-0 data-[state=on]:text-synthwave-pink"
                 >
-                  <Pause className="h-4 w-4" />
+                  <Pause className="h-5 w-5" />
                 </ToggleGroupItem>
                 <ToggleGroupItem
                   value="play"
                   size="sm"
-                  className="h-8 w-8 border border-synthwave-pink/20 data-[state=on]:bg-synthwave-pink/20 data-[state=on]:text-synthwave-pink hover:bg-synthwave-pink/10"
+                  className="tactical-button h-11 w-11 rounded-sm border-0 p-0 data-[state=on]:text-synthwave-pink"
                 >
-                  <Play className="h-4 w-4" />
+                  <Play className="h-5 w-5" />
                 </ToggleGroupItem>
                 <ToggleGroupItem
                   value="fast-forward"
                   size="sm"
-                  className="h-8 w-8 border border-synthwave-pink/20 data-[state=on]:bg-synthwave-pink/20 data-[state=on]:text-synthwave-pink hover:bg-synthwave-pink/10"
+                  className="tactical-button h-11 w-11 rounded-sm border-0 p-0 data-[state=on]:text-synthwave-pink"
                 >
-                  <FastForward className="h-4 w-4" />
+                  <FastForward className="h-5 w-5" />
                 </ToggleGroupItem>
               </ToggleGroup>
             </div>
@@ -403,7 +399,7 @@ export function Home() {
 
         {/* Briefing Content - drops down from top bar */}
         {isBriefingOpen && (
-          <Card className="pointer-events-auto absolute left-4 mt-2 w-[400px] border-synthwave-pink/30 bg-synthwave-dark/90 text-synthwave-light shadow-[0_0_15px_rgba(255,0,170,0.3)] backdrop-blur-md p-3">
+          <Card className="tactical-panel pointer-events-auto absolute left-4 mt-2 w-[400px] rounded-md p-3 text-synthwave-light backdrop-blur-md">
             <div className="mb-1 flex min-h-9 items-center justify-between gap-3">
               <h3 className="retro-font truncate text-base font-medium uppercase tracking-wide text-primary">
                 {scenarioName}
@@ -431,16 +427,11 @@ export function Home() {
                   <h4 className="retro-font text-xs font-medium uppercase text-primary">
                     Primary Objectives
                   </h4>
-                  <span className="text-xs text-secondary">
-                    {primaryObjectives.length} Targets
-                  </span>
+                  <span className="text-xs text-secondary">{primaryObjectives.length} Targets</span>
                 </div>
                 <ul className="space-y-2 text-sm">
                   {primaryObjectives.map((objective, index) => (
-                    <li
-                      key={index}
-                      className="flex items-start gap-2 p-2 rounded bg-synthwave-pink/5 border border-synthwave-pink/10"
-                    >
+                    <li key={index} className="tactical-inset flex items-start gap-2 rounded p-2">
                       <Target className="h-4 w-4 mt-0.5 text-synthwave-pink shrink-0" />
                       <span>{formatPrimaryObjective(objective)}</span>
                     </li>
@@ -453,22 +444,22 @@ export function Home() {
       </div>
 
       {/* Sidebar - Left Panel */}
-      <div className="absolute top-[72px] left-0 bottom-0 w-[380px] z-10 flex flex-col overflow-hidden bg-synthwave-dark/88 border-r border-synthwave-pink/20 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)] text-synthwave-light">
+      <div className="tactical-surface absolute top-[86px] bottom-0 left-0 z-10 flex w-[400px] flex-col overflow-hidden border-l-0 border-t-0 border-b-0 text-synthwave-light backdrop-blur-md">
         {/* Active Flight Groups */}
         <ActiveFlightGroups
-          selectedItem={selectedItem}
+          selectedItem={visibleSelectedItem}
           onSelect={setSelectedItem}
           onPreview={setPreviewItem}
         />
 
         {isLogOpen && (
-          <div className="border-t border-synthwave-pink/20 p-2 h-[240px] shrink-0">
+          <div className="tactical-inset m-2 h-[240px] shrink-0 rounded-md p-2">
             <div className="mb-2 flex items-center justify-between">
               <span className="retro-font text-xs uppercase text-primary">Action Log</span>
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-6 px-2 text-[10px] text-secondary hover:text-white hover:bg-synthwave-pink/10"
+                className="tactical-button h-6 px-2 text-[10px] text-secondary"
                 onClick={() => activeStore.send({ type: 'clearLogs' })}
               >
                 Clear
@@ -498,10 +489,10 @@ export function Home() {
                           className="pb-0"
                         >
                           <div
-                            className={`rounded border px-2 py-1 ${
+                            className={`rounded border px-2 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${
                               entry.coalition === 'player'
-                                ? 'border-cyan-400/30 bg-cyan-950/25'
-                                : 'border-red-400/30 bg-red-950/25'
+                                ? 'border-cyan-400/30 bg-cyan-950/30'
+                                : 'border-red-400/30 bg-red-950/30'
                             } ${
                               entry.entityId
                                 ? 'cursor-pointer hover:ring-1 hover:ring-synthwave-pink/40'
@@ -589,16 +580,12 @@ function CampaignMenu({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-8 w-8 p-0 text-secondary hover:text-white hover:bg-synthwave-pink/10"
-        >
+        <Button variant="ghost" size="sm" className="tactical-button h-10 w-10 p-0 text-secondary">
           <Menu className="h-4 w-4" />
         </Button>
       </DialogTrigger>
       <DialogContent
-        className="border-synthwave-pink/30 bg-synthwave-dark/95 text-synthwave-light shadow-[0_0_30px_rgba(255,0,170,0.3)] backdrop-blur-md sm:max-w-sm"
+        className="tactical-panel text-synthwave-light backdrop-blur-md sm:max-w-sm"
         showCloseButton={false}
       >
         <DialogHeader>
@@ -609,7 +596,7 @@ function CampaignMenu({
         <div className="flex flex-col gap-2">
           <Button
             variant="ghost"
-            className="w-full justify-start gap-3 text-secondary hover:text-white hover:bg-synthwave-pink/10"
+            className="tactical-button w-full justify-start gap-3 text-secondary"
             onClick={handleSave}
           >
             <Save className="h-4 w-4 text-synthwave-pink" />
@@ -617,7 +604,7 @@ function CampaignMenu({
           </Button>
           <Button
             variant="ghost"
-            className="w-full justify-start gap-3 text-secondary hover:text-white hover:bg-synthwave-pink/10"
+            className="tactical-button w-full justify-start gap-3 text-secondary"
             onClick={() => {
               onOpenChange(false)
               navigate('/load')
@@ -629,7 +616,7 @@ function CampaignMenu({
           <div className="h-px bg-synthwave-pink/20" />
           <Button
             variant="ghost"
-            className="w-full justify-start gap-3 text-secondary hover:text-white hover:bg-synthwave-pink/10"
+            className="tactical-button w-full justify-start gap-3 text-secondary"
             onClick={() => {
               onOpenChange(false)
               navigate('/settings')
@@ -640,7 +627,7 @@ function CampaignMenu({
           </Button>
           <Button
             variant="ghost"
-            className="w-full justify-start gap-3 text-secondary hover:text-white hover:bg-synthwave-pink/10"
+            className="tactical-button w-full justify-start gap-3 text-secondary"
             onClick={handleReturnToStart}
           >
             <HomeIcon className="h-4 w-4 text-synthwave-pink" />

@@ -5,10 +5,7 @@ import type * as z from 'zod'
 import { CapFlightGroup } from './cap-flight-group'
 import { DeadFlightGroup } from './dead-flight-group'
 import { FlightGroup } from './flight-group'
-import {
-  buildStrikeMissionWaypoints,
-  spawnPlannedFlightGroup
-} from './flight-group-spawn'
+import { buildStrikeMissionWaypoints, spawnPlannedFlightGroup } from './flight-group-spawn'
 import { SeadFlightGroup } from './sead-flight-group'
 import { StrikeFlightGroup } from './strike-flight-group'
 import { TransportFlightGroup } from './transport-flight-group'
@@ -84,21 +81,6 @@ function getCreatedFlightGroup(campaign: Campaign, id: string): FlightGroupData 
   const group = campaign.coalitions.player.flightGroups.find((fg) => fg.id === id)
   expect(group).toBeDefined()
   return group!
-}
-
-function expectStandardFixedWingPlan(group: FlightGroupData, taskWaypointName: string) {
-  expect(group.flightplan.waypoints.map((wp) => wp.name)).toEqual([
-    'TakeOff',
-    'Ascend',
-    'IP',
-    taskWaypointName,
-    'Egress',
-    'Descent',
-    'Landing'
-  ])
-  expect(group.flightplan.waypoints[0]?.type).toBe('TakeOff')
-  expect(group.flightplan.waypoints.at(-1)?.type).toBe('Landing')
-  expect(group.tot).toBeInstanceOf(Date)
 }
 
 function expectStrikeFixedWingPlan(group: FlightGroupData) {

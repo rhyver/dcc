@@ -24,11 +24,9 @@ export function Clock() {
     .toUpperCase()
 
   return (
-    <div className="flex flex-col items-center justify-center text-secondary">
+    <div className="tactical-inset flex min-w-[92px] flex-col items-center justify-center rounded-md px-3 py-1.5 text-secondary">
       <span className="retro-font text-lg leading-none">{formattedTime}</span>
-      <span className="retro-font mt-1 text-xs leading-none">
-        {formattedDate}
-      </span>
+      <span className="retro-font mt-1 text-xs leading-none">{formattedDate}</span>
     </div>
   )
 }

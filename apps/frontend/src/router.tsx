@@ -15,15 +15,19 @@ import { useSelector } from '@xstate/store/react'
 import {
   AlertTriangle,
   Archive,
+  Bug,
   FolderOpen,
+  Home,
   Maximize2,
   Minimize2,
   Minus,
+  RefreshCw,
   ScrollText,
   Settings,
   X
 } from 'lucide-react'
 import { debugLog } from './lib/debug'
+import { Button } from './components/ui/button'
 
 function RootLayout() {
   const navigate = useNavigate()
@@ -266,23 +270,125 @@ async function activeCampaignMiddleware() {
   activeStore.trigger.loadCampaign({ campaign: activeCampaign })
 }
 
-function ActiveCampaignErrorBoundary() {
-  const error = useRouteError() as { message: string; code?: string }
+function isInvalidAppStateError(error: unknown) {
+  if (error == null || typeof error !== 'object') {
+    return false
+  }
 
-  if (
-    error?.message === 'INVALID_APP_STATE' ||
-    error?.code === 'INVALID_APP_STATE' ||
-    (typeof error?.message === 'string' && error.message.includes('INVALID_APP_STATE'))
-  ) {
+  const candidate = error as { message?: unknown; code?: unknown }
+  return (
+    candidate.message === 'INVALID_APP_STATE' ||
+    candidate.code === 'INVALID_APP_STATE' ||
+    (typeof candidate.message === 'string' && candidate.message.includes('INVALID_APP_STATE'))
+  )
+}
+
+function getErrorMessage(error: unknown) {
+  if (error == null) {
+    return 'Unknown error'
+  }
+
+  if (typeof error === 'string') {
+    return error
+  }
+
+  if (error instanceof Error) {
+    return error.message
+  }
+
+  if (typeof error === 'object' && 'message' in error) {
+    const message = (error as { message?: unknown }).message
+    if (typeof message === 'string') {
+      return message
+    }
+  }
+
+  return 'Unexpected application error'
+}
+
+function GlobalErrorBoundary() {
+  const error = useRouteError()
+  return <GlobalErrorScreen error={error} />
+}
+
+function GlobalErrorScreen({ error }: { error: unknown }) {
+  const navigate = useNavigate()
+  const message = getErrorMessage(error)
+
+  useEffect(() => {
+    console.error('Unhandled route error:', error)
+  }, [error])
+
+  return (
+    <div className="flex h-screen flex-col bg-synthwave-dark text-synthwave-light">
+      <AppTitleBar />
+      <main className="app-no-drag flex min-h-0 flex-1 items-center justify-center px-6 py-10">
+        <section className="w-full max-w-2xl rounded-md border border-synthwave-pink/30 bg-black/28 p-6 shadow-[0_0_45px_rgba(255,110,199,0.12)]">
+          <div className="flex items-start gap-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-amber-300/45 bg-amber-300/10 text-amber-200">
+              <AlertTriangle className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h1 className="retro-font text-xl tracking-wide text-white">
+                Something went wrong
+              </h1>
+              <p className="mt-3 text-sm leading-6 text-synthwave-light/75">
+                DCC hit an unexpected error. Your campaign saves are kept in app data, and the
+                safest next move is to return to the start screen or reload the app.
+              </p>
+              <pre className="mt-4 max-h-40 overflow-auto rounded border border-synthwave-purple/25 bg-black/35 p-3 text-xs leading-5 text-synthwave-light/70">
+                {message}
+              </pre>
+              <div className="mt-5 flex flex-wrap gap-3">
+                <Button
+                  type="button"
+                  className="bg-synthwave-cyan text-synthwave-dark hover:bg-synthwave-cyan/85"
+                  onClick={() => navigate('/new', { replace: true })}
+                >
+                  <Home className="h-4 w-4" />
+                  Start screen
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="border-synthwave-purple/45 bg-white/[0.04] text-synthwave-light hover:bg-synthwave-purple/20"
+                  onClick={() => window.location.reload()}
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Reload
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="border-synthwave-purple/45 bg-white/[0.04] text-synthwave-light hover:bg-synthwave-purple/20"
+                  onClick={() => void window.api?.createDebugBundle?.()}
+                >
+                  <Bug className="h-4 w-4" />
+                  Debug bundle
+                </Button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  )
+}
+
+function ActiveCampaignErrorBoundary() {
+  const error = useRouteError()
+
+  if (isInvalidAppStateError(error)) {
     return <Navigate to="/new" />
   }
 
-  throw error
+  return <GlobalErrorScreen error={error} />
 }
 
 export const router = createHashRouter([
   {
     Component: RootLayout,
+    ErrorBoundary: GlobalErrorBoundary,
     children: [
       {
         path: '/',

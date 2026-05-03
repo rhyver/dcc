@@ -29,7 +29,7 @@ export function readFile(path: string) {
 
 export function writeFile(path: string, data: object) {
   return ResultAsync.fromPromise(
-    fs.writeFile(path, superjson.stringify(data), 'utf-8'),
+    writeJsonFileAtomically(path, superjson.stringify(data)),
     (error) => {
       if (error instanceof Error) {
         return error
@@ -37,6 +37,33 @@ export function writeFile(path: string, data: object) {
       return new Error('Unknown error writing file')
     }
   )
+}
+
+async function writeJsonFileAtomically(path: string, contents: string) {
+  const tmpPath = `${path}.${process.pid}.${Date.now()}.tmp`
+  const backupPath = `${path}.bak`
+
+  try {
+    await fs.writeFile(tmpPath, contents, 'utf-8')
+
+    try {
+      await fs.copyFile(path, backupPath)
+    } catch (error) {
+      const nodeError = error as NodeJS.ErrnoException
+      if (nodeError.code !== 'ENOENT') {
+        throw error
+      }
+    }
+
+    await fs.rename(tmpPath, path)
+  } catch (error) {
+    try {
+      await fs.unlink(tmpPath)
+    } catch {
+      // Best-effort cleanup; preserve the original write error.
+    }
+    throw error
+  }
 }
 
 export function ensureDirectory(path: string) {

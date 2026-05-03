@@ -377,6 +377,30 @@ describe('addFlightGroups mission script config', () => {
     expect(units.map((unit) => unit.skill)).toEqual(['Client', 'Client'])
   })
 
+  test('keeps separate selected client flight groups as client skill', () => {
+    const startTime = new Date('2026-01-01T00:00:00Z')
+    const mission = createMission()
+    const campaign = createCampaign(startTime)
+    const firstClientGroup = createFlightGroup('blue-client-1', 'Enfield-1', startTime)
+    const secondClientGroup = createFlightGroup('blue-client-2', 'Springfield-1', startTime)
+    firstClientGroup.aircrafts[0]!.client = true
+    secondClientGroup.aircrafts[0]!.client = true
+    campaign.coalitions.player.flightGroups = [firstClientGroup, secondClientGroup]
+    campaign.coalitions.opponent.flightGroups = []
+
+    const result = addFlightGroups(mission, campaign, theatre)
+
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) throw result.error
+
+    const groups = mission.coalition.blue.country?.[0]?.plane?.group ?? []
+
+    expect(groups.map((group) => group.units?.map((unit) => unit.skill))).toEqual([
+      ['Client', 'High'],
+      ['Client', 'High']
+    ])
+  })
+
   test('returns client flight unit names for mission scripts', () => {
     const startTime = new Date('2026-01-01T00:00:00Z')
     const mission = createMission()

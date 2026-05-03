@@ -720,6 +720,16 @@ export function addFlightGroups(
   const flightConfigs: MissionFlightConfig[] = []
   const hotStart = campaign.campaignParams?.hotStart === true
   const casJtac = campaign.campaignParams?.casJtac ?? true
+  const totalClientAircraftCount = Object.values(campaign.coalitions).reduce(
+    (total, coalition) =>
+      total +
+      coalition.flightGroups.reduce(
+        (coalitionTotal, flightGroup) =>
+          coalitionTotal + flightGroup.aircrafts.filter((aircraft) => aircraft.client).length,
+        0
+      ),
+    0
+  )
 
   for (const [key, value] of Object.entries(campaign.coalitions)) {
     const missionCoalitionKey = key === 'player' ? 'blue' : key === 'opponent' ? 'red' : 'neutrals'
@@ -812,7 +822,6 @@ export function addFlightGroups(
       // Add units
       const unitIds = flightGroupIdToUnitIds.get(fg.id) ?? fg.aircrafts.map(() => nextId())
       const link16NetworkUnitIds = coalitionLink16UnitIds.get(key) ?? unitIds
-      const clientAircraftCount = fg.aircrafts.filter((ac) => ac.client).length
       const units: z.infer<typeof schemas.dcs.aircraftUnit>[] = fg.aircrafts.map((ac, index) => {
         const unitId = unitIds[index] ?? nextId()
 
@@ -888,7 +897,7 @@ export function addFlightGroups(
           ),
           datalinks: createDatalinks(aircraftDef, index, unitIds, link16NetworkUnitIds),
           livery_id: 'default',
-          skill: ac.client ? (clientAircraftCount === 1 ? 'Player' : 'Client') : 'High',
+          skill: ac.client ? (totalClientAircraftCount === 1 ? 'Player' : 'Client') : 'High',
           speed: speed,
           type: aircraftDef.name,
           unitId: unitId,

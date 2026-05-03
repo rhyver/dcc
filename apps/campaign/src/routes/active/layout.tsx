@@ -132,7 +132,7 @@ export function ActiveLayout() {
       <Outlet />
       <WelcomeCampaignDialog
         open={showWelcomeDialog}
-        onOpenChange={closeWelcomeDialog}
+        onStart={closeWelcomeDialog}
         briefing={scenarioBriefing}
         goalObjectiveIds={scenarioGoal?.objectiveIds}
       />
@@ -142,12 +142,12 @@ export function ActiveLayout() {
 
 function WelcomeCampaignDialog({
   open,
-  onOpenChange,
+  onStart,
   briefing,
   goalObjectiveIds
 }: {
   open: boolean
-  onOpenChange: (open: boolean) => void
+  onStart: () => void
   briefing?: string
   goalObjectiveIds?: string[]
 }) {
@@ -160,8 +160,11 @@ function WelcomeCampaignDialog({
     .filter((paragraph) => paragraph.length > 0)
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="app-no-drag max-h-[min(90vh,760px)] overflow-hidden border-synthwave-cyan/35 bg-synthwave-dark/95 p-0 text-synthwave-light shadow-[0_0_55px_rgba(0,221,255,0.18)] backdrop-blur sm:max-w-2xl">
+    <Dialog open={open}>
+      <DialogContent
+        showCloseButton={false}
+        className="app-no-drag max-h-[min(90vh,760px)] overflow-hidden border-synthwave-cyan/35 bg-synthwave-dark/95 p-0 text-synthwave-light shadow-[0_0_55px_rgba(0,221,255,0.18)] backdrop-blur sm:max-w-2xl"
+      >
         <div className="relative border-b border-synthwave-pink/25 px-6 py-5">
           <div className="absolute inset-0 bg-linear-to-r from-synthwave-purple/18 via-synthwave-pink/10 to-synthwave-cyan/12" />
           <DialogHeader className="relative gap-3">
@@ -268,7 +271,7 @@ function WelcomeCampaignDialog({
             className="bg-synthwave-cyan text-synthwave-dark hover:bg-synthwave-cyan/85"
             onClick={() => {
               activeStore.trigger.updateTimeMultiplier({ timeMultiplier: 1 })
-              onOpenChange(false)
+              onStart()
             }}
           >
             Start

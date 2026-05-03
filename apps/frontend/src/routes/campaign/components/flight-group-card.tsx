@@ -2,6 +2,7 @@ import { Clock, Crosshair, PlaneTakeoff, User } from 'lucide-react'
 import { schemas } from '@dcc/contracts'
 import * as z from 'zod'
 
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { getAircraftDisplayName } from '@/lib/aircraft-display'
 import { cn } from '@/lib/utils'
@@ -16,6 +17,9 @@ interface FlightGroupCardProps {
   onMouseEnter?: () => void
   onMouseLeave?: () => void
   showClientControls?: boolean
+  showAircraftType?: boolean
+  aircraftTypeOptions?: string[]
+  onAircraftTypeChange?: (aircraftType: string) => void
   onClientCountChange?: (count: number) => void
 }
 
@@ -37,11 +41,17 @@ export function FlightGroupCard({
   onMouseEnter,
   onMouseLeave,
   showClientControls = false,
+  showAircraftType = false,
+  aircraftTypeOptions = [],
+  onAircraftTypeChange,
   onClientCountChange
 }: FlightGroupCardProps) {
   const hasClients = group.aircrafts.some((aircraft) => aircraft.client)
   const clientCount = group.aircrafts.filter((aircraft) => aircraft.client).length
   const availableClientCount = group.aircrafts.length
+  const selectedAircraftType = group.aircrafts[0]?.aircraftName
+  const showAircraftTypeSelect =
+    showAircraftType && selectedAircraftType && aircraftTypeOptions.length > 0 && onAircraftTypeChange
 
   return (
     <div
@@ -99,9 +109,9 @@ export function FlightGroupCard({
           <div className="flex items-center gap-2 text-[10px] text-secondary/60">
             <span>
               {group.aircrafts.length}{' '}
-              {group.aircrafts[0]
+              {showAircraftType && group.aircrafts[0]
                 ? getAircraftDisplayName(group.aircrafts[0].aircraftName)
-                : 'Unknown'}
+                : 'Aircraft'}
             </span>
             <div
               className={cn('flex items-center gap-1', hasClients && 'text-cyan-300')}
@@ -113,6 +123,34 @@ export function FlightGroupCard({
           </div>
         </div>
       </div>
+
+      {showAircraftTypeSelect && (
+        <div
+          className="mt-2 border-t border-synthwave-pink/10 pt-2"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <span className="sr-only">Aircraft type for {group.callsign}</span>
+          <Select value={selectedAircraftType} onValueChange={onAircraftTypeChange}>
+            <SelectTrigger
+              className="h-8 border-[#00ddff]/25 bg-black/35 text-xs text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] hover:border-[#00ddff]/45 focus:ring-[#00ddff]/25"
+              title="Aircraft type"
+            >
+              <SelectValue placeholder="Aircraft type" />
+            </SelectTrigger>
+            <SelectContent className="border-[#00ddff]/25 bg-[#100019]/95 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur">
+              {aircraftTypeOptions.map((aircraftType) => (
+                <SelectItem
+                  key={aircraftType}
+                  value={aircraftType}
+                  className="text-xs focus:bg-[#00ddff]/15 focus:text-white"
+                >
+                  {getAircraftDisplayName(aircraftType)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       {showClientControls && onClientCountChange && (
         <div

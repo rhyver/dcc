@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSelector } from '@xstate/store/react'
 import { useQuery } from '@tanstack/react-query'
+import { aircrafts as aircraftDefinitions } from '@dcc/data'
 import { ArrowLeft, Clock, CloudSun, Plane, Sun, Target, Wind, X } from 'lucide-react'
 import { useNavigate } from 'react-router'
+import type { schemas } from '@dcc/contracts'
+import type * as z from 'zod'
 
 import { activeStore, resetFlightGroupClientSelections } from '@/stores/active'
 import { hasFlightGroupTakenOff } from '@/logic/entities/flight-status'
@@ -16,6 +19,13 @@ import { MissionDebriefScreen, type MissionDebrief } from './mission-debrief'
 import { applyMissionStateUpdate } from './mission-state-update'
 
 const KNOTS_PER_MS = 1.94384
+type FlightTask = z.infer<typeof schemas.flightGroup>['task']
+
+function getTaskAircraftOptions(task: FlightTask) {
+  return Object.values(aircraftDefinitions)
+    .filter((aircraft) => aircraft.controllable && aircraft.availableTasks.includes(task))
+    .sort((a, b) => a.display_name.localeCompare(b.display_name))
+}
 
 function formatTime(date: Date | string) {
   const d = new Date(date)
@@ -271,6 +281,12 @@ export function Mission() {
     }
   }
 
+  const handleAircraftTypeChange = (flightGroupId: string, aircraftType: string) => {
+    activeStore.send({ type: 'setFlightGroupAircraftType', flightGroupId, aircraftType })
+    setIsGenerated(false)
+    setIsMissionStateReady(false)
+  }
+
   if (debrief) {
     return <MissionDebriefScreen debrief={debrief} onClose={() => navigate('/')} />
   }
@@ -505,13 +521,24 @@ export function Mission() {
               </span>
             </div>
             <div className="flex-1 overflow-auto space-y-2">
-              {clientFlightGroups.map((group) => (
-                <FlightGroupCard
-                  key={group.id}
-                  group={group}
-                  isAirborne={hasFlightGroupTakenOff(group, currentTime)}
-                />
-              ))}
+              {clientFlightGroups.map((group) => {
+                const aircraftOptions = getTaskAircraftOptions(group.task).map(
+                  (aircraft) => aircraft.name
+                )
+
+                return (
+                  <FlightGroupCard
+                    key={group.id}
+                    group={group}
+                    isAirborne={hasFlightGroupTakenOff(group, currentTime)}
+                    showAircraftType
+                    aircraftTypeOptions={isGenerating ? [] : aircraftOptions}
+                    onAircraftTypeChange={(aircraftType) =>
+                      handleAircraftTypeChange(group.id, aircraftType)
+                    }
+                  />
+                )
+              })}
             </div>
           </div>
 

@@ -1,4 +1,5 @@
 import { schemas } from '@dcc/contracts'
+import { aircrafts as aircraftDefinitions } from '@dcc/data'
 import { createStore } from '@xstate/store'
 import { produce } from 'immer'
 import * as z from 'zod'
@@ -113,6 +114,16 @@ type Campaign = z.infer<typeof schemas.campaign.campaign>
 type CoalitionData = Campaign['coalitions']['player']
 type FlightGroup = CoalitionData['flightGroups'][number]
 type MissionPackage = CoalitionData['packages'][number]
+type AircraftName = z.infer<typeof schemas.dcs.aircraftName>
+
+function isAircraftTaskCompatible(aircraftType: AircraftName, task: FlightGroup['task']) {
+  return Object.values(aircraftDefinitions).some(
+    (aircraft) =>
+      aircraft.name === aircraftType &&
+      aircraft.controllable &&
+      aircraft.availableTasks.includes(task)
+  )
+}
 
 function hasLiveGroundUnits(group: Campaign['coalitions']['player']['groundGroups'][number]) {
   return group.units.reduce((sum, unit) => sum + Math.max(0, unit.count), 0) > 0
@@ -402,6 +413,35 @@ export const activeStore = createStore({
         }
 
         syncPackageTimingForClientGroups(draft)
+      }),
+
+    setFlightGroupAircraftType: (
+      context,
+      { flightGroupId, aircraftType }: { flightGroupId: string; aircraftType: string }
+    ) =>
+      produce(context, (draft) => {
+        const coalitions = [draft.coalitions.player, draft.coalitions.opponent]
+
+        for (const coalition of coalitions) {
+          const group = coalition.flightGroups.find((g) => g.id === flightGroupId)
+          if (!group) {
+            continue
+          }
+
+          const parsedAircraftType = schemas.dcs.aircraftName.safeParse(aircraftType)
+          if (
+            !parsedAircraftType.success ||
+            !isAircraftTaskCompatible(parsedAircraftType.data, group.task)
+          ) {
+            break
+          }
+
+          group.aircrafts.forEach((aircraft) => {
+            aircraft.aircraftName = parsedAircraftType.data
+          })
+
+          break
+        }
       })
   }
 })
@@ -417,7 +457,8 @@ const activeCampaignSaveRequestEventTypes = new Set<string>([
   'clearLogs',
   'clearFlightGroupClientSelections',
   'createManualPlayerFlightGroup',
-  'setFlightGroupClientCount'
+  'setFlightGroupClientCount',
+  'setFlightGroupAircraftType'
 ])
 
 const activeCampaignSaveRequestListeners = new Set<ActiveCampaignSaveRequestListener>()

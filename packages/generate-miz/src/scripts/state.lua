@@ -218,6 +218,22 @@ local function mergeLostUnitAttribution(lostUnit, attribution)
     lostUnit.killCause = attribution.killCause or lostUnit.killCause
 end
 
+local function mergeLostUnitEventData(existingLostUnit, newLostUnit)
+    if not existingLostUnit or not newLostUnit then
+        return
+    end
+
+    existingLostUnit.groupName = existingLostUnit.groupName or newLostUnit.groupName
+    existingLostUnit.type = existingLostUnit.type or newLostUnit.type
+    existingLostUnit.category = existingLostUnit.category or newLostUnit.category
+    existingLostUnit.categoryName = existingLostUnit.categoryName or newLostUnit.categoryName
+    existingLostUnit.coalition = existingLostUnit.coalition or newLostUnit.coalition
+    existingLostUnit.event = existingLostUnit.event or newLostUnit.event
+    existingLostUnit.time = existingLostUnit.time or newLostUnit.time
+    existingLostUnit.x = existingLostUnit.x or newLostUnit.x
+    existingLostUnit.y = existingLostUnit.y or newLostUnit.y
+end
+
 local function addOrUpdateLostUnit(lostUnit, attribution)
     if not lostUnit or not lostUnit.name then
         return
@@ -225,7 +241,9 @@ local function addOrUpdateLostUnit(lostUnit, attribution)
 
     local existingIndex = lostUnitIndexesByName[lostUnit.name]
     if existingIndex then
-        mergeLostUnitAttribution(missionState.lostUnits[existingIndex], attribution)
+        local existingLostUnit = missionState.lostUnits[existingIndex]
+        mergeLostUnitEventData(existingLostUnit, lostUnit)
+        mergeLostUnitAttribution(existingLostUnit, attribution)
         return
     end
 
@@ -266,6 +284,7 @@ local function recordLostUnit(unit, eventName, attribution)
         categoryName = cached.categoryName,
         coalition = cached.coalition,
         event = eventName,
+        time = timer.getAbsTime(),
         x = position and position.x or cached.x or 0,
         y = position and position.z or cached.y or 0
     }, attribution)
@@ -382,6 +401,7 @@ local function recordUnitKill(data)
         categoryName = cached.categoryName,
         coalition = data.targetCoalition or cached.coalition,
         event = data.event or "external_kill",
+        time = data.time or timer.getAbsTime(),
         x = data.x or cached.x or 0,
         y = data.y or cached.y or 0
     }, {
@@ -433,7 +453,7 @@ local function recordCargoDelivery(groupName, position, deliveryType)
 
     groupName = stringifyName(groupName)
     missionState.cargoDeliveries[groupName] = {
-        time = timer.getTime(),
+        time = timer.getAbsTime(),
         x = position.x,
         y = position.z,
         deliveryType = deliveryType or 'unknown'
@@ -794,6 +814,7 @@ local function handleEvent(event)
             if srfType ~= land.SurfaceType.WATER and srfType ~= land.SurfaceType.SHALLOW_WATER then
                 missionState.ejectedPilots[#missionState.ejectedPilots + 1] = {
                     name = name,
+                    time = timer.getAbsTime(),
                     x = position.x,
                     y = position.z
                 }

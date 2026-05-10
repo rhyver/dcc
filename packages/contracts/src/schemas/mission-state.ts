@@ -81,6 +81,7 @@ export const missionState = z
       .array(
         z.object({
           name: z.coerce.string(),
+          time: z.number().optional(),
           x: z.number(),
           y: z.number()
         })

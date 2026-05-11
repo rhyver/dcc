@@ -150,13 +150,118 @@ function buildErrorToast(error: unknown): {
   }
 }
 
+function createMockMissionDebrief(): MissionDebrief {
+  return {
+    submittedAt: new Date('2026-01-01T12:42:00.000Z'),
+    missionState: {
+      missionId: 'mock-debrief',
+      missionEnded: true,
+      time: 12 * 3600 + 42 * 60,
+      ejectedPilots: [
+        {
+          name: 'Pontiac-1 pilot',
+          time: 12 * 3600 + 26 * 60 + 45,
+          x: -14200,
+          y: 263400
+        }
+      ],
+      lostUnits: [
+        {
+          name: 'Enfield-1-2',
+          groupName: 'Enfield-1',
+          type: 'F-16C_50',
+          categoryName: 'plane',
+          coalition: 'blue',
+          event: 'kill',
+          lossType: 'killed',
+          killerUnitName: 'SA-11 Buk LN',
+          killerGroupName: 'SAM-Gudauta-1',
+          weaponName: '9M38M1',
+          killCause: 'direct',
+          time: 12 * 3600 + 18 * 60 + 12,
+          x: -18200,
+          y: 252800
+        },
+        {
+          name: 'Pontiac-1-1',
+          groupName: 'Pontiac-1',
+          type: 'A-10C_2',
+          categoryName: 'plane',
+          coalition: 'blue',
+          event: 'ejection',
+          lossType: 'ejected',
+          killerUnitName: 'ZU-23 emplacement',
+          killerGroupName: 'Ground-Sukhumi-2',
+          weaponName: 'ZU-23',
+          time: 12 * 3600 + 26 * 60 + 8,
+          x: -13800,
+          y: 262900
+        },
+        {
+          name: 'Red-MiG-29S-1',
+          groupName: 'Maykop CAP',
+          type: 'MiG-29S',
+          categoryName: 'plane',
+          coalition: 'red',
+          event: 'kill',
+          lossType: 'killed',
+          killerPlayerName: 'Demo Pilot',
+          killerUnitName: 'Enfield-1-1',
+          weaponName: 'AIM-120C',
+          killCause: 'direct',
+          time: 12 * 3600 + 14 * 60 + 37,
+          x: -26000,
+          y: 244200
+        },
+        {
+          name: 'Static-fuel-depot-1',
+          groupName: 'Sukhumi Fuel Depot',
+          type: 'Tank',
+          categoryName: 'static',
+          coalition: 'red',
+          event: 'dead',
+          lossType: 'destroyed',
+          killerUnitName: 'Colt-2-1',
+          weaponName: 'GBU-12',
+          time: 12 * 3600 + 33 * 60 + 5,
+          x: -11100,
+          y: 256100
+        },
+        {
+          name: 'Unknown wreck',
+          type: 'unknown',
+          event: 'crash',
+          lossType: 'crashed',
+          time: undefined,
+          x: -22000,
+          y: 270000
+        }
+      ],
+      landedUnits: [],
+      cargoDeliveries: {
+        'Dodge-1': {
+          time: 12 * 3600 + 39 * 60 + 20,
+          x: -5200,
+          y: 242700
+        }
+      },
+      groupPositions: {
+        blue: { aircraft: [], ground: [] },
+        red: { aircraft: [], ground: [] }
+      }
+    }
+  }
+}
+
 export function Mission() {
   const navigate = useNavigate()
   const [isGenerating, setIsGenerating] = useState(false)
   const [isGenerated, setIsGenerated] = useState(false)
   const [isMissionStateReady, setIsMissionStateReady] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [debrief, setDebrief] = useState<MissionDebrief | null>(null)
+  const [debrief, setDebrief] = useState<MissionDebrief | null>(() =>
+    import.meta.env.DEV ? createMockMissionDebrief() : null
+  )
   const [toast, setToast] = useState<{
     title: string
     message: string

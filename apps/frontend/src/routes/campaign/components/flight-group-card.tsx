@@ -13,6 +13,11 @@ interface FlightGroupCardProps {
   group: FlightGroup
   isAirborne?: boolean
   selected?: boolean
+  targetOutcome?: {
+    label: string
+    detail?: string
+    complete: boolean
+  }
   onClick?: () => void
   onMouseEnter?: () => void
   onMouseLeave?: () => void
@@ -37,6 +42,7 @@ export function FlightGroupCard({
   group,
   isAirborne = false,
   selected = false,
+  targetOutcome,
   onClick,
   onMouseEnter,
   onMouseLeave,
@@ -52,6 +58,11 @@ export function FlightGroupCard({
   const selectedAircraftType = group.aircrafts[0]?.aircraftName
   const showAircraftTypeSelect =
     showAircraftType && selectedAircraftType && aircraftTypeOptions.length > 0 && onAircraftTypeChange
+  const targetOutcomeTone = targetOutcome?.complete
+    ? 'text-cyan-300'
+    : targetOutcome?.label === 'Target damaged'
+      ? 'text-amber-300'
+      : 'text-red-300'
 
   return (
     <div
@@ -123,6 +134,17 @@ export function FlightGroupCard({
           </div>
         </div>
       </div>
+
+      {targetOutcome && (
+        <div className="mt-2 border-t border-synthwave-pink/10 pt-2">
+          <div className="flex items-center justify-between gap-3 text-[10px] uppercase tracking-wide">
+            <span className={targetOutcomeTone}>{targetOutcome.label}</span>
+            {targetOutcome.detail && (
+              <span className="shrink-0 text-secondary/65">{targetOutcome.detail}</span>
+            )}
+          </div>
+        </div>
+      )}
 
       {showAircraftTypeSelect && (
         <div

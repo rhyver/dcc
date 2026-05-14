@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSelector } from '@xstate/store/react'
 import { useQuery } from '@tanstack/react-query'
-import { aircrafts as aircraftDefinitions } from '@dcc/data'
+import { aircrafts as aircraftDefinitions, samTemplates } from '@dcc/data'
 import { ArrowLeft, Clock, CloudSun, Plane, Sun, Target, Wind, X } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import type { schemas } from '@dcc/contracts'
@@ -15,16 +15,126 @@ import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
 
 import { FlightGroupCard } from '../components/flight-group-card'
-import { MissionDebriefScreen, type MissionDebrief } from './mission-debrief'
+import { MissionDebriefScreen, type MissionDebrief, type TargetOutcome } from './mission-debrief'
 import { applyMissionStateUpdate } from './mission-state-update'
 
 const KNOTS_PER_MS = 1.94384
 type FlightTask = z.infer<typeof schemas.flightGroup>['task']
+type Campaign = z.infer<typeof schemas.campaign.campaign>
+type FlightGroup = Campaign['coalitions']['player']['flightGroups'][number]
+type MissionState = z.infer<typeof schemas.missionState>
 
 function getTaskAircraftOptions(task: FlightTask) {
   return Object.values(aircraftDefinitions)
     .filter((aircraft) => aircraft.controllable && aircraft.availableTasks.includes(task))
     .sort((a, b) => a.display_name.localeCompare(b.display_name))
+}
+
+function formatTargetOutcome(progress: { destroyed: number; total: number }): TargetOutcome {
+  const total = Math.max(1, progress.total)
+  const destroyed = Math.min(total, Math.max(0, progress.destroyed))
+  const percent = Math.round((destroyed / total) * 100)
+  const complete = destroyed >= total
+
+  return {
+    label: complete ? 'Target achieved' : percent > 0 ? 'Target damaged' : 'Target intact',
+    detail: `${destroyed}/${total} (${percent}%)`,
+    complete
+  }
+}
+
+function getStructureTargetProgress(campaign: Campaign, targetId: string) {
+  for (const coalition of ['player', 'opponent'] as const) {
+    const structure = campaign.coalitions[coalition].structures.find(
+      (candidate) => candidate.id === targetId
+    )
+    if (!structure) continue
+
+    return {
+      destroyed: structure.buildings.filter((building) => !building.alive).length,
+      total: structure.buildings.length
+    }
+  }
+
+  return null
+}
+
+function getSamTargetProgress(campaign: Campaign, targetId: string) {
+  for (const coalition of ['player', 'opponent'] as const) {
+    const sam = campaign.coalitions[coalition].samGroups.find((candidate) => candidate.id === targetId)
+    if (!sam) continue
+
+    const total = samTemplates[sam.type]?.units.length ?? sam.deadUnitIndexes?.length ?? 1
+    return {
+      destroyed: sam.destroyed ? total : (sam.deadUnitIndexes?.length ?? 0),
+      total
+    }
+  }
+
+  return null
+}
+
+function getGroundGroupTargetProgress(
+  campaign: Campaign,
+  missionState: MissionState,
+  targetId: string
+) {
+  for (const coalition of ['player', 'opponent'] as const) {
+    const groundGroup = campaign.coalitions[coalition].groundGroups.find(
+      (candidate) => candidate.id === targetId
+    )
+    if (!groundGroup) continue
+
+    const namePrefix = `Ground-${targetId}-`
+    const destroyed = missionState.lostUnits.filter((unit) => {
+      const groupName = unit.groupName ?? undefined
+      return unit.name.startsWith(namePrefix) || groupName?.startsWith(namePrefix)
+    }).length
+
+    return {
+      destroyed,
+      total: groundGroup.units.reduce((sum, unit) => sum + Math.max(0, unit.count), 0)
+    }
+  }
+
+  return null
+}
+
+function buildTargetOutcomes(
+  clientFlightGroups: FlightGroup[],
+  currentCampaign: Campaign,
+  updatedCampaign: Campaign,
+  missionState: MissionState
+): Record<string, TargetOutcome> {
+  const outcomes: Record<string, TargetOutcome> = {}
+
+  for (const group of clientFlightGroups) {
+    if (!group.target) {
+      outcomes[group.id] = {
+        label: 'No tracked target',
+        detail: group.task,
+        complete: false
+      }
+      continue
+    }
+
+    const progress =
+      getStructureTargetProgress(updatedCampaign, group.target.id) ??
+      getSamTargetProgress(updatedCampaign, group.target.id) ??
+      getGroundGroupTargetProgress(currentCampaign, missionState, group.target.id)
+
+    if (progress) {
+      outcomes[group.id] = formatTargetOutcome(progress)
+    } else {
+      outcomes[group.id] = {
+        label: group.targetDestroyed ? 'Target achieved' : 'Target not destroyed',
+        detail: group.target.type,
+        complete: group.targetDestroyed === true
+      }
+    }
+  }
+
+  return outcomes
 }
 
 function formatTime(date: Date | string) {
@@ -150,118 +260,13 @@ function buildErrorToast(error: unknown): {
   }
 }
 
-function createMockMissionDebrief(): MissionDebrief {
-  return {
-    submittedAt: new Date('2026-01-01T12:42:00.000Z'),
-    missionState: {
-      missionId: 'mock-debrief',
-      missionEnded: true,
-      time: 12 * 3600 + 42 * 60,
-      ejectedPilots: [
-        {
-          name: 'Pontiac-1 pilot',
-          time: 12 * 3600 + 26 * 60 + 45,
-          x: -14200,
-          y: 263400
-        }
-      ],
-      lostUnits: [
-        {
-          name: 'Enfield-1-2',
-          groupName: 'Enfield-1',
-          type: 'F-16C_50',
-          categoryName: 'plane',
-          coalition: 'blue',
-          event: 'kill',
-          lossType: 'killed',
-          killerUnitName: 'SA-11 Buk LN',
-          killerGroupName: 'SAM-Gudauta-1',
-          weaponName: '9M38M1',
-          killCause: 'direct',
-          time: 12 * 3600 + 18 * 60 + 12,
-          x: -18200,
-          y: 252800
-        },
-        {
-          name: 'Pontiac-1-1',
-          groupName: 'Pontiac-1',
-          type: 'A-10C_2',
-          categoryName: 'plane',
-          coalition: 'blue',
-          event: 'ejection',
-          lossType: 'ejected',
-          killerUnitName: 'ZU-23 emplacement',
-          killerGroupName: 'Ground-Sukhumi-2',
-          weaponName: 'ZU-23',
-          time: 12 * 3600 + 26 * 60 + 8,
-          x: -13800,
-          y: 262900
-        },
-        {
-          name: 'Red-MiG-29S-1',
-          groupName: 'Maykop CAP',
-          type: 'MiG-29S',
-          categoryName: 'plane',
-          coalition: 'red',
-          event: 'kill',
-          lossType: 'killed',
-          killerPlayerName: 'Demo Pilot',
-          killerUnitName: 'Enfield-1-1',
-          weaponName: 'AIM-120C',
-          killCause: 'direct',
-          time: 12 * 3600 + 14 * 60 + 37,
-          x: -26000,
-          y: 244200
-        },
-        {
-          name: 'Static-fuel-depot-1',
-          groupName: 'Sukhumi Fuel Depot',
-          type: 'Tank',
-          categoryName: 'static',
-          coalition: 'red',
-          event: 'dead',
-          lossType: 'destroyed',
-          killerUnitName: 'Colt-2-1',
-          weaponName: 'GBU-12',
-          time: 12 * 3600 + 33 * 60 + 5,
-          x: -11100,
-          y: 256100
-        },
-        {
-          name: 'Unknown wreck',
-          type: 'unknown',
-          event: 'crash',
-          lossType: 'crashed',
-          time: undefined,
-          x: -22000,
-          y: 270000
-        }
-      ],
-      landedUnits: [],
-      cargoDeliveries: {
-        'Dodge-1': {
-          time: 12 * 3600 + 39 * 60 + 20,
-          x: -5200,
-          y: 242700
-        }
-      },
-      groupPositions: {
-        blue: { aircraft: [], ground: [] },
-        red: { aircraft: [], ground: [] }
-      }
-    }
-  }
-}
-
 export function Mission() {
   const navigate = useNavigate()
   const [isGenerating, setIsGenerating] = useState(false)
   const [isGenerated, setIsGenerated] = useState(false)
   const [isMissionStateReady, setIsMissionStateReady] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [debrief, setDebrief] = useState<MissionDebrief | null>(() =>
-    import.meta.env.DEV ? createMockMissionDebrief() : null
-  )
+  const [debrief, setDebrief] = useState<MissionDebrief | null>(null)
   const [toast, setToast] = useState<{
     title: string
     message: string
@@ -372,12 +377,24 @@ export function Mission() {
     try {
       const missionState = await coreClient.campaign.loadMissionState()
       const currentCampaign = activeStore.getSnapshot().context
+      const debriefClientFlightGroups = clientFlightGroups
       const updatedCampaign = resetFlightGroupClientSelections(
         applyMissionStateUpdate(currentCampaign, missionState)
       )
+      const targetOutcomes = buildTargetOutcomes(
+        debriefClientFlightGroups,
+        currentCampaign,
+        updatedCampaign,
+        missionState
+      )
       activeStore.send({ type: 'loadCampaign', campaign: updatedCampaign })
       await coreClient.campaign.saveActiveCampaign(updatedCampaign)
-      setDebrief({ submittedAt: updatedCampaign.time, missionState })
+      setDebrief({
+        submittedAt: updatedCampaign.time,
+        missionState,
+        clientFlightGroups: debriefClientFlightGroups,
+        targetOutcomes
+      })
     } catch (error) {
       console.error('Failed to submit mission state', error)
       setToast(buildErrorToast(error))

@@ -16,6 +16,8 @@ import {
   AlertTriangle,
   Archive,
   Bug,
+  Check,
+  Clipboard,
   FolderOpen,
   Home,
   Maximize2,
@@ -29,10 +31,17 @@ import {
 import { debugLog } from './lib/debug'
 import { Button } from './components/ui/button'
 
+type PathWarning = { title: string; detail: string }
+
+function getPathWarningKey(warning: PathWarning) {
+  return `${warning.title}:${warning.detail}`
+}
+
 function RootLayout() {
   const navigate = useNavigate()
   const location = useLocation()
-  const [pathWarnings, setPathWarnings] = useState<{ title: string; detail: string }[]>([])
+  const [pathWarnings, setPathWarnings] = useState<PathWarning[]>([])
+  const [dismissedPathWarnings, setDismissedPathWarnings] = useState<Set<string>>(() => new Set())
 
   useEffect(() => {
     const handleOpenCampaign = () => {
@@ -54,7 +63,7 @@ function RootLayout() {
         return
       }
 
-      const warnings: { title: string; detail: string }[] = []
+      const warnings: PathWarning[] = []
 
       const missionExportSet = (settings.missionExportPath ?? '').trim().length > 0
       const missionExportDetected = (settings.detectedMissionExportPath ?? '').trim().length > 0
@@ -85,12 +94,26 @@ function RootLayout() {
     }
   }, [location.key])
 
+  const visiblePathWarnings = pathWarnings.filter(
+    (warning) => !dismissedPathWarnings.has(getPathWarningKey(warning))
+  )
+
   return (
     <div className="flex h-screen flex-col">
       <AppTitleBar />
       <div className="relative min-h-0 flex-1">
-        {pathWarnings.length > 0 ? (
-          <PathWarningBanner warnings={pathWarnings} onOpenSettings={() => navigate('/settings')} />
+        {visiblePathWarnings.length > 0 ? (
+          <PathWarningBanner
+            warnings={visiblePathWarnings}
+            onOpenSettings={() => navigate('/settings')}
+            onDismiss={() => {
+              setDismissedPathWarnings((current) => {
+                const next = new Set(current)
+                visiblePathWarnings.forEach((warning) => next.add(getPathWarningKey(warning)))
+                return next
+              })
+            }}
+          />
         ) : null}
         <Outlet />
       </div>
@@ -100,10 +123,12 @@ function RootLayout() {
 
 function PathWarningBanner({
   warnings,
-  onOpenSettings
+  onOpenSettings,
+  onDismiss
 }: {
-  warnings: { title: string; detail: string }[]
+  warnings: PathWarning[]
   onOpenSettings: () => void
+  onDismiss: () => void
 }) {
   return (
     <div className="app-no-drag absolute left-3 right-3 top-2 z-4990 rounded border border-amber-400/60 bg-amber-950/95 px-3 py-2 text-amber-100 shadow-lg shadow-black/30 backdrop-blur">
@@ -124,6 +149,14 @@ function PathWarningBanner({
         >
           <Settings className="h-3.5 w-3.5" />
           Settings
+        </button>
+        <button
+          type="button"
+          aria-label="Dismiss path warning"
+          onClick={onDismiss}
+          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded text-amber-50/80 hover:bg-amber-300/15 hover:text-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200/70"
+        >
+          <X className="h-3.5 w-3.5" />
         </button>
       </div>
     </div>
@@ -313,11 +346,18 @@ function GlobalErrorBoundary() {
 
 function GlobalErrorScreen({ error }: { error: unknown }) {
   const navigate = useNavigate()
+  const [didCopy, setDidCopy] = useState(false)
   const message = getErrorMessage(error)
 
   useEffect(() => {
     console.error('Unhandled route error:', error)
   }, [error])
+
+  const copyErrorText = async () => {
+    await navigator.clipboard.writeText(message)
+    setDidCopy(true)
+    window.setTimeout(() => setDidCopy(false), 1600)
+  }
 
   return (
     <div className="flex h-screen flex-col bg-synthwave-dark text-synthwave-light">
@@ -329,9 +369,7 @@ function GlobalErrorScreen({ error }: { error: unknown }) {
               <AlertTriangle className="h-5 w-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <h1 className="retro-font text-xl tracking-wide text-white">
-                Something went wrong
-              </h1>
+              <h1 className="retro-font text-xl tracking-wide text-white">Something went wrong</h1>
               <p className="mt-3 text-sm leading-6 text-synthwave-light/75">
                 DCC hit an unexpected error. Your campaign saves are kept in app data, and the
                 safest next move is to return to the start screen or reload the app.
@@ -356,6 +394,15 @@ function GlobalErrorScreen({ error }: { error: unknown }) {
                 >
                   <RefreshCw className="h-4 w-4" />
                   Reload
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="border-synthwave-purple/45 bg-white/[0.04] text-synthwave-light hover:bg-synthwave-purple/20"
+                  onClick={() => void copyErrorText()}
+                >
+                  {didCopy ? <Check className="h-4 w-4" /> : <Clipboard className="h-4 w-4" />}
+                  {didCopy ? 'Copied' : 'Copy error'}
                 </Button>
                 <Button
                   type="button"

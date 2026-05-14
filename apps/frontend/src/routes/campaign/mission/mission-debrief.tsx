@@ -1,13 +1,13 @@
 import 'maplibre-gl/dist/maplibre-gl.css'
 
-import { Crosshair, Map as MapIcon, ShieldAlert, Table2, Target } from 'lucide-react'
+import { Crosshair, Map as MapIcon, Plane, ShieldAlert, Table2 } from 'lucide-react'
 import { schemas } from '@dcc/contracts'
 import { LOtoLL } from '@kilcekru/dcs-coordinates'
 import { useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/store/react'
 import maplibregl from 'maplibre-gl'
 import { Protocol } from 'pmtiles'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import MaplibreMap, {
   Marker as MaplibreMarker,
   type MapRef
@@ -15,18 +15,28 @@ import MaplibreMap, {
 import * as z from 'zod'
 
 import { Button } from '@/components/ui/button'
+import { hasFlightGroupTakenOff } from '@/logic/entities/flight-status'
 import { orpc } from '@/lib/orpc'
 import { cn } from '@/lib/utils'
 import { activeStore } from '@/stores/active'
+import { FlightGroupCard } from '../components/flight-group-card'
 import {
   CAUCASUS_DETAIL_MAX_ZOOM,
   offlineCaucasusMapStyle
 } from '../home/offline-map-style'
 
 type MissionState = z.infer<typeof schemas.missionState>
+type Campaign = z.infer<typeof schemas.campaign.campaign>
+type FlightGroup = Campaign['coalitions']['player']['flightGroups'][number]
 type LostUnit = MissionState['lostUnits'][number]
 type DebriefSide = 'blue' | 'red' | 'unknown'
 type DebriefView = 'table' | 'map'
+
+export type TargetOutcome = {
+  label: string
+  detail?: string
+  complete: boolean
+}
 
 const globalWithPmtiles = globalThis as typeof globalThis & {
   __dccPmtilesProtocol?: Protocol
@@ -39,6 +49,8 @@ if (!globalWithPmtiles.__dccPmtilesProtocol) {
 export type MissionDebrief = {
   submittedAt: Date
   missionState: MissionState
+  clientFlightGroups: FlightGroup[]
+  targetOutcomes: Record<string, TargetOutcome>
 }
 
 function formatTime(date: Date | string) {
@@ -149,6 +161,7 @@ function DebriefEventMarker({
   theatreName: string
   index: number
 }) {
+  const [isHovered, setIsHovered] = useState(false)
   const side = getLostUnitSide(unit)
   const position = useMemo(
     () =>
@@ -168,16 +181,22 @@ function DebriefEventMarker({
       longitude={position.lng}
       latitude={position.lat}
       anchor="center"
-      style={{ zIndex: 30 + index }}
+      style={{ zIndex: isHovered ? 1000 : 30 + index }}
     >
-      <div className="group pointer-events-auto relative flex h-8 w-8 items-center justify-center">
+      <div
+        className="group pointer-events-auto relative flex h-8 w-8 items-center justify-center"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
         <span
           className="absolute h-8 w-8 rounded-full border opacity-60"
           style={{ borderColor: color, boxShadow: `0 0 18px ${color}` }}
         />
-        <span className="absolute h-3 w-3 rotate-45 bg-black ring-2" style={{ color }} />
-        <Target className="relative h-4 w-4" style={{ color }} />
-        <div className="pointer-events-none absolute left-9 top-1/2 hidden w-52 -translate-y-1/2 rounded border border-white/15 bg-black/85 p-2 text-left shadow-2xl backdrop-blur-sm group-hover:block">
+        <ExplosionIcon
+          className="relative h-6 w-6 drop-shadow-[0_0_7px_rgba(255,145,0,0.9)]"
+          style={{ color }}
+        />
+        <div className="pointer-events-none absolute left-9 top-1/2 z-50 hidden w-52 -translate-y-1/2 rounded border border-white/15 bg-black/85 p-2 text-left shadow-2xl backdrop-blur-sm group-hover:block">
           <div className="truncate text-xs font-semibold text-white">{unit.name}</div>
           <div className="mt-0.5 truncate text-[11px] text-white/45">{unit.type}</div>
           <div className="mt-2 flex items-center justify-between gap-2 text-[11px] uppercase tracking-wider text-white/55">
@@ -188,6 +207,94 @@ function DebriefEventMarker({
       </div>
     </MaplibreMarker>
   )
+}
+
+function ExplosionIcon({
+  className,
+  style
+}: {
+  className?: string
+  style?: CSSProperties
+}) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 64 64"
+      aria-hidden="true"
+      focusable="false"
+      role="img"
+      fill="currentColor"
+      style={style}
+    >
+      <g transform="matrix(0.277 0 0 0.277 -10.1 -10.1)">
+        <path
+          d="m200.39 210.99 35.941-96.309-47.461 54.836 3.227-31.797-16.59 25.348-2.305-97.692-17.051 89.856-11.976-33.176-1.844 36.863-48.844-91.238 16.586 105.06-33.636-35.946 24.421 64.516-33.175-23.504 39.168 60.824 13.129-1.449-8.524-40.48 19.816 18.429-1.382-44.234 19.351 34.097 3.227-22.578 5.992 16.125 7.832-24.882 2.305 35.019 26.726-22.578-11.98 38.246 18.199-5.988-10.285 11.187 31.254 4.016-14.285-11.52 21.195-23.5-29.027 12.442"
+          fillRule="evenodd"
+        />
+      </g>
+    </svg>
+  )
+}
+
+function countDestroyedTargetUnits(missionState: MissionState, targetId: string) {
+  const namePrefix = `Ground-${targetId}-`
+  return missionState.lostUnits.filter((unit) => {
+    const groupName = unit.groupName ?? undefined
+    return unit.name.startsWith(namePrefix) || groupName?.startsWith(namePrefix)
+  }).length
+}
+
+function countRemainingTargetUnits(missionState: MissionState, targetId: string) {
+  const namePrefix = `Ground-${targetId}-`
+  const groundGroups = [
+    ...(missionState.groupPositions?.blue?.ground ?? []),
+    ...(missionState.groupPositions?.red?.ground ?? [])
+  ]
+  const targetGroup = groundGroups.find((group) => group.name.startsWith(namePrefix))
+  return targetGroup?.units.length
+}
+
+function getTargetUnitTotal(group: FlightGroup) {
+  const target = group.target as (Record<string, unknown> & NonNullable<FlightGroup['target']>) | undefined
+  if (!target) return undefined
+
+  return (
+    (typeof target.unitCount === 'number' ? target.unitCount : undefined) ??
+    (typeof target.totalUnits === 'number' ? target.totalUnits : undefined) ??
+    (typeof target.initialStrength === 'number' ? target.initialStrength : undefined)
+  )
+}
+
+function getFallbackTargetOutcome(group: FlightGroup, missionState: MissionState): TargetOutcome {
+  if (group.target) {
+    const destroyedTargetUnits = countDestroyedTargetUnits(missionState, group.target.id)
+    if (destroyedTargetUnits > 0) {
+      const remainingTargetUnits = countRemainingTargetUnits(missionState, group.target.id)
+      const targetUnitTotal =
+        getTargetUnitTotal(group) ??
+        (remainingTargetUnits != null ? destroyedTargetUnits + remainingTargetUnits : undefined)
+      return {
+        label: 'Target damaged',
+        detail:
+          targetUnitTotal != null && targetUnitTotal > 0
+            ? `${destroyedTargetUnits}/${targetUnitTotal} destroyed`
+            : `${destroyedTargetUnits} destroyed`,
+        complete: false
+      }
+    }
+
+    return {
+      label: group.targetDestroyed ? 'Target achieved' : 'Target not destroyed',
+      detail: group.target.type,
+      complete: group.targetDestroyed === true
+    }
+  }
+
+  return {
+    label: 'No tracked target',
+    detail: group.task,
+    complete: false
+  }
 }
 
 function MissionDebriefMap({ missionState }: { missionState: MissionState }) {
@@ -253,7 +360,9 @@ function MissionDebriefMap({ missionState }: { missionState: MissionState }) {
     }
   }, [initialViewState])
 
-  if (theatreQuery.isLoading || initialViewState == null) {
+  const theatre = theatreQuery.data
+
+  if (theatreQuery.isLoading || initialViewState == null || theatre == null) {
     return (
       <div className="flex min-h-0 flex-1 items-center justify-center rounded border border-white/10 bg-black/35 text-sm text-white/45">
         Loading map
@@ -262,7 +371,7 @@ function MissionDebriefMap({ missionState }: { missionState: MissionState }) {
   }
 
   return (
-    <section className="relative min-h-[420px] flex-1 overflow-hidden rounded-lg border border-white/10 bg-black/45">
+    <section className="relative min-h-0 flex-1 overflow-hidden rounded-lg border border-white/10 bg-black/45">
       <MaplibreMap
         ref={mapRef}
         style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
@@ -275,7 +384,7 @@ function MissionDebriefMap({ missionState }: { missionState: MissionState }) {
           <DebriefEventMarker
             key={`${unit.name}-${index}`}
             unit={unit}
-            theatreName={theatreQuery.data.name}
+            theatreName={theatre.name}
             index={index}
           />
         ))}
@@ -305,9 +414,21 @@ export function MissionDebriefScreen({
   onClose: () => void
 }) {
   const [view, setView] = useState<DebriefView>('table')
+  const campaignTime = useSelector(activeStore, (state) => state.context.time)
+  const playerFlightGroups = useSelector(
+    activeStore,
+    (state) => state.context.coalitions.player.flightGroups
+  )
+  const activeClientFlightGroups = useMemo(
+    () => playerFlightGroups.filter((group) => group.aircrafts.some((aircraft) => aircraft.client)),
+    [playerFlightGroups]
+  )
+  const clientFlightGroups =
+    debrief.clientFlightGroups.length > 0 ? debrief.clientFlightGroups : activeClientFlightGroups
   const lostBySide = groupLostUnitsBySide(debrief.missionState.lostUnits ?? [])
   const totalLost = lostBySide.blue.length + lostBySide.red.length
   const submittedTime = formatTime(debrief.submittedAt)
+  const currentTime = campaignTime ? new Date(campaignTime) : new Date(debrief.submittedAt)
 
   const columns: Array<{
     side: DebriefSide
@@ -333,7 +454,7 @@ export function MissionDebriefScreen({
   ]
 
   return (
-    <div className="min-h-full bg-[#0b0014] text-white">
+    <div className="h-full overflow-hidden bg-[#0b0014] text-white">
       <div
         className="fixed inset-0"
         style={{
@@ -344,7 +465,7 @@ export function MissionDebriefScreen({
       />
       <div className="fixed inset-x-0 bottom-0 h-[34vh] bg-gradient-to-t from-[#00ddff]/20 via-[#ff3366]/10 to-transparent" />
 
-      <div className="relative z-10 flex min-h-full flex-col gap-5 p-6">
+      <div className="relative z-10 flex h-full min-h-0 flex-col gap-5 p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="text-xs font-semibold uppercase tracking-[0.35em] text-white/45">
@@ -361,9 +482,9 @@ export function MissionDebriefScreen({
           <div className="flex shrink-0 items-center gap-3">
             <DebriefViewToggle view={view} onViewChange={setView} />
             <Button
-              variant="outline"
+              variant="tacticalAction"
               size="sm"
-              className="border-[#00ddff]/40 bg-transparent text-[#00ddff] hover:bg-[#00ddff]/10"
+              className="h-10 rounded-md px-5 text-sm font-semibold"
               onClick={onClose}
             >
               Continue
@@ -373,6 +494,39 @@ export function MissionDebriefScreen({
 
         {view === 'table' ? (
           <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-3">
+            <section className="flex min-h-[320px] flex-col rounded-lg border border-[#ff00aa]/35 bg-black/35 p-4 backdrop-blur-sm">
+              <div className="mb-4 flex items-center gap-2">
+                <Plane className="h-5 w-5 text-[#ff00aa]" />
+                <span className="text-sm font-semibold uppercase tracking-[0.18em]">
+                  Client Flights
+                </span>
+                <span className="ml-auto text-2xl font-black tabular-nums text-[#ff00aa]">
+                  {clientFlightGroups.length}
+                </span>
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-auto space-y-2">
+                {clientFlightGroups.length === 0 ? (
+                  <div className="flex h-full items-center justify-center rounded border border-white/10 bg-white/[0.03] text-sm text-white/35">
+                    No client flights selected
+                  </div>
+                ) : (
+                  clientFlightGroups.map((group) => (
+                    <FlightGroupCard
+                      key={group.id}
+                      group={group}
+                      isAirborne={hasFlightGroupTakenOff(group, currentTime)}
+                      showAircraftType
+                      targetOutcome={
+                        debrief.targetOutcomes[group.id] ??
+                        getFallbackTargetOutcome(group, debrief.missionState)
+                      }
+                    />
+                  ))
+                )}
+              </div>
+            </section>
+
             {columns.map(({ side, label, border, accent, icon: Icon }) => {
               const units = lostBySide[side]
               return (

@@ -9,7 +9,7 @@ import {
 import { coreClient } from './lib/orpc'
 import { activeStore } from './stores/active'
 import { uiStore } from './stores/ui'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useSelector } from '@xstate/store/react'
 import {
@@ -30,18 +30,17 @@ import {
 } from 'lucide-react'
 import { debugLog } from './lib/debug'
 import { Button } from './components/ui/button'
-
-type PathWarning = { title: string; detail: string }
-
-function getPathWarningKey(warning: PathWarning) {
-  return `${warning.title}:${warning.detail}`
-}
+import { WelcomeWorkflow } from './components/welcome-workflow'
+import { buildPathWarnings, getPathWarningKey, type PathWarning } from './lib/path-warnings'
 
 function RootLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const [pathWarnings, setPathWarnings] = useState<PathWarning[]>([])
   const [dismissedPathWarnings, setDismissedPathWarnings] = useState<Set<string>>(() => new Set())
+  const [showWelcomeWorkflow, setShowWelcomeWorkflow] = useState(false)
+  const [welcomeWorkflowChecked, setWelcomeWorkflowChecked] = useState(false)
+  const welcomeDismissedThisSessionRef = useRef(false)
 
   useEffect(() => {
     const handleOpenCampaign = () => {
@@ -63,30 +62,33 @@ function RootLayout() {
         return
       }
 
-      const warnings: PathWarning[] = []
+      setWelcomeWorkflowChecked(true)
 
-      const missionExportSet = (settings.missionExportPath ?? '').trim().length > 0
-      const missionExportDetected = (settings.detectedMissionExportPath ?? '').trim().length > 0
-      if (!missionExportSet && !missionExportDetected) {
-        warnings.push({
-          title: 'Mission export path missing.',
-          detail: 'No path set and no DCS Saved Games folder was found.'
-        })
+      if (welcomeDismissedThisSessionRef.current) {
+        return
       }
 
-      const dcsInstallSet = (settings.dcsInstallPath ?? '').trim().length > 0
-      const dcsInstallDetected = (settings.detectedDcsInstallPath ?? '').trim().length > 0
-      if (!dcsInstallSet && !dcsInstallDetected) {
-        const persistenceEnabled = settings.enableDcsPersistence ?? true
-        warnings.push({
-          title: 'DCS install path missing.',
-          detail: persistenceEnabled
-            ? 'Set your DCS install path or disable persistence.'
-            : 'No DCS World install was found.'
-        })
-      }
+      setShowWelcomeWorkflow(settings.hasCompletedWelcome !== true)
+    })
 
-      setPathWarnings(warnings)
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const refreshPathWarnings = async () => {
+    const settings = await coreClient.campaign.getSettings()
+    setPathWarnings(buildPathWarnings(settings))
+  }
+
+  useEffect(() => {
+    let cancelled = false
+
+    void coreClient.campaign.getSettings().then((settings) => {
+      if (cancelled) {
+        return
+      }
+      setPathWarnings(buildPathWarnings(settings))
     })
 
     return () => {
@@ -94,15 +96,21 @@ function RootLayout() {
     }
   }, [location.key])
 
+  const completeWelcomeWorkflow = () => {
+    welcomeDismissedThisSessionRef.current = true
+    setShowWelcomeWorkflow(false)
+    void refreshPathWarnings()
+  }
+
   const visiblePathWarnings = pathWarnings.filter(
     (warning) => !dismissedPathWarnings.has(getPathWarningKey(warning))
   )
 
   return (
     <div className="flex h-screen flex-col">
-      <AppTitleBar />
+      <AppTitleBar showDevMenu={welcomeWorkflowChecked && !showWelcomeWorkflow} />
       <div className="relative min-h-0 flex-1">
-        {visiblePathWarnings.length > 0 ? (
+        {visiblePathWarnings.length > 0 && !showWelcomeWorkflow ? (
           <PathWarningBanner
             warnings={visiblePathWarnings}
             onOpenSettings={() => navigate('/settings')}
@@ -116,6 +124,9 @@ function RootLayout() {
           />
         ) : null}
         <Outlet />
+        {welcomeWorkflowChecked ? (
+          <WelcomeWorkflow open={showWelcomeWorkflow} onComplete={completeWelcomeWorkflow} />
+        ) : null}
       </div>
     </div>
   )
@@ -163,11 +174,17 @@ function PathWarningBanner({
   )
 }
 
-function AppTitleBar() {
+function AppTitleBar({ showDevMenu = true }: { showDevMenu?: boolean }) {
   const [isMaximized, setIsMaximized] = useState(false)
   const [isDevMenuOpen, setIsDevMenuOpen] = useState(false)
   const isLogOpen = useSelector(uiStore, (state) => state.context.isLogOpen)
   const logEntries = useSelector(activeStore, (state) => state.context.logs)
+
+  useEffect(() => {
+    if (!showDevMenu) {
+      setIsDevMenuOpen(false)
+    }
+  }, [showDevMenu])
 
   useEffect(() => {
     let cancelled = false
@@ -194,75 +211,77 @@ function AppTitleBar() {
         <div className="retro-font shrink-0 text-sm font-semibold tracking-wide text-synthwave-cyan">
           DCC
         </div>
-        <div className="app-no-drag relative">
-          <button
-            type="button"
-            className="titlebar-menu-button"
-            aria-haspopup="menu"
-            aria-expanded={isDevMenuOpen}
-            onClick={() => setIsDevMenuOpen((open) => !open)}
-          >
-            Dev
-          </button>
-          {isDevMenuOpen ? (
-            <div className="titlebar-menu" role="menu">
-              <button
-                type="button"
-                className="titlebar-menu-item"
-                role="menuitem"
-                onClick={() => {
-                  setIsDevMenuOpen(false)
-                  void window.api?.openDevTools?.()
-                }}
-              >
-                Show Chrome DevTools
-              </button>
-              <button
-                type="button"
-                className="titlebar-menu-item"
-                role="menuitem"
-                onClick={() => {
-                  setIsDevMenuOpen(false)
-                  uiStore.trigger.toggleLog()
-                }}
-              >
-                <span className="flex items-center gap-2">
-                  <ScrollText className="h-3.5 w-3.5" />
-                  {isLogOpen ? 'Hide' : 'Show'} Action Log
-                  <span className="ml-auto text-[10px] opacity-70">{logEntries.length}</span>
-                </span>
-              </button>
-              <button
-                type="button"
-                className="titlebar-menu-item"
-                role="menuitem"
-                onClick={() => {
-                  setIsDevMenuOpen(false)
-                  void window.api?.openUserDataFolder?.()
-                }}
-              >
-                <span className="flex items-center gap-2">
-                  <FolderOpen className="h-3.5 w-3.5" />
-                  Open User Data Folder
-                </span>
-              </button>
-              <button
-                type="button"
-                className="titlebar-menu-item"
-                role="menuitem"
-                onClick={() => {
-                  setIsDevMenuOpen(false)
-                  void window.api?.createDebugBundle?.()
-                }}
-              >
-                <span className="flex items-center gap-2">
-                  <Archive className="h-3.5 w-3.5" />
-                  Create Debug Bundle
-                </span>
-              </button>
-            </div>
-          ) : null}
-        </div>
+        {showDevMenu ? (
+          <div className="app-no-drag relative">
+            <button
+              type="button"
+              className="titlebar-menu-button"
+              aria-haspopup="menu"
+              aria-expanded={isDevMenuOpen}
+              onClick={() => setIsDevMenuOpen((open) => !open)}
+            >
+              Dev
+            </button>
+            {isDevMenuOpen ? (
+              <div className="titlebar-menu" role="menu">
+                <button
+                  type="button"
+                  className="titlebar-menu-item"
+                  role="menuitem"
+                  onClick={() => {
+                    setIsDevMenuOpen(false)
+                    void window.api?.openDevTools?.()
+                  }}
+                >
+                  Show Chrome DevTools
+                </button>
+                <button
+                  type="button"
+                  className="titlebar-menu-item"
+                  role="menuitem"
+                  onClick={() => {
+                    setIsDevMenuOpen(false)
+                    uiStore.trigger.toggleLog()
+                  }}
+                >
+                  <span className="flex items-center gap-2">
+                    <ScrollText className="h-3.5 w-3.5" />
+                    {isLogOpen ? 'Hide' : 'Show'} Action Log
+                    <span className="ml-auto text-[10px] opacity-70">{logEntries.length}</span>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="titlebar-menu-item"
+                  role="menuitem"
+                  onClick={() => {
+                    setIsDevMenuOpen(false)
+                    void window.api?.openUserDataFolder?.()
+                  }}
+                >
+                  <span className="flex items-center gap-2">
+                    <FolderOpen className="h-3.5 w-3.5" />
+                    Open User Data Folder
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="titlebar-menu-item"
+                  role="menuitem"
+                  onClick={() => {
+                    setIsDevMenuOpen(false)
+                    void window.api?.createDebugBundle?.()
+                  }}
+                >
+                  <span className="flex items-center gap-2">
+                    <Archive className="h-3.5 w-3.5" />
+                    Create Debug Bundle
+                  </span>
+                </button>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </div>
       <div className="app-no-drag flex shrink-0 items-center gap-1">
         <button

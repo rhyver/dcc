@@ -36,6 +36,7 @@ type AppSettings = {
   aiModel?: string
   disableAutoUpdate?: boolean
   lastViewPath?: string
+  hasCompletedWelcome?: boolean
 }
 
 function detectMissionExportDirectory() {

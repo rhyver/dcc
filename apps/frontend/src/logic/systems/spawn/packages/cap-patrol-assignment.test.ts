@@ -13,7 +13,7 @@ const enemyBase: AirdromeSelection = {
 }
 
 describe('selectCapPatrolAssignment', () => {
-  test('assigns a second patrol from the same home base when it is already covered', () => {
+  test('does not assign a second patrol from the same home base when it is already covered', () => {
     const first = selectCapPatrolAssignment({
       homeBases: [homeBase],
       enemyAirdromes: [enemyBase],
@@ -27,12 +27,31 @@ describe('selectCapPatrolAssignment', () => {
       homeBases: [homeBase],
       enemyAirdromes: [enemyBase],
       coveredHomeBases: new Set([homeBase.name]),
+      maxHomeToEnemyDistance: 500_000
+    })
+
+    expect(second).toBeNull()
+  })
+
+  test('can assign a stacked patrol from a covered home base when explicitly allowed', () => {
+    const first = selectCapPatrolAssignment({
+      homeBases: [homeBase],
+      enemyAirdromes: [enemyBase],
+      coveredHomeBases: new Set(),
+      maxHomeToEnemyDistance: 500_000
+    })
+
+    const manual = selectCapPatrolAssignment({
+      homeBases: [homeBase],
+      enemyAirdromes: [enemyBase],
+      coveredHomeBases: new Set([homeBase.name]),
       maxHomeToEnemyDistance: 500_000,
+      allowCoveredHomeBases: true,
       capPatrolCountByHomeBase: new Map([[homeBase.name, 1]])
     })
 
-    expect(second).not.toBeNull()
-    expect(second?.homeBase.name).toBe(homeBase.name)
-    expect(second?.patrolCenter).not.toEqual(first?.patrolCenter)
+    expect(manual).not.toBeNull()
+    expect(manual?.homeBase.name).toBe(homeBase.name)
+    expect(manual?.patrolCenter).not.toEqual(first?.patrolCenter)
   })
 })

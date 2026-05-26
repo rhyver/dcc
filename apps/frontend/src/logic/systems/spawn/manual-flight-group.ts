@@ -196,6 +196,7 @@ function createManualSpawnPlan(
       enemyAirdromes: getCoalitionAirdromes(draft, theatre, enemyCoalition),
       coveredHomeBases: new Set(capGroups.map((g) => g.homeBase)),
       maxHomeToEnemyDistance: config.packages.CAP.maxDistance * 2,
+      allowCoveredHomeBases: true,
       capPatrolCountByHomeBase
     })
     if (!assignment) return null
@@ -434,7 +435,8 @@ export function createManualFlightGroup(
       destination: plan.patrolCenter,
       missionWaypoints,
       startTime,
-      runwayAngle: plan.runwayAngle
+      runwayAngle: plan.runwayAngle,
+      spawnSource: 'manual'
     }).flightGroupId
   }
 

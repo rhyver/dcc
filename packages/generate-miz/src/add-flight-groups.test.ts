@@ -110,6 +110,22 @@ function createClientCasFlightGroup(startTime: Date): FlightGroup {
   return group
 }
 
+function createTaskFlightGroup(
+  id: string,
+  callsign: string,
+  startTime: Date,
+  task: FlightGroup['task']
+): FlightGroup {
+  const group = createFlightGroup(id, callsign, startTime)
+  group.task = task
+  group.flightplan.waypoints[1] = {
+    ...group.flightplan.waypoints[1]!,
+    name: task,
+    type: 'Task'
+  }
+  return group
+}
+
 function createCampaign(startTime: Date): Campaign {
   const createAircraftTypes = (): CampaignCoalition['aircraftTypes'] =>
     Object.fromEntries(
@@ -334,6 +350,83 @@ describe('addFlightGroups parking assignment', () => {
 
     expect(units.map((unit) => unit.parking_id)).toEqual(['02', '03'])
     expect(units.map((unit) => unit.parking)).toEqual(['2', '3'])
+  })
+})
+
+describe('addFlightGroups enemy traffic throttle', () => {
+  test('omits one third of opponent non-CAP flights when no player client CAP is selected', () => {
+    const startTime = new Date('2026-01-01T00:00:00Z')
+    const mission = createMission()
+    const campaign = createCampaign(startTime)
+    campaign.coalitions.player.flightGroups = [
+      createTaskFlightGroup('blue-cas', 'Enfield-1', startTime, 'CAS')
+    ]
+    campaign.coalitions.opponent.flightGroups = [
+      createTaskFlightGroup('red-cap', 'Springfield-1', startTime, 'CAP'),
+      ...Array.from({ length: 9 }, (_, index) =>
+        createTaskFlightGroup(
+          `red-strike-${index + 1}`,
+          `Bandit-${index + 1}`,
+          startTime,
+          'Pinpoint Strike'
+        )
+      )
+    ]
+
+    const result = addFlightGroups(mission, campaign, theatre)
+
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) throw result.error
+
+    const redGroups = mission.coalition.red.country?.[0]?.plane?.group ?? []
+    expect(redGroups.map((group) => group.name)).toEqual([
+      'Springfield-1',
+      'Bandit-2',
+      'Bandit-3',
+      'Bandit-5',
+      'Bandit-6',
+      'Bandit-8',
+      'Bandit-9'
+    ])
+  })
+
+  test('includes all opponent flights when a player client CAP is selected', () => {
+    const startTime = new Date('2026-01-01T00:00:00Z')
+    const mission = createMission()
+    const campaign = createCampaign(startTime)
+    const clientCap = createTaskFlightGroup('blue-cap', 'Enfield-1', startTime, 'CAP')
+    clientCap.aircrafts[0]!.client = true
+    campaign.coalitions.player.flightGroups = [clientCap]
+    campaign.coalitions.opponent.flightGroups = [
+      createTaskFlightGroup('red-cap', 'Springfield-1', startTime, 'CAP'),
+      ...Array.from({ length: 9 }, (_, index) =>
+        createTaskFlightGroup(
+          `red-strike-${index + 1}`,
+          `Bandit-${index + 1}`,
+          startTime,
+          'Pinpoint Strike'
+        )
+      )
+    ]
+
+    const result = addFlightGroups(mission, campaign, theatre)
+
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) throw result.error
+
+    const redGroups = mission.coalition.red.country?.[0]?.plane?.group ?? []
+    expect(redGroups.map((group) => group.name)).toEqual([
+      'Springfield-1',
+      'Bandit-1',
+      'Bandit-2',
+      'Bandit-3',
+      'Bandit-4',
+      'Bandit-5',
+      'Bandit-6',
+      'Bandit-7',
+      'Bandit-8',
+      'Bandit-9'
+    ])
   })
 })
 

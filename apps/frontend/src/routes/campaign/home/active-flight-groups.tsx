@@ -68,7 +68,7 @@ export function ActiveFlightGroups({ selectedItem, onSelect, onPreview }: Active
 
   return (
     <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-      <div className="shrink-0 px-7 pb-8 pt-8">
+      <div className="shrink-0 pb-8 pl-7 pr-3 pt-8">
         <div className="flex items-center justify-between gap-4 text-lg font-semibold text-white">
           <div className="flex items-center gap-4">
             <Plane className="h-5 w-5 text-synthwave-pink" />

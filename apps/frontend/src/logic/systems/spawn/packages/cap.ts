@@ -41,10 +41,11 @@ export function spawnCap(
   const flightGroups = FlightGroupFactory.getCoalitionFlightGroups(draft, coalition)
 
   const capGroups = flightGroups.filter((group) => group.task === 'CAP')
+  const automaticCapGroups = capGroups.filter((group) => group.spawnSource !== 'manual')
 
   debugLog(`${coalition}: CAP groups`, capGroups.length)
 
-  if (capGroups.length >= config.packages.CAP.maxActive[coalition]) {
+  if (automaticCapGroups.length >= config.packages.CAP.maxActive[coalition]) {
     return
   }
 
@@ -65,21 +66,13 @@ export function spawnCap(
   const enemyAirdromes = getCoalitionAirdromes(draft, theatre, enemyCoalition)
 
   // Find airdrome pairs that are already covered by CAP
-  const coveredAirdromes = new Set(capGroups.map((g) => g.homeBase))
-  const capPatrolCountByHomeBase = new Map<string, number>()
-  for (const group of capGroups) {
-    capPatrolCountByHomeBase.set(
-      group.homeBase,
-      (capPatrolCountByHomeBase.get(group.homeBase) ?? 0) + 1
-    )
-  }
+  const coveredAirdromes = new Set(automaticCapGroups.map((g) => g.homeBase))
 
   const selectedPatrolAssignment = selectCapPatrolAssignment({
     homeBases,
     enemyAirdromes,
     coveredHomeBases: coveredAirdromes,
-    maxHomeToEnemyDistance: config.packages.CAP.maxDistance * 2,
-    capPatrolCountByHomeBase
+    maxHomeToEnemyDistance: config.packages.CAP.maxDistance * 2
   })
 
   // If no suitable airdrome found, return

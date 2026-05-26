@@ -66,12 +66,20 @@ export function spawnCap(
 
   // Find airdrome pairs that are already covered by CAP
   const coveredAirdromes = new Set(capGroups.map((g) => g.homeBase))
+  const capPatrolCountByHomeBase = new Map<string, number>()
+  for (const group of capGroups) {
+    capPatrolCountByHomeBase.set(
+      group.homeBase,
+      (capPatrolCountByHomeBase.get(group.homeBase) ?? 0) + 1
+    )
+  }
 
   const selectedPatrolAssignment = selectCapPatrolAssignment({
     homeBases,
     enemyAirdromes,
     coveredHomeBases: coveredAirdromes,
-    maxHomeToEnemyDistance: config.packages.CAP.maxDistance * 2
+    maxHomeToEnemyDistance: config.packages.CAP.maxDistance * 2,
+    capPatrolCountByHomeBase
   })
 
   // If no suitable airdrome found, return

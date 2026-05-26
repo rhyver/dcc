@@ -23,6 +23,7 @@ interface FlightGroupCardProps {
   onMouseLeave?: () => void
   showClientControls?: boolean
   showAircraftType?: boolean
+  aircraftTypeDisabled?: boolean
   aircraftTypeOptions?: string[]
   onAircraftTypeChange?: (aircraftType: string) => void
   onClientCountChange?: (count: number) => void
@@ -48,6 +49,7 @@ export function FlightGroupCard({
   onMouseLeave,
   showClientControls = false,
   showAircraftType = false,
+  aircraftTypeDisabled = false,
   aircraftTypeOptions = [],
   onAircraftTypeChange,
   onClientCountChange
@@ -67,7 +69,7 @@ export function FlightGroupCard({
   return (
     <div
       className={cn(
-        'rounded-md border p-2 transition-all shadow-[inset_0_1px_0_rgba(255,255,255,0.065),0_8px_18px_rgba(0,0,0,0.2)]',
+        'w-full min-w-0 rounded-md border p-2 transition-all shadow-[inset_0_1px_0_rgba(255,255,255,0.065),0_8px_18px_rgba(0,0,0,0.2)]',
         isAirborne
           ? selected
             ? 'border-amber-400 bg-amber-400/15 shadow-[inset_0_2px_8px_rgba(0,0,0,0.32),0_0_18px_rgba(251,191,36,0.14)]'
@@ -152,9 +154,13 @@ export function FlightGroupCard({
           onClick={(event) => event.stopPropagation()}
         >
           <span className="sr-only">Aircraft type for {group.callsign}</span>
-          <Select value={selectedAircraftType} onValueChange={onAircraftTypeChange}>
+          <Select
+            value={selectedAircraftType}
+            onValueChange={onAircraftTypeChange}
+            disabled={aircraftTypeDisabled}
+          >
             <SelectTrigger
-              className="h-8 border-[#00ddff]/25 bg-black/35 text-xs text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] hover:border-[#00ddff]/45 focus:ring-[#00ddff]/25"
+              className="h-8 border-[#00ddff]/25 bg-black/35 text-xs text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] hover:border-[#00ddff]/45 focus:ring-[#00ddff]/25 disabled:cursor-default disabled:opacity-55"
               title="Aircraft type"
             >
               <SelectValue placeholder="Aircraft type" />

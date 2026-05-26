@@ -108,7 +108,7 @@ function RootLayout() {
 
   return (
     <div className="flex h-screen flex-col">
-      <AppTitleBar showDevMenu={welcomeWorkflowChecked && !showWelcomeWorkflow} />
+      <AppTitleBar showDevMenu={welcomeWorkflowChecked} />
       <div className="relative min-h-0 flex-1">
         {visiblePathWarnings.length > 0 && !showWelcomeWorkflow ? (
           <PathWarningBanner

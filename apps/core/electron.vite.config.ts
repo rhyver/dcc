@@ -5,7 +5,7 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin({ exclude: ['@dcc/contracts', '@dcc/data'] })],
     build: {
       rollupOptions: {
-        external: ['better-sqlite3']
+        external: ['better-sqlite3', 'sharp', /^@img\/sharp-/]
       }
     }
   },

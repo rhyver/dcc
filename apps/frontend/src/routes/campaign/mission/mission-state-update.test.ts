@@ -59,18 +59,21 @@ function createCampaign(): Campaign {
 function createFlightGroup({
   id = 'flight-1',
   callsign = 'Enfield-1',
-  startTime = campaignTime
+  startTime = campaignTime,
+  clientCount = 0
 }: {
   id?: string
   callsign?: string
   startTime?: Date
+  clientCount?: number
 } = {}): FlightGroup {
   return {
     id,
     aircrafts: [1, 2].map((unitNumber) => ({
       id: `${id}-aircraft-${unitNumber}`,
       unitName: `${callsign}-${unitNumber}`,
-      aircraftName: 'F-16C_50'
+      aircraftName: 'F-16C_50',
+      client: unitNumber <= clientCount
     })),
     task: 'CAP',
     position: { x: 0, y: 0 },
@@ -223,6 +226,82 @@ describe('applyMissionStateUpdate flight group cleanup', () => {
     expect(updated.coalitions.player.flightGroups[0]?.aircrafts).toHaveLength(1)
     expect(updated.coalitions.player.flightGroups[0]?.aircrafts[0]?.unitName).toBe('Enfield-1-2')
     expect(updated.coalitions.player.flightGroups[0]?.position).toEqual({ x: 200, y: 300 })
+  })
+
+  test('removes a client flight group when all clients are done but AI remains airborne', () => {
+    const campaign = createCampaign()
+    campaign.coalitions.player.flightGroups = [createFlightGroup({ clientCount: 1 })]
+
+    const updated = applyMissionStateUpdate(
+      campaign,
+      createMissionState({
+        landedUnits: [trackedUnit('Enfield-1-1')],
+        groupPositions: {
+          blue: {
+            aircraft: [
+              aircraftPositionGroup('Enfield-1', [
+                { unitNumber: 1, inAir: false },
+                { unitNumber: 2, inAir: true }
+              ])
+            ],
+            ground: []
+          },
+          red: { aircraft: [], ground: [] }
+        }
+      })
+    )
+
+    expect(updated.coalitions.player.flightGroups).toHaveLength(0)
+  })
+
+  test('keeps a client flight group while a client is still airborne', () => {
+    const campaign = createCampaign()
+    campaign.coalitions.player.flightGroups = [createFlightGroup({ clientCount: 2 })]
+
+    const updated = applyMissionStateUpdate(
+      campaign,
+      createMissionState({
+        landedUnits: [trackedUnit('Enfield-1-1')],
+        groupPositions: {
+          blue: {
+            aircraft: [
+              aircraftPositionGroup('Enfield-1', [
+                { unitNumber: 1, inAir: false },
+                { unitNumber: 2, inAir: true }
+              ])
+            ],
+            ground: []
+          },
+          red: { aircraft: [], ground: [] }
+        }
+      })
+    )
+
+    expect(updated.coalitions.player.flightGroups).toHaveLength(1)
+    expect(updated.coalitions.player.flightGroups[0]?.aircrafts).toHaveLength(1)
+    expect(updated.coalitions.player.flightGroups[0]?.aircrafts[0]?.unitName).toBe('Enfield-1-2')
+    expect(updated.coalitions.player.flightGroups[0]?.aircrafts[0]?.client).toBe(true)
+  })
+
+  test('removes a client flight group when all clients are destroyed or landed', () => {
+    const campaign = createCampaign()
+    campaign.coalitions.player.flightGroups = [createFlightGroup({ clientCount: 1 })]
+
+    const updated = applyMissionStateUpdate(
+      campaign,
+      createMissionState({
+        lostUnits: [trackedUnit('Enfield-1-1')],
+        groupPositions: {
+          blue: {
+            aircraft: [aircraftPositionGroup('Enfield-1', [{ unitNumber: 2, inAir: true }])],
+            ground: []
+          },
+          red: { aircraft: [], ground: [] }
+        }
+      })
+    )
+
+    expect(updated.coalitions.player.flightGroups).toHaveLength(0)
   })
 
   test('removes a flight group when every aircraft was destroyed', () => {

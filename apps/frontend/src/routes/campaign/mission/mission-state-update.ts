@@ -120,6 +120,7 @@ function getAircraftStateNames(
 ) {
   return flightGroup.aircrafts.map((aircraft, index) => ({
     aircraftId: aircraft.id,
+    client: aircraft.client === true,
     names: [aircraft.unitName, `${flightGroup.callsign}-${index + 1}`]
   }))
 }
@@ -141,6 +142,38 @@ function isAircraftCurrentlyAirborne(
   unitsByName: Map<string, MissionAircraftUnit>
 ) {
   return names.some((name) => unitsByName.get(name)?.inAir === true)
+}
+
+function isAircraftTerminal(
+  names: string[],
+  lostUnitNames: Set<string>,
+  landedUnitNames: Set<string>,
+  missionUnitsByName: Map<string, MissionAircraftUnit>
+) {
+  if (hasNameInSet(names, lostUnitNames)) {
+    return true
+  }
+
+  return (
+    hasNameInSet(names, landedUnitNames) &&
+    !isAircraftCurrentlyAirborne(names, missionUnitsByName)
+  )
+}
+
+function areAllClientAircraftTerminal(
+  aircraftStates: ReturnType<typeof getAircraftStateNames>,
+  lostUnitNames: Set<string>,
+  landedUnitNames: Set<string>,
+  missionUnitsByName: Map<string, MissionAircraftUnit>
+) {
+  const clientStates = aircraftStates.filter((state) => state.client)
+  if (clientStates.length === 0) {
+    return false
+  }
+
+  return clientStates.every((state) =>
+    isAircraftTerminal(state.names, lostUnitNames, landedUnitNames, missionUnitsByName)
+  )
 }
 
 function applyToCoalition(
@@ -187,14 +220,13 @@ function applyToCoalition(
     const terminalAircraftIds = new Set<string>()
 
     for (const aircraftState of aircraftStateNames) {
-      if (hasNameInSet(aircraftState.names, lostUnitNames)) {
-        terminalAircraftIds.add(aircraftState.aircraftId)
-        continue
-      }
-
       if (
-        hasNameInSet(aircraftState.names, landedUnitNames) &&
-        !isAircraftCurrentlyAirborne(aircraftState.names, missionUnitsByName)
+        isAircraftTerminal(
+          aircraftState.names,
+          lostUnitNames,
+          landedUnitNames,
+          missionUnitsByName
+        )
       ) {
         terminalAircraftIds.add(aircraftState.aircraftId)
       }
@@ -204,6 +236,17 @@ function applyToCoalition(
       flightGroup.aircrafts = flightGroup.aircrafts.filter(
         (aircraft) => !terminalAircraftIds.has(aircraft.id)
       )
+    }
+
+    if (
+      areAllClientAircraftTerminal(
+        aircraftStateNames,
+        lostUnitNames,
+        landedUnitNames,
+        missionUnitsByName
+      )
+    ) {
+      flightGroup.aircrafts = []
     }
 
     if (new FlightGroup(flightGroup).isLanded(draft.time)) {

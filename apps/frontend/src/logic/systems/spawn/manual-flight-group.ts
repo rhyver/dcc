@@ -179,16 +179,24 @@ function createManualSpawnPlan(
   const flightGroups = draft.coalitions[coalition].flightGroups
 
   if (task === 'CAP') {
+    const capGroups = flightGroups.filter((g) => g.task === 'CAP')
     const aircraftType = pickRandomAircraftType(draft.coalitions[coalition].aircraftTypes.CAP)
     if (!aircraftType) return null
+
+    const capPatrolCountByHomeBase = new Map<string, number>()
+    for (const group of capGroups) {
+      capPatrolCountByHomeBase.set(
+        group.homeBase,
+        (capPatrolCountByHomeBase.get(group.homeBase) ?? 0) + 1
+      )
+    }
 
     const assignment = selectCapPatrolAssignment({
       homeBases,
       enemyAirdromes: getCoalitionAirdromes(draft, theatre, enemyCoalition),
-      coveredHomeBases: new Set(
-        flightGroups.filter((g) => g.task === 'CAP').map((g) => g.homeBase)
-      ),
-      maxHomeToEnemyDistance: config.packages.CAP.maxDistance * 2
+      coveredHomeBases: new Set(capGroups.map((g) => g.homeBase)),
+      maxHomeToEnemyDistance: config.packages.CAP.maxDistance * 2,
+      capPatrolCountByHomeBase
     })
     if (!assignment) return null
 

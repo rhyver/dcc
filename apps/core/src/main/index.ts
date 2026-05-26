@@ -14,6 +14,12 @@ import { enableDcsPersistenceForAppRuntime, findMissionScriptingPath } from './d
 import { registerMissionGeneratorChatHandlers } from './api/mission-generator/chat-handler'
 import { stateFile } from './app-data'
 import { validateDcsInstallPath } from './dcs-install'
+import {
+  resolveAppIconPath,
+  resolveCaucasusPmtilesPath,
+  setAppIconPath,
+  setCaucasusPmtilesPath
+} from '@dcc/generate-miz'
 
 log.initialize()
 log.transports.file.level = 'info'
@@ -689,6 +695,23 @@ app.whenReady().then(() => {
   }
 
   console.log('whenReady')
+  const kneeboardMapTilesPath = resolveCaucasusPmtilesPath()
+  if (kneeboardMapTilesPath) {
+    setCaucasusPmtilesPath(kneeboardMapTilesPath)
+    log.info('Kneeboard map tiles:', kneeboardMapTilesPath)
+  } else {
+    log.warn(
+      'Caucasus map tiles not found; kneeboard route maps will omit lakes, coastlines, and rivers.'
+    )
+  }
+
+  const appIconPath = resolveAppIconPath()
+  if (appIconPath) {
+    setAppIconPath(appIconPath)
+    log.info('Kneeboard app icon:', appIconPath)
+  } else {
+    log.warn('App icon not found; kneeboard header will omit the logo.')
+  }
   registerRendererProtocol()
   enableDcsPersistenceForAppRuntime()
   // Set app user model id for windows

@@ -4,6 +4,8 @@ import { getDistance, Position } from './utils'
 
 const NM_TO_METERS = 1852
 const THRESHOLD_DISTANCE = 20 * NM_TO_METERS
+const EMBEDDED_AIR_DEFENSE_CHANCE = 0.8
+const EMBEDDED_MISSILE_AIR_DEFENSE_CHANCE = 0.25
 
 type ObjectiveInfo = {
   id: string
@@ -113,10 +115,10 @@ function createGroup({
   const groupSize = Math.floor(Math.random() * (8 - 5 + 1)) + 5 // 5 to 8
   const units: GroundGroupUnit[] = []
 
-  // Determine number of SHORADs (high chance for 1-2)
-  // "High chance" -> 80% chance to have SHORADs
+  // Embedded air defense is common, but usually gun AAA rather than missile SHORAD.
+  const airDefenseTypes = chooseEmbeddedAirDefenseTypes(shoradTypes)
   let shoradCount = 0
-  if (shoradTypes.length > 0 && Math.random() < 0.8) {
+  if (airDefenseTypes.length > 0) {
     shoradCount = Math.floor(Math.random() * 2) + 1 // 1 or 2
   }
 
@@ -133,7 +135,7 @@ function createGroup({
 
   // Add SHORADs if any
   if (shoradCount > 0) {
-    const shoradType = shoradTypes[Math.floor(Math.random() * shoradTypes.length)]
+    const shoradType = airDefenseTypes[Math.floor(Math.random() * airDefenseTypes.length)]
     units.push({ name: shoradType, count: shoradCount })
   }
 
@@ -142,4 +144,26 @@ function createGroup({
     units,
     position
   }
+}
+
+function chooseEmbeddedAirDefenseTypes(shoradTypes: string[]): string[] {
+  if (shoradTypes.length === 0 || Math.random() >= EMBEDDED_AIR_DEFENSE_CHANCE) {
+    return []
+  }
+
+  const missileTypes = shoradTypes.filter(isMissileAirDefense)
+  const gunTypes = shoradTypes.filter((type) => !isMissileAirDefense(type))
+
+  if (missileTypes.length > 0 && Math.random() < EMBEDDED_MISSILE_AIR_DEFENSE_CHANCE) {
+    return missileTypes
+  }
+
+  if (gunTypes.length > 0) return gunTypes
+  return []
+}
+
+function isMissileAirDefense(unitType: string): boolean {
+  return /\b(linebacker|stinger|igla|avenger|chaparral|osa|tunguska|tor|strela|roland|rapier|hq-7)\b/i.test(
+    unitType
+  )
 }

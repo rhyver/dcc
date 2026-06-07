@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSelector } from '@xstate/store/react'
 import { useQuery } from '@tanstack/react-query'
 import { aircrafts as aircraftDefinitions, samTemplates } from '@dcc/data'
-import { ArrowLeft, Clock, CloudSun, Plane, Sun, Target, Wind, X } from 'lucide-react'
+import { ArrowLeft, ChevronDown, Clock, CloudSun, Plane, Sun, Target, Wind, X } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import type { schemas } from '@dcc/contracts'
 import type * as z from 'zod'
@@ -11,6 +11,7 @@ import { activeStore, resetFlightGroupClientSelections } from '@/stores/active'
 import { hasFlightGroupTakenOff } from '@/logic/entities/flight-status'
 import { coreClient, orpc } from '@/lib/orpc'
 import { Button } from '@/components/ui/button'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
 
@@ -266,6 +267,7 @@ export function Mission() {
   const [isGenerated, setIsGenerated] = useState(false)
   const [isMissionStateReady, setIsMissionStateReady] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [missionOptionsOpen, setMissionOptionsOpen] = useState(false)
   const [debrief, setDebrief] = useState<MissionDebrief | null>(null)
   const [toast, setToast] = useState<{
     title: string
@@ -414,7 +416,7 @@ export function Mission() {
   }
 
   return (
-    <div className="min-h-full bg-[#0b0014]">
+    <div className="h-full overflow-hidden bg-[#0b0014]">
       {toast && (
         <div className="fixed right-6 top-24 z-50 w-[min(560px,calc(100vw-3rem))] rounded-lg border border-red-500/40 bg-red-950/90 text-red-100 shadow-[0_0_30px_rgba(255,0,0,0.35)] backdrop-blur">
           <div className="flex items-start justify-between gap-3 border-b border-red-500/30 px-4 py-3">
@@ -473,15 +475,16 @@ export function Mission() {
         {/* Main Content */}
         <div className="flex-1 grid grid-cols-[1.45fr_1fr_1fr] gap-4 min-h-0">
           {/* Left Column - Actions */}
-          <div className="flex flex-col gap-4">
+          <div className="flex min-h-0 flex-col gap-4">
             {/* Step-by-step guide */}
-            <div className="border border-[#ff00aa]/30 bg-[#ff00aa]/5 rounded-lg p-4 backdrop-blur-sm shadow-[0_0_20px_rgba(255,0,170,0.2)]">
+            <div className="flex min-h-0 flex-1 flex-col border border-[#ff00aa]/30 bg-[#ff00aa]/5 rounded-lg p-4 backdrop-blur-sm shadow-[0_0_20px_rgba(255,0,170,0.2)]">
               <div className="flex items-center gap-2 mb-4">
                 <Target className="h-4 w-4 text-[#ff00aa]" />
                 <span className="text-sm font-semibold text-white">Mission Actions</span>
               </div>
 
-              <div className="space-y-5">
+              <ScrollArea className="min-h-0 flex-1">
+                <div className="space-y-5 pr-4">
                 {/* Step 1: Generate */}
                 <div className={cn('space-y-2', isGenerated && 'opacity-50')}>
                   <div className="flex items-center gap-3">
@@ -516,61 +519,93 @@ export function Mission() {
                           }
                         />
                       </div>
-                      <div className="border border-[#ff00aa]/20 rounded-lg bg-[#ff00aa]/5 p-3 flex items-center justify-between">
-                        <div>
-                          <div className="text-sm font-medium text-white">Culling</div>
-                          <div className="text-sm text-white/40">
-                            Remove distant units to improve performance
+                      <div className="overflow-hidden rounded-lg border border-[#ff00aa]/20 bg-[#ff00aa]/5">
+                        <button
+                          type="button"
+                          onClick={() => setMissionOptionsOpen((open) => !open)}
+                          aria-expanded={missionOptionsOpen}
+                          className="flex w-full items-center justify-between gap-3 p-3 text-left transition-colors hover:bg-[#ff00aa]/10"
+                        >
+                          <div>
+                            <div className="text-sm font-medium text-white">
+                              Advanced Mission Options
+                            </div>
+                            <div className="text-sm text-white/40">
+                              Culling, EWR, strike targeting, and JTAC support
+                            </div>
                           </div>
-                        </div>
-                        <Switch
-                          checked={!!culling}
-                          onCheckedChange={(checked) =>
-                            activeStore.send({ type: 'setCulling', culling: checked })
-                          }
-                        />
-                      </div>
-                      <div className="border border-[#ff00aa]/20 rounded-lg bg-[#ff00aa]/5 p-3 flex items-center justify-between">
-                        <div>
-                          <div className="text-sm font-medium text-white">EWR</div>
-                          <div className="text-sm text-white/40">
-                            Add player radio-menu bogey callouts during the mission
+                          <ChevronDown
+                            className={cn(
+                              'h-4 w-4 shrink-0 text-[#ff00aa] transition-transform',
+                              missionOptionsOpen && 'rotate-180'
+                            )}
+                          />
+                        </button>
+                        {missionOptionsOpen && (
+                          <div className="space-y-3 border-t border-[#ff00aa]/15 p-3">
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <div className="text-sm font-medium text-white">Culling</div>
+                                <div className="text-sm text-white/40">
+                                  Remove distant units to improve performance
+                                </div>
+                              </div>
+                              <Switch
+                                checked={!!culling}
+                                onCheckedChange={(checked) =>
+                                  activeStore.send({ type: 'setCulling', culling: checked })
+                                }
+                              />
+                            </div>
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <div className="text-sm font-medium text-white">EWR</div>
+                                <div className="text-sm text-white/40">
+                                  Add player radio-menu bogey callouts during the mission
+                                </div>
+                              </div>
+                              <Switch
+                                checked={!!ewr}
+                                onCheckedChange={(checked) =>
+                                  activeStore.send({ type: 'setEwr', ewr: checked })
+                                }
+                              />
+                            </div>
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <div className="text-sm font-medium text-white">
+                                  Exact Strike Target
+                                </div>
+                                <div className="text-sm text-white/40">
+                                  Use precise target steerpoints for Strike missions
+                                </div>
+                              </div>
+                              <Switch
+                                checked={!!exactTarget}
+                                onCheckedChange={(checked) =>
+                                  activeStore.send({
+                                    type: 'setExactTarget',
+                                    exactTarget: checked
+                                  })
+                                }
+                              />
+                            </div>
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <div className="text-sm font-medium text-white">CAS JTAC</div>
+                                <div className="text-sm text-white/40">
+                                  Add JTAC support for player CAS tasking
+                                </div>
+                              </div>
+                              <Switch
+                                checked={!!casJtac}
+                                onCheckedChange={(checked) =>
+                                  activeStore.send({ type: 'setCasJtac', casJtac: checked })
+                                }
+                              />
+                            </div>
                           </div>
-                        </div>
-                        <Switch
-                          checked={!!ewr}
-                          onCheckedChange={(checked) =>
-                            activeStore.send({ type: 'setEwr', ewr: checked })
-                          }
-                        />
-                      </div>
-                      <div className="border border-[#ff00aa]/20 rounded-lg bg-[#ff00aa]/5 p-3 flex items-center justify-between">
-                        <div>
-                          <div className="text-sm font-medium text-white">Exact Strike Target</div>
-                          <div className="text-sm text-white/40">
-                            Use precise target steerpoints for Strike missions
-                          </div>
-                        </div>
-                        <Switch
-                          checked={!!exactTarget}
-                          onCheckedChange={(checked) =>
-                            activeStore.send({ type: 'setExactTarget', exactTarget: checked })
-                          }
-                        />
-                      </div>
-                      <div className="border border-[#ff00aa]/20 rounded-lg bg-[#ff00aa]/5 p-3 flex items-center justify-between">
-                        <div>
-                          <div className="text-sm font-medium text-white">CAS JTAC</div>
-                          <div className="text-sm text-white/40">
-                            Add JTAC support for player CAS tasking
-                          </div>
-                        </div>
-                        <Switch
-                          checked={!!casJtac}
-                          onCheckedChange={(checked) =>
-                            activeStore.send({ type: 'setCasJtac', casJtac: checked })
-                          }
-                        />
+                        )}
                       </div>
                       <button
                         onClick={handleGenerate}
@@ -629,43 +664,48 @@ export function Mission() {
                     </div>
                   )}
                 </div>
-              </div>
+                </div>
+              </ScrollArea>
             </div>
           </div>
 
           {/* Center Column - Flight Groups */}
-          <div className="border border-[#ff00aa]/30 bg-[#ff00aa]/5 rounded-lg p-4 backdrop-blur-sm min-h-0 flex flex-col">
-            <div className="flex items-center gap-2 mb-3">
+          <div className="flex min-h-0 min-w-0 flex-col rounded-lg border border-[#ff00aa]/30 bg-[#ff00aa]/5 p-4 backdrop-blur-sm">
+            <div className="mb-3 flex shrink-0 items-center gap-2">
               <Plane className="h-5 w-5 text-[#ff00aa]" />
               <span className="text-sm font-semibold text-white">Client Flights</span>
-              <span className="text-sm text-white/40 ml-auto">
+              <span className="ml-auto text-sm text-white/40">
                 {clientFlightGroups.length} groups
               </span>
             </div>
-            <div className="flex-1 overflow-auto space-y-2">
-              {clientFlightGroups.map((group) => {
-                const aircraftOptions = getTaskAircraftOptions(group.task).map(
-                  (aircraft) => aircraft.name
-                )
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <div className="flex w-full min-w-0 flex-col gap-2">
+                {clientFlightGroups.map((group) => {
+                  const aircraftOptions = getTaskAircraftOptions(group.task).map(
+                    (aircraft) => aircraft.name
+                  )
 
-                return (
-                  <FlightGroupCard
-                    key={group.id}
-                    group={group}
-                    isAirborne={hasFlightGroupTakenOff(group, currentTime)}
-                    showAircraftType
-                    aircraftTypeOptions={isGenerating ? [] : aircraftOptions}
-                    onAircraftTypeChange={(aircraftType) =>
-                      handleAircraftTypeChange(group.id, aircraftType)
-                    }
-                  />
-                )
-              })}
+                  return (
+                    <FlightGroupCard
+                      key={group.id}
+                      group={group}
+                      isAirborne={hasFlightGroupTakenOff(group, currentTime)}
+                      showAircraftType
+                      aircraftTypeDisabled={isGenerated || isGenerating}
+                      aircraftTypeOptions={aircraftOptions}
+                      onAircraftTypeChange={(aircraftType) =>
+                        handleAircraftTypeChange(group.id, aircraftType)
+                      }
+                    />
+                  )
+                })}
+              </div>
             </div>
           </div>
 
           {/* Right Column - Time & Weather */}
-          <div className="flex flex-col gap-4">
+          <ScrollArea className="min-h-0">
+            <div className="flex min-h-full flex-col gap-4 pr-4">
             {/* Time */}
             <div className="border border-[#00ddff]/30 bg-[#00ddff]/5 rounded-lg p-4 backdrop-blur-sm">
               <div className="flex items-center gap-2 mb-2">
@@ -738,7 +778,8 @@ export function Mission() {
                 <div className="text-sm text-[#ff00aa]/60 mt-1">{scenario.era}</div>
               )}
             </div>
-          </div>
+            </div>
+          </ScrollArea>
         </div>
       </div>
     </div>

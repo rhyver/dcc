@@ -101,52 +101,91 @@ export function selectHomeBaseAndTarget<T>({
   return null
 }
 
+const CAP_PATROL_STACK_OFFSET = 25_000
+
+function assignCapPatrolForHomeBase(
+  homeBase: AirdromeSelection,
+  enemyAirdromes: AirdromeSelection[],
+  maxHomeToEnemyDistance: number,
+  patrolStackIndex = 0
+): { homeBase: AirdromeSelection; patrolCenter: Position } | null {
+  let nearestEnemyDistance = Number.POSITIVE_INFINITY
+  let nearestEnemy: AirdromeSelection | null = null
+
+  for (const enemyAirdrome of enemyAirdromes) {
+    const distance = calculateDistance(homeBase.position, enemyAirdrome.position)
+    if (distance < nearestEnemyDistance) {
+      nearestEnemyDistance = distance
+      nearestEnemy = enemyAirdrome
+    }
+  }
+
+  if (nearestEnemy == null || nearestEnemyDistance > maxHomeToEnemyDistance) {
+    return null
+  }
+
+  const dx = nearestEnemy.position.x - homeBase.position.x
+  const dy = nearestEnemy.position.y - homeBase.position.y
+  const distance = Math.sqrt(dx * dx + dy * dy)
+  if (distance === 0) {
+    return null
+  }
+  const ux = dx / distance
+  const uy = dy / distance
+  const patrolDistance = Math.min(50000, distance * 0.3)
+  const px = -uy
+  const py = ux
+  const patrolOffset = patrolStackIndex * CAP_PATROL_STACK_OFFSET
+
+  return {
+    homeBase,
+    patrolCenter: {
+      x: homeBase.position.x + ux * patrolDistance + px * patrolOffset,
+      y: homeBase.position.y + uy * patrolDistance + py * patrolOffset
+    }
+  }
+}
+
 export function selectCapPatrolAssignment({
   homeBases,
   enemyAirdromes,
   coveredHomeBases,
-  maxHomeToEnemyDistance
+  maxHomeToEnemyDistance,
+  allowCoveredHomeBases = false,
+  capPatrolCountByHomeBase = new Map<string, number>()
 }: {
   homeBases: AirdromeSelection[]
   enemyAirdromes: AirdromeSelection[]
   coveredHomeBases: Set<string>
   maxHomeToEnemyDistance: number
+  allowCoveredHomeBases?: boolean
+  capPatrolCountByHomeBase?: Map<string, number>
 }): { homeBase: AirdromeSelection; patrolCenter: Position } | null {
   for (const homeBase of homeBases) {
     if (coveredHomeBases.has(homeBase.name)) {
       continue
     }
 
-    let nearestEnemyDistance = Number.POSITIVE_INFINITY
-    let nearestEnemy: AirdromeSelection | null = null
-
-    for (const enemyAirdrome of enemyAirdromes) {
-      const distance = calculateDistance(homeBase.position, enemyAirdrome.position)
-      if (distance < nearestEnemyDistance) {
-        nearestEnemyDistance = distance
-        nearestEnemy = enemyAirdrome
-      }
-    }
-
-    if (nearestEnemy == null || nearestEnemyDistance > maxHomeToEnemyDistance) {
-      continue
-    }
-
-    const dx = nearestEnemy.position.x - homeBase.position.x
-    const dy = nearestEnemy.position.y - homeBase.position.y
-    const distance = Math.sqrt(dx * dx + dy * dy)
-    if (distance === 0) {
-      continue
-    }
-    const ux = dx / distance
-    const uy = dy / distance
-    const patrolDistance = Math.min(50000, distance * 0.3)
-
-    return {
+    const assignment = assignCapPatrolForHomeBase(
       homeBase,
-      patrolCenter: {
-        x: homeBase.position.x + ux * patrolDistance,
-        y: homeBase.position.y + uy * patrolDistance
+      enemyAirdromes,
+      maxHomeToEnemyDistance
+    )
+    if (assignment) {
+      return assignment
+    }
+  }
+
+  if (allowCoveredHomeBases) {
+    for (const homeBase of homeBases) {
+      const assignment = assignCapPatrolForHomeBase(
+        homeBase,
+        enemyAirdromes,
+        maxHomeToEnemyDistance,
+        capPatrolCountByHomeBase.get(homeBase.name) ?? 0
+      )
+      if (assignment) {
+        return assignment
       }
     }
   }

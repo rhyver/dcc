@@ -14,6 +14,7 @@ export class FlightGroup {
       position: z.infer<typeof schemas.position>
       homeBase: string
       callsign?: string
+      spawnSource?: z.infer<typeof schemas.flightGroup>['spawnSource']
       target?: z.infer<typeof schemas.flightGroup>['target']
       flightplan: z.infer<typeof schemas.flightplan>
       tot?: Date
@@ -47,6 +48,7 @@ export class FlightGroup {
       position: params.position,
       homeBase: params.homeBase,
       callsign,
+      spawnSource: params.spawnSource,
       target: params.target,
       flightplan: params.flightplan,
       tot,

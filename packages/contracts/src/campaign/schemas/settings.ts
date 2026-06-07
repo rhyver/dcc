@@ -8,7 +8,8 @@ export const settings = z.object({
   aiApiKey: z.string().optional(),
   aiModel: z.string().optional(),
   disableAutoUpdate: z.boolean().optional(),
-  lastViewPath: z.string().optional()
+  lastViewPath: z.string().optional(),
+  hasCompletedWelcome: z.boolean().optional()
 })
 
 export const settingsOutput = settings.extend({

@@ -1,0 +1,635 @@
+import { schemas } from '@dcc/contracts'
+import sharp from 'sharp'
+import * as z from 'zod'
+
+import type { MissionFlightConfig } from './add-flight-groups'
+import { getKneeboardLogoPng, KNEEBOARD_LOGO_BOX } from './kneeboard-logo'
+import {
+  createRouteMapViewport,
+  dcsPositionToLngLat,
+  renderGeographicMapLayerFromPmtiles,
+  resolveCaucasusPmtilesPath
+} from './kneeboard-map'
+
+let warnedMissingKneeboardMap = false
+
+type Campaign = z.infer<typeof schemas.campaign.campaign>
+type Coalition = z.infer<typeof schemas.coalition>
+type FlightGroup = z.infer<typeof schemas.flightGroup>
+type Theatre = z.infer<typeof schemas.theatre>
+type Position = z.infer<typeof schemas.position>
+type Waypoint = z.infer<typeof schemas.flightplan>['waypoints'][number]
+
+export type KneeboardImage = {
+  filename: string
+  buffer: Buffer
+}
+
+export type KneeboardWaypointRow = {
+  index: number
+  name: string
+  type: string
+  eta: string
+  altitude: string
+  speed: string
+  legDistance: string
+  totalDistance: string
+  bearing: string
+  remarks: string
+}
+
+type ClientFlightGroup = {
+  coalition: Coalition
+  flightGroup: FlightGroup
+}
+
+const PAGE_WIDTH = 768
+const PAGE_HEIGHT = 1024
+const CONTENT_X = 64
+const CONTENT_WIDTH = 640
+const SECTION_TITLE_HEIGHT = 22
+const SECTION_CONTENT_PADDING_TOP = 12
+const SECTION_GAP = 12
+const MAP_INSET = 0
+const HEADER_RULE_Y = 126
+const WAYPOINT_ROW_HEIGHT = 24
+const MAX_VISIBLE_WAYPOINTS = 6
+const FOOTER_HEIGHT = 34
+const PAGE_INNER_BOTTOM = 990
+const METERS_PER_NAUTICAL_MILE = 1852
+const FEET_PER_METER = 3.28084
+const KNOTS_PER_METER_PER_SECOND = 1.94384
+
+export function getClientFlightGroups(campaign: Campaign): ClientFlightGroup[] {
+  return schemas.coalition.options.flatMap((coalition) =>
+    campaign.coalitions[coalition].flightGroups
+      .filter((flightGroup) => flightGroup.aircrafts.some((aircraft) => aircraft.client))
+      .map((flightGroup) => ({ coalition, flightGroup }))
+  )
+}
+
+export function sanitizeKneeboardFilenamePart(value: string): string {
+  const sanitized = value
+    .trim()
+    .replace(/[^A-Za-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+
+  return sanitized || 'flight'
+}
+
+export function createKneeboardFilename(index: number, flightGroup: FlightGroup): string {
+  const sequence = index.toString().padStart(3, '0')
+  const callsign = sanitizeKneeboardFilenamePart(flightGroup.callsign)
+  const task = sanitizeKneeboardFilenamePart(flightGroup.task)
+  return `DCC_${sequence}_${callsign}_${task}.png`
+}
+
+function formatTime(date: Date): string {
+  return date.toISOString().slice(11, 16) + 'Z'
+}
+
+function formatDate(date: Date): string {
+  return date.toISOString().slice(0, 10)
+}
+
+function formatDistanceNm(meters: number): string {
+  if (!Number.isFinite(meters)) return '---'
+  return (meters / METERS_PER_NAUTICAL_MILE).toFixed(1)
+}
+
+function formatAltitudeFeet(meters: number): string {
+  if (!Number.isFinite(meters)) return '---'
+  return Math.round(meters * FEET_PER_METER).toLocaleString('en-US')
+}
+
+function formatSpeedKnots(metersPerSecond: number): string {
+  if (!Number.isFinite(metersPerSecond)) return '---'
+  return Math.round(metersPerSecond * KNOTS_PER_METER_PER_SECOND).toString()
+}
+
+function formatBearingDegrees(from: Waypoint, to: Waypoint): string {
+  const dx = to.position.x - from.position.x
+  const dy = to.position.y - from.position.y
+  if (dx === 0 && dy === 0) return '---'
+
+  const degrees = (Math.atan2(dx, dy) * 180) / Math.PI
+  const normalized = Math.round((degrees + 360) % 360)
+  return normalized.toString().padStart(3, '0')
+}
+
+function addSeconds(date: Date, seconds: number): Date {
+  return new Date(date.getTime() + seconds * 1000)
+}
+
+function getWaypointRemark(waypoint: Waypoint, flightGroup: FlightGroup): string {
+  if (waypoint.type === 'TakeOff') return 'DEPART'
+  if (waypoint.type === 'Landing') return 'LAND'
+  if (waypoint.type === 'RaceTrack End') return 'ORBIT'
+  if (waypoint.name.toLowerCase().includes('target')) return 'TARGET'
+  if (waypoint.type === 'Task') return flightGroup.task.toUpperCase()
+  return ''
+}
+
+export function buildKneeboardWaypointRows(flightGroup: FlightGroup): KneeboardWaypointRow[] {
+  let totalMeters = 0
+  let elapsedSeconds = 0
+
+  return flightGroup.flightplan.waypoints.map((waypoint, index, waypoints) => {
+    const previous = waypoints[index - 1]
+    let legMeters = 0
+    let bearing = '---'
+
+    if (previous) {
+      legMeters = Math.hypot(
+        waypoint.position.x - previous.position.x,
+        waypoint.position.y - previous.position.y
+      )
+      totalMeters += legMeters
+      if (waypoint.speed > 0) {
+        elapsedSeconds += legMeters / waypoint.speed
+      }
+      bearing = formatBearingDegrees(previous, waypoint)
+    }
+
+    return {
+      index: index + 1,
+      name: waypoint.name || waypoint.type,
+      type: waypoint.type,
+      eta: formatTime(addSeconds(flightGroup.flightplan.startTime, elapsedSeconds)),
+      altitude: formatAltitudeFeet(waypoint.altitude),
+      speed: formatSpeedKnots(waypoint.speed),
+      legDistance: index === 0 ? '---' : formatDistanceNm(legMeters),
+      totalDistance: index === 0 ? '---' : formatDistanceNm(totalMeters),
+      bearing,
+      remarks: getWaypointRemark(waypoint, flightGroup)
+    }
+  })
+}
+
+function escapeXml(value: unknown): string {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&apos;')
+}
+
+function truncate(value: string, maxLength: number): string {
+  return value.length > maxLength ? value.slice(0, Math.max(0, maxLength - 1)) + '.' : value
+}
+
+function renderField(label: string, value: string, x: number, y: number, width: number) {
+  return `
+    <text x="${x}" y="${y}" class="label">${escapeXml(label)}</text>
+    <text x="${x + 104}" y="${y}" class="value">${escapeXml(truncate(value, 28))}</text>
+    <line x1="${x}" y1="${y + 8}" x2="${x + width}" y2="${y + 8}" class="rule" />
+  `
+}
+
+function renderSectionHeader(title: string, x: number, y: number, _width: number) {
+  const titleWidth = Math.max(SECTION_TITLE_HEIGHT, title.length * 10 + 22)
+
+  return `
+    <rect x="${x}" y="${y}" width="${titleWidth}" height="${SECTION_TITLE_HEIGHT}" fill="#1f2528" />
+    <text x="${x + 12}" y="${y + 16}" class="section-title">${escapeXml(title)}</text>
+  `
+}
+
+function findMissionConfig(
+  missionFlightConfigs: MissionFlightConfig[],
+  flightGroup: FlightGroup
+): MissionFlightConfig | undefined {
+  return missionFlightConfigs.find((config) => config.name === flightGroup.callsign)
+}
+
+function getAircraftSummary(flightGroup: FlightGroup): string {
+  const aircraftCounts = new Map<string, number>()
+  flightGroup.aircrafts.forEach((aircraft) => {
+    aircraftCounts.set(aircraft.aircraftName, (aircraftCounts.get(aircraft.aircraftName) ?? 0) + 1)
+  })
+
+  return [...aircraftCounts.entries()]
+    .map(([aircraftName, count]) => `${count}x ${aircraftName}`)
+    .join(', ')
+}
+
+function getTargetSummary(flightGroup: FlightGroup, theatre: Theatre): string {
+  if (!flightGroup.target) return 'NONE ASSIGNED'
+
+  const objective = theatre.objectives.find(
+    (candidate) => candidate.name === flightGroup.target?.objectiveId
+  )
+  const targetType = flightGroup.target.type || 'Target'
+  const objectiveName = objective?.name ?? flightGroup.target.objectiveId
+  return `${targetType} / ${objectiveName}`
+}
+
+function getSpecialNotes(flightGroup: FlightGroup, missionConfig: MissionFlightConfig | undefined) {
+  const notes: string[] = []
+
+  if (flightGroup.task === 'Transport') {
+    notes.push(`Cargo ${flightGroup.cargoAmount ?? 0}`)
+    if (flightGroup.sourceNode || flightGroup.destinationNode) {
+      notes.push(`${flightGroup.sourceNode ?? 'SOURCE'} -> ${flightGroup.destinationNode ?? 'DEST'}`)
+    }
+  }
+
+  if (missionConfig && missionConfig.task === 'CAS' && 'laserCode' in missionConfig) {
+    notes.push(`JTAC ${missionConfig.jtacName}`)
+    notes.push(`Laser ${missionConfig.laserCode}`)
+  }
+
+  return notes.length > 0 ? notes.join(' / ') : 'SEE MISSION PLAN'
+}
+
+type SectionPanelLayout = {
+  x: number
+  width: number
+  panelY: number
+  height: number
+  contentY: number
+}
+
+type KneeboardLayout = {
+  missionSummary: SectionPanelLayout
+  flightGroup: SectionPanelLayout
+  targetIntel: SectionPanelLayout
+  waypoints: {
+    panelY: number
+    height: number
+  }
+  routeSketch: SectionPanelLayout & {
+    mapX: number
+    mapY: number
+    mapWidth: number
+    mapHeight: number
+  }
+  footer: {
+    panelY: number
+    height: number
+  }
+}
+
+function sectionPanel(
+  x: number,
+  width: number,
+  panelY: number,
+  contentHeight: number
+): SectionPanelLayout {
+  return {
+    x,
+    width,
+    panelY,
+    height: SECTION_TITLE_HEIGHT + SECTION_CONTENT_PADDING_TOP + contentHeight,
+    contentY: panelY + SECTION_TITLE_HEIGHT + SECTION_CONTENT_PADDING_TOP
+  }
+}
+
+function buildKneeboardLayout(waypointCount: number): KneeboardLayout {
+  const visibleWaypointRows = Math.min(MAX_VISIBLE_WAYPOINTS, Math.max(waypointCount, 1))
+  const missionPanelHeight = 168
+  const targetPanelHeight = 104
+
+  let cursorY = HEADER_RULE_Y + SECTION_GAP
+
+  const missionSummary = sectionPanel(CONTENT_X, 324, cursorY, missionPanelHeight)
+  const flightGroup = sectionPanel(408, 296, cursorY, missionPanelHeight)
+
+  cursorY = missionSummary.panelY + missionSummary.height + SECTION_GAP
+
+  const targetIntel = sectionPanel(CONTENT_X, CONTENT_WIDTH, cursorY, targetPanelHeight)
+  cursorY = targetIntel.panelY + targetIntel.height + SECTION_GAP
+
+  const waypointTableHeight = WAYPOINT_ROW_HEIGHT * (visibleWaypointRows + 1)
+  const waypoints = {
+    panelY: cursorY,
+    height: waypointTableHeight
+  }
+  cursorY = waypoints.panelY + waypoints.height + SECTION_GAP
+
+  const footerPanelY = PAGE_INNER_BOTTOM - FOOTER_HEIGHT
+  const routeContentHeight = Math.max(
+    120,
+    footerPanelY - SECTION_GAP - cursorY - SECTION_TITLE_HEIGHT - SECTION_CONTENT_PADDING_TOP
+  )
+  const routeSketch = sectionPanel(CONTENT_X, CONTENT_WIDTH, cursorY, routeContentHeight)
+
+  return {
+    missionSummary,
+    flightGroup,
+    targetIntel,
+    waypoints,
+    routeSketch: {
+      ...routeSketch,
+      mapX: CONTENT_X + MAP_INSET,
+      mapY: routeSketch.contentY + MAP_INSET,
+      mapWidth: CONTENT_WIDTH - MAP_INSET * 2,
+      mapHeight: routeSketch.height - SECTION_TITLE_HEIGHT - SECTION_CONTENT_PADDING_TOP - MAP_INSET * 2
+    },
+    footer: {
+      panelY: footerPanelY,
+      height: FOOTER_HEIGHT
+    }
+  }
+}
+
+async function renderRouteSketch(
+  waypoints: Waypoint[],
+  theatre: Theatre,
+  map: KneeboardLayout['routeSketch']
+) {
+  const { mapX: x, mapY: y, mapWidth: width, mapHeight: height } = map
+
+  if (waypoints.length === 0) {
+    return `<text x="${x + 28}" y="${y + height / 2}" class="muted">NO ROUTE DATA</text>`
+  }
+
+  const lngLatPoints = waypoints
+    .map((waypoint) =>
+      dcsPositionToLngLat(waypoint.position.x, waypoint.position.y, theatre.name)
+    )
+    .filter((point): point is NonNullable<typeof point> => point != null)
+
+  const viewport = createRouteMapViewport({
+    lngLatPoints,
+    box: { x, y, width, height, padding: 14 }
+  })
+
+  if (!viewport) {
+    return `<text x="${x + 28}" y="${y + height / 2}" class="muted">NO ROUTE DATA</text>`
+  }
+
+  const routeLine = waypoints
+    .map((waypoint) => {
+      const lngLat = dcsPositionToLngLat(
+        waypoint.position.x,
+        waypoint.position.y,
+        theatre.name
+      )
+      if (!lngLat) return null
+      const pixel = viewport.projectLngLat(lngLat.lng, lngLat.lat)
+      return `${pixel.x.toFixed(1)},${pixel.y.toFixed(1)}`
+    })
+    .filter((value): value is string => value != null)
+    .join(' ')
+
+  const points = waypoints
+    .map((waypoint, index) => {
+      const lngLat = dcsPositionToLngLat(
+        waypoint.position.x,
+        waypoint.position.y,
+        theatre.name
+      )
+      if (!lngLat) return ''
+      const pixel = viewport.projectLngLat(lngLat.lng, lngLat.lat)
+      const isTask = waypoint.type === 'Task'
+      const isLanding = waypoint.type === 'Landing'
+      const fill = isTask ? '#8f2d22' : isLanding ? '#173f66' : '#efe6d3'
+      const textFill = isTask || isLanding ? '#ffffff' : '#16202a'
+      return `
+        <circle cx="${pixel.x}" cy="${pixel.y}" r="11" fill="${fill}" stroke="#16202a" stroke-width="2" />
+        <text x="${pixel.x}" y="${pixel.y + 4}" class="map-index" fill="${textFill}">${index + 1}</text>
+      `
+    })
+    .join('')
+
+  const geographicMapLayer = await renderGeographicMapLayerFromPmtiles({
+    bounds: viewport.bounds,
+    projectLngLat: viewport.projectLngLat
+  })
+
+  return `
+    <clipPath id="routeMapClip">
+      <rect x="${x}" y="${y}" width="${width}" height="${height}" />
+    </clipPath>
+    <g clip-path="url(#routeMapClip)">
+      ${geographicMapLayer}
+      <path d="M ${x + 60} ${y} V ${y + height} M ${x + 180} ${y} V ${y + height} M ${x + 300} ${y} V ${y + height} M ${x + 420} ${y} V ${y + height} M ${x + 540} ${y} V ${y + height}
+               M ${x} ${y + 48} H ${x + width} M ${x} ${y + 96} H ${x + width} M ${x} ${y + 144} H ${x + width}" class="grid" />
+      <polyline points="${routeLine}" fill="none" stroke="#16202a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+      ${points}
+      <path d="M ${x + 24} ${y + height - 24} L ${x + 31} ${y + height - 58} L ${x + 38} ${y + height - 24} L ${x + 31} ${y + height - 36} Z" fill="#16202a" />
+      <text x="${x + 22}" y="${y + height - 62}" class="small">N</text>
+      <text x="${x + width - 116}" y="${y + height - 16}" class="small">SCALE AUTO</text>
+    </g>
+  `
+}
+
+function renderWaypointTable(rows: KneeboardWaypointRow[], layout: KneeboardLayout['waypoints']) {
+  const x = CONTENT_X
+  const y = layout.panelY
+  const rowHeight = WAYPOINT_ROW_HEIGHT
+  const visibleRows = rows.slice(0, MAX_VISIBLE_WAYPOINTS)
+  const columns = [
+    { label: 'WP', width: 42 },
+    { label: 'DESCRIPTION', width: 180 },
+    { label: 'ETA', width: 72 },
+    { label: 'ALT FT', width: 74 },
+    { label: 'KTS', width: 54 },
+    { label: 'LEG', width: 52 },
+    { label: 'TOT', width: 52 },
+    { label: 'BRG', width: 48 },
+    { label: 'REMARKS', width: 66 }
+  ]
+
+  let cursor = x
+  const headerCells = columns
+    .map((column) => {
+      const cell = `<text x="${cursor + column.width / 2}" y="${y + 17}" class="table-head">${escapeXml(column.label)}</text>`
+      cursor += column.width
+      return cell
+    })
+    .join('')
+
+  const verticals = columns
+    .slice(0, -1)
+    .reduce(
+      (acc, column) => {
+        acc.cursor += column.width
+        acc.lines.push(
+          `<line x1="${acc.cursor}" y1="${y}" x2="${acc.cursor}" y2="${y + rowHeight * (visibleRows.length + 1)}" class="table-line" />`
+        )
+        return acc
+      },
+      { cursor: x, lines: [] as string[] }
+    ).lines
+    .join('')
+
+  const body = visibleRows
+    .map((row, index) => {
+      const rowY = y + rowHeight * (index + 1)
+      return `
+        <line x1="${x}" y1="${rowY}" x2="${x + 640}" y2="${rowY}" class="table-line" />
+        <text x="${x + 21}" y="${rowY + 17}" class="table-text center">${row.index}</text>
+        <text x="${x + 52}" y="${rowY + 17}" class="table-text">${escapeXml(truncate(row.name, 20))}</text>
+        <text x="${x + 258}" y="${rowY + 17}" class="table-text center">${escapeXml(row.eta)}</text>
+        <text x="${x + 332}" y="${rowY + 17}" class="table-text center">${escapeXml(row.altitude)}</text>
+        <text x="${x + 396}" y="${rowY + 17}" class="table-text center">${escapeXml(row.speed)}</text>
+        <text x="${x + 449}" y="${rowY + 17}" class="table-text center">${escapeXml(row.legDistance)}</text>
+        <text x="${x + 501}" y="${rowY + 17}" class="table-text center">${escapeXml(row.totalDistance)}</text>
+        <text x="${x + 551}" y="${rowY + 17}" class="table-text center">${escapeXml(row.bearing)}</text>
+        <text x="${x + 590}" y="${rowY + 17}" class="table-text">${escapeXml(truncate(row.remarks, 8))}</text>
+      `
+    })
+    .join('')
+
+  return `
+    <rect x="${x}" y="${y}" width="${CONTENT_WIDTH}" height="${layout.height}" class="panel" />
+    <rect x="${x}" y="${y}" width="640" height="${rowHeight}" fill="#efe6d3" />
+    ${headerCells}
+    ${verticals}
+    ${body}
+    ${
+      rows.length > visibleRows.length
+        ? `<text x="${x + 618}" y="${y + rowHeight * (visibleRows.length + 1) - 7}" class="table-note">+${rows.length - visibleRows.length} WP</text>`
+        : ''
+    }
+  `
+}
+
+async function renderKneeboardSvg(params: {
+  campaign: Campaign
+  theatre: Theatre
+  missionFlightConfigs: MissionFlightConfig[]
+  coalition: Coalition
+  flightGroup: FlightGroup
+}) {
+  const { campaign, theatre, missionFlightConfigs, coalition, flightGroup } = params
+  const rows = buildKneeboardWaypointRows(flightGroup)
+  const missionConfig = findMissionConfig(missionFlightConfigs, flightGroup)
+  const clientCount = flightGroup.aircrafts.filter((aircraft) => aircraft.client).length
+  const layout = buildKneeboardLayout(rows.length)
+  const mission = layout.missionSummary
+  const flight = layout.flightGroup
+  const target = layout.targetIntel
+
+  return `
+<svg xmlns="http://www.w3.org/2000/svg" width="${PAGE_WIDTH}" height="${PAGE_HEIGHT}" viewBox="0 0 ${PAGE_WIDTH} ${PAGE_HEIGHT}">
+  <style>
+    .page { fill: #f1e6d2; }
+    .paper-noise { opacity: 0.12; }
+    .panel { fill: rgba(255,255,255,0.16); stroke: #1c2226; stroke-width: 1.4; }
+    .rule, .table-line { stroke: #3b403f; stroke-width: 1; opacity: 0.78; }
+    .label { font-family: Arial, sans-serif; font-size: 12px; font-weight: 700; fill: #1c2226; }
+    .value { font-family: Arial, sans-serif; font-size: 13px; font-weight: 700; fill: #173f66; }
+    .section-title { font-family: Arial, sans-serif; font-size: 15px; font-weight: 800; fill: #ffffff; letter-spacing: 0.6px; }
+    .title { font-family: Arial, sans-serif; font-size: 32px; font-weight: 900; fill: #f1e6d2; font-style: italic; }
+    .subtitle { font-family: Arial, sans-serif; font-size: 17px; font-weight: 800; fill: #1c2226; }
+    .headline { font-family: Arial, sans-serif; font-size: 28px; font-weight: 900; fill: #173f66; }
+    .small { font-family: Arial, sans-serif; font-size: 11px; font-weight: 700; fill: #1c2226; }
+    .muted { font-family: Arial, sans-serif; font-size: 13px; font-weight: 700; fill: #637077; }
+    .table-head { font-family: Arial, sans-serif; font-size: 10px; font-weight: 900; fill: #1c2226; text-anchor: middle; }
+    .table-text { font-family: Arial, sans-serif; font-size: 12px; font-weight: 700; fill: #173f66; }
+    .table-note { font-family: Arial, sans-serif; font-size: 10px; font-weight: 900; fill: #637077; text-anchor: end; }
+    .center { text-anchor: middle; }
+    .grid { stroke: #8fa5ad; stroke-width: 0.8; opacity: 0.45; }
+    .map-land { fill: #ddd5c4; }
+    .map-sea { fill: #5f95ad; opacity: 0.82; }
+    .map-river { fill: none; stroke: #3d7f99; stroke-width: 1.6; opacity: 0.9; }
+    .map-index { font-family: Arial, sans-serif; font-size: 10px; font-weight: 900; text-anchor: middle; }
+  </style>
+  <filter id="paperNoise">
+    <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" seed="7" />
+    <feColorMatrix type="saturate" values="0" />
+  </filter>
+
+  <rect width="${PAGE_WIDTH}" height="${PAGE_HEIGHT}" class="page" />
+  <rect width="${PAGE_WIDTH}" height="${PAGE_HEIGHT}" filter="url(#paperNoise)" class="paper-noise" />
+  <rect x="34" y="32" width="700" height="958" fill="none" stroke="#1c2226" stroke-width="1.6" />
+
+  <text x="${KNEEBOARD_LOGO_BOX.x + KNEEBOARD_LOGO_BOX.width + 24}" y="95" class="subtitle">MISSION KNEEBOARD</text>
+  <text x="520" y="84" class="label">DATE</text>
+  <text x="520" y="108" class="value">${formatDate(campaign.time)}</text>
+  <text x="632" y="84" class="label">TIME</text>
+  <text x="632" y="108" class="value">${formatTime(campaign.time)}</text>
+  <line x1="64" y1="126" x2="704" y2="126" class="rule" />
+
+  <rect x="${mission.x}" y="${mission.panelY}" width="${mission.width}" height="${mission.height}" class="panel" />
+  ${renderSectionHeader('MISSION SUMMARY', mission.x, mission.panelY, mission.width)}
+  ${renderField('MISSION', flightGroup.task, 78, mission.contentY + 14, 294)}
+  ${renderField('THEATRE', theatre.name, 78, mission.contentY + 40, 294)}
+  ${renderField('HOME BASE', flightGroup.homeBase, 78, mission.contentY + 66, 294)}
+  ${renderField('TARGET', getTargetSummary(flightGroup, theatre), 78, mission.contentY + 92, 294)}
+  ${renderField('NOTES', getSpecialNotes(flightGroup, missionConfig), 78, mission.contentY + 118, 294)}
+
+  <rect x="${flight.x}" y="${flight.panelY}" width="${flight.width}" height="${flight.height}" class="panel" />
+  ${renderSectionHeader('FLIGHT GROUP', flight.x, flight.panelY, flight.width)}
+  <text x="424" y="${flight.contentY + 22}" class="headline">${escapeXml(truncate(flightGroup.callsign, 16))}</text>
+  ${renderField('COALITION', coalition.toUpperCase(), 424, flight.contentY + 50, 248)}
+  ${renderField('AIRCRAFT', getAircraftSummary(flightGroup), 424, flight.contentY + 76, 248)}
+  ${renderField('CLIENTS', `${clientCount} / ${flightGroup.aircrafts.length}`, 424, flight.contentY + 102, 248)}
+  ${renderField('PACKAGE', flightGroup.packageId ?? '---', 424, flight.contentY + 128, 248)}
+
+  <rect x="${CONTENT_X}" y="${target.panelY}" width="${CONTENT_WIDTH}" height="${target.height}" class="panel" />
+  ${renderSectionHeader('TARGET / INTEL', CONTENT_X, target.panelY, CONTENT_WIDTH)}
+  <text x="82" y="${target.contentY + 26}" class="value">${escapeXml(truncate(flightGroup.target?.objectiveId ?? 'N/A', 28))}</text>
+  <text x="82" y="${target.contentY + 54}" class="value">${escapeXml(truncate(flightGroup.target?.type ?? 'N/A', 28))}</text>
+  <text x="408" y="${target.contentY + 26}" class="label">NOTES</text>
+  <text x="408" y="${target.contentY + 54}" class="value">${escapeXml(truncate(getSpecialNotes(flightGroup, missionConfig), 34))}</text>
+
+  ${renderWaypointTable(rows, layout.waypoints)}
+
+  <rect x="${CONTENT_X}" y="${layout.routeSketch.panelY}" width="${CONTENT_WIDTH}" height="${layout.routeSketch.height}" class="panel" />
+  ${renderSectionHeader('ROUTE SKETCH', CONTENT_X, layout.routeSketch.panelY, CONTENT_WIDTH)}
+  ${await renderRouteSketch(flightGroup.flightplan.waypoints, theatre, layout.routeSketch)}
+
+  <rect x="${CONTENT_X}" y="${layout.footer.panelY}" width="${CONTENT_WIDTH}" height="${layout.footer.height}" class="panel" />
+  <text x="82" y="${layout.footer.panelY + 22}" class="small">ATIS</text>
+  <text x="160" y="${layout.footer.panelY + 22}" class="value">XXX.XXX</text>
+  <text x="282" y="${layout.footer.panelY + 22}" class="small">AWACS</text>
+  <text x="374" y="${layout.footer.panelY + 22}" class="value">XXX.XXX</text>
+  <text x="506" y="${layout.footer.panelY + 22}" class="small">NOTES</text>
+</svg>`
+}
+
+export async function renderKneeboardPng(svg: string): Promise<Buffer> {
+  const base = await sharp(Buffer.from(svg)).png().toBuffer()
+  const logo = await getKneeboardLogoPng()
+  if (!logo) return base
+
+  return sharp(base)
+    .composite([
+      {
+        input: logo,
+        left: KNEEBOARD_LOGO_BOX.x,
+        top: KNEEBOARD_LOGO_BOX.y
+      }
+    ])
+    .png()
+    .toBuffer()
+}
+
+export async function createKneeboardImages(params: {
+  campaign: Campaign
+  theatre: Theatre
+  missionFlightConfigs: MissionFlightConfig[]
+}): Promise<KneeboardImage[]> {
+  const clientFlightGroups = getClientFlightGroups(params.campaign)
+
+  if (clientFlightGroups.length > 0 && !resolveCaucasusPmtilesPath()) {
+    if (!warnedMissingKneeboardMap) {
+      warnedMissingKneeboardMap = true
+      console.warn(
+        '[dcc] Caucasus map tiles (caucasus.pmtiles) were not found. Kneeboard route maps will not show geographic detail. Run `bun run cache:map` in apps/frontend or set DCC_CAUCASUS_PMTILES.'
+      )
+    }
+  }
+
+  return Promise.all(
+    clientFlightGroups.map(async ({ coalition, flightGroup }, index) => {
+      const svg = await renderKneeboardSvg({
+        campaign: params.campaign,
+        theatre: params.theatre,
+        missionFlightConfigs: params.missionFlightConfigs,
+        coalition,
+        flightGroup
+      })
+
+      return {
+        filename: createKneeboardFilename(index + 1, flightGroup),
+        buffer: await renderKneeboardPng(svg)
+      }
+    })
+  )
+}

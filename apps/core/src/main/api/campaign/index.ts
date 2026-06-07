@@ -36,6 +36,7 @@ type AppSettings = {
   aiModel?: string
   disableAutoUpdate?: boolean
   lastViewPath?: string
+  hasCompletedWelcome?: boolean
 }
 
 function detectMissionExportDirectory() {
@@ -364,7 +365,7 @@ export const generateMiz = pub.campaign.generateMiz.handler(async ({ input, erro
   if (theatre == null) {
     throw errors.NOT_FOUND({ data: { message: 'Theatre not found', path: scenario.theatreName } })
   }
-  const result = generateMizFromCampaign(input, theatre, mizPath)
+  const result = await generateMizFromCampaign(input, theatre, mizPath)
   if (result.isErr()) {
     throw errors.FAILED_TO_WRITE_FILE({ data: { path: mizPath, message: result.error.message } })
   }

@@ -19,6 +19,9 @@ const JTAC_LASER_CODE = 1688
 
 type Mission = z.infer<typeof schemas.dcs.mission>
 type MissionCountry = NonNullable<Mission['coalition']['blue']['country']>[number]
+type Campaign = z.infer<typeof schemas.campaign.campaign>
+type CoalitionKey = z.infer<typeof schemas.coalition>
+type FlightGroup = Campaign['coalitions']['player']['flightGroups'][number]
 
 const DEFAULT_CALLSIGN = 'Enfield'
 
@@ -80,6 +83,36 @@ export type MissionFlightConfig =
       task: z.infer<typeof schemas.task>
       unitNames: string[]
     }
+
+function deterministicBucket(value: string, bucketCount: number) {
+  let hash = 0
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0
+  }
+
+  return hash % bucketCount
+}
+
+function hasPlayerClientCap(campaign: Campaign) {
+  return campaign.coalitions.player.flightGroups.some(
+    (flightGroup) =>
+      flightGroup.task === 'CAP' && flightGroup.aircrafts.some((aircraft) => aircraft.client)
+  )
+}
+
+function shouldIncludeFlightGroupInMission(
+  coalition: CoalitionKey,
+  flightGroup: FlightGroup,
+  options: { throttleEnemyNonCapFlights: boolean }
+) {
+  if (!options.throttleEnemyNonCapFlights) return true
+  if (coalition !== 'opponent') return true
+  if (flightGroup.task === 'CAP') return true
+  if (flightGroup.aircrafts.some((aircraft) => aircraft.client)) return true
+
+  return deterministicBucket(`${flightGroup.id}:${flightGroup.callsign}`, 3) !== 0
+}
 
 /**
  * Creates a SEADEscort task for SEAD flight groups.
@@ -720,6 +753,7 @@ export function addFlightGroups(
   const flightConfigs: MissionFlightConfig[] = []
   const hotStart = campaign.campaignParams?.hotStart === true
   const casJtac = campaign.campaignParams?.casJtac ?? true
+  const throttleEnemyNonCapFlights = !hasPlayerClientCap(campaign)
   const totalClientAircraftCount = Object.values(campaign.coalitions).reduce(
     (total, coalition) =>
       total +
@@ -733,7 +767,10 @@ export function addFlightGroups(
 
   for (const [key, value] of Object.entries(campaign.coalitions)) {
     const missionCoalitionKey = key === 'player' ? 'blue' : key === 'opponent' ? 'red' : 'neutrals'
-    const flightGroups = value.flightGroups
+    const coalitionKey = key as CoalitionKey
+    const flightGroups = value.flightGroups?.filter((fg) =>
+      shouldIncludeFlightGroupInMission(coalitionKey, fg, { throttleEnemyNonCapFlights })
+    )
 
     if (!flightGroups || flightGroups.length === 0) continue
 

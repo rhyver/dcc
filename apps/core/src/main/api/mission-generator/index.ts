@@ -271,7 +271,7 @@ export const generateMission = pub.missionGenerator.generateMission.handler(
       })
     }
 
-    const result = generateMizFromCampaign(campaign, theatre, mizPath)
+    const result = await generateMizFromCampaign(campaign, theatre, mizPath)
     if (result.isErr()) {
       throw errors.FAILED_TO_WRITE_FILE({ data: { path: mizPath, message: result.error.message } })
     }

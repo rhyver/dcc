@@ -1,8 +1,10 @@
-import { AlertTriangle, ArrowLeft } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { coreClient } from '@/lib/orpc'
+import { resolvePathsForSave } from '@/lib/path-warnings'
 import { Button } from '@/components/ui/button'
+import { PathSettingsFields } from '@/components/path-settings-fields'
 import { ScrollArea } from '@/components/ui/scroll-area'
 
 type AiProvider = 'openai' | 'anthropic' | 'openrouter'
@@ -58,42 +60,18 @@ export function Settings() {
     }
   }, [])
 
-  const handleBrowseMissionExportPath = async () => {
-    const path = await window.api?.selectDirectory()
-    if (path) {
-      setMissionExportPath(path)
-    }
-  }
-
-  const handleBrowseDcsInstallPath = async () => {
-    const result =
-      typeof window.api?.selectDcsInstallDirectory === 'function'
-        ? await window.api.selectDcsInstallDirectory()
-        : await window.api?.selectDirectory().then((path) =>
-            path == null
-              ? null
-              : {
-                  path,
-                  valid: true,
-                  message: null
-                }
-          )
-    if (!result) {
-      return
-    }
-    if (!result.valid) {
-      setDcsInstallPathError(result.message)
-      return
-    }
-    setDcsInstallPathError(null)
-    setDcsInstallPath(result.path)
-  }
-
   const handleSave = async () => {
     try {
-      await coreClient.campaign.saveSettings({
+      const paths = resolvePathsForSave(
         missionExportPath,
         dcsInstallPath,
+        detectedMissionExportPath,
+        detectedDcsInstallPath
+      )
+
+      await coreClient.campaign.saveSettings({
+        missionExportPath: paths.missionExportPath || undefined,
+        dcsInstallPath: paths.dcsInstallPath || undefined,
         enableDcsPersistence,
         aiProvider,
         aiApiKey: aiApiKey.trim() || undefined,
@@ -150,30 +128,16 @@ export function Settings() {
             ) : (
               <ScrollArea className="min-h-0 flex-1">
                 <div className="space-y-6 pr-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-300">Mission Export Path</label>
-                    <div className="flex gap-2">
-                      <div className="flex-1 h-9 px-2 rounded bg-gray-900 border border-gray-700 font-mono text-sm truncate flex items-center">
-                        {missionExportPath || detectedMissionExportPath}
-                      </div>
-                      <Button
-                        variant="outline"
-                        onClick={handleBrowseMissionExportPath}
-                        className="border-synthwave-purple text-synthwave-cyan hover:bg-synthwave-purple/20"
-                      >
-                        Browse...
-                      </Button>
-                    </div>
-                    {!missionExportPath && !detectedMissionExportPath ? (
-                      <div className="flex items-center gap-2 rounded border border-amber-400/60 bg-amber-950/60 px-2 py-1.5 text-xs text-amber-100">
-                        <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-300" />
-                        <span>No path set and no DCS Saved Games folder was found.</span>
-                      </div>
-                    ) : null}
-                    <p className="text-xs text-gray-500">
-                      Select the folder where the mission.miz file should be saved.
-                    </p>
-                  </div>
+                  <PathSettingsFields
+                    missionExportPath={missionExportPath}
+                    dcsInstallPath={dcsInstallPath}
+                    detectedMissionExportPath={detectedMissionExportPath}
+                    detectedDcsInstallPath={detectedDcsInstallPath}
+                    dcsInstallPathError={dcsInstallPathError}
+                    onMissionExportPathChange={setMissionExportPath}
+                    onDcsInstallPathChange={setDcsInstallPath}
+                    onDcsInstallPathErrorChange={setDcsInstallPathError}
+                  />
 
                   {/* AI settings are temporarily hidden; keep this block for re-enabling later.
               <div className="space-y-2">
@@ -228,38 +192,6 @@ export function Settings() {
                 </select>
               </div>
               */}
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-300">DCS Install Path</label>
-                    <div className="flex gap-2">
-                      <div className="flex-1 h-9 px-2 rounded bg-gray-900 border border-gray-700 font-mono text-sm truncate flex items-center">
-                        {dcsInstallPath || detectedDcsInstallPath}
-                      </div>
-                      <Button
-                        variant="outline"
-                        onClick={handleBrowseDcsInstallPath}
-                        className="border-synthwave-purple text-synthwave-cyan hover:bg-synthwave-purple/20"
-                      >
-                        Browse...
-                      </Button>
-                    </div>
-                    {!dcsInstallPath && !detectedDcsInstallPath ? (
-                      <div className="flex items-center gap-2 rounded border border-amber-400/60 bg-amber-950/60 px-2 py-1.5 text-xs text-amber-100">
-                        <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-300" />
-                        <span>No path set and no DCS World install was found.</span>
-                      </div>
-                    ) : null}
-                    {dcsInstallPathError ? (
-                      <div className="flex items-center gap-2 rounded border border-red-400/60 bg-red-950/60 px-2 py-1.5 text-xs text-red-100">
-                        <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-red-300" />
-                        <span>{dcsInstallPathError}</span>
-                      </div>
-                    ) : null}
-                    <p className="text-xs text-gray-500">
-                      Select the DCS World install root, for example the folder that contains
-                      `bin\DCS.exe` or `bin\DCS_server.exe`.
-                    </p>
-                  </div>
 
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-300">DCS Persistence</label>

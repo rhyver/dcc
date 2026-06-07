@@ -386,7 +386,8 @@ export function spawnPlannedFlightGroup({
   runwayAngle,
   target,
   packageId,
-  tot
+  tot,
+  spawnSource
 }: {
   draft: Campaign
   coalition: Coalition
@@ -402,6 +403,7 @@ export function spawnPlannedFlightGroup({
   target?: FlightTarget
   packageId?: string
   tot?: Date
+  spawnSource?: z.infer<typeof schemas.flightGroup>['spawnSource']
 }): { flightGroupId: string; tot: Date; flightplan: z.infer<typeof schemas.flightplan> } {
   const isHelicopter = aircraftMap.get(aircraftType)?.isHelicopter ?? false
   const acList = createAircrafts(aircraftType, aircraftCount)
@@ -423,7 +425,8 @@ export function spawnPlannedFlightGroup({
     target,
     flightplan,
     packageId,
-    tot
+    tot,
+    spawnSource
   })
 
   const calculatedTot = FlightGroup.calculateTot(flightplan)

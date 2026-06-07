@@ -9,6 +9,14 @@ import { addFlightGroups, type MissionFlightConfig } from './add-flight-groups'
 import { addGroundGroups } from './add-ground-groups'
 import { addStructures } from './add-structures'
 import { getFrontlineSegments } from './frontline'
+import { createKneeboardImages } from './kneeboard'
+export {
+  createRouteMapViewport,
+  dcsPositionToLngLat,
+  resolveCaucasusPmtilesPath,
+  setCaucasusPmtilesPath
+} from './kneeboard-map'
+export { resolveAppIconPath, setAppIconPath } from './kneeboard-logo'
 import { dictionary, mapResource } from './l10n'
 import {
   createDoScriptAction,
@@ -243,11 +251,11 @@ function addTransportCargoTriggers(
   })
 }
 
-export function generateMizFromCampaign(
+export async function generateMizFromCampaign(
   campaign: z.infer<typeof schemas.campaign.campaign>,
   theatre: z.infer<typeof schemas.theatre>,
   path: string
-): Result<void, Error> {
+): Promise<Result<void, Error>> {
   // eslint-disable-next-line no-console
   console.log('generating miz file')
 
@@ -583,6 +591,20 @@ export function generateMizFromCampaign(
   }
   const mapResourceLua = mapResourceLuaResult.value
 
+  let kneeboardImages
+  try {
+    kneeboardImages = await createKneeboardImages({
+      campaign,
+      theatre,
+      missionFlightConfigs: flightGroupsResult.value
+    })
+  } catch (error) {
+    if (error instanceof Error) {
+      return err(error)
+    }
+    return err(new Error('Unknown error generating kneeboard images'))
+  }
+
   const zip = new AdmZip()
   zip.addFile('mission', Buffer.from('mission = ' + missionLua, 'utf-8'))
   zip.addFile('options', Buffer.from('options = ' + optionsLua, 'utf-8'))
@@ -596,6 +618,9 @@ export function generateMizFromCampaign(
   zip.addFile('l10n/DEFAULT/splash_damage.lua', Buffer.from(splashDamageLuaScript, 'utf-8'))
   zip.addFile('l10n/DEFAULT/cas.lua', Buffer.from(casLuaScript, 'utf-8'))
   zip.addFile('l10n/DEFAULT/ewr.lua', Buffer.from(ewrLuaScript, 'utf-8'))
+  kneeboardImages.forEach((image) => {
+    zip.addFile(`KNEEBOARD/IMAGES/${image.filename}`, image.buffer)
+  })
   try {
     zip.writeZip(path)
     // eslint-disable-next-line no-console

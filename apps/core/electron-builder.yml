@@ -21,11 +21,15 @@ files:
   - '!**/.turbo/**'
 asarUnpack:
   - resources/**
+  - '**/node_modules/sharp/**'
+  - '**/node_modules/@img/**'
 extraResources:
   - from: apps/frontend/dist
     to: renderer/frontend
   - from: apps/document/dist
     to: renderer/document
+  - from: apps/frontend/public/maps/caucasus/caucasus.pmtiles
+    to: maps/caucasus/caucasus.pmtiles
 win:
   executableName: dcc
   target:

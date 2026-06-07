@@ -18,6 +18,7 @@ export const flightGroup = z.object({
   position,
   homeBase: z.string(),
   callsign: z.string(),
+  spawnSource: z.enum(['automatic', 'manual']).optional(),
   target: structureTarget.optional(),
   targetDestroyed: z.boolean().optional(),
   tot: z.date().optional(),

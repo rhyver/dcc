@@ -3,12 +3,12 @@ productName: DCC
 directories:
   app: apps/core
   buildResources: build
+electronDist: node_modules/electron/dist
 files:
   # Explicit include set to avoid traversing workspace symlinks by default
   - out/**
   - resources/**
   - package.json
-  - node_modules/**
   # Exclude workspace-linked packages that are bundled by electron-vite
   - '!**/node_modules/@dcc/**'
   # General exclusions

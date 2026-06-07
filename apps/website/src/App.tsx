@@ -992,7 +992,7 @@ function ViggenStage() {
   return (
     <div className="viggen-stage" aria-hidden="true">
       <div className="viggen-photo-wrap">
-        <img className="viggen-photo" src="/assets/dcs-apache-flight.png" alt="" />
+        <img className="viggen-photo" src="/assets/dcs-apache-flight-web.jpg" alt="" />
         <div className="viggen-photo-tint" />
         <div className="viggen-photo-scan" />
       </div>
@@ -1008,7 +1008,7 @@ function F14Hero() {
       <div className="f14-contrail t1" />
       <div className="f14-contrail t2" />
       <div className="f14-photo-wrap">
-        <img className="f14-photo" src="/assets/dcs-f16-mountains.png" alt="" />
+        <img className="f14-photo" src="/assets/dcs-f16-mountains-web.jpg" alt="" />
         <div className="f14-photo-tint" />
         <div className="f14-photo-scan" />
       </div>

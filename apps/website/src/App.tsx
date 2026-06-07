@@ -1,3 +1,4 @@
+import { Analytics } from '@vercel/analytics/react'
 import { useEffect, useRef, useState } from 'react'
 
 /* ----------------------- Aircraft route data ----------------------- */
@@ -157,7 +158,31 @@ type LogEntry = LogTemplate & { id: number; time: string }
 /* COMPONENT                                                    */
 /* ============================================================ */
 
-export function App() {
+type PageMeta = {
+  title: string
+  description: string
+}
+
+const HOME_META: PageMeta = {
+  title: 'Digital Crew Chief - Dynamic campaigns for DCS World',
+  description:
+    'A dynamic campaign generator for DCS World. Spin up a persistent theatre, watch flight groups move in real time, and export a .miz you can fly - no config, no scripting.'
+}
+
+const PRIVACY_META: PageMeta = {
+  title: 'Privacy Policy - Digital Crew Chief',
+  description: 'Privacy policy for this open-source project website.'
+}
+
+function normalizePathname(pathname = '/') {
+  return pathname.replace(/\/+$/, '') || '/'
+}
+
+export function getPageMeta(pathname = '/'): PageMeta {
+  return normalizePathname(pathname) === '/privacy' ? PRIVACY_META : HOME_META
+}
+
+export function App({ pathname = globalThis.location?.pathname ?? '/' }: { pathname?: string }) {
   /* Set defaults from the design's TWEAK_DEFAULTS once on mount */
   useEffect(() => {
     document.documentElement.dataset.density = 'default'
@@ -168,6 +193,27 @@ export function App() {
     document.documentElement.style.setProperty('--bg-persp-opacity', (0.35 * i).toFixed(3))
   }, [])
 
+  useEffect(() => {
+    const meta = getPageMeta(pathname)
+    document.title = meta.title
+    document.querySelector('meta[name="description"]')?.setAttribute('content', meta.description)
+    document.querySelector('meta[property="og:title"]')?.setAttribute('content', meta.title)
+    document
+      .querySelector('meta[property="og:description"]')
+      ?.setAttribute('content', meta.description)
+  }, [pathname])
+
+  const isPrivacyPage = normalizePathname(pathname) === '/privacy'
+
+  return (
+    <>
+      {isPrivacyPage ? <PrivacyPage /> : <HomePage />}
+      <Analytics />
+    </>
+  )
+}
+
+function HomePage() {
   return (
     <div className="page hero-anim-fade">
       <div className="bg-grid" />
@@ -208,7 +254,7 @@ export function App() {
           <div className="hero-cta-row">
             <a
               className="btn btn-primary"
-              href="https://github.com/Kilcekru/dcc/releases/tag/v0.4.1"
+              href="https://codeberg.org/rhyver/dcc/releases/tag/v0.4.1"
               target="_blank"
               rel="noreferrer"
             >
@@ -218,19 +264,19 @@ export function App() {
             </a>
             <a
               className="btn btn-outline"
-              href="https://github.com/Kilcekru/dcc"
+              href="https://codeberg.org/rhyver/dcc"
               target="_blank"
               rel="noreferrer"
             >
-              <GhIcon />
-              View on GitHub
+              <CodebergIcon />
+              View Source Code
             </a>
           </div>
 
           <div className="stats">
             <div className="stat">
               <div className="stat-value">
-                <span>1,300</span>
+                <span>1,400</span>
                 <span className="plus">+</span>
               </div>
               <div className="stat-label">Discord Members</div>
@@ -244,29 +290,242 @@ export function App() {
               <div className="stat-label">Downloads</div>
               <div className="stat-sub">Across all releases</div>
             </div>
-            <div className="stat">
-              <div className="stat-value">
-                <span>100</span>
-                <span className="plus">%</span>
-              </div>
-              <div className="stat-label">Open Source</div>
-              <div className="stat-sub">MIT — fork, modify, ship</div>
-            </div>
           </div>
         </div>
       </section>
 
       <MissionPreview />
 
-      <footer className="footer">
-        <div>© 2026 Digital Crew Chief · MIT License</div>
-        <div className="links">
-          <a href="https://web.digitalcrewchief.at/docs">Docs</a>
-          <a href="https://discord.gg/jZZ3pFpY3e">Discord</a>
-          <a href="https://github.com/Kilcekru/dcc">GitHub</a>
-        </div>
-      </footer>
+      <CopySections />
+
+      <Footer />
     </div>
+  )
+}
+
+function PrivacyPage() {
+  return (
+    <div className="page hero-anim-fade">
+      <div className="bg-grid" />
+      <div className="bg-horizon" />
+      <div className="bg-perspective" />
+
+      <Nav />
+
+      <main className="privacy-wrap">
+        <article className="privacy-document">
+          <p className="copy-kicker">Last updated: 15 May 2026</p>
+          <h1>Privacy Policy</h1>
+          <p className="privacy-lede">
+            This website is an open-source project page operated by digitalcrewchief.at for Digital
+            Crew Chief. Privacy-related questions can be raised through the public project
+            repository at{' '}
+            <a href="https://codeberg.org/rhyver/dcc" target="_blank" rel="noreferrer">
+              codeberg.org/rhyver/dcc
+            </a>
+            .
+          </p>
+
+          <section>
+            <h2>Who Runs This Site</h2>
+            <p>
+              The site is maintained for the Digital Crew Chief open-source project. The project
+              source code, issue tracker, and release history are available on Codeberg.
+            </p>
+          </section>
+
+          <section>
+            <h2>What Data Is Processed</h2>
+            <p>
+              When you visit this website, basic technical data may be processed to deliver the site
+              securely and reliably. This can include information such as your IP address, browser
+              type, device information, requested URL, referrer, and timestamps.
+            </p>
+          </section>
+
+          <section>
+            <h2>Hosting</h2>
+            <p>
+              This site is hosted on Vercel. Vercel may process technical request data and server
+              logs to provide hosting, security, performance, and reliability for this website.
+              Provider-side retention is governed by Vercel's own service terms and privacy
+              documentation.
+            </p>
+          </section>
+
+          <section>
+            <h2>Analytics</h2>
+            <p>
+              This site uses Vercel Web Analytics to understand basic usage of the project page.
+              Vercel Web Analytics does not use cookies and provides aggregated, anonymized
+              statistics. We use simple pageview analytics only and do not use this analytics data
+              to identify individual visitors.
+            </p>
+          </section>
+
+          <section>
+            <h2>Cookies</h2>
+            <p>
+              This website does not set tracking cookies. If this changes, this policy will be
+              updated.
+            </p>
+          </section>
+
+          <section>
+            <h2>Open-Source Repository And External Links</h2>
+            <p>
+              This website links to external services such as Codeberg, Discord, and documentation
+              pages. When you follow external links, the privacy policies of those services apply.
+            </p>
+          </section>
+
+          <section>
+            <h2>Your Rights</h2>
+            <p>
+              Depending on your location, you may have rights to request access, correction,
+              deletion, restriction, or objection regarding personal data processed about you.
+            </p>
+          </section>
+
+          <section>
+            <h2>Contact</h2>
+            <p>
+              For privacy-related questions, use the public project repository at{' '}
+              <a href="https://codeberg.org/rhyver/dcc" target="_blank" rel="noreferrer">
+                codeberg.org/rhyver/dcc
+              </a>
+              .
+            </p>
+          </section>
+
+          <section>
+            <h2>Changes To This Policy</h2>
+            <p>
+              This privacy policy may be updated when the website or its data processing changes.
+            </p>
+          </section>
+        </article>
+      </main>
+
+      <Footer />
+    </div>
+  )
+}
+
+function Footer() {
+  return (
+    <footer className="footer">
+      <div>© 2026 Digital Crew Chief · MIT License</div>
+      <div className="links">
+        <a href="/privacy">Privacy</a>
+        <a href="https://web.digitalcrewchief.at/docs">Docs</a>
+        <a href="https://discord.gg/jZZ3pFpY3e">Discord</a>
+        <a href="https://codeberg.org/rhyver/dcc">Codeberg</a>
+      </div>
+    </footer>
+  )
+}
+
+function CopySections() {
+  return (
+    <section className="copy-wrap" aria-label="Digital Crew Chief details">
+      <div className="copy-intro">
+        <div className="copy-kicker">
+          Built for DCS pilots who want the campaign, not the chores
+        </div>
+        <h2>Plan the war once. Fly the consequences for hours.</h2>
+        <p>
+          Digital Crew Chief turns a theatre setup into a living sequence of sorties. It tracks
+          airbases, packages, ground pressure, losses, resupply, and mission timing so each exported
+          mission feels connected to the one before it.
+        </p>
+      </div>
+
+      <div className="copy-grid">
+        <article className="copy-card">
+          <div className="copy-number">01</div>
+          <h3>Start from a scenario</h3>
+          <p>
+            Pick a theatre, factions, aircraft era, and objectives. DCC fills the map with targets,
+            airbases, ground groups, and the campaign state needed to keep the front moving.
+          </p>
+        </article>
+        <article className="copy-card">
+          <div className="copy-number">02</div>
+          <h3>Watch packages develop</h3>
+          <p>
+            CAP, strike, SEAD, transport, and intercept flights launch with live tasking. You can
+            follow the picture, inspect active groups, and decide which sortie is worth flying next.
+          </p>
+        </article>
+        <article className="copy-card">
+          <div className="copy-number">03</div>
+          <h3>Export and fly</h3>
+          <p>
+            Generate a DCS mission file with briefing context, weather, targets, routes, and support
+            aircraft already wired in. No Lua editing or mission editor busywork required.
+          </p>
+        </article>
+      </div>
+
+      <div className="viggen-feature">
+        <ViggenStage />
+        <div className="viggen-copy">
+          <span className="copy-kicker">Cold war tempo</span>
+          <h2>Give aircraft like the Viggen a theatre that fights back.</h2>
+          <p>
+            DCC is built around the kind of mission flow that makes classic modules shine: short
+            turnarounds, exposed ingress routes, scarce support, and targets that matter after the
+            debrief. Fly the strike, absorb the losses, then let the next package inherit the mess.
+          </p>
+        </div>
+      </div>
+
+      <div className="copy-band">
+        <div>
+          <span className="copy-kicker">Persistent pressure</span>
+          <h2>Every mission feeds the next decision.</h2>
+        </div>
+        <p>
+          Destroyed structures stay destroyed, captured airfields change the shape of the theatre,
+          and depleted resources constrain what each coalition can send. The result is a campaign
+          layer that gives solo flights and group nights a reason to exist beyond a single sortie.
+        </p>
+      </div>
+
+      <div className="copy-cta">
+        <div className="copy-cta-row">
+          <p className="copy-cta-text">
+            Download it here — no account, no config. Just install and spin up a theatre.
+          </p>
+          <a
+            className="btn btn-primary btn-lg"
+            href="https://codeberg.org/rhyver/dcc/releases/tag/v0.4.1"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <DlIcon />
+            <span>Download</span>
+            <span className="meta">v0.4.1 · Win</span>
+          </a>
+        </div>
+        <div className="copy-cta-row">
+          <p className="copy-cta-text">
+            Help us improve it — DCC is open source (MIT). Fork it, report bugs, or send a patch on
+            Codeberg.
+          </p>
+          <a
+            className="btn btn-outline btn-lg"
+            href="https://codeberg.org/rhyver/dcc"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <CodebergIcon />
+            View repository
+          </a>
+        </div>
+      </div>
+    </section>
   )
 }
 
@@ -274,14 +533,14 @@ export function App() {
 function Nav() {
   return (
     <nav className="nav">
-      <a className="nav-brand" href="#">
+      <a className="nav-brand" href="/">
         <div className="nav-logo">DCC</div>
         <div className="nav-name">
           <span className="accent">DIGITAL</span> CREW CHIEF
         </div>
       </a>
       <div className="nav-links">
-        <a className="nav-link" href="#preview">
+        <a className="nav-link" href="/#preview">
           Features
         </a>
         <a className="nav-link" href="https://web.digitalcrewchief.at/docs">
@@ -290,7 +549,7 @@ function Nav() {
         <a className="nav-link" href="https://discord.gg/jZZ3pFpY3e">
           Community
         </a>
-        <a className="nav-cta" href="https://github.com/Kilcekru/dcc/releases/tag/v0.4.1">
+        <a className="nav-cta" href="https://codeberg.org/rhyver/dcc/releases/tag/v0.4.1">
           <DlIcon /> Download
         </a>
       </div>
@@ -598,11 +857,11 @@ function statusClass(s: string): string {
 }
 
 function seedLog(): LogEntry[] {
-  return [0, 1, 2].map((i) => ({
-    id: Math.random(),
-    time: formatClock(Date.now() / 1000 - i * 240),
-    ...LOG_TEMPLATES[i % LOG_TEMPLATES.length]!
-  }))
+  return [
+    { id: 0, time: '14:30', ...LOG_TEMPLATES[0]! },
+    { id: 1, time: '14:26', ...LOG_TEMPLATES[1]! },
+    { id: 2, time: '14:22', ...LOG_TEMPLATES[2]! }
+  ]
 }
 function formatClock(s: number): string {
   const d = new Date(s * 1000)
@@ -689,10 +948,10 @@ function DlIcon() {
     </svg>
   )
 }
-function GhIcon() {
+function CodebergIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12 .5C5.4.5 0 5.9 0 12.5c0 5.3 3.4 9.8 8.2 11.4.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.9 1.3 1.9 1.3 1.1 1.9 2.9 1.4 3.6 1 .1-.8.4-1.4.8-1.7-2.7-.3-5.5-1.3-5.5-6 0-1.3.5-2.3 1.2-3.2-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.6.2 2.8.1 3.1.8.9 1.2 1.9 1.2 3.2 0 4.7-2.8 5.7-5.5 6 .4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12.5 12.5 0 0 0 24 12.5C24 5.9 18.6.5 12 .5z" />
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M11.955.49A12 12 0 0 0 0 12.49a12 12 0 0 0 1.832 6.373L11.838 5.928a.187.14 0 0 1 .324 0l10.006 12.935A12 12 0 0 0 24 12.49a12 12 0 0 0-12-12 12 12 0 0 0-.045 0zm.375 6.467l4.416 16.553a12 12 0 0 0 5.137-4.213z" />
     </svg>
   )
 }
@@ -725,6 +984,20 @@ function BaseIcon() {
       <circle cx="12" cy="12" r="3" />
       <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
     </svg>
+  )
+}
+
+/* Saab Viggen — full-bleed background (copy section) */
+function ViggenStage() {
+  return (
+    <div className="viggen-stage" aria-hidden="true">
+      <div className="viggen-sun" />
+      <div className="viggen-photo-wrap">
+        <img className="viggen-photo" src="/assets/saab-viggen.png" alt="" />
+        <div className="viggen-photo-tint" />
+        <div className="viggen-photo-scan" />
+      </div>
+    </div>
   )
 }
 

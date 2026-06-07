@@ -5,11 +5,16 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin({ exclude: ['@dcc/contracts', '@dcc/data'] })],
     build: {
       rollupOptions: {
-        external: ['better-sqlite3', 'sharp', /^@img\/sharp-/]
+        external: ['electron', 'better-sqlite3', 'sharp', /^@img\/sharp-/]
       }
     }
   },
   preload: {
-    plugins: [externalizeDepsPlugin({ exclude: ['@dcc/contracts', '@dcc/data'] })]
+    plugins: [externalizeDepsPlugin({ exclude: ['@dcc/contracts', '@dcc/data'] })],
+    build: {
+      rollupOptions: {
+        external: ['electron']
+      }
+    }
   }
 })

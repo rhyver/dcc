@@ -31,7 +31,7 @@
     "@electron-toolkit/utils": "^4.0.0",
     "@kilcekru/ts-basics": "^4.0.0",
     "babel-plugin-react-compiler": "^1.0.0",
-    "electron": "^41.3.0",
+    "electron": "^42.3.3",
     "electron-builder": "^26.8.1",
     "electron-store": "^11.0.2",
     "electron-updater": "^6.8.3",

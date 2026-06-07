@@ -177,7 +177,7 @@ export function App() {
       <Nav />
 
       <section className="hero">
-        <F14Hero />
+        <DcsHero />
         <div className="bg-sun" />
         <div className="hero-content">
           <div className="hero-eyebrow">
@@ -256,6 +256,7 @@ export function App() {
         </div>
       </section>
 
+      <ScreenshotShowcase />
       <MissionPreview />
 
       <footer className="footer">
@@ -728,8 +729,24 @@ function BaseIcon() {
   )
 }
 
-/* F-14 Tomcat — real photo, synthwave-treated */
-function F14Hero() {
+function ScreenshotShowcase() {
+  return (
+    <section className="screenshot-showcase" aria-label="DCS World flight screenshot">
+      <img src="/assets/dcs-apache-flight.png" alt="AH-64D Apache flying over fields in DCS World" />
+      <div className="screenshot-copy">
+        <div className="screenshot-kicker">From briefing to wheels up</div>
+        <h2>Campaigns that look worth flying.</h2>
+        <p>
+          Digital Crew Chief turns generated plans into DCS missions with live force movement,
+          readable tasking, and enough theatre context to make every sortie feel connected.
+        </p>
+      </div>
+    </section>
+  )
+}
+
+/* DCS World screenshot, treated as a full-bleed hero background */
+function DcsHero() {
   return (
     <div className="f14-stage" aria-hidden="true">
       <div className="f14-sun" />
@@ -737,7 +754,7 @@ function F14Hero() {
       <div className="f14-contrail t1" />
       <div className="f14-contrail t2" />
       <div className="f14-photo-wrap">
-        <img className="f14-photo" src="/assets/f14-tomcat.png" alt="" />
+        <img className="f14-photo" src="/assets/dcs-f16-mountains.png" alt="" />
         <div className="f14-photo-tint" />
         <div className="f14-photo-scan" />
       </div>

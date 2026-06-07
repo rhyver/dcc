@@ -191,7 +191,6 @@ export function buildDeadMissionWaypoints(
   const py = ux
 
   const ipDistanceFromTarget = Math.min(30_000, Math.max(18_000, distance * 0.3))
-  const attackDistanceFromTarget = Math.min(12_000, Math.max(7_000, distance * 0.12))
 
   return [
     {
@@ -205,23 +204,12 @@ export function buildDeadMissionWaypoints(
       type: 'Nav'
     },
     {
-      name: 'Attack',
-      position: {
-        x: targetPosition.x - ux * attackDistanceFromTarget,
-        y: targetPosition.y - uy * attackDistanceFromTarget
-      },
-      altitude: 6500,
-      altitudeType: 'BARO',
-      speed: 275,
-      type: 'Task'
-    },
-    {
       name: 'Emitter',
       position: targetPosition,
       altitude: 0,
       altitudeType: 'RADIO',
       speed: 250,
-      type: 'Nav'
+      type: 'Task'
     },
     {
       name: 'Egress',

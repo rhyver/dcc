@@ -265,7 +265,6 @@ describe('DEAD flight group creation', () => {
       'TakeOff',
       'Ascend',
       'IP',
-      'Attack',
       'Emitter',
       'Egress',
       'Descent',
@@ -274,7 +273,7 @@ describe('DEAD flight group creation', () => {
     expect(group.flightplan.waypoints.find((wp) => wp.name === 'Emitter')).toMatchObject({
       altitude: 0,
       altitudeType: 'RADIO',
-      type: 'Nav'
+      type: 'Task'
     })
   })
 })

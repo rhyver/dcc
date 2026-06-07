@@ -174,6 +174,9 @@ const PRIVACY_META: PageMeta = {
   description: 'Privacy policy for this open-source project website.'
 }
 
+const DOWNLOAD_URL =
+  'https://codeberg.org/rhyver/dcc/releases/download/dcc-latest/dcc-0.5.0-2026060701-setup.exe'
+
 function normalizePathname(pathname = '/') {
   return pathname.replace(/\/+$/, '') || '/'
 }
@@ -214,13 +217,15 @@ export function App({ pathname = globalThis.location?.pathname ?? '/' }: { pathn
 }
 
 function HomePage() {
+  const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false)
+
   return (
     <div className="page hero-anim-fade">
       <div className="bg-grid" />
       <div className="bg-horizon" />
       <div className="bg-perspective" />
 
-      <Nav />
+      <Nav onDownloadClick={() => setIsDownloadModalOpen(true)} />
 
       <section className="hero">
         <F14Hero />
@@ -244,24 +249,23 @@ function HomePage() {
             <span className="caret" />
           </div>
           <p className="hero-pitch">
-            A dynamic campaign generator for DCS World. Spin up a persistent theatre, watch flight
-            groups move in real time, and export a{' '}
+            A dynamic campaign generator for{' '}
             <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--synthwave-cyan)' }}>
-              .miz
-            </code>{' '}
+              DCS World
+            </code>
+            . Spin up a persistent theatre, watch flight groups move in real time, and export a .miz
             you can fly — no config, no scripting.
           </p>
           <div className="hero-cta-row">
-            <a
+            <button
               className="btn btn-primary"
-              href="https://codeberg.org/rhyver/dcc/releases/tag/v0.5.0-alpha"
-              target="_blank"
-              rel="noreferrer"
+              type="button"
+              onClick={() => setIsDownloadModalOpen(true)}
             >
               <DlIcon />
               <span>Download</span>
               <span className="meta">v0.5.0 Alpha · Win</span>
-            </a>
+            </button>
             <a
               className="btn btn-outline"
               href="https://codeberg.org/rhyver/dcc"
@@ -294,11 +298,12 @@ function HomePage() {
         </div>
       </section>
 
-      <MissionPreview />
+      <AppScreenshotPreview />
 
-      <CopySections />
+      <CopySections onDownloadClick={() => setIsDownloadModalOpen(true)} />
 
       <Footer />
+      <DownloadModal isOpen={isDownloadModalOpen} onClose={() => setIsDownloadModalOpen(false)} />
     </div>
   )
 }
@@ -426,7 +431,58 @@ function Footer() {
   )
 }
 
-function CopySections() {
+function DownloadModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  useEffect(() => {
+    if (!isOpen) return
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [isOpen, onClose])
+
+  if (!isOpen) return null
+
+  return (
+    <div className="download-modal-backdrop" role="presentation" onClick={onClose}>
+      <div
+        className="download-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="download-modal-title"
+        aria-describedby="download-modal-copy"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <button
+          className="download-modal-close"
+          type="button"
+          aria-label="Close download warning"
+          onClick={onClose}
+        >
+          <CloseIcon />
+        </button>
+        <div className="download-modal-kicker">Alpha release</div>
+        <h2 id="download-modal-title">Digital Crew Chief is still early.</h2>
+        <p id="download-modal-copy">
+          This is an alpha version. Some features are unfinished or missing, and you may hit rough
+          edges while building campaigns. Download it if you are comfortable testing an early public
+          release.
+        </p>
+        <div className="download-modal-actions">
+          <a className="btn btn-primary" href={DOWNLOAD_URL} target="_blank" rel="noreferrer">
+            <DlIcon />
+            <span>Download alpha</span>
+            <span className="meta">v0.5.0 Alpha · Win</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CopySections({ onDownloadClick }: { onDownloadClick?: () => void }) {
   return (
     <section className="copy-wrap" aria-label="Digital Crew Chief details">
       <div className="copy-intro">
@@ -498,16 +554,11 @@ function CopySections() {
           <p className="copy-cta-text">
             Download it here — no account, no config. Just install and spin up a theatre.
           </p>
-          <a
-            className="btn btn-primary btn-lg"
-            href="https://codeberg.org/rhyver/dcc/releases/tag/v0.5.0-alpha"
-            target="_blank"
-            rel="noreferrer"
-          >
+          <button className="btn btn-primary btn-lg" type="button" onClick={onDownloadClick}>
             <DlIcon />
             <span>Download</span>
             <span className="meta">v0.5.0 Alpha · Win</span>
-          </a>
+          </button>
         </div>
         <div className="copy-cta-row">
           <p className="copy-cta-text">
@@ -530,34 +581,45 @@ function CopySections() {
 }
 
 /* ----------------------- Nav ----------------------- */
-function Nav() {
+function Nav({ onDownloadClick }: { onDownloadClick?: () => void }) {
   return (
     <nav className="nav">
       <a className="nav-brand" href="/">
-        <div className="nav-logo">DCC</div>
+        <img className="nav-logo" src="/favicon.png" alt="" />
         <div className="nav-name">
           <span className="accent">DIGITAL</span> CREW CHIEF
         </div>
       </a>
       <div className="nav-links">
-        <a className="nav-link" href="/#preview">
-          Features
-        </a>
-        <a className="nav-link" href="https://web.digitalcrewchief.at/docs">
-          Docs
-        </a>
         <a className="nav-link" href="https://discord.gg/jZZ3pFpY3e">
           Community
         </a>
-        <a className="nav-cta" href="https://codeberg.org/rhyver/dcc/releases/tag/v0.5.0-alpha">
+        <button className="nav-cta" type="button" onClick={onDownloadClick}>
           <DlIcon /> Download
-        </a>
+        </button>
       </div>
     </nav>
   )
 }
 
+/* ----------------------- App Screenshot Preview ----------------------- */
+function AppScreenshotPreview() {
+  return (
+    <section className="app-screenshot-preview" id="preview" aria-label="Digital Crew Chief app">
+      <img
+        src="/assets/campaign-preview.jpg"
+        width="2029"
+        height="1203"
+        loading="lazy"
+        decoding="async"
+        alt="Digital Crew Chief campaign map showing flight groups, package controls, and mission details."
+      />
+    </section>
+  )
+}
+
 /* ----------------------- Mission Preview ----------------------- */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function MissionPreview() {
   const [now, setNow] = useState(0)
   const [selected, setSelected] = useState('viper-1')
@@ -952,6 +1014,24 @@ function CodebergIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
       <path d="M11.955.49A12 12 0 0 0 0 12.49a12 12 0 0 0 1.832 6.373L11.838 5.928a.187.14 0 0 1 .324 0l10.006 12.935A12 12 0 0 0 24 12.49a12 12 0 0 0-12-12 12 12 0 0 0-.045 0zm.375 6.467l4.416 16.553a12 12 0 0 0 5.137-4.213z" />
+    </svg>
+  )
+}
+function CloseIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M18 6 6 18" />
+      <path d="m6 6 12 12" />
     </svg>
   )
 }

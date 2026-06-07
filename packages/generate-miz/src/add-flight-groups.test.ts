@@ -354,7 +354,7 @@ describe('addFlightGroups parking assignment', () => {
 })
 
 describe('addFlightGroups enemy traffic throttle', () => {
-  test('omits one third of opponent non-CAP flights when no player client CAP is selected', () => {
+  test('omits two thirds of opponent non-CAP flights when no player client CAP is selected', () => {
     const startTime = new Date('2026-01-01T00:00:00Z')
     const mission = createMission()
     const campaign = createCampaign(startTime)
@@ -381,11 +381,8 @@ describe('addFlightGroups enemy traffic throttle', () => {
     const redGroups = mission.coalition.red.country?.[0]?.plane?.group ?? []
     expect(redGroups.map((group) => group.name)).toEqual([
       'Springfield-1',
-      'Bandit-2',
       'Bandit-3',
-      'Bandit-5',
       'Bandit-6',
-      'Bandit-8',
       'Bandit-9'
     ])
   })

@@ -111,7 +111,7 @@ function shouldIncludeFlightGroupInMission(
   if (flightGroup.task === 'CAP') return true
   if (flightGroup.aircrafts.some((aircraft) => aircraft.client)) return true
 
-  return deterministicBucket(`${flightGroup.id}:${flightGroup.callsign}`, 3) !== 0
+  return deterministicBucket(`${flightGroup.id}:${flightGroup.callsign}`, 3) === 1
 }
 
 /**

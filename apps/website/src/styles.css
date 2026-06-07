@@ -11,6 +11,9 @@ html, body {
 }
 
 a { color: inherit; text-decoration: none; }
+button {
+  font: inherit;
+}
 
 /* ==================== STAGE / BG ==================== */
 .page {
@@ -118,18 +121,12 @@ a { color: inherit; text-decoration: none; }
   color: white;
 }
 .nav-brand .nav-logo {
-  width: 32px; height: 32px;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--border-pink-30);
+  width: 32px;
+  height: 32px;
+  display: block;
   border-radius: 6px;
-  background: rgba(11,0,20,0.6);
+  object-fit: cover;
   box-shadow: var(--glow-pink-sm);
-  font-family: var(--font-retro);
-  font-weight: 800;
-  font-size: 13px;
-  color: var(--synthwave-pink);
-  letter-spacing: 0;
 }
 .nav-brand .nav-name { color: white; }
 .nav-brand .nav-name .accent {
@@ -172,6 +169,7 @@ a { color: inherit; text-decoration: none; }
   box-shadow: var(--glow-pink-sm);
   transition: all 140ms ease;
   border: 1px solid transparent;
+  cursor: pointer;
 }
 .nav-cta:hover {
   background: #ff3dbd;
@@ -319,6 +317,7 @@ a { color: inherit; text-decoration: none; }
   border: 1px solid transparent;
   transition: all 180ms ease;
   white-space: nowrap;
+  text-decoration: none;
 }
 .btn-primary {
   background: var(--synthwave-pink);
@@ -350,6 +349,89 @@ a { color: inherit; text-decoration: none; }
   opacity: 0.9;
 }
 .btn-primary .meta { color: rgba(255,255,255,0.85); }
+
+/* ==================== DOWNLOAD MODAL ==================== */
+.download-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(255, 0, 170, 0.22), transparent 34%),
+    rgba(6, 0, 12, 0.76);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.download-modal {
+  position: relative;
+  width: min(540px, 100%);
+  padding: 34px 30px 30px;
+  border: 1px solid var(--border-pink-30);
+  border-radius: 8px;
+  background: linear-gradient(145deg, rgba(18, 0, 32, 0.96), rgba(8, 0, 18, 0.96));
+  box-shadow:
+    0 0 34px rgba(255, 0, 170, 0.28),
+    0 0 70px rgba(0, 221, 255, 0.12);
+}
+
+.download-modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  color: var(--fg-muted);
+  border: 1px solid var(--border-pink-30);
+  border-radius: 6px;
+  background: rgba(11, 0, 20, 0.58);
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+
+.download-modal-close:hover {
+  color: white;
+  border-color: var(--synthwave-pink);
+  background: var(--tint-pink-10);
+  box-shadow: var(--glow-pink-sm);
+}
+
+.download-modal-kicker {
+  font-family: var(--font-retro);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--synthwave-cyan);
+}
+
+.download-modal h2 {
+  margin: 14px 0 0;
+  font-family: var(--font-retro);
+  font-size: clamp(28px, 5vw, 42px);
+  line-height: 1.08;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  color: white;
+}
+
+.download-modal p {
+  margin: 18px 0 0;
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--fg-muted);
+}
+
+.download-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 28px;
+}
 
 /* ==================== STATS STRIP ==================== */
 .stats {
@@ -494,6 +576,42 @@ a { color: inherit; text-decoration: none; }
     right: 0;
     bottom: 0;
     padding: 28px;
+  }
+}
+
+/* ==================== APP SCREENSHOT PREVIEW ==================== */
+.app-screenshot-preview {
+  position: relative;
+  width: min(1280px, calc(100% - 80px));
+  margin: var(--preview-mt, 100px) auto 80px;
+  overflow: hidden;
+  border: 1px solid var(--border-pink-30);
+  border-radius: 10px;
+  background: rgba(11, 0, 20, 0.78);
+  box-shadow:
+    0 0 34px rgba(255, 0, 170, 0.22),
+    0 0 70px rgba(0, 221, 255, 0.12);
+}
+
+.app-screenshot-preview::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.app-screenshot-preview img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 2029 / 1203;
+}
+
+@media (max-width: 760px) {
+  .app-screenshot-preview {
+    width: calc(100% - 32px);
+    margin-bottom: 56px;
   }
 }
 

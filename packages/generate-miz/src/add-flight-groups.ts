@@ -84,16 +84,6 @@ export type MissionFlightConfig =
       unitNames: string[]
     }
 
-function deterministicBucket(value: string, bucketCount: number) {
-  let hash = 0
-
-  for (let index = 0; index < value.length; index += 1) {
-    hash = (hash * 31 + value.charCodeAt(index)) >>> 0
-  }
-
-  return hash % bucketCount
-}
-
 function hasPlayerClientCap(campaign: Campaign) {
   return campaign.coalitions.player.flightGroups.some(
     (flightGroup) =>
@@ -111,7 +101,7 @@ function shouldIncludeFlightGroupInMission(
   if (flightGroup.task === 'CAP') return true
   if (flightGroup.aircrafts.some((aircraft) => aircraft.client)) return true
 
-  return deterministicBucket(`${flightGroup.id}:${flightGroup.callsign}`, 3) === 1
+  return Math.random() < 1 / 3
 }
 
 /**

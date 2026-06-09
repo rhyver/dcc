@@ -1,5 +1,5 @@
 import { schemas } from '@dcc/contracts'
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test, vi } from 'vitest'
 import * as z from 'zod'
 
 import { addFlightGroups } from './add-flight-groups'
@@ -354,7 +354,7 @@ describe('addFlightGroups parking assignment', () => {
 })
 
 describe('addFlightGroups enemy traffic throttle', () => {
-  test('omits two thirds of opponent non-CAP flights when no player client CAP is selected', () => {
+  test('randomly samples opponent non-CAP flights when no player client CAP is selected', () => {
     const startTime = new Date('2026-01-01T00:00:00Z')
     const mission = createMission()
     const campaign = createCampaign(startTime)
@@ -373,7 +373,20 @@ describe('addFlightGroups enemy traffic throttle', () => {
       )
     ]
 
+    const randomSpy = vi
+      .spyOn(Math, 'random')
+      .mockReturnValueOnce(0.9)
+      .mockReturnValueOnce(0.1)
+      .mockReturnValueOnce(0.9)
+      .mockReturnValueOnce(0.1)
+      .mockReturnValueOnce(0.9)
+      .mockReturnValueOnce(0.1)
+      .mockReturnValueOnce(0.9)
+      .mockReturnValueOnce(0.9)
+      .mockReturnValueOnce(0.9)
+
     const result = addFlightGroups(mission, campaign, theatre)
+    randomSpy.mockRestore()
 
     expect(result.isOk()).toBe(true)
     if (result.isErr()) throw result.error
@@ -381,9 +394,9 @@ describe('addFlightGroups enemy traffic throttle', () => {
     const redGroups = mission.coalition.red.country?.[0]?.plane?.group ?? []
     expect(redGroups.map((group) => group.name)).toEqual([
       'Springfield-1',
-      'Bandit-3',
-      'Bandit-6',
-      'Bandit-9'
+      'Bandit-2',
+      'Bandit-4',
+      'Bandit-6'
     ])
   })
 

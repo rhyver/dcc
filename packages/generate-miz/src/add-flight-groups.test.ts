@@ -428,7 +428,7 @@ describe('addFlightGroups enemy traffic throttle', () => {
 })
 
 describe('addFlightGroups mission script config', () => {
-  test('sets a single selected client aircraft to player skill', () => {
+  test('sets a single selected client aircraft to client skill', () => {
     const startTime = new Date('2026-01-01T00:00:00Z')
     const mission = createMission()
     const campaign = createCampaign(startTime)
@@ -444,7 +444,7 @@ describe('addFlightGroups mission script config', () => {
 
     const units = mission.coalition.blue.country?.[0]?.plane?.group?.[0]?.units ?? []
 
-    expect(units.map((unit) => unit.skill)).toEqual(['Player', 'High'])
+    expect(units.map((unit) => unit.skill)).toEqual(['Client', 'High'])
   })
 
   test('keeps multiple selected client aircraft as client skill', () => {

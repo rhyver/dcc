@@ -754,16 +754,6 @@ export function addFlightGroups(
   const hotStart = campaign.campaignParams?.hotStart === true
   const casJtac = campaign.campaignParams?.casJtac ?? true
   const throttleEnemyNonCapFlights = !hasPlayerClientCap(campaign)
-  const totalClientAircraftCount = Object.values(campaign.coalitions).reduce(
-    (total, coalition) =>
-      total +
-      coalition.flightGroups.reduce(
-        (coalitionTotal, flightGroup) =>
-          coalitionTotal + flightGroup.aircrafts.filter((aircraft) => aircraft.client).length,
-        0
-      ),
-    0
-  )
 
   for (const [key, value] of Object.entries(campaign.coalitions)) {
     const missionCoalitionKey = key === 'player' ? 'blue' : key === 'opponent' ? 'red' : 'neutrals'
@@ -934,7 +924,7 @@ export function addFlightGroups(
           ),
           datalinks: createDatalinks(aircraftDef, index, unitIds, link16NetworkUnitIds),
           livery_id: 'default',
-          skill: ac.client ? (totalClientAircraftCount === 1 ? 'Player' : 'Client') : 'High',
+          skill: ac.client ? 'Client' : 'High',
           speed: speed,
           type: aircraftDef.name,
           unitId: unitId,

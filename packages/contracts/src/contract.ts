@@ -5,6 +5,11 @@ import { campaign as campaignSchemas } from './campaign/schemas'
 import * as missionGeneratorSchemas from './mission-generator/schemas'
 import * as schemas from './schemas'
 
+const campaignCreationEra = z.preprocess(
+  (value) => (value === 'Cold War' ? 'Late CW' : value),
+  z.enum(['Early CW', 'Late CW', 'Modern'])
+)
+
 const base = oc.errors({
   NOT_FOUND: {
     data: z.object({
@@ -49,7 +54,7 @@ const createCampaign = base
   .input(
     z.object({
       scenarioId: z.string(),
-      era: z.enum(['Early CW', 'Cold War', 'Modern'])
+      era: campaignCreationEra
     })
   )
   .errors({

@@ -22,7 +22,7 @@ const menuOptions: MenuOption[] = [
   { id: 'exit', label: 'EXIT', icon: LogOut }
 ]
 
-type CampaignEra = 'Early CW' | 'Cold War' | 'Modern'
+type CampaignEra = 'Early CW' | 'Late CW' | 'Modern'
 type ScenarioStep = 'scenario' | 'era'
 
 const eraOptions: Array<{
@@ -38,8 +38,8 @@ const eraOptions: Array<{
     description: '1950s and early 1960s aircraft with sparse electronics and close-range fights.'
   },
   {
-    id: 'Cold War',
-    label: 'Cold War',
+    id: 'Late CW',
+    label: 'Late Cold War',
     callsign: 'MISSILE AGE',
     description: '1970s-era aircraft and weapons with early BVR tactics and heavier SAM coverage.'
   },

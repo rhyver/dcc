@@ -15,7 +15,9 @@ const STARTUP_DELAY_MS = 10 * 60 * 1000 // 10 minutes in milliseconds
 const JTAC_ALTITUDE = 3048
 const JTAC_SPEED = 80
 const JTAC_FREQUENCY = 133
-const FLIGHT_GROUP_FREQUENCY = 251.0
+const DEFAULT_FLIGHT_GROUP_FREQUENCY: FrequencyRange = [251, 399]
+const FREQUENCY_STEP = 0.05
+const FREQUENCY_PRECISION = 2
 const JTAC_LASER_CODE = 1688
 
 type Mission = z.infer<typeof schemas.dcs.mission>
@@ -23,6 +25,7 @@ type MissionCountry = NonNullable<Mission['coalition']['blue']['country']>[numbe
 type Campaign = z.infer<typeof schemas.campaign.campaign>
 type CoalitionKey = z.infer<typeof schemas.coalition>
 type FlightGroup = Campaign['coalitions']['player']['flightGroups'][number]
+type FrequencyRange = [number, number]
 
 const DEFAULT_CALLSIGN = 'Enfield'
 
@@ -103,6 +106,38 @@ function shouldIncludeFlightGroupInMission(
   if (flightGroup.aircrafts.some((aircraft) => aircraft.client)) return true
 
   return Math.random() < 1 / 3
+}
+
+function roundFrequency(frequency: number) {
+  return Number(frequency.toFixed(FREQUENCY_PRECISION))
+}
+
+function createFlightGroupFrequencyAllocator() {
+  const assignedFrequencies = new Set<number>([JTAC_FREQUENCY])
+  const nextFrequencyByRange = new Map<string, number>()
+
+  return (aircraftDef: z.infer<typeof schemas.dcs.aircraft>) => {
+    const [minFrequency, maxFrequency] =
+      aircraftDef.allowedFrequency ?? DEFAULT_FLIGHT_GROUP_FREQUENCY
+    const rangeKey = `${minFrequency}-${maxFrequency}`
+    let frequency = nextFrequencyByRange.get(rangeKey) ?? minFrequency
+
+    while (frequency <= maxFrequency) {
+      const roundedFrequency = roundFrequency(frequency)
+
+      if (!assignedFrequencies.has(roundedFrequency)) {
+        assignedFrequencies.add(roundedFrequency)
+        nextFrequencyByRange.set(rangeKey, roundFrequency(roundedFrequency + FREQUENCY_STEP))
+        return roundedFrequency
+      }
+
+      frequency = roundFrequency(frequency + FREQUENCY_STEP)
+    }
+
+    throw new Error(
+      `no available radio frequency for ${aircraftDef.name} in range ${minFrequency}-${maxFrequency} MHz`
+    )
+  }
 }
 
 /**
@@ -742,6 +777,7 @@ export function addFlightGroups(
 
   const usedParkingSlots = new Map<string, Set<string>>() // Airdrome Name -> Set of Slot IDs
   const flightConfigs: MissionFlightConfig[] = []
+  const assignFlightGroupFrequency = createFlightGroupFrequencyAllocator()
   const hotStart = campaign.campaignParams?.hotStart === true
   const casJtac = campaign.campaignParams?.casJtac ?? true
   const throttleEnemyNonCapFlights = !hasPlayerClientCap(campaign)
@@ -1269,7 +1305,7 @@ export function addFlightGroups(
         modulation: 0,
         hidden: false,
         communication: true,
-        frequency: FLIGHT_GROUP_FREQUENCY
+        frequency: assignFlightGroupFrequency(aircraftDef)
       }
 
       if (isHelicopter) {

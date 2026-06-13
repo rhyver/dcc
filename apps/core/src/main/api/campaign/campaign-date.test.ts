@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest'
 
 import { eraDateRanges, randomDateForEra, type CampaignEra } from './campaign-date'
 
-const eras: CampaignEra[] = ['Early CW', 'Cold War', 'Modern']
+const eras: CampaignEra[] = ['WW2', 'Korea', 'Early CW', 'Late CW', 'Modern']
 
 describe('randomDateForEra', () => {
   test.each(eras)('returns the first day in the %s range when random is 0', (era) => {

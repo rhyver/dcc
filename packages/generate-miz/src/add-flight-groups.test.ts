@@ -523,6 +523,55 @@ describe('addFlightGroups mission script config', () => {
     expect(group?.frequency).toBe(251)
   })
 
+  test('assigns a unique radio frequency to each generated flight group', () => {
+    const startTime = new Date('2026-01-01T00:00:00Z')
+    const mission = createMission()
+    const campaign = createCampaign(startTime)
+    campaign.coalitions.opponent.flightGroups = []
+
+    const result = addFlightGroups(mission, campaign, theatre)
+
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) throw result.error
+
+    const groups = mission.coalition.blue.country?.[0]?.plane?.group ?? []
+    const frequencies = groups.map((group) => group.frequency)
+
+    expect(frequencies).toEqual([251, 251.05, 251.1, 251.15, 251.2])
+    expect(new Set(frequencies).size).toBe(frequencies.length)
+  })
+
+  test('assigns constrained aircraft frequencies inside their allowed range', () => {
+    const startTime = new Date('2026-01-01T00:00:00Z')
+    const mission = createMission()
+    const campaign = createCampaign(startTime)
+    const firstGroup = createFlightGroup('blue-mig-1', 'Enfield-1', startTime)
+    const secondGroup = createFlightGroup('blue-mig-2', 'Springfield-1', startTime)
+    firstGroup.aircrafts.forEach((aircraft) => {
+      aircraft.aircraftName = 'MiG-21Bis'
+    })
+    secondGroup.aircrafts.forEach((aircraft) => {
+      aircraft.aircraftName = 'MiG-21Bis'
+    })
+    campaign.coalitions.player.flightGroups = [firstGroup, secondGroup]
+    campaign.coalitions.opponent.flightGroups = []
+
+    const result = addFlightGroups(mission, campaign, theatre)
+
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) throw result.error
+
+    const groups = mission.coalition.blue.country?.[0]?.plane?.group ?? []
+    const frequencies = groups.map((group) => group.frequency)
+
+    expect(frequencies).toEqual([118, 118.05])
+    frequencies.forEach((frequency) => {
+      expect(frequency).toBeGreaterThanOrEqual(118)
+      expect(frequency).toBeLessThanOrEqual(140)
+    })
+    expect(new Set(frequencies).size).toBe(frequencies.length)
+  })
+
   test('returns client flight unit names for mission scripts', () => {
     const startTime = new Date('2026-01-01T00:00:00Z')
     const mission = createMission()

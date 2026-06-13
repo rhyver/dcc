@@ -25,6 +25,15 @@ type Campaign = z.infer<typeof schemas.campaign.campaign>
 type FlightGroup = Campaign['coalitions']['player']['flightGroups'][number]
 type MissionState = z.infer<typeof schemas.missionState>
 
+const eraLabels: Partial<Record<z.infer<typeof schemas.era>, string>> = {
+  'Early CW': 'Early Cold War',
+  'Late CW': 'Late Cold War'
+}
+
+function formatEra(era: z.infer<typeof schemas.era>) {
+  return eraLabels[era] ?? era
+}
+
 function getTaskAircraftOptions(task: FlightTask) {
   return Object.values(aircraftDefinitions)
     .filter((aircraft) => aircraft.controllable && aircraft.availableTasks.includes(task))
@@ -276,6 +285,7 @@ export function Mission() {
     tone: 'error'
   } | null>(null)
   const scenarioId = useSelector(activeStore, (state) => state.context.scenarioId)
+  const campaignEra = useSelector(activeStore, (state) => state.context.era)
   const campaignTime = useSelector(activeStore, (state) => state.context.time)
   const timeMultiplier = useSelector(activeStore, (state) => state.context.timeMultiplier)
   const hotStart = useSelector(activeStore, (state) => state.context.campaignParams?.hotStart)
@@ -310,6 +320,8 @@ export function Mission() {
 
   const weather = theatreQuery.data?.info.weather
   const scenario = scenarioQuery.data
+  const displayedEra = campaignEra ?? scenario?.era
+  const displayedEraLabel = displayedEra ? formatEra(displayedEra) : null
   const currentTime = campaignTime ? new Date(campaignTime) : new Date()
 
   const handleGenerate = async () => {
@@ -774,8 +786,8 @@ export function Mission() {
                 {scenario?.name ?? 'Active Mission'}
               </div>
               <div className="text-sm text-white/40 mt-1">{scenario?.theatreName ?? '—'}</div>
-              {scenario?.era && (
-                <div className="text-sm text-[#ff00aa]/60 mt-1">{scenario.era}</div>
+              {displayedEraLabel && (
+                <div className="text-sm text-[#ff00aa]/60 mt-1">{displayedEraLabel}</div>
               )}
             </div>
             </div>

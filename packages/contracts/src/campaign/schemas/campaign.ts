@@ -2,6 +2,7 @@ import * as z from 'zod'
 
 import { flightGroup, groundGroup, missionPackage } from '../../schemas'
 import { coalition } from '../../schemas/coalition'
+import { era } from '../../schemas/era'
 import { groundUnitType } from '../../schemas/ground-unit-type'
 import { position } from '../../schemas/position'
 import { samType } from '../../schemas/sam'
@@ -103,6 +104,7 @@ export const campaign = z.preprocess(
     name: z.string(),
     createdAt: z.date(),
     updatedAt: z.date(),
+    era: era.optional(),
     time: z.date(),
     timeMultiplier: z.number(),
     timeTarget: z.date().optional(),

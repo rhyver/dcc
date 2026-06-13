@@ -483,10 +483,22 @@ export const router = createHashRouter([
       },
       {
         path: '/new',
-        lazy: async () => {
-          const { Start } = await import('./routes/shell/start')
-          return { Component: Start }
-        }
+        children: [
+          {
+            index: true,
+            lazy: async () => {
+              const { StartMenu } = await import('./routes/shell/start')
+              return { Component: StartMenu }
+            }
+          },
+          {
+            path: 'scenario',
+            lazy: async () => {
+              const { ScenarioSelect } = await import('./routes/shell/start')
+              return { Component: ScenarioSelect }
+            }
+          }
+        ]
       },
       {
         path: '/load',

@@ -175,7 +175,7 @@ const PRIVACY_META: PageMeta = {
 }
 
 const DOWNLOAD_URL =
-  'https://codeberg.org/rhyver/dcc/releases/download/dcc-latest/dcc-0.5.0-2026060701-setup.exe'
+  'https://codeberg.org/rhyver/dcc/releases/download/dcc-latest/dcc-0.5.0-2026060901-setup.exe'
 
 function normalizePathname(pathname = '/') {
   return pathname.replace(/\/+$/, '') || '/'

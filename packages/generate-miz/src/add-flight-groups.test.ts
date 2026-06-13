@@ -504,6 +504,25 @@ describe('addFlightGroups mission script config', () => {
     ])
   })
 
+  test('uses a UHF flight group frequency accepted by DCS aircraft radios', () => {
+    const startTime = new Date('2026-01-01T00:00:00Z')
+    const mission = createMission()
+    const campaign = createCampaign(startTime)
+    campaign.coalitions.player.flightGroups = [
+      createFlightGroup('blue-client', 'Springfield-4', startTime)
+    ]
+    campaign.coalitions.opponent.flightGroups = []
+
+    const result = addFlightGroups(mission, campaign, theatre)
+
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) throw result.error
+
+    const group = mission.coalition.blue.country?.[0]?.plane?.group?.[0]
+
+    expect(group?.frequency).toBe(251)
+  })
+
   test('returns client flight unit names for mission scripts', () => {
     const startTime = new Date('2026-01-01T00:00:00Z')
     const mission = createMission()

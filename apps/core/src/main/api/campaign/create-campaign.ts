@@ -12,6 +12,22 @@ import { assignSams } from './assign-sams'
 import { assignStructures } from '@dcc/frontend/mission-generator'
 import { assignGroundGroups } from './assign-ground-groups'
 import { campaignsDir, stateFile } from '../../app-data'
+import { randomDateForEra } from './campaign-date'
+
+const factionIdsByEra: Record<'Early CW' | 'Cold War' | 'Modern', { player: string; opponent: string }> = {
+  'Early CW': {
+    player: 'usa-1952',
+    opponent: 'russia-1955'
+  },
+  'Cold War': {
+    player: 'usa-1977',
+    opponent: 'russia-1971'
+  },
+  Modern: {
+    player: 'usa-2004',
+    opponent: 'russia-1996'
+  }
+}
 
 async function setActiveCampaignId(id: string) {
   // Read existing state to preserve settings (e.g., missionExportPath)
@@ -26,11 +42,13 @@ async function setActiveCampaignId(id: string) {
   await writeFile(stateFile, { ...existingState, activeCampaignId: id })
 }
 
-export const createCampaign = pub.campaign.createCampaign.handler(async ({ errors }) => {
+export const createCampaign = pub.campaign.createCampaign.handler(async ({ errors, input }) => {
   const scenarios = getScenarios()
-  const scenario = scenarios?.[0]
+  const scenario = scenarios.find((entry) => entry.id === input.scenarioId && entry.available)
   if (scenario == null) {
-    throw errors.NOT_FOUND({ data: { message: 'No scenario found', path: 'red-bullet' } })
+    throw errors.NOT_FOUND({
+      data: { message: 'Scenario not found or unavailable', path: input.scenarioId }
+    })
   }
 
   const theatre = getTheatre(scenario.theatreName)
@@ -114,13 +132,17 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
     })
   }
 
+  const factionIds = factionIdsByEra[input.era]
   const factions = getFactions()
-  const playerFaction = factions.find((faction) => faction.id === 'usa-2004')
-  const opponentFaction = factions.find((faction) => faction.id === 'russia-1996')
+  const playerFaction = factions.find((faction) => faction.id === factionIds.player)
+  const opponentFaction = factions.find((faction) => faction.id === factionIds.opponent)
 
   if (playerFaction == null || opponentFaction == null) {
     throw errors.NOT_FOUND({
-      data: { message: 'No factions found', path: 'usa-2004 or russia-1996' }
+      data: {
+        message: `No factions found for ${input.era}`,
+        path: `${factionIds.player} or ${factionIds.opponent}`
+      }
     })
   }
 
@@ -264,6 +286,7 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
   )
 
   const now = new Date()
+  const campaignTime = randomDateForEra(input.era)
 
   const defaultState: z.infer<typeof schemas.campaign.campaign> = {
     version: '0.0.1',
@@ -271,7 +294,8 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
     updatedAt: now,
     id: crypto.randomUUID(),
     name: scenario.name,
-    time: scenario.date,
+    era: input.era,
+    time: campaignTime,
     timeMultiplier: 0,
     campaignParams: {
       hotStart: false,

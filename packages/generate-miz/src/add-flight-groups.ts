@@ -15,6 +15,7 @@ const STARTUP_DELAY_MS = 10 * 60 * 1000 // 10 minutes in milliseconds
 const JTAC_ALTITUDE = 3048
 const JTAC_SPEED = 80
 const JTAC_FREQUENCY = 133
+const FLIGHT_GROUP_FREQUENCY = 251.0
 const JTAC_LASER_CODE = 1688
 
 type Mission = z.infer<typeof schemas.dcs.mission>
@@ -1268,7 +1269,7 @@ export function addFlightGroups(
         modulation: 0,
         hidden: false,
         communication: true,
-        frequency: 124.0
+        frequency: FLIGHT_GROUP_FREQUENCY
       }
 
       if (isHelicopter) {

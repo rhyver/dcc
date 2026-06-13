@@ -63,6 +63,14 @@ type MissionScriptConfig = {
   flightGroups: MissionFlightConfig[]
 }
 
+function createMissionMapConfig(theatre: z.infer<typeof schemas.theatre>) {
+  return {
+    centerY: theatre.info.center.y,
+    zoom: 3381.3919135227,
+    centerX: theatre.info.center.x
+  }
+}
+
 type DrawingLine = {
   visible: boolean
   colorString: string
@@ -264,7 +272,7 @@ export async function generateMizFromCampaign(
 
   const mission: z.infer<typeof schemas.dcs.mission> = {
     version: 23,
-    theatre: 'Caucasus',
+    theatre: theatre.name,
     descriptionText: 'DictKey_descriptionText_1',
     descriptionRedTask: 'DictKey_descriptionRedTask_2',
     descriptionBlueTask: 'DictKey_descriptionBlueTask_3',
@@ -281,11 +289,7 @@ export async function generateMizFromCampaign(
       Year: campaign.time.getUTCFullYear(),
       Month: campaign.time.getUTCMonth() + 1
     },
-    map: {
-      centerY: 635439.49844296,
-      zoom: 3381.3919135227,
-      centerX: -317865.44994178
-    },
+    map: createMissionMapConfig(theatre),
     goals: [],
     weather: {
       name: 'Winter, clean sky',

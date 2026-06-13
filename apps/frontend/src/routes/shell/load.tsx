@@ -174,7 +174,7 @@ export function Load() {
               <p className="text-synthwave-cyan pixel-font mb-4">No saved campaigns found</p>
               <Button
                 variant="outline"
-                onClick={() => navigate('/new')}
+                onClick={() => navigate('/new/scenario')}
                 className="border-synthwave-pink bg-synthwave-dark/80 text-synthwave-cyan hover:border-synthwave-pink hover:bg-synthwave-purple/10 hover:text-white"
               >
                 Create New Campaign

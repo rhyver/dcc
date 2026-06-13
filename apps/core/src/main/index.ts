@@ -68,6 +68,7 @@ const RESTORABLE_PATHS = new Set([
   '/',
   '/mission',
   '/new',
+  '/new/scenario',
   '/load',
   '/settings',
   '/mission-generator'

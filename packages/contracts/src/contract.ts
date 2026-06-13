@@ -46,6 +46,12 @@ const createCampaign = base
     summary: 'Create a new campaign',
     tags: ['Campaign', 'Create']
   })
+  .input(
+    z.object({
+      scenarioId: z.string(),
+      era: z.enum(['Early CW', 'Cold War', 'Modern'])
+    })
+  )
   .errors({
     FAILED_TO_WRITE_FILE: {
       data: z.object({

@@ -576,7 +576,7 @@ mission =
 								["communication"] = true,
 								["start_time"] = 0,
 								["uncontrollable"] = false,
-								["frequency"] = 124,
+								["frequency"] = 251,
 							}, -- end of [1]
 							[2] = 
 							{
@@ -933,7 +933,7 @@ mission =
 								["communication"] = true,
 								["start_time"] = 0,
 								["uncontrollable"] = false,
-								["frequency"] = 124,
+								["frequency"] = 251,
 							}, -- end of [2]
 						}, -- end of ["group"]
 					}, -- end of ["helicopter"]
@@ -2683,7 +2683,7 @@ mission =
 								["communication"] = true,
 								["start_time"] = 0,
 								["uncontrollable"] = false,
-								["frequency"] = 124,
+								["frequency"] = 251,
 							}, -- end of [1]
 							[2] = 
 							{
@@ -3198,7 +3198,7 @@ mission =
 								["communication"] = true,
 								["start_time"] = 957,
 								["uncontrollable"] = false,
-								["frequency"] = 124,
+								["frequency"] = 251,
 							}, -- end of [2]
 							[3] = 
 							{
@@ -3661,7 +3661,7 @@ mission =
 								["communication"] = true,
 								["start_time"] = 1015,
 								["uncontrollable"] = false,
-								["frequency"] = 124,
+								["frequency"] = 251,
 							}, -- end of [3]
 							[4] = 
 							{
@@ -4170,7 +4170,7 @@ mission =
 								["communication"] = true,
 								["start_time"] = 1140,
 								["uncontrollable"] = false,
-								["frequency"] = 124,
+								["frequency"] = 251,
 							}, -- end of [4]
 							[5] = 
 							{
@@ -8780,7 +8780,7 @@ mission =
 								["communication"] = true,
 								["start_time"] = 0,
 								["uncontrollable"] = false,
-								["frequency"] = 124,
+								["frequency"] = 251,
 							}, -- end of [1]
 							[2] = 
 							{
@@ -9109,7 +9109,7 @@ mission =
 								["communication"] = true,
 								["start_time"] = 777,
 								["uncontrollable"] = false,
-								["frequency"] = 124,
+								["frequency"] = 251,
 							}, -- end of [2]
 							[3] = 
 							{
@@ -9480,7 +9480,7 @@ mission =
 								["communication"] = true,
 								["start_time"] = 875,
 								["uncontrollable"] = false,
-								["frequency"] = 124,
+								["frequency"] = 251,
 							}, -- end of [3]
 							[4] = 
 							{
@@ -9787,7 +9787,7 @@ mission =
 								["communication"] = true,
 								["start_time"] = 0,
 								["uncontrollable"] = false,
-								["frequency"] = 124,
+								["frequency"] = 251,
 							}, -- end of [4]
 							[5] = 
 							{
@@ -10116,7 +10116,7 @@ mission =
 								["communication"] = true,
 								["start_time"] = 720,
 								["uncontrollable"] = false,
-								["frequency"] = 124,
+								["frequency"] = 251,
 							}, -- end of [5]
 							[6] = 
 							{
@@ -10487,7 +10487,7 @@ mission =
 								["communication"] = true,
 								["start_time"] = 880,
 								["uncontrollable"] = false,
-								["frequency"] = 124,
+								["frequency"] = 251,
 							}, -- end of [6]
 							[7] = 
 							{

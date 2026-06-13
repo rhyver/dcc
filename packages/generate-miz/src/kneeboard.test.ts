@@ -231,6 +231,40 @@ describe('kneeboard waypoint rows', () => {
 })
 
 describe('generateMizFromCampaign kneeboards', () => {
+  test('writes the selected theatre into mission files', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'dcc-theatre-'))
+    const mizPath = path.join(dir, 'mission.miz')
+
+    try {
+      const startTime = new Date('2026-01-01T12:00:00Z')
+      const campaign = createCampaign(startTime)
+      campaign.coalitions.player.flightGroups = [createFlightGroup('blue-ai', 'Chevy-2', startTime)]
+      const syriaTheatre: Theatre = {
+        ...theatre,
+        name: 'Syria',
+        info: {
+          ...theatre.info,
+          center: { x: -238_900, y: -50_203 }
+        }
+      }
+
+      const result = await generateMizFromCampaign(campaign, syriaTheatre, mizPath)
+
+      expect(result.isOk()).toBe(true)
+      if (result.isErr()) throw result.error
+
+      const zip = new AdmZip(mizPath)
+      const missionEntry = zip.getEntry('mission')
+
+      expect(zip.getEntry('theatre')?.getData().toString('utf-8')).toBe('Syria')
+      expect(missionEntry?.getData().toString('utf-8')).toContain('["theatre"] = "Syria"')
+      expect(missionEntry?.getData().toString('utf-8')).toContain('["centerX"] = -238900')
+      expect(missionEntry?.getData().toString('utf-8')).toContain('["centerY"] = -50203')
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
   test('adds kneeboard PNGs for client groups only', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'dcc-kneeboard-'))
     const mizPath = path.join(dir, 'mission.miz')

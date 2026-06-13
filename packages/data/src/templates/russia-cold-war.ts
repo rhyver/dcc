@@ -4,7 +4,7 @@ import * as z from 'zod'
 export const RussiaColdWar: z.infer<typeof schemas.template> = {
   name: 'Russia - Cold War',
   countryName: 'Russia',
-  era: 'Early CW',
+  era: 'Vietnam',
   groundUnitTypes: {
     SAM: ['SA-2', 'SA-5'],
     Infantry: ['Infantry AK'],

@@ -7,7 +7,7 @@ import * as schemas from './schemas'
 
 const campaignCreationEra = z.preprocess(
   (value) => (value === 'Cold War' ? 'Late CW' : value),
-  z.enum(['Early CW', 'Late CW', 'Modern'])
+  z.enum(['Korea', 'Vietnam', 'Late CW', 'Modern'])
 )
 
 const base = oc.errors({

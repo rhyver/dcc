@@ -22,7 +22,7 @@ const menuOptions: MenuOption[] = [
   { id: 'exit', label: 'EXIT', icon: LogOut }
 ]
 
-type CampaignEra = 'Early CW' | 'Late CW' | 'Modern'
+type CampaignEra = 'Korea' | 'Vietnam' | 'Late CW' | 'Modern'
 type ScenarioStep = 'scenario' | 'era'
 
 const eraOptions: Array<{
@@ -32,10 +32,16 @@ const eraOptions: Array<{
   description: string
 }> = [
   {
-    id: 'Early CW',
-    label: 'Early Cold War',
+    id: 'Korea',
+    label: 'Korea',
     callsign: 'ANALOG AGE',
-    description: '1950s and early 1960s aircraft with sparse electronics and close-range fights.'
+    description: 'Korean War-era aircraft with sparse electronics and close-range fights.'
+  },
+  {
+    id: 'Vietnam',
+    label: 'Vietnam',
+    callsign: 'JUNGLE AGE',
+    description: '1960s-era aircraft and helicopters with early missiles and close air support.'
   },
   {
     id: 'Late CW',
@@ -226,7 +232,7 @@ export function ScenarioSelect() {
           </div>
           ) : (
             <div className="grid min-h-0 flex-1 gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-              <div className="grid content-start gap-3">
+              <div className="grid content-start gap-2.5">
                 {eraOptions.map((era) => {
                   const isSelected = era.id === selectedEra
 
@@ -235,7 +241,8 @@ export function ScenarioSelect() {
                       key={era.id}
                       type="button"
                       className={cn(
-                        'group min-h-48 rounded-md border p-5 text-left transition-all',
+                        'group rounded-md border p-[clamp(0.875rem,1.7vh,1.25rem)] text-left transition-all',
+                        '[min-height:clamp(7rem,16.5vh,12rem)]',
                         'bg-synthwave-dark/78 shadow-[0_18px_45px_rgba(0,0,0,0.22)] backdrop-blur',
                         isSelected
                           ? 'border-synthwave-pink text-white shadow-[0_0_32px_rgba(255,0,170,0.24)]'
@@ -243,9 +250,11 @@ export function ScenarioSelect() {
                       )}
                       onClick={() => setSelectedEra(era.id)}
                     >
-                      <div className="mb-4 flex items-start justify-between gap-3">
+                      <div className="mb-[clamp(0.5rem,1.3vh,1rem)] flex items-start justify-between gap-3">
                         <div>
-                          <div className="retro-font text-2xl tracking-wide">{era.label}</div>
+                          <div className="retro-font text-[clamp(1.25rem,2.35vh,1.5rem)] tracking-wide">
+                            {era.label}
+                          </div>
                           <div className="mt-1 flex items-center gap-1 text-xs text-synthwave-cyan/75">
                             <Clock3 className="h-3.5 w-3.5" />
                             {era.callsign}
@@ -262,7 +271,9 @@ export function ScenarioSelect() {
                           {isSelected ? 'SELECTED' : 'AVAILABLE'}
                         </span>
                       </div>
-                      <p className="text-sm leading-6 text-synthwave-light/68">{era.description}</p>
+                      <p className="text-sm leading-[clamp(1.25rem,2.45vh,1.5rem)] text-synthwave-light/68">
+                        {era.description}
+                      </p>
                     </button>
                   )
                 })}

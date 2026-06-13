@@ -14,7 +14,7 @@ const aircraftDefinition: z.infer<typeof schemas.dcs.aircraft> = {
   isHelicopter: true,
   cruiseAltitude: 150,
   cruiseSpeed: 46.25,
-  era: 'Early CW',
+  era: 'Vietnam',
   carrierCapable: true,
   loadouts: [
     {

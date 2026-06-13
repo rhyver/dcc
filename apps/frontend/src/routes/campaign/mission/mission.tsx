@@ -26,7 +26,6 @@ type FlightGroup = Campaign['coalitions']['player']['flightGroups'][number]
 type MissionState = z.infer<typeof schemas.missionState>
 
 const eraLabels: Partial<Record<z.infer<typeof schemas.era>, string>> = {
-  'Early CW': 'Early Cold War',
   'Late CW': 'Late Cold War'
 }
 

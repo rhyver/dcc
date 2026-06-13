@@ -14,12 +14,16 @@ import { assignGroundGroups } from './assign-ground-groups'
 import { campaignsDir, stateFile } from '../../app-data'
 import { randomDateForEra } from './campaign-date'
 
-type CampaignCreationEra = 'Early CW' | 'Late CW' | 'Modern'
+type CampaignCreationEra = 'Korea' | 'Vietnam' | 'Late CW' | 'Modern'
 
 const factionIdsByEra: Record<CampaignCreationEra, { player: string; opponent: string }> = {
-  'Early CW': {
+  'Korea': {
     player: 'usa-1952',
     opponent: 'russia-1955'
+  },
+  Vietnam: {
+    player: 'usa-vietnam',
+    opponent: 'russia-vietnam'
   },
   'Late CW': {
     player: 'usa-1977',

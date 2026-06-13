@@ -26,7 +26,7 @@ const aaaPlacement = z.object({
 export const missionPlan = z.object({
   title: z.string(),
   theatreName: z.string(),
-  era: z.enum(['WW2', 'Korea', 'Early CW', 'Late CW', 'Modern']).default('Modern'),
+  era: z.enum(['WW2', 'Korea', 'Vietnam', 'Late CW', 'Modern']).default('Modern'),
   startTimeZulu: z.string().optional(),
   weatherSummary: z.string().optional(),
   objectiveNames: z.array(z.string()).min(1),

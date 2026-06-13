@@ -16,7 +16,7 @@ export const eraDateRanges: Record<CampaignEra, { start: Date; end: Date }> = {
     start: new Date('1950-06-25T00:00:00Z'),
     end: new Date('1953-07-27T00:00:00Z')
   },
-  'Early CW': {
+  Vietnam: {
     start: new Date('1954-01-01T00:00:00Z'),
     end: new Date('1964-12-31T00:00:00Z')
   },

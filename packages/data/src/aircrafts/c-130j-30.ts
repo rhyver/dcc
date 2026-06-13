@@ -14,7 +14,7 @@ const aircraftDefinition: z.infer<typeof schemas.dcs.aircraft> = {
   controllable: true,
   cruiseAltitude: 6096,
   cruiseSpeed: 174.72222222222,
-  era: 'Early CW',
+  era: 'Vietnam',
   isHelicopter: false,
   AddPropAircraft: {
     NetCrewControlPriority: 0,

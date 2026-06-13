@@ -87,7 +87,7 @@ function detectEra(text: string): MissionPlan['era'] {
   const normalized = text.toLowerCase()
   if (normalized.includes('ww2')) return 'WW2'
   if (normalized.includes('korea')) return 'Korea'
-  if (normalized.includes('early cw') || normalized.includes('early cold war')) return 'Early CW'
+  if (normalized.includes('vietnam')) return 'Vietnam'
   if (normalized.includes('late cw') || normalized.includes('late cold war')) return 'Late CW'
   return 'Modern'
 }

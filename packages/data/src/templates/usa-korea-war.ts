@@ -4,7 +4,7 @@ import * as z from 'zod'
 export const UsaKoreaWar: z.infer<typeof schemas.template> = {
   name: 'USA - Korea War',
   countryName: 'USA',
-  era: 'Early CW',
+  era: 'Korea',
   groundUnitTypes: {
     SAM: [],
     Vehicle: ['M-113', 'M4_Sherman'],

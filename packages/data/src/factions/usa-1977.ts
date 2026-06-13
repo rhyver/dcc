@@ -21,7 +21,7 @@ export const USA1977: z.infer<typeof schemas.faction> = {
     'Fighter Sweep': ['F-5E-3', 'F-14A-135-GR'],
     'Ground Attack': ['A-10A', 'F-4E-45MC'],
     'Runway Attack': ['F-4E-45MC'],
-    Transport: ['C-130'],
+    Transport: ['C-130J-30'],
     Refueling: [],
     RescueHelo: ['UH-1H'],
     AFAC: [],

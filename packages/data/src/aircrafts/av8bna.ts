@@ -9,19 +9,55 @@ const aircraftDefinition: z.infer<typeof schemas.dcs.aircraft> = {
   max_height: 13716,
   max_speed: 990,
   name: 'AV8BNA',
-  availableTasks: ['CAS', 'Ground Attack', 'Pinpoint Strike', 'CAP', 'DEAD'],
+  availableTasks: ['CAS', 'Ground Attack', 'Pinpoint Strike', 'CAP', 'DEAD', 'SEAD'],
   carrierCapable: true,
   controllable: true,
   cruiseAltitude: 6096,
   cruiseSpeed: 174.72222222222,
   era: 'Modern',
   isHelicopter: false,
+  AddPropAircraft: {
+    ClockTime: 1,
+    EWDispenserBR: 2,
+    AAR_Zone3: 0,
+    AAR_Zone2: 0,
+    EWDispenserBL: 2,
+    AAR_Zone1: 0,
+    LaserCode100: 6,
+    RocketBurst: 1,
+    LoadWater: true,
+    MountNVG: false,
+    EWDispenserTBL: 2,
+    GBULaserCode1: 8,
+    GBULaserCode10: 8,
+    LaserCode1: 8,
+    EWDispenserTFL: 1,
+    EWDispenserTFR: 1,
+    GBULaserCode100: 6,
+    LaserCode10: 8,
+    EWDispenserTBR: 2
+  },
   loadouts: [
     {
       task: 'default',
       name: 'default',
       displayName: 'Default',
       pylons: []
+    },
+    {
+      task: 'SEAD',
+      name: 'SEAD',
+      displayName: 'SEAD',
+      pylons: [
+        { CLSID: '{AGM_122_SIDEARM}', num: 1 },
+        { CLSID: '{LAU_7_AGM_122_SIDEARM}', num: 2 },
+        { CLSID: 'LAU_117_AGM_65F', num: 3 },
+        { CLSID: '{GAU_12_Equalizer}', num: 4 },
+        { CLSID: '{ALQ_164_RF_Jammer}', num: 5 },
+        { CLSID: 'LAU_117_AGM_65F', num: 6 },
+        { CLSID: '{LAU_7_AGM_122_SIDEARM}', num: 7 },
+        { CLSID: '{AGM_122_SIDEARM}', num: 8 }
+      ]
     }
   ]
 }

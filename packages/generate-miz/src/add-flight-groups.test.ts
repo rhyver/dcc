@@ -523,6 +523,26 @@ describe('addFlightGroups mission script config', () => {
     expect(group?.frequency).toBe(251)
   })
 
+  test('uses the aircraft payload ammo type when generating units', () => {
+    const startTime = new Date('2026-01-01T00:00:00Z')
+    const mission = createMission()
+    const campaign = createCampaign(startTime)
+    const group = createFlightGroup('blue-f100', 'Enfield-1', startTime)
+    group.aircrafts.forEach((aircraft) => {
+      aircraft.aircraftName = 'F-100D'
+    })
+    campaign.coalitions.player.flightGroups = [group]
+    campaign.coalitions.opponent.flightGroups = []
+
+    const result = addFlightGroups(mission, campaign, theatre)
+
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) throw result.error
+
+    const units = mission.coalition.blue.country?.[0]?.plane?.group?.[0]?.units ?? []
+    expect(units.map((unit) => unit.payload?.ammo_type)).toEqual([2, 2])
+  })
+
   test('assigns a unique radio frequency to each generated flight group', () => {
     const startTime = new Date('2026-01-01T00:00:00Z')
     const mission = createMission()

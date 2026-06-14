@@ -197,7 +197,7 @@ describe('kneeboard waypoint rows', () => {
 
     expect(rows).toMatchObject([
       {
-        index: 1,
+        index: undefined,
         eta: '12:00Z',
         altitude: '0',
         speed: '292',
@@ -207,7 +207,7 @@ describe('kneeboard waypoint rows', () => {
         remarks: 'DEPART'
       },
       {
-        index: 2,
+        index: 1,
         eta: '12:02Z',
         altitude: '19,685',
         speed: '360',
@@ -217,7 +217,7 @@ describe('kneeboard waypoint rows', () => {
         remarks: 'CAP'
       },
       {
-        index: 3,
+        index: 2,
         eta: '12:05Z',
         altitude: '0',
         speed: '292',

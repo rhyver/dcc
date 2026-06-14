@@ -16,7 +16,7 @@ export const USAVietnam: z.infer<typeof schemas.faction> = {
     CAS: ['F-100D', 'A-4E-C'],
     CSAR: ['UH-1H'],
     'Air Assault': ['UH-1H'],
-    SEAD: ['F-4E-45MC'],
+    SEAD: ['F-4E-45MC', 'F-100D'],
     'Antiship Strike': [],
     'Fighter Sweep': ['F-4E-45MC', 'F-100D'],
     'Ground Attack': ['F-100D', 'A-4E-C', 'F-4E-45MC'],

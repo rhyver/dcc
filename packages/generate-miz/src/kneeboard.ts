@@ -26,7 +26,7 @@ export type KneeboardImage = {
 }
 
 export type KneeboardWaypointRow = {
-  index: number
+  index: number | undefined
   name: string
   type: string
   eta: string
@@ -133,6 +133,7 @@ function getWaypointRemark(waypoint: Waypoint, flightGroup: FlightGroup): string
 export function buildKneeboardWaypointRows(flightGroup: FlightGroup): KneeboardWaypointRow[] {
   let totalMeters = 0
   let elapsedSeconds = 0
+  let waypointNumber = 0
 
   return flightGroup.flightplan.waypoints.map((waypoint, index, waypoints) => {
     const previous = waypoints[index - 1]
@@ -151,8 +152,10 @@ export function buildKneeboardWaypointRows(flightGroup: FlightGroup): KneeboardW
       bearing = formatBearingDegrees(previous, waypoint)
     }
 
+    const displayedIndex = waypoint.type === 'TakeOff' ? undefined : ++waypointNumber
+
     return {
-      index: index + 1,
+      index: displayedIndex,
       name: waypoint.name || waypoint.type,
       type: waypoint.type,
       eta: formatTime(addSeconds(flightGroup.flightplan.startTime, elapsedSeconds)),
@@ -374,8 +377,9 @@ async function renderRouteSketch(
     .filter((value): value is string => value != null)
     .join(' ')
 
+  let routeWaypointNumber = 0
   const points = waypoints
-    .map((waypoint, index) => {
+    .map((waypoint) => {
       const lngLat = dcsPositionToLngLat(
         waypoint.position.x,
         waypoint.position.y,
@@ -387,9 +391,14 @@ async function renderRouteSketch(
       const isLanding = waypoint.type === 'Landing'
       const fill = isTask ? '#8f2d22' : isLanding ? '#173f66' : '#efe6d3'
       const textFill = isTask || isLanding ? '#ffffff' : '#16202a'
+      const displayedIndex = waypoint.type === 'TakeOff' ? undefined : ++routeWaypointNumber
       return `
         <circle cx="${pixel.x}" cy="${pixel.y}" r="11" fill="${fill}" stroke="#16202a" stroke-width="2" />
-        <text x="${pixel.x}" y="${pixel.y + 4}" class="map-index" fill="${textFill}">${index + 1}</text>
+        ${
+          displayedIndex == null
+            ? ''
+            : `<text x="${pixel.x}" y="${pixel.y + 4}" class="map-index" fill="${textFill}">${displayedIndex}</text>`
+        }
       `
     })
     .join('')
@@ -461,7 +470,7 @@ function renderWaypointTable(rows: KneeboardWaypointRow[], layout: KneeboardLayo
       const rowY = y + rowHeight * (index + 1)
       return `
         <line x1="${x}" y1="${rowY}" x2="${x + 640}" y2="${rowY}" class="table-line" />
-        <text x="${x + 21}" y="${rowY + 17}" class="table-text center">${row.index}</text>
+        <text x="${x + 21}" y="${rowY + 17}" class="table-text center">${row.index ?? ''}</text>
         <text x="${x + 52}" y="${rowY + 17}" class="table-text">${escapeXml(truncate(row.name, 20))}</text>
         <text x="${x + 258}" y="${rowY + 17}" class="table-text center">${escapeXml(row.eta)}</text>
         <text x="${x + 332}" y="${rowY + 17}" class="table-text center">${escapeXml(row.altitude)}</text>

@@ -939,7 +939,7 @@ export function addFlightGroups(
             pylons: pylons,
             fuel: aircraftDef.max_fuel,
             flare: aircraftDef.flare,
-            ammo_type: 1,
+            ammo_type: aircraftDef.ammo_type ?? 1,
             chaff: aircraftDef.chaff,
             gun: 100
           },

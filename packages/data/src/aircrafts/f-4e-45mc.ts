@@ -55,46 +55,60 @@ const aircraftDefinition: z.infer<typeof schemas.dcs.aircraft> = {
       displayName: 'Default',
       pylons: [
         {
-          CLSID: '{F4_SARGENT_TANK_370_GAL}'
+          CLSID: '{F4_SARGENT_TANK_370_GAL}',
+          num: 1
         },
         {
-          CLSID: '{AIM-9J}'
+          CLSID: '{AIM-9J}',
+          num: 2
         },
         {
-          CLSID: '<CLEAN>'
+          CLSID: '<CLEAN>',
+          num: 3
         },
         {
-          CLSID: '{AIM-9J}'
+          CLSID: '{AIM-9J}',
+          num: 4
         },
         {
-          CLSID: '{HB_F4E_AIM-7E}'
+          CLSID: '{HB_F4E_AIM-7E}',
+          num: 5
         },
         {
-          CLSID: '{HB_F4E_AIM-7E}'
+          CLSID: '{HB_F4E_AIM-7E}',
+          num: 6
         },
         {
-          CLSID: '<CLEAN>'
+          CLSID: '<CLEAN>',
+          num: 7
         },
         {
-          CLSID: '{HB_F4E_AIM-7E}'
+          CLSID: '{HB_F4E_AIM-7E}',
+          num: 8
         },
         {
-          CLSID: '{HB_F4E_AIM-7E}'
+          CLSID: '{HB_F4E_AIM-7E}',
+          num: 9
         },
         {
-          CLSID: '{AIM-9J}'
+          CLSID: '{AIM-9J}',
+          num: 10
         },
         {
-          CLSID: '<CLEAN>'
+          CLSID: '<CLEAN>',
+          num: 11
         },
         {
-          CLSID: '{AIM-9J}'
+          CLSID: '{AIM-9J}',
+          num: 12
         },
         {
-          CLSID: '{F4_SARGENT_TANK_370_GAL_R}'
+          CLSID: '{F4_SARGENT_TANK_370_GAL_R}',
+          num: 13
         },
         {
-          CLSID: '{HB_ALE_40_30_60}'
+          CLSID: '{HB_ALE_40_30_60}',
+          num: 14
         }
       ]
     },
@@ -104,46 +118,60 @@ const aircraftDefinition: z.infer<typeof schemas.dcs.aircraft> = {
       displayName: 'CAS',
       pylons: [
         {
-          CLSID: '{HB_F4E_CBU-52B_MER_3x_Left}'
+          CLSID: '{HB_F4E_CBU-52B_MER_3x_Left}',
+          num: 1
         },
         {
-          CLSID: '<CLEAN>'
+          CLSID: '<CLEAN>',
+          num: 2
         },
         {
-          CLSID: '{HB_F4E_CBU-52B_2x}'
+          CLSID: '{HB_F4E_CBU-52B_2x}',
+          num: 3
         },
         {
-          CLSID: '<CLEAN>'
+          CLSID: '<CLEAN>',
+          num: 4
         },
         {
-          CLSID: '{HB_F4E_AIM-7E-2}'
+          CLSID: '{HB_F4E_AIM-7E-2}',
+          num: 5
         },
         {
-          CLSID: '{HB_F4E_AIM-7E-2}'
+          CLSID: '{HB_F4E_AIM-7E-2}',
+          num: 6
         },
         {
-          CLSID: '<CLEAN>'
+          CLSID: '<CLEAN>',
+          num: 7
         },
         {
-          CLSID: '{HB_F4E_AIM-7E-2}'
+          CLSID: '{HB_F4E_AIM-7E-2}',
+          num: 8
         },
         {
-          CLSID: '{HB_F4E_AIM-7E-2}'
+          CLSID: '{HB_F4E_AIM-7E-2}',
+          num: 9
         },
         {
-          CLSID: '<CLEAN>'
+          CLSID: '<CLEAN>',
+          num: 10
         },
         {
-          CLSID: '{HB_F4E_CBU-52B_2x}'
+          CLSID: '{HB_F4E_CBU-52B_2x}',
+          num: 11
         },
         {
-          CLSID: '<CLEAN>'
+          CLSID: '<CLEAN>',
+          num: 12
         },
         {
-          CLSID: '{HB_F4E_CBU-52B_MER_3x_Right}'
+          CLSID: '{HB_F4E_CBU-52B_MER_3x_Right}',
+          num: 13
         },
         {
-          CLSID: '{HB_ALE_40_30_60}'
+          CLSID: '{HB_ALE_40_30_60}',
+          num: 14
         }
       ]
     },
@@ -153,46 +181,60 @@ const aircraftDefinition: z.infer<typeof schemas.dcs.aircraft> = {
       displayName: 'Strike',
       pylons: [
         {
-          CLSID: '{HB_F4E_MK-83_MER_2x}'
+          CLSID: '{HB_F4E_MK-83_MER_2x}',
+          num: 1
         },
         {
-          CLSID: '<CLEAN>'
+          CLSID: '<CLEAN>',
+          num: 2
         },
         {
-          CLSID: '{HB_F4E_MK-83_3x}'
+          CLSID: '{HB_F4E_MK-83_3x}',
+          num: 3
         },
         {
-          CLSID: '<CLEAN>'
+          CLSID: '<CLEAN>',
+          num: 4
         },
         {
-          CLSID: '{HB_F4E_AIM-7E-2}'
+          CLSID: '{HB_F4E_AIM-7E-2}',
+          num: 5
         },
         {
-          CLSID: '{HB_ALQ-131_ON_ADAPTER_IN_AERO7}'
+          CLSID: '{HB_ALQ-131_ON_ADAPTER_IN_AERO7}',
+          num: 6
         },
         {
-          CLSID: '{HB_F4E_MK-83_MER_3x_Ripple}'
+          CLSID: '{HB_F4E_MK-83_MER_3x_Ripple}',
+          num: 7
         },
         {
-          CLSID: '{HB_F4E_AIM-7E-2}'
+          CLSID: '{HB_F4E_AIM-7E-2}',
+          num: 8
         },
         {
-          CLSID: '{HB_F4E_AIM-7E-2}'
+          CLSID: '{HB_F4E_AIM-7E-2}',
+          num: 9
         },
         {
-          CLSID: '<CLEAN>'
+          CLSID: '<CLEAN>',
+          num: 10
         },
         {
-          CLSID: '{HB_F4E_MK-83_3x}'
+          CLSID: '{HB_F4E_MK-83_3x}',
+          num: 11
         },
         {
-          CLSID: '<CLEAN>'
+          CLSID: '<CLEAN>',
+          num: 12
         },
         {
-          CLSID: '{HB_F4E_MK-83_MER_2x}'
+          CLSID: '{HB_F4E_MK-83_MER_2x}',
+          num: 13
         },
         {
-          CLSID: '{HB_ALE_40_30_60}'
+          CLSID: '{HB_ALE_40_30_60}',
+          num: 14
         }
       ]
     },
@@ -202,46 +244,60 @@ const aircraftDefinition: z.infer<typeof schemas.dcs.aircraft> = {
       displayName: 'DEAD',
       pylons: [
         {
-          CLSID: '{HB_F4E_CBU-52B_MER_3x_Left}'
+          CLSID: '{HB_F4E_CBU-52B_MER_3x_Left}',
+          num: 1
         },
         {
-          CLSID: '<CLEAN>'
+          CLSID: '<CLEAN>',
+          num: 2
         },
         {
-          CLSID: '{HB_F4E_CBU-52B_2x}'
+          CLSID: '{HB_F4E_CBU-52B_2x}',
+          num: 3
         },
         {
-          CLSID: '<CLEAN>'
+          CLSID: '<CLEAN>',
+          num: 4
         },
         {
-          CLSID: '{HB_F4E_AIM-7E-2}'
+          CLSID: '{HB_F4E_AIM-7E-2}',
+          num: 5
         },
         {
-          CLSID: '{HB_F4E_AIM-7E-2}'
+          CLSID: '{HB_F4E_AIM-7E-2}',
+          num: 6
         },
         {
-          CLSID: '<CLEAN>'
+          CLSID: '<CLEAN>',
+          num: 7
         },
         {
-          CLSID: '{HB_F4E_AIM-7E-2}'
+          CLSID: '{HB_F4E_AIM-7E-2}',
+          num: 8
         },
         {
-          CLSID: '{HB_F4E_AIM-7E-2}'
+          CLSID: '{HB_F4E_AIM-7E-2}',
+          num: 9
         },
         {
-          CLSID: '<CLEAN>'
+          CLSID: '<CLEAN>',
+          num: 10
         },
         {
-          CLSID: '{HB_F4E_CBU-52B_2x}'
+          CLSID: '{HB_F4E_CBU-52B_2x}',
+          num: 11
         },
         {
-          CLSID: '<CLEAN>'
+          CLSID: '<CLEAN>',
+          num: 12
         },
         {
-          CLSID: '{HB_F4E_CBU-52B_MER_3x_Right}'
+          CLSID: '{HB_F4E_CBU-52B_MER_3x_Right}',
+          num: 13
         },
         {
-          CLSID: '{HB_ALE_40_30_60}'
+          CLSID: '{HB_ALE_40_30_60}',
+          num: 14
         }
       ]
     },
@@ -251,46 +307,60 @@ const aircraftDefinition: z.infer<typeof schemas.dcs.aircraft> = {
       displayName: 'SEAD',
       pylons: [
         {
-          CLSID: '{LAU_34_AGM_45A}'
+          CLSID: '{LAU_34_AGM_45A}',
+          num: 1
         },
         {
-          CLSID: '{AIM-9L}'
+          CLSID: '{AIM-9L}',
+          num: 2
         },
         {
-          CLSID: '{HB_F4E_AGM-65A_LAU117_SWA}'
+          CLSID: '{HB_F4E_AGM-65A_LAU117_SWA}',
+          num: 3
         },
         {
-          CLSID: '{AIM-9L}'
+          CLSID: '{AIM-9L}',
+          num: 4
         },
         {
-          CLSID: '{HB_F4E_AIM-7F}'
+          CLSID: '{HB_F4E_AIM-7F}',
+          num: 5
         },
         {
-          CLSID: '{HB_ALQ-131_ON_ADAPTER_IN_AERO7}'
+          CLSID: '{HB_ALQ-131_ON_ADAPTER_IN_AERO7}',
+          num: 6
         },
         {
-          CLSID: '{F4_SARGENT_TANK_600_GAL}'
+          CLSID: '{F4_SARGENT_TANK_600_GAL}',
+          num: 7
         },
         {
-          CLSID: '{HB_F4E_AIM-7F}'
+          CLSID: '{HB_F4E_AIM-7F}',
+          num: 8
         },
         {
-          CLSID: '{HB_F4E_AIM-7F}'
+          CLSID: '{HB_F4E_AIM-7F}',
+          num: 9
         },
         {
-          CLSID: '{AIM-9L}'
+          CLSID: '{AIM-9L}',
+          num: 10
         },
         {
-          CLSID: '{HB_F4E_AGM-65A_LAU117_SWA}'
+          CLSID: '{HB_F4E_AGM-65A_LAU117_SWA}',
+          num: 11
         },
         {
-          CLSID: '{AIM-9L}'
+          CLSID: '{AIM-9L}',
+          num: 12
         },
         {
-          CLSID: '{LAU_34_AGM_45A}'
+          CLSID: '{LAU_34_AGM_45A}',
+          num: 13
         },
         {
-          CLSID: '{HB_ALE_40_30_60}'
+          CLSID: '{HB_ALE_40_30_60}',
+          num: 14
         }
       ]
     }

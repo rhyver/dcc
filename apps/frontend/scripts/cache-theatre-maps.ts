@@ -1,12 +1,11 @@
 import { existsSync } from 'node:fs'
-import { mkdir, readdir, rm, unlink } from 'node:fs/promises'
+import { mkdir, readdir, rename, rm, unlink } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 
-const bbox = '40.130612,40.747635,44.435577,44.169509'
+// Cache offline Protomaps archives used by the campaign map and kneeboards.
 const maxZoom = process.env.MAP_CACHE_MAX_ZOOM ?? '12'
 const worldMaxZoom = process.env.MAP_CACHE_WORLD_MAX_ZOOM ?? '5'
 const mapsRoot = join(import.meta.dirname, '..', 'public', 'maps')
-const caucasusOutputPath = join(mapsRoot, 'caucasus', 'caucasus.pmtiles')
 const worldOutputPath = join(mapsRoot, 'world-low.pmtiles')
 const fontsRoot = join(import.meta.dirname, '..', 'public', 'maps', 'fonts')
 const cliRoot = join(import.meta.dirname, '..', '.cache', 'pmtiles-cli')
@@ -19,6 +18,24 @@ const fontRanges = [
   '1024-1279',
   '1280-1535',
   '4096-4351'
+]
+
+const theatreMaps = [
+  {
+    name: 'Caucasus',
+    bbox: '40.130612,40.747635,44.435577,44.169509',
+    outputPath: join(mapsRoot, 'caucasus', 'caucasus.pmtiles')
+  },
+  {
+    name: 'Persian Gulf',
+    bbox: '52.170937,23.120984,58.262927,30.802893',
+    outputPath: join(mapsRoot, 'persian-gulf', 'persian-gulf.pmtiles')
+  },
+  {
+    name: 'Syria',
+    bbox: '31.667351,31.871518,40.806337,37.861136',
+    outputPath: join(mapsRoot, 'syria', 'syria.pmtiles')
+  }
 ]
 
 type GitHubAsset = {
@@ -166,23 +183,37 @@ async function removeFile(path: string) {
   })
 }
 
-await mkdir(dirname(caucasusOutputPath), { recursive: true })
+async function extractPmtiles(
+  pmtiles: string,
+  sourceUrl: string,
+  outputPath: string,
+  args: string[] = []
+) {
+  const tempOutputPath = `${outputPath}.tmp`
+  await removeFile(tempOutputPath)
+  await run(pmtiles, ['extract', sourceUrl, tempOutputPath, ...args])
+  await removeFile(outputPath)
+  await rename(tempOutputPath, outputPath)
+}
+
+for (const theatreMap of theatreMaps) {
+  await mkdir(dirname(theatreMap.outputPath), { recursive: true })
+}
 await mkdir(dirname(worldOutputPath), { recursive: true })
-await removeFile(caucasusOutputPath)
-await removeFile(worldOutputPath)
 
 const pmtiles = await downloadPmtilesCli()
 const sourceUrl = process.env.PROTOMAPS_SOURCE_URL ?? (await getLatestBuildUrl())
 
-await run(pmtiles, ['extract', sourceUrl, worldOutputPath, `--maxzoom=${worldMaxZoom}`])
-await run(pmtiles, [
-  'extract',
-  sourceUrl,
-  caucasusOutputPath,
-  `--bbox=${bbox}`,
-  `--maxzoom=${maxZoom}`
-])
+await extractPmtiles(pmtiles, sourceUrl, worldOutputPath, [`--maxzoom=${worldMaxZoom}`])
+for (const theatreMap of theatreMaps) {
+  await extractPmtiles(pmtiles, sourceUrl, theatreMap.outputPath, [
+    `--bbox=${theatreMap.bbox}`,
+    `--maxzoom=${maxZoom}`
+  ])
+}
 await cacheGlyphs()
 
 console.log(`World low-zoom PMTiles cache ready: ${worldOutputPath}`)
-console.log(`Caucasus PMTiles cache ready: ${caucasusOutputPath}`)
+for (const theatreMap of theatreMaps) {
+  console.log(`${theatreMap.name} PMTiles cache ready: ${theatreMap.outputPath}`)
+}

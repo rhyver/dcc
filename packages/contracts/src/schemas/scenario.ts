@@ -20,6 +20,7 @@ export const scenario = z.object({
   id: z.string(),
   available: z.boolean(),
   name: z.string(),
+  author: z.string().optional(),
   era,
   date: z.date(),
   briefing: z.string(),

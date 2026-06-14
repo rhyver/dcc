@@ -113,6 +113,38 @@ const loadMissionState = base
   })
   .output(schemas.missionState)
 
+const loadMissionStateFromFile = base
+  .route({
+    summary: 'Load mission state from a selected JSON file',
+    tags: ['Campaign', 'State']
+  })
+  .input(z.object({ path: z.string().min(1) }))
+  .errors({
+    FAILED_TO_READ_FILE: {
+      data: z.object({
+        path: z.string(),
+        message: z.string()
+      })
+    },
+    INVALID_STATE_FILE: {
+      data: z.object({
+        message: z.string()
+      })
+    },
+    MISSION_ID_MISMATCH: {
+      data: z.object({
+        expected: z.string(),
+        received: z.string()
+      })
+    },
+    STALE_STATE_FILE: {
+      data: z.object({
+        message: z.string()
+      })
+    }
+  })
+  .output(schemas.missionState)
+
 const listCampaigns = base
   .route({
     summary: 'List all saved campaigns',
@@ -198,6 +230,7 @@ export const campaign = {
   saveActiveCampaign,
   generateMiz,
   loadMissionState,
+  loadMissionStateFromFile,
   listCampaigns,
   openCampaign,
   deleteCampaign,

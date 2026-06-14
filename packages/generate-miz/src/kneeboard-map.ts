@@ -20,22 +20,36 @@ export type RouteMapViewport = {
 
 const TILE_EXTENT = 4096
 const MAP_LAYERS = ['earth', 'water'] as const
-const CAUCASUS_PMTILES_RELATIVE = join(
-  'apps',
-  'frontend',
-  'public',
-  'maps',
-  'caucasus',
-  'caucasus.pmtiles'
+const THEATRE_PMTILES = [
+  {
+    theatreName: 'Caucasus',
+    envVar: 'DCC_CAUCASUS_PMTILES',
+    mapDirectory: 'caucasus',
+    fileName: 'caucasus.pmtiles'
+  },
+  {
+    theatreName: 'PersianGulf',
+    envVar: 'DCC_PERSIAN_GULF_PMTILES',
+    mapDirectory: 'persian-gulf',
+    fileName: 'persian-gulf.pmtiles'
+  },
+  {
+    theatreName: 'Syria',
+    envVar: 'DCC_SYRIA_PMTILES',
+    mapDirectory: 'syria',
+    fileName: 'syria.pmtiles'
+  }
+] as const
+export const SUPPORTED_THEATRE_MAP_TILE_NAMES = THEATRE_PMTILES.map(
+  (config) => config.theatreName
 )
-const PACKAGED_PMTILES_RELATIVE = join('maps', 'caucasus', 'caucasus.pmtiles')
 const CAUCASUS_MAX_ZOOM = 12
 /** Keep the small kneeboard panel readable by drawing only the most prominent rivers. */
 const MIN_MAJOR_RIVER_PIXEL_LENGTH = 85
 const MAX_MAJOR_RIVER_PATHS = 10
 
-let cachedPmtiles: PMTiles | undefined
-let cachedPmtilesPath: string | undefined
+const configuredPmtilesPaths = new Map<string, string>()
+const cachedPmtiles = new Map<string, { path: string; archive: PMTiles }>()
 
 function findFileUpwards(relativePath: string, startDir: string): string | undefined {
   let dir = startDir
@@ -69,13 +83,49 @@ class NodeFileSource implements Source {
 }
 
 export function setCaucasusPmtilesPath(filePath: string): void {
-  process.env.DCC_CAUCASUS_PMTILES = filePath
-  cachedPmtiles = undefined
-  cachedPmtilesPath = undefined
+  setTheatrePmtilesPath('Caucasus', filePath)
 }
 
 export function resolveCaucasusPmtilesPath(): string | undefined {
-  const envPath = process.env.DCC_CAUCASUS_PMTILES
+  return resolveTheatrePmtilesPath('Caucasus')
+}
+
+function findTheatrePmtilesConfig(theatreName: string) {
+  return THEATRE_PMTILES.find((config) => config.theatreName === theatreName)
+}
+
+function getFrontendPmtilesRelativePath(config: (typeof THEATRE_PMTILES)[number]) {
+  return join(
+    'apps',
+    'frontend',
+    'public',
+    'maps',
+    config.mapDirectory,
+    config.fileName
+  )
+}
+
+function getPackagedPmtilesRelativePath(config: (typeof THEATRE_PMTILES)[number]) {
+  return join('maps', config.mapDirectory, config.fileName)
+}
+
+export function setTheatrePmtilesPath(theatreName: string, filePath: string): void {
+  const config = findTheatrePmtilesConfig(theatreName)
+  if (!config) return
+
+  process.env[config.envVar] = filePath
+  configuredPmtilesPaths.set(config.theatreName, filePath)
+  cachedPmtiles.delete(config.theatreName)
+}
+
+export function resolveTheatrePmtilesPath(theatreName: string): string | undefined {
+  const config = findTheatrePmtilesConfig(theatreName)
+  if (!config) return undefined
+
+  const configuredPath = configuredPmtilesPaths.get(config.theatreName)
+  if (configuredPath && existsSync(configuredPath)) return configuredPath
+
+  const envPath = process.env[config.envVar]
   if (envPath && existsSync(envPath)) return envPath
 
   const resourcesPath = (
@@ -84,32 +134,35 @@ export function resolveCaucasusPmtilesPath(): string | undefined {
     }
   ).resourcesPath
   if (resourcesPath) {
-    const packaged = join(resourcesPath, PACKAGED_PMTILES_RELATIVE)
+    const packaged = join(resourcesPath, getPackagedPmtilesRelativePath(config))
     if (existsSync(packaged)) return packaged
   }
 
+  const mapRelativePath = join('maps', config.mapDirectory, config.fileName)
+  const frontendRelativePath = getFrontendPmtilesRelativePath(config)
   const cwdCandidates = [
-    join(process.cwd(), CAUCASUS_PMTILES_RELATIVE),
-    join(process.cwd(), 'public', 'maps', 'caucasus', 'caucasus.pmtiles'),
-    join(process.cwd(), '../frontend/public/maps/caucasus/caucasus.pmtiles'),
-    join(process.cwd(), '../../frontend/public/maps/caucasus/caucasus.pmtiles')
+    join(process.cwd(), frontendRelativePath),
+    join(process.cwd(), 'public', mapRelativePath),
+    join(process.cwd(), '../frontend/public', mapRelativePath),
+    join(process.cwd(), '../../frontend/public', mapRelativePath)
   ]
 
   for (const candidate of cwdCandidates) {
     if (existsSync(candidate)) return candidate
   }
 
-  return findFileUpwards(CAUCASUS_PMTILES_RELATIVE, dirname(fileURLToPath(import.meta.url)))
+  return findFileUpwards(frontendRelativePath, dirname(fileURLToPath(import.meta.url)))
 }
 
-function getCaucasusPmtiles(): PMTiles | undefined {
-  const path = resolveCaucasusPmtilesPath()
+function getTheatrePmtiles(theatreName: string): PMTiles | undefined {
+  const path = resolveTheatrePmtilesPath(theatreName)
   if (!path) return undefined
-  if (cachedPmtiles && cachedPmtilesPath === path) return cachedPmtiles
+  const cached = cachedPmtiles.get(theatreName)
+  if (cached && cached.path === path) return cached.archive
 
-  cachedPmtilesPath = path
-  cachedPmtiles = new PMTiles(new NodeFileSource(path))
-  return cachedPmtiles
+  const archive = new PMTiles(new NodeFileSource(path))
+  cachedPmtiles.set(theatreName, { path, archive })
+  return archive
 }
 
 /** Web Mercator normalized coordinates (0–1), matching MapLibre GL. */
@@ -409,10 +462,11 @@ async function loadTileFeatures(
 }
 
 export async function renderGeographicMapLayerFromPmtiles(params: {
+  theatreName?: string
   bounds: LngLatBounds
   projectLngLat: ProjectLngLat
 }): Promise<string> {
-  const archive = getCaucasusPmtiles()
+  const archive = getTheatrePmtiles(params.theatreName ?? 'Caucasus')
   if (!archive) return ''
 
   const lonSpan = params.bounds.maxLng - params.bounds.minLng

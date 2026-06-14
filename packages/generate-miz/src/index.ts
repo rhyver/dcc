@@ -33,7 +33,10 @@ export {
   createRouteMapViewport,
   dcsPositionToLngLat,
   resolveCaucasusPmtilesPath,
-  setCaucasusPmtilesPath
+  resolveTheatrePmtilesPath,
+  setCaucasusPmtilesPath,
+  setTheatrePmtilesPath,
+  SUPPORTED_THEATRE_MAP_TILE_NAMES
 } from './kneeboard-map'
 
 type TriggerValue = string | number | boolean

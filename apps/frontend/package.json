@@ -11,7 +11,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "cache:map": "bun scripts/cache-caucasus-map.ts",
+    "cache:map": "bun scripts/cache-theatre-maps.ts",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",

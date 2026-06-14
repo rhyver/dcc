@@ -13,6 +13,7 @@ interface API {
     valid: boolean
     message: string | null
   } | null>
+  selectMissionStateFile: () => Promise<string | null>
   getAppVersion: () => Promise<string>
   minimizeWindow: () => Promise<void>
   toggleMaximizeWindow: () => Promise<void>

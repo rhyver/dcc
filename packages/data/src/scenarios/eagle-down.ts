@@ -5,6 +5,7 @@ export const EagleDown: z.infer<typeof schemas.scenario> = {
   theatreName: 'PersianGulf',
   id: 'eagle-down',
   name: 'Eagle Down',
+  author: 'Dionysus',
   available: true,
   date: new Date('2022-06-01T09:00:00Z'),
   era: 'Modern',

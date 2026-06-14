@@ -16,9 +16,10 @@ import { stateFile } from './app-data'
 import { validateDcsInstallPath } from './dcs-install'
 import {
   resolveAppIconPath,
-  resolveCaucasusPmtilesPath,
+  resolveTheatrePmtilesPath,
   setAppIconPath,
-  setCaucasusPmtilesPath
+  setTheatrePmtilesPath,
+  SUPPORTED_THEATRE_MAP_TILE_NAMES
 } from '@dcc/generate-miz'
 
 log.initialize()
@@ -696,14 +697,16 @@ app.whenReady().then(() => {
   }
 
   console.log('whenReady')
-  const kneeboardMapTilesPath = resolveCaucasusPmtilesPath()
-  if (kneeboardMapTilesPath) {
-    setCaucasusPmtilesPath(kneeboardMapTilesPath)
-    log.info('Kneeboard map tiles:', kneeboardMapTilesPath)
-  } else {
-    log.warn(
-      'Caucasus map tiles not found; kneeboard route maps will omit lakes, coastlines, and rivers.'
-    )
+  for (const theatreName of SUPPORTED_THEATRE_MAP_TILE_NAMES) {
+    const kneeboardMapTilesPath = resolveTheatrePmtilesPath(theatreName)
+    if (kneeboardMapTilesPath) {
+      setTheatrePmtilesPath(theatreName, kneeboardMapTilesPath)
+      log.info(`${theatreName} kneeboard map tiles:`, kneeboardMapTilesPath)
+    } else {
+      log.warn(
+        `${theatreName} map tiles not found; kneeboard route maps for this theatre will omit lakes, coastlines, and rivers.`
+      )
+    }
   }
 
   const appIconPath = resolveAppIconPath()
@@ -766,6 +769,21 @@ app.whenReady().then(() => {
       valid: true,
       message: null
     }
+  })
+  ipcMain.handle('dialog:openMissionStateFile', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow!, {
+      title: 'Select Mission State',
+      defaultPath: 'dcc_state.json',
+      properties: ['openFile'],
+      filters: [
+        { name: 'DCC Mission State', extensions: ['json'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    })
+    if (canceled) {
+      return null
+    }
+    return filePaths[0] ?? null
   })
 
   ipcMain.handle('app:getVersion', () => app.getVersion())

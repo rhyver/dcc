@@ -384,30 +384,55 @@ export function Mission() {
     return () => window.clearTimeout(timeout)
   }, [toast])
 
+  const submitMissionState = async (missionState: MissionState) => {
+    setIsMissionStateReady(true)
+    const currentCampaign = activeStore.getSnapshot().context
+    const debriefClientFlightGroups = clientFlightGroups
+    const updatedCampaign = resetFlightGroupClientSelections(
+      applyMissionStateUpdate(currentCampaign, missionState)
+    )
+    const targetOutcomes = buildTargetOutcomes(
+      debriefClientFlightGroups,
+      currentCampaign,
+      updatedCampaign,
+      missionState
+    )
+    activeStore.send({ type: 'loadCampaign', campaign: updatedCampaign })
+    await coreClient.campaign.saveActiveCampaign(updatedCampaign)
+    setDebrief({
+      submittedAt: updatedCampaign.time,
+      missionState,
+      clientFlightGroups: debriefClientFlightGroups,
+      targetOutcomes
+    })
+  }
+
   const handleSubmitMissionState = async () => {
     if (isSubmitting || !isMissionStateReady) return
     setIsSubmitting(true)
     try {
       const missionState = await coreClient.campaign.loadMissionState()
-      const currentCampaign = activeStore.getSnapshot().context
-      const debriefClientFlightGroups = clientFlightGroups
-      const updatedCampaign = resetFlightGroupClientSelections(
-        applyMissionStateUpdate(currentCampaign, missionState)
-      )
-      const targetOutcomes = buildTargetOutcomes(
-        debriefClientFlightGroups,
-        currentCampaign,
-        updatedCampaign,
-        missionState
-      )
-      activeStore.send({ type: 'loadCampaign', campaign: updatedCampaign })
-      await coreClient.campaign.saveActiveCampaign(updatedCampaign)
-      setDebrief({
-        submittedAt: updatedCampaign.time,
-        missionState,
-        clientFlightGroups: debriefClientFlightGroups,
-        targetOutcomes
+      await submitMissionState(missionState)
+    } catch (error) {
+      console.error('Failed to submit mission state', error)
+      setToast(buildErrorToast(error))
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleSelectMissionStateFile = async () => {
+    if (isSubmitting || !isGenerated) return
+    setIsSubmitting(true)
+    try {
+      const selectedStatePath = await window.api?.selectMissionStateFile()
+      if (!selectedStatePath) {
+        return
+      }
+      const missionState = await coreClient.campaign.loadMissionStateFromFile({
+        path: selectedStatePath
       })
+      await submitMissionState(missionState)
     } catch (error) {
       console.error('Failed to submit mission state', error)
       setToast(buildErrorToast(error))
@@ -649,6 +674,16 @@ export function Mission() {
                       ? 'Waiting for DCS to write a fresh mission state for this campaign.'
                       : 'Load the generated mission in DCS World and complete your objectives.'}
                   </p>
+                  {isGenerated && (
+                    <button
+                      type="button"
+                      onClick={handleSelectMissionStateFile}
+                      disabled={isSubmitting}
+                      className="ml-10 text-sm font-medium text-[#00ddff]/80 underline-offset-4 transition-colors hover:text-[#00ddff] hover:underline disabled:pointer-events-none disabled:opacity-50"
+                    >
+                      Optional: select a mission state file manually
+                    </button>
+                  )}
                 </div>
 
                 {/* Step 3: Submit results */}

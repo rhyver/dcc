@@ -68,16 +68,37 @@ const synthwaveFlavor: Flavor = {
 }
 
 const worldSource = 'protomaps-world'
-const caucasusSource = 'protomaps-caucasus'
 const worldPmtilesUrl = new URL('./maps/world-low.pmtiles', window.location.href).toString()
-const caucasusPmtilesUrl = new URL(
-  './maps/caucasus/caucasus.pmtiles',
-  window.location.href
-).toString()
-const caucasusDetailBounds: [number, number, number, number] = [
-  40.130612, 40.747635, 44.435577, 44.169509
+
+type TheatreDetailMap = {
+  source: string
+  path: string
+  bounds: [number, number, number, number]
+}
+
+const theatreDetailMaps: TheatreDetailMap[] = [
+  {
+    source: 'protomaps-caucasus',
+    path: './maps/caucasus/caucasus.pmtiles',
+    bounds: [40.130612, 40.747635, 44.435577, 44.169509]
+  },
+  {
+    source: 'protomaps-persian-gulf',
+    path: './maps/persian-gulf/persian-gulf.pmtiles',
+    bounds: [52.170937, 23.120984, 58.262927, 30.802893]
+  },
+  {
+    source: 'protomaps-syria',
+    path: './maps/syria/syria.pmtiles',
+    bounds: [31.667351, 31.871518, 40.806337, 37.861136]
+  }
 ]
-export const CAUCASUS_DETAIL_MAX_ZOOM = 12
+const caucasusDetailMap = theatreDetailMaps[0]!
+const caucasusSource = caucasusDetailMap.source
+const caucasusPmtilesUrl = new URL(caucasusDetailMap.path, window.location.href).toString()
+const caucasusDetailBounds = caucasusDetailMap.bounds
+export const THEATRE_DETAIL_MAX_ZOOM = 12
+export const CAUCASUS_DETAIL_MAX_ZOOM = THEATRE_DETAIL_MAX_ZOOM
 
 function prepareLayer(
   layer: LayerSpecification,
@@ -126,7 +147,9 @@ function prepareLayers(
 
 const englishOnlyLayers = [
   ...prepareLayers(worldSource),
-  ...prepareLayers(caucasusSource, 6, undefined, { includeBackground: false })
+  ...theatreDetailMaps.flatMap((detailMap) =>
+    prepareLayers(detailMap.source, 6, undefined, { includeBackground: false })
+  )
 ]
 
 const layersWithEmptyEnglishLabels = englishOnlyLayers.map((layer) => {
@@ -142,6 +165,21 @@ const layersWithEmptyEnglishLabels = englishOnlyLayers.map((layer) => {
     }
   }
 })
+
+const additionalTheatreSources = Object.fromEntries(
+  theatreDetailMaps.slice(1).map((detailMap) => [
+    detailMap.source,
+    {
+      type: 'vector' as const,
+      url: `pmtiles://${new URL(detailMap.path, window.location.href).toString()}`,
+      attribution:
+        '<a href="https://github.com/protomaps/basemaps">Protomaps</a> Â© <a href="https://osm.org/copyright">OpenStreetMap</a>',
+      minzoom: 3,
+      maxzoom: THEATRE_DETAIL_MAX_ZOOM,
+      bounds: detailMap.bounds
+    }
+  ])
+)
 
 export const offlineCaucasusMapStyle: StyleSpecification = {
   version: 8,
@@ -163,7 +201,10 @@ export const offlineCaucasusMapStyle: StyleSpecification = {
       minzoom: 3,
       maxzoom: CAUCASUS_DETAIL_MAX_ZOOM,
       bounds: caucasusDetailBounds
-    }
+    },
+    ...additionalTheatreSources
   },
   layers: layersWithEmptyEnglishLabels
 }
+
+export const offlineTheatreMapStyle = offlineCaucasusMapStyle

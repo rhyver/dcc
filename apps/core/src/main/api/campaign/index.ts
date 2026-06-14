@@ -39,6 +39,18 @@ type AppSettings = {
   hasCompletedWelcome?: boolean
 }
 
+type MissionStateErrorFactory = {
+  FAILED_TO_READ_FILE: (input: { data: { path: string; message: string } }) => unknown
+  INVALID_STATE_FILE: (input: { data: { message: string } }) => unknown
+  MISSION_ID_MISMATCH: (input: {
+    data: {
+      expected: string
+      received: string
+    }
+  }) => unknown
+  STALE_STATE_FILE: (input: { data: { message: string } }) => unknown
+}
+
 function detectMissionExportDirectory() {
   const savedGamesRoot = path.join(app.getPath('home'), 'Saved Games')
   const candidates = savedGamesVariants.map((variant) =>
@@ -101,6 +113,64 @@ function getMissionStateSearchPaths(settings?: AppSettings) {
     paths.push(path.join(savedGamesRoot, variant, 'Missions', missionStateFileName))
   }
   return paths
+}
+
+async function readAndValidateMissionState(filePath: string, errors: MissionStateErrorFactory) {
+  const file = await readFile(filePath)
+  if (file.isErr()) {
+    throw errors.FAILED_TO_READ_FILE({
+      data: { path: filePath, message: (file.error as Error).message }
+    })
+  }
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(file.value)
+  } catch (error) {
+    throw errors.INVALID_STATE_FILE({
+      data: { message: (error as Error).message }
+    })
+  }
+
+  const schemaParsedState = neverthrowParse(schemas.missionState, parsed)
+  if (schemaParsedState.isErr()) {
+    throw errors.INVALID_STATE_FILE({ data: { message: schemaParsedState.error.message } })
+  }
+
+  const missionState = schemaParsedState.value
+
+  // Validate the state file belongs to the active campaign
+  const activeCampaignId = await getActiveCampaignId()
+  if (!activeCampaignId) {
+    throw errors.MISSION_ID_MISMATCH({
+      data: { expected: '(no active campaign)', received: missionState.missionId }
+    })
+  }
+  if (missionState.missionId !== activeCampaignId) {
+    throw errors.MISSION_ID_MISMATCH({
+      data: { expected: activeCampaignId, received: missionState.missionId }
+    })
+  }
+
+  // Validate the state file is newer than the campaign file to prevent re-submitting old results
+  const campaignPath = getCampaignPath(activeCampaignId)
+  try {
+    const [stateStat, campaignStat] = await Promise.all([fs.stat(filePath), fs.stat(campaignPath)])
+    if (stateStat.mtimeMs < campaignStat.mtimeMs) {
+      throw errors.STALE_STATE_FILE({
+        data: {
+          message: `State file is older than the campaign file. The state file was last modified at ${stateStat.mtime.toISOString()}, but the campaign was saved at ${campaignStat.mtime.toISOString()}. Please fly a new mission and try again.`
+        }
+      })
+    }
+  } catch (error) {
+    // Re-throw our own errors, ignore filesystem errors (e.g. campaign file missing)
+    if (error && typeof error === 'object' && 'defined' in error) {
+      throw error
+    }
+  }
+
+  return missionState
 }
 
 // State file structure: { activeCampaignId: string | null, settings?: AppSettings }
@@ -377,13 +447,11 @@ export const loadMissionState = pub.campaign.loadMissionState.handler(async ({ e
   const searchPaths = getMissionStateSearchPaths(state.settings)
 
   let filePath: string | null = null
-  let fileContents: string | null = null
 
   for (const candidate of searchPaths) {
     const file = await readFile(candidate)
     if (file.isOk()) {
       filePath = candidate
-      fileContents = file.value
       break
     }
     if (file.isErr() && !(file.error instanceof NotFoundError)) {
@@ -393,62 +461,21 @@ export const loadMissionState = pub.campaign.loadMissionState.handler(async ({ e
     }
   }
 
-  if (!filePath || fileContents == null) {
+  if (!filePath) {
     const fallbackPath = searchPaths[0] ?? missionStateFileName
     throw errors.FAILED_TO_READ_FILE({
       data: { path: fallbackPath, message: 'dcc_state.json not found in known locations.' }
     })
   }
 
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(fileContents)
-  } catch (error) {
-    throw errors.INVALID_STATE_FILE({
-      data: { message: (error as Error).message }
-    })
-  }
-
-  const schemaParsedState = neverthrowParse(schemas.missionState, parsed)
-  if (schemaParsedState.isErr()) {
-    throw errors.INVALID_STATE_FILE({ data: { message: schemaParsedState.error.message } })
-  }
-
-  const missionState = schemaParsedState.value
-
-  // Validate the state file belongs to the active campaign
-  const activeCampaignId = await getActiveCampaignId()
-  if (!activeCampaignId) {
-    throw errors.MISSION_ID_MISMATCH({
-      data: { expected: '(no active campaign)', received: missionState.missionId }
-    })
-  }
-  if (missionState.missionId !== activeCampaignId) {
-    throw errors.MISSION_ID_MISMATCH({
-      data: { expected: activeCampaignId, received: missionState.missionId }
-    })
-  }
-
-  // Validate the state file is newer than the campaign file to prevent re-submitting old results
-  const campaignPath = getCampaignPath(activeCampaignId)
-  try {
-    const [stateStat, campaignStat] = await Promise.all([fs.stat(filePath), fs.stat(campaignPath)])
-    if (stateStat.mtimeMs < campaignStat.mtimeMs) {
-      throw errors.STALE_STATE_FILE({
-        data: {
-          message: `State file is older than the campaign file. The state file was last modified at ${stateStat.mtime.toISOString()}, but the campaign was saved at ${campaignStat.mtime.toISOString()}. Please fly a new mission and try again.`
-        }
-      })
-    }
-  } catch (error) {
-    // Re-throw our own errors, ignore filesystem errors (e.g. campaign file missing)
-    if (error && typeof error === 'object' && 'defined' in error) {
-      throw error
-    }
-  }
-
-  return missionState
+  return readAndValidateMissionState(filePath, errors)
 })
+
+export const loadMissionStateFromFile = pub.campaign.loadMissionStateFromFile.handler(
+  async ({ input, errors }) => {
+    return readAndValidateMissionState(input.path, errors)
+  }
+)
 
 export const campaign = {
   getActiveCampaign,
@@ -456,6 +483,7 @@ export const campaign = {
   saveActiveCampaign,
   generateMiz,
   loadMissionState,
+  loadMissionStateFromFile,
   listCampaigns,
   openCampaign,
   deleteCampaign,

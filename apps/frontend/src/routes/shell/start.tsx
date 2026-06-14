@@ -1,4 +1,4 @@
-import { ArrowLeft, BookOpen, Clock3, FolderOpen, Globe2, LogOut, Settings } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BookOpen, Clock3, FolderOpen, Globe2, LogOut, Settings } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useState } from 'react'
 import { scenarios } from '@dcc/data'
@@ -147,7 +147,7 @@ export function ScenarioSelect() {
                       key={scenario.id}
                       type="button"
                       className={cn(
-                        'group min-h-48 rounded-md border p-4 text-left transition-all',
+                        'group flex min-h-48 flex-col rounded-md border p-4 text-left transition-all',
                         'bg-synthwave-dark/78 shadow-[0_18px_45px_rgba(0,0,0,0.22)] backdrop-blur',
                         isSelected
                           ? 'border-synthwave-pink text-white shadow-[0_0_32px_rgba(255,0,170,0.24)]'
@@ -175,6 +175,13 @@ export function ScenarioSelect() {
                       <p className="line-clamp-4 text-sm leading-6 text-synthwave-light/68">
                         {briefingPreview}
                       </p>
+                      <div className="mt-auto flex min-h-5 justify-end pt-4">
+                        {scenario.author ? (
+                          <span className="text-xs uppercase tracking-wide text-synthwave-light/45">
+                            Author {scenario.author}
+                          </span>
+                        ) : null}
+                      </div>
                     </button>
                   )
                 })}
@@ -223,8 +230,8 @@ export function ScenarioSelect() {
                     onClick={() => setStep('era')}
                     disabled={isCreatingCampaign || !selectedScenario.available}
                   >
-                    <BookOpen className="h-4 w-4" />
-                    SELECT ERA
+                    NEXT
+                    <ArrowRight className="h-4 w-4" />
                   </Button>
                 </>
               ) : null}

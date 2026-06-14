@@ -8,16 +8,15 @@ import {
   createRouteMapViewport,
   dcsPositionToLngLat,
   renderGeographicMapLayerFromPmtiles,
-  resolveCaucasusPmtilesPath
+  resolveTheatrePmtilesPath
 } from './kneeboard-map'
 
-let warnedMissingKneeboardMap = false
+const warnedMissingKneeboardMap = new Set<string>()
 
 type Campaign = z.infer<typeof schemas.campaign.campaign>
 type Coalition = z.infer<typeof schemas.coalition>
 type FlightGroup = z.infer<typeof schemas.flightGroup>
 type Theatre = z.infer<typeof schemas.theatre>
-type Position = z.infer<typeof schemas.position>
 type Waypoint = z.infer<typeof schemas.flightplan>['waypoints'][number]
 
 export type KneeboardImage = {
@@ -404,6 +403,7 @@ async function renderRouteSketch(
     .join('')
 
   const geographicMapLayer = await renderGeographicMapLayerFromPmtiles({
+    theatreName: theatre.name,
     bounds: viewport.bounds,
     projectLngLat: viewport.projectLngLat
   })
@@ -616,11 +616,11 @@ export async function createKneeboardImages(params: {
 }): Promise<KneeboardImage[]> {
   const clientFlightGroups = getClientFlightGroups(params.campaign)
 
-  if (clientFlightGroups.length > 0 && !resolveCaucasusPmtilesPath()) {
-    if (!warnedMissingKneeboardMap) {
-      warnedMissingKneeboardMap = true
+  if (clientFlightGroups.length > 0 && !resolveTheatrePmtilesPath(params.theatre.name)) {
+    if (!warnedMissingKneeboardMap.has(params.theatre.name)) {
+      warnedMissingKneeboardMap.add(params.theatre.name)
       console.warn(
-        '[dcc] Caucasus map tiles (caucasus.pmtiles) were not found. Kneeboard route maps will not show geographic detail. Run `bun run cache:map` in apps/frontend or set DCC_CAUCASUS_PMTILES.'
+        `[dcc] ${params.theatre.name} map tiles were not found. Kneeboard route maps will not show geographic detail. Run \`bun run cache:map\` in apps/frontend or set the theatre PMTiles environment variable.`
       )
     }
   }

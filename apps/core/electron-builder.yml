@@ -30,6 +30,10 @@ extraResources:
     to: renderer/document
   - from: apps/frontend/public/maps/caucasus/caucasus.pmtiles
     to: maps/caucasus/caucasus.pmtiles
+  - from: apps/frontend/public/maps/persian-gulf/persian-gulf.pmtiles
+    to: maps/persian-gulf/persian-gulf.pmtiles
+  - from: apps/frontend/public/maps/syria/syria.pmtiles
+    to: maps/syria/syria.pmtiles
 win:
   executableName: dcc
   target:

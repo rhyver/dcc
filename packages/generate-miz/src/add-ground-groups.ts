@@ -3,10 +3,10 @@ import { getSamDeadUnitIndexes, isSamFullyDestroyed, samTemplates } from '@dcc/d
 import { ok, Result } from 'neverthrow'
 import * as z from 'zod'
 
+import { isAirDefenseUnit, type MissionCullingPlan } from './mission-culling'
 import { findTargetPlacement, positionsMatch } from './target-placement'
 
-type Campaign = z.infer<typeof schemas.campaign.campaign>
-type CampaignCoalition = Campaign['coalitions'][z.infer<typeof schemas.coalition>]
+type Coalition = z.infer<typeof schemas.coalition>
 
 /**
  * Arrange units in a circle around a center point.
@@ -56,23 +56,11 @@ function positionUnits(
   })
 }
 
-function isAirDefenseUnit(unitName: string, coalition: CampaignCoalition) {
-  const airDefenseTypes = new Set([
-    ...coalition.groundUnitTypes.SAM,
-    ...coalition.groundUnitTypes['Shorad Vehicle'],
-    ...coalition.groundUnitTypes['Shorad Infantry']
-  ])
-
-  return (
-    airDefenseTypes.has(unitName) ||
-    /\b(aaa|sam|shorad|stinger|igla|linebacker|shilka|osa|tunguska|tor)\b/i.test(unitName)
-  )
-}
-
 export function addGroundGroups(
   mission: z.infer<typeof schemas.dcs.mission>,
   campaign: z.infer<typeof schemas.campaign.campaign>,
-  theatre: z.infer<typeof schemas.theatre>
+  theatre: z.infer<typeof schemas.theatre>,
+  cullingPlan?: MissionCullingPlan
 ): Result<void, Error> {
   const nextId = () => {
     mission.currentKey += 1
@@ -81,6 +69,7 @@ export function addGroundGroups(
 
   for (const [key, value] of Object.entries(campaign.coalitions)) {
     const missionCoalitionKey = key === 'player' ? 'blue' : key === 'opponent' ? 'red' : 'neutrals'
+    const coalitionKey = key as Coalition
 
     const countryList = mission.coalition[missionCoalitionKey].country
     const country = countryList?.[0]
@@ -176,6 +165,9 @@ export function addGroundGroups(
       )
 
       for (const gg of groundGroups) {
+        const cullingMode = cullingPlan?.getGroundGroupMode(coalitionKey, gg) ?? 'full'
+        if (cullingMode === 'omit') continue
+
         const groupId = nextId()
         const groupName = `Ground-${gg.id}-${groupId}`
 
@@ -216,7 +208,13 @@ export function addGroundGroups(
         let airDefenseUnitIndex = 0
         for (const unitEntry of gg.units) {
           for (let i = 0; i < unitEntry.count; i++) {
-            const useAaaTarget = aaaTarget && isAirDefenseUnit(unitEntry.name, value)
+            const isAirDefense = isAirDefenseUnit(unitEntry.name, value)
+            if (cullingMode === 'antiAirOnly' && !isAirDefense) {
+              unitIndex++
+              continue
+            }
+
+            const useAaaTarget = aaaTarget && isAirDefense
             const fallbackCenter = useAaaTarget ? aaaTarget.position : gg.position
             const placementIndex = useAaaTarget ? airDefenseUnitIndex : unitIndex
             const targetPosition = useAaaTarget
@@ -298,6 +296,11 @@ export function addGroundGroups(
             points: routePoints
           }
         })
+        cullingPlan?.recordGroundGroup(
+          coalitionKey,
+          gg.id,
+          cullingMode === 'antiAirOnly' ? 'antiAirOnly' : 'full'
+        )
       }
     }
   }

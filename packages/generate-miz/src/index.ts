@@ -10,13 +10,6 @@ import { addGroundGroups } from './add-ground-groups'
 import { addStructures } from './add-structures'
 import { getFrontlineSegments } from './frontline'
 import { createKneeboardImages } from './kneeboard'
-export {
-  createRouteMapViewport,
-  dcsPositionToLngLat,
-  resolveCaucasusPmtilesPath,
-  setCaucasusPmtilesPath
-} from './kneeboard-map'
-export { resolveAppIconPath, setAppIconPath } from './kneeboard-logo'
 import { dictionary, mapResource } from './l10n'
 import {
   createDoScriptAction,
@@ -25,6 +18,7 @@ import {
   createTriggerFunction,
   createTriggerFunctionMap
 } from './mission-config-trigger'
+import { buildMissionCullingPlan, type MissionCullingManifest } from './mission-culling'
 import { options } from './options'
 import casLuaScript from './scripts/cas.lua?raw'
 import ctldLuaScript from './scripts/ctld.lua?raw'
@@ -33,6 +27,14 @@ import mistLuaScript from './scripts/mist_4_5_126.lua?raw'
 import splashDamageLuaScript from './scripts/splash_damage.lua?raw'
 import stateLuaScript from './scripts/state.lua?raw'
 import { warehouses } from './warehouses'
+
+export { resolveAppIconPath, setAppIconPath } from './kneeboard-logo'
+export {
+  createRouteMapViewport,
+  dcsPositionToLngLat,
+  resolveCaucasusPmtilesPath,
+  setCaucasusPmtilesPath
+} from './kneeboard-map'
 
 type TriggerValue = string | number | boolean
 
@@ -61,6 +63,7 @@ type MissionTriggerRules = Record<number, MissionTriggerRule>
 type MissionScriptConfig = {
   missionId: string
   flightGroups: MissionFlightConfig[]
+  cullingManifest?: MissionCullingManifest
 }
 
 function createMissionMapConfig(theatre: z.infer<typeof schemas.theatre>) {
@@ -515,12 +518,14 @@ export async function generateMizFromCampaign(
     }
   }
 
-  const structuresResult = addStructures(mission, campaign, theatre)
+  const cullingPlan = buildMissionCullingPlan(campaign, theatre)
+
+  const structuresResult = addStructures(mission, campaign, theatre, cullingPlan)
   if (structuresResult.isErr()) {
     return err(structuresResult.error)
   }
 
-  const groundGroupsResult = addGroundGroups(mission, campaign, theatre)
+  const groundGroupsResult = addGroundGroups(mission, campaign, theatre, cullingPlan)
   if (groundGroupsResult.isErr()) {
     return err(groundGroupsResult.error)
   }
@@ -531,7 +536,8 @@ export async function generateMizFromCampaign(
   }
   const scriptConfig: MissionScriptConfig = {
     missionId: campaign.id,
-    flightGroups: flightGroupsResult.value
+    flightGroups: flightGroupsResult.value,
+    ...(cullingPlan.enabled ? { cullingManifest: cullingPlan.manifest } : {})
   }
   const scriptConfigLuaResult = luaTable.stringify(scriptConfig, {
     mixedKeyTypes: true,

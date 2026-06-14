@@ -11,6 +11,7 @@ type MissionState = z.infer<typeof schemas.missionState>
 type Coalition = 'player' | 'opponent'
 type MissionAircraftGroup = NonNullable<MissionState['groupPositions']>['blue']['aircraft'][number]
 type MissionAircraftUnit = MissionAircraftGroup['units'][number]
+type GroundCullingGroups = NonNullable<MissionState['cullingManifest']>['groundGroups'][Coalition]
 
 function campaignDateFromMissionTime(campaignTime: Date, missionTimeSeconds?: number): Date | null {
   if (missionTimeSeconds == null || !Number.isFinite(missionTimeSeconds)) {
@@ -75,10 +76,63 @@ function addLostSamUnitIndex(
   return true
 }
 
+function isAirDefenseUnit(unitName: string, coalitionData: Campaign['coalitions']['player']) {
+  const airDefenseTypes = new Set([
+    ...(coalitionData.groundUnitTypes.SAM ?? []),
+    ...(coalitionData.groundUnitTypes['Shorad Vehicle'] ?? []),
+    ...(coalitionData.groundUnitTypes['Shorad Infantry'] ?? [])
+  ])
+
+  return (
+    airDefenseTypes.has(unitName) ||
+    /\b(aaa|sam|shorad|stinger|igla|linebacker|shilka|osa|tunguska|tor)\b/i.test(unitName)
+  )
+}
+
+function countMissionGroundUnits(group?: { units: Array<{ type: string }> }) {
+  const countsByType = new Map<string, number>()
+  for (const unit of group?.units ?? []) {
+    countsByType.set(unit.type, (countsByType.get(unit.type) ?? 0) + 1)
+  }
+  return countsByType
+}
+
+function syncAntiAirOnlyGroundGroup(
+  groundGroup: Campaign['coalitions']['player']['groundGroups'][number],
+  coalitionData: Campaign['coalitions']['player'],
+  missionGroup?: { units: Array<{ type: string }> }
+) {
+  const missionCountsByType = countMissionGroundUnits(missionGroup)
+  const nextUnits: typeof groundGroup.units = []
+  const seenAirDefenseTypes = new Set<string>()
+
+  for (const unit of groundGroup.units) {
+    if (!isAirDefenseUnit(unit.name, coalitionData)) {
+      nextUnits.push(unit)
+      continue
+    }
+
+    seenAirDefenseTypes.add(unit.name)
+    const count = missionCountsByType.get(unit.name) ?? 0
+    if (count > 0) {
+      nextUnits.push({ name: unit.name, count })
+    }
+  }
+
+  for (const [name, count] of missionCountsByType) {
+    if (!seenAirDefenseTypes.has(name) && isAirDefenseUnit(name, coalitionData) && count > 0) {
+      nextUnits.push({ name, count })
+    }
+  }
+
+  groundGroup.units = nextUnits
+}
+
 function syncGroundGroupsFromMissionState(
   draft: Campaign,
   coalition: Coalition,
-  groups?: Array<{ name: string; x: number; y: number; units: Array<{ type: string }> }>
+  groups?: Array<{ name: string; x: number; y: number; units: Array<{ type: string }> }>,
+  cullingGroups?: GroundCullingGroups
 ) {
   if (!groups) {
     return
@@ -93,7 +147,17 @@ function syncGroundGroupsFromMissionState(
   }
 
   for (const groundGroup of draft.coalitions[coalition].groundGroups) {
+    const cullingMode = cullingGroups?.[groundGroup.id]
+    if (cullingGroups && !cullingMode) {
+      continue
+    }
+
     const missionGroup = groupsById.get(groundGroup.id)
+    if (cullingMode === 'antiAirOnly') {
+      syncAntiAirOnlyGroundGroup(groundGroup, draft.coalitions[coalition], missionGroup)
+      continue
+    }
+
     if (!missionGroup) {
       groundGroup.units = []
       continue
@@ -102,12 +166,10 @@ function syncGroundGroupsFromMissionState(
     groundGroup.position.x = missionGroup.x
     groundGroup.position.y = missionGroup.y
 
-    const countsByType = new Map<string, number>()
-    for (const unit of missionGroup.units) {
-      countsByType.set(unit.type, (countsByType.get(unit.type) ?? 0) + 1)
-    }
-
-    groundGroup.units = Array.from(countsByType, ([name, count]) => ({ name, count }))
+    groundGroup.units = Array.from(countMissionGroundUnits(missionGroup), ([name, count]) => ({
+      name,
+      count
+    }))
   }
 
   draft.coalitions[coalition].groundGroups = draft.coalitions[coalition].groundGroups.filter(
@@ -155,8 +217,7 @@ function isAircraftTerminal(
   }
 
   return (
-    hasNameInSet(names, landedUnitNames) &&
-    !isAircraftCurrentlyAirborne(names, missionUnitsByName)
+    hasNameInSet(names, landedUnitNames) && !isAircraftCurrentlyAirborne(names, missionUnitsByName)
   )
 }
 
@@ -221,12 +282,7 @@ function applyToCoalition(
 
     for (const aircraftState of aircraftStateNames) {
       if (
-        isAircraftTerminal(
-          aircraftState.names,
-          lostUnitNames,
-          landedUnitNames,
-          missionUnitsByName
-        )
+        isAircraftTerminal(aircraftState.names, lostUnitNames, landedUnitNames, missionUnitsByName)
       ) {
         terminalAircraftIds.add(aircraftState.aircraftId)
       }
@@ -295,6 +351,7 @@ export function applyMissionStateUpdate(campaign: Campaign, missionState: Missio
   const landedUnitNames = new Set(landedUnits.map((unit) => unit.name))
   const groupPositions = missionState.groupPositions
   const cargoDeliveries = missionState.cargoDeliveries ?? {}
+  const cullingManifest = missionState.cullingManifest
 
   return produce(campaign, (draft) => {
     const missionDate = campaignDateFromMissionTime(draft.time, missionState.time)
@@ -319,8 +376,18 @@ export function applyMissionStateUpdate(campaign: Campaign, missionState: Missio
       landedUnitNames,
       cargoDeliveries
     )
-    syncGroundGroupsFromMissionState(draft, 'player', groupPositions?.blue?.ground)
-    syncGroundGroupsFromMissionState(draft, 'opponent', groupPositions?.red?.ground)
+    syncGroundGroupsFromMissionState(
+      draft,
+      'player',
+      groupPositions?.blue?.ground,
+      cullingManifest?.groundGroups.player
+    )
+    syncGroundGroupsFromMissionState(
+      draft,
+      'opponent',
+      groupPositions?.red?.ground,
+      cullingManifest?.groundGroups.opponent
+    )
 
     if (lostUnitNames.size > 0) {
       for (const coalition of ['player', 'opponent'] as const) {
@@ -345,6 +412,9 @@ export function applyMissionStateUpdate(campaign: Campaign, missionState: Missio
         }
 
         for (const structure of draft.coalitions[coalition].structures) {
+          const emittedStructures = cullingManifest?.structures[coalition]
+          if (emittedStructures && !emittedStructures[structure.id]) continue
+
           const namePrefix = `Static-${structure.id}-`
           for (const lostUnitName of lostUnitNames) {
             if (!lostUnitName.startsWith(namePrefix)) continue

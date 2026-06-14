@@ -7,6 +7,7 @@ import { applyMissionStateUpdate } from './mission-state-update'
 type Campaign = z.infer<typeof schemas.campaign.campaign>
 type CoalitionData = Campaign['coalitions']['player']
 type FlightGroup = CoalitionData['flightGroups'][number]
+type GroundGroup = CoalitionData['groundGroups'][number]
 type MissionState = z.infer<typeof schemas.missionState>
 
 const campaignTime = new Date('2026-01-01T12:00:00.000Z')
@@ -16,6 +17,10 @@ function secondsAfterMidnight(hour: number, minute = 0) {
 }
 
 function createCoalition(id: 'player' | 'opponent'): CoalitionData {
+  const groundUnitTypes = {} as CoalitionData['groundUnitTypes']
+  groundUnitTypes.Vehicle = ['M-1 Abrams']
+  groundUnitTypes['Shorad Infantry'] = ['Soldier stinger']
+
   return {
     id,
     aircraftTypes: {
@@ -26,7 +31,7 @@ function createCoalition(id: 'player' | 'opponent'): CoalitionData {
       CAS: ['F-16C_50'],
       Transport: ['UH-60L']
     } as CoalitionData['aircraftTypes'],
-    groundUnitTypes: {} as CoalitionData['groundUnitTypes'],
+    groundUnitTypes,
     airdromeNames: [],
     objectiveIds: [],
     structures: [],
@@ -127,6 +132,44 @@ function aircraftPositionGroup(
       y: 300 + unitNumber,
       inAir
     }))
+  }
+}
+
+function groundGroup({
+  id,
+  position = { x: 100, y: 100 },
+  units = [{ name: 'M-1 Abrams', count: 2 }]
+}: {
+  id: string
+  position?: { x: number; y: number }
+  units?: GroundGroup['units']
+}): GroundGroup {
+  return {
+    id,
+    objectiveId: `${id}-objective`,
+    position,
+    state: 'idle',
+    units
+  }
+}
+
+function groundPositionGroup(
+  id: string,
+  units: Array<{ type: string; count?: number }>,
+  position = { x: 200, y: 300 }
+): NonNullable<MissionState['groupPositions']>['blue']['ground'][number] {
+  return {
+    name: `Ground-${id}-123`,
+    x: position.x,
+    y: position.y,
+    units: units.flatMap(({ type, count = 1 }, index) =>
+      Array.from({ length: count }, (_, unitIndex) => ({
+        name: `Ground-${id}-123-${index}-${unitIndex}`,
+        type,
+        x: position.x + unitIndex,
+        y: position.y + unitIndex
+      }))
+    )
   }
 }
 
@@ -344,5 +387,138 @@ describe('applyMissionStateUpdate flight group cleanup', () => {
 
     expect(updated.coalitions.player.flightGroups).toHaveLength(1)
     expect(updated.coalitions.player.flightGroups[0]?.aircrafts).toHaveLength(2)
+  })
+})
+
+describe('applyMissionStateUpdate culling manifest', () => {
+  test('preserves omitted ground groups instead of treating them as destroyed', () => {
+    const campaign = createCampaign()
+    campaign.coalitions.opponent.groundGroups = [groundGroup({ id: 'omitted-ground' })]
+
+    const updated = applyMissionStateUpdate(
+      campaign,
+      createMissionState({
+        groupPositions: {
+          blue: { aircraft: [], ground: [] },
+          red: { aircraft: [], ground: [] }
+        },
+        cullingManifest: {
+          groundGroups: { player: {}, opponent: {} },
+          structures: { player: {}, opponent: {} }
+        }
+      })
+    )
+
+    expect(updated.coalitions.opponent.groundGroups).toEqual([
+      expect.objectContaining({
+        id: 'omitted-ground',
+        units: [{ name: 'M-1 Abrams', count: 2 }]
+      })
+    ])
+  })
+
+  test('updates only anti-air units for antiAirOnly ground groups', () => {
+    const campaign = createCampaign()
+    campaign.coalitions.opponent.groundGroups = [
+      groundGroup({
+        id: 'mixed-ground',
+        position: { x: 100, y: 100 },
+        units: [
+          { name: 'M-1 Abrams', count: 2 },
+          { name: 'Soldier stinger', count: 2 }
+        ]
+      })
+    ]
+
+    const updated = applyMissionStateUpdate(
+      campaign,
+      createMissionState({
+        groupPositions: {
+          blue: { aircraft: [], ground: [] },
+          red: {
+            aircraft: [],
+            ground: [groundPositionGroup('mixed-ground', [{ type: 'Soldier stinger', count: 1 }])]
+          }
+        },
+        cullingManifest: {
+          groundGroups: { player: {}, opponent: { 'mixed-ground': 'antiAirOnly' } },
+          structures: { player: {}, opponent: {} }
+        }
+      })
+    )
+
+    expect(updated.coalitions.opponent.groundGroups[0]?.position).toEqual({ x: 100, y: 100 })
+    expect(updated.coalitions.opponent.groundGroups[0]?.units).toEqual([
+      { name: 'M-1 Abrams', count: 2 },
+      { name: 'Soldier stinger', count: 1 }
+    ])
+  })
+
+  test('keeps full ground group sync behavior for emitted full groups', () => {
+    const campaign = createCampaign()
+    campaign.coalitions.opponent.groundGroups = [groundGroup({ id: 'full-ground' })]
+
+    const updated = applyMissionStateUpdate(
+      campaign,
+      createMissionState({
+        groupPositions: {
+          blue: { aircraft: [], ground: [] },
+          red: {
+            aircraft: [],
+            ground: [groundPositionGroup('full-ground', [{ type: 'M-1 Abrams', count: 1 }])]
+          }
+        },
+        cullingManifest: {
+          groundGroups: { player: {}, opponent: { 'full-ground': 'full' } },
+          structures: { player: {}, opponent: {} }
+        }
+      })
+    )
+
+    expect(updated.coalitions.opponent.groundGroups[0]?.position).toEqual({ x: 200, y: 300 })
+    expect(updated.coalitions.opponent.groundGroups[0]?.units).toEqual([
+      { name: 'M-1 Abrams', count: 1 }
+    ])
+  })
+
+  test('does not apply lost static events to omitted structures', () => {
+    const campaign = createCampaign()
+    campaign.coalitions.opponent.structures = [
+      {
+        id: 'omitted-structure',
+        type: 'Depot',
+        objectiveId: 'objective-1',
+        position: { x: 0, y: 0 },
+        name: 'Omitted Structure',
+        resources: 0,
+        buildings: [{ type: 'Warehouse', offset: { x: 0, y: 0 }, alive: true }]
+      },
+      {
+        id: 'emitted-structure',
+        type: 'Depot',
+        objectiveId: 'objective-2',
+        position: { x: 100, y: 0 },
+        name: 'Emitted Structure',
+        resources: 0,
+        buildings: [{ type: 'Warehouse', offset: { x: 0, y: 0 }, alive: true }]
+      }
+    ]
+
+    const updated = applyMissionStateUpdate(
+      campaign,
+      createMissionState({
+        lostUnits: [
+          trackedUnit('Static-omitted-structure-Depot-101-1', 'Static-omitted-structure-Depot-101'),
+          trackedUnit('Static-emitted-structure-Depot-102-1', 'Static-emitted-structure-Depot-102')
+        ],
+        cullingManifest: {
+          groundGroups: { player: {}, opponent: {} },
+          structures: { player: {}, opponent: { 'emitted-structure': true } }
+        }
+      })
+    )
+
+    expect(updated.coalitions.opponent.structures[0]?.buildings[0]?.alive).toBe(true)
+    expect(updated.coalitions.opponent.structures[1]?.buildings[0]?.alive).toBe(false)
   })
 })

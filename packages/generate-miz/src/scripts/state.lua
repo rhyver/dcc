@@ -90,6 +90,7 @@ end
 
 local missionState = {
     missionId = config.missionId,
+    cullingManifest = config.cullingManifest,
     missionEnded = false,
     ejectedPilots = {},
     lostUnits = {},

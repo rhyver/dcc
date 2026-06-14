@@ -3,12 +3,16 @@ import { buildings } from '@dcc/data'
 import { err, ok, Result } from 'neverthrow'
 import * as z from 'zod'
 
+import type { MissionCullingPlan } from './mission-culling'
 import { findTargetPlacement, positionsMatch } from './target-placement'
+
+type Coalition = z.infer<typeof schemas.coalition>
 
 export function addStructures(
   mission: z.infer<typeof schemas.dcs.mission>,
   campaign: z.infer<typeof schemas.campaign.campaign>,
-  theatre: z.infer<typeof schemas.theatre>
+  theatre: z.infer<typeof schemas.theatre>,
+  cullingPlan?: MissionCullingPlan
 ): Result<void, Error> {
   const nextId = () => {
     mission.currentKey += 1
@@ -17,6 +21,7 @@ export function addStructures(
 
   for (const [key, value] of Object.entries(campaign.coalitions)) {
     const missionCoalitionKey = key === 'player' ? 'blue' : key === 'opponent' ? 'red' : 'neutrals'
+    const coalitionKey = key as Coalition
 
     const coalitionStructures = value.structures
 
@@ -42,6 +47,9 @@ export function addStructures(
     coalitionStructures.forEach((struct) => {
       const objective = theatre.objectives.find((o) => o.name === struct.objectiveId)
       if (!objective) return
+      if (cullingPlan?.getStructureMode(coalitionKey, struct) === 'omit') {
+        return
+      }
 
       const groupId = nextId()
       const groupName = `Static-${struct.id}-${struct.type}-${groupId}`
@@ -64,6 +72,8 @@ export function addStructures(
       }
 
       struct.buildings.forEach((building, index) => {
+        if (building.alive === false) return
+
         const buildingInfo = buildings[building.type]
         if (!buildingInfo) return
 
@@ -117,6 +127,7 @@ export function addStructures(
         name: groupName,
         dead: false
       })
+      cullingPlan?.recordStructure(coalitionKey, struct.id)
     })
   }
 

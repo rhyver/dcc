@@ -72,6 +72,31 @@ const cargoDeliveries = z.preprocess(
   )
 )
 
+const cullingManifestRecord = z.preprocess(
+  (val) => (Array.isArray(val) ? {} : val),
+  z.record(z.string(), z.enum(['full', 'antiAirOnly']))
+)
+
+const cullingManifestBooleanRecord = z.preprocess(
+  (val) => (Array.isArray(val) ? {} : val),
+  z.record(z.string(), z.boolean())
+)
+
+const missionStateCullingManifest = z.object({
+  groundGroups: z
+    .object({
+      player: cullingManifestRecord.default({}),
+      opponent: cullingManifestRecord.default({})
+    })
+    .default({ player: {}, opponent: {} }),
+  structures: z
+    .object({
+      player: cullingManifestBooleanRecord.default({}),
+      opponent: cullingManifestBooleanRecord.default({})
+    })
+    .default({ player: {}, opponent: {} })
+})
+
 export const missionState = z
   .object({
     missionId: z.string(),
@@ -90,6 +115,7 @@ export const missionState = z
     lostUnits: z.array(missionStateTrackedUnit).default([]),
     landedUnits: z.array(missionStateTrackedUnit).default([]),
     cargoDeliveries: cargoDeliveries.default({}),
-    groupPositions: missionStateGroupPositions.optional()
+    groupPositions: missionStateGroupPositions.optional(),
+    cullingManifest: missionStateCullingManifest.optional()
   })
   .passthrough()

@@ -37,18 +37,31 @@ function getAirbaseSpawnModifier(
   }
 }
 
-export function spawnStrike(
+function spawnStrikeTask(
   draft: z.infer<typeof schemas.campaign.campaign>,
-  coalition: z.infer<typeof schemas.coalition>
+  coalition: z.infer<typeof schemas.coalition>,
+  task: 'Pinpoint Strike' | 'Strategic Strike'
 ) {
   const flightGroups = FlightGroupFactory.getCoalitionFlightGroups(draft, coalition)
 
-  const strikeGroups = flightGroups.filter((group) => group.task === 'Pinpoint Strike')
+  const strikeGroups = flightGroups.filter((group) => group.task === task)
 
-  debugLog(`${coalition}: strike groups`, strikeGroups.length)
+  debugLog(`${coalition}: ${task} groups`, strikeGroups.length)
 
-  if (strikeGroups.length >= config.packages['Pinpoint Strike'].maxActive[coalition]) {
+  if (strikeGroups.length >= config.packages[task].maxActive[coalition]) {
     return
+  }
+
+  const cooldownUntil = draft.coalitions[coalition].strategicStrikeCooldownUntil
+  if (task === 'Strategic Strike' && cooldownUntil) {
+    if (draft.time < cooldownUntil) {
+      debugLog(
+        `${coalition}: Strategic Strike cooldown active until ${cooldownUntil.toISOString()}`
+      )
+      return
+    }
+
+    draft.coalitions[coalition].strategicStrikeCooldownUntil = undefined
   }
 
   const targetedObjectiveIds = new Set(
@@ -62,9 +75,9 @@ export function spawnStrike(
   const { theatre, enemyCoalition } = context
 
   // Get available aircraft types for strike missions
-  const availableAircraftTypes = draft.coalitions[coalition].aircraftTypes['Pinpoint Strike']
+  const availableAircraftTypes = draft.coalitions[coalition].aircraftTypes[task]
   if (!availableAircraftTypes || availableAircraftTypes.length === 0) {
-    debugLog('No aircraft types available for Pinpoint Strike')
+    debugLog(`No aircraft types available for ${task}`)
     return
   }
 
@@ -90,7 +103,8 @@ export function spawnStrike(
   const selectedAssignment = selectHomeBaseAndTarget({
     homeBases,
     targets: availableTargets,
-    maxDistance: config.packages['Pinpoint Strike'].maxDistance
+    maxDistance: config.packages[task].maxDistance,
+    preference: task === 'Strategic Strike' ? 'farthest' : 'nearest'
   })
 
   // If no suitable pair found, return
@@ -149,7 +163,8 @@ export function spawnStrike(
         runwayAngle: selectedAssignment.homeBase.runwayAngle,
         aircraftType,
         packageId,
-        exactTarget: draft.campaignParams?.exactTarget === true
+        exactTarget: draft.campaignParams?.exactTarget === true,
+        task
       }
     )
 
@@ -180,7 +195,7 @@ export function spawnStrike(
     // Create the package
     const missionPackage: z.infer<typeof schemas.missionPackage> = {
       id: packageId,
-      type: 'SEAD Strike Package',
+      type: task === 'Strategic Strike' ? 'SEAD Strategic Strike Package' : 'SEAD Strike Package',
       targetObjectiveId: selectedTarget.objectiveId,
       members: [
         {
@@ -210,7 +225,26 @@ export function spawnStrike(
       targetPosition: selectedAssignment.targetPosition,
       runwayAngle: selectedAssignment.homeBase.runwayAngle,
       aircraftType,
-      exactTarget: draft.campaignParams?.exactTarget === true
+      exactTarget: draft.campaignParams?.exactTarget === true,
+      task
     })
   }
+}
+
+export function spawnStrike(
+  draft: z.infer<typeof schemas.campaign.campaign>,
+  coalition: z.infer<typeof schemas.coalition>
+) {
+  spawnStrikeTask(draft, coalition, 'Pinpoint Strike')
+}
+
+export function spawnStrategicStrike(
+  draft: z.infer<typeof schemas.campaign.campaign>,
+  coalition: z.infer<typeof schemas.coalition>
+) {
+  if (coalition !== 'opponent') {
+    return
+  }
+
+  spawnStrikeTask(draft, coalition, 'Strategic Strike')
 }

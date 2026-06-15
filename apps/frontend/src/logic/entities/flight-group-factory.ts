@@ -13,7 +13,7 @@ export const FlightGroupFactory = {
     coalition: z.infer<typeof schemas.coalition>
   ): FlightGroup[] {
     return draft.coalitions[coalition].flightGroups.map((data) => {
-      if (data.task === 'Pinpoint Strike') {
+      if (data.task === 'Pinpoint Strike' || data.task === 'Strategic Strike') {
         return new StrikeFlightGroup(data)
       }
       if (data.task === 'SEAD') {

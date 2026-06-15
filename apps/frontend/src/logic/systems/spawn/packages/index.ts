@@ -1,6 +1,6 @@
 import type { schemas } from '@dcc/contracts'
 import * as z from 'zod'
-import { spawnStrike } from './strike'
+import { spawnStrategicStrike, spawnStrike } from './strike'
 import { spawnDead } from './dead'
 import { spawnCap } from './cap'
 import { spawnCas } from './cas'
@@ -16,6 +16,7 @@ export function spawnPackages(
   spawnCap(draft, coalition)
   // Then offensive missions
   spawnStrike(draft, coalition)
+  spawnStrategicStrike(draft, coalition)
   spawnDead(draft, coalition)
   spawnCas(draft, coalition)
   // Logistics support

@@ -1,4 +1,4 @@
-import { schemas } from '@dcc/contracts'
+import { config, schemas } from '@dcc/contracts'
 import * as z from 'zod'
 import { scenarios, theatres } from '@dcc/data'
 import { isStrikeFlightGroup } from '../entities/strike-flight-group'
@@ -8,6 +8,13 @@ import { isCapFlightGroup } from '../entities/cap-flight-group'
 import { FlightGroupFactory } from '../entities/flight-group-factory'
 import { logCombatAction } from '../simulation-log'
 import { debugLog } from '@/lib/debug'
+
+function createStrategicStrikeCooldown(currentTime: Date) {
+  const min = config.packages['Strategic Strike'].cooldownMinMs
+  const max = config.packages['Strategic Strike'].cooldownMaxMs
+  const cooldownMs = Math.floor(Math.random() * (max - min + 1)) + min
+  return new Date(currentTime.getTime() + cooldownMs)
+}
 
 export function updateFlightGroups(
   draft: z.infer<typeof schemas.campaign.campaign>,
@@ -35,7 +42,8 @@ export function updateFlightGroups(
         group.task === 'CAP' ||
         group.task === 'SEAD' ||
         group.task === 'DEAD' ||
-        group.task === 'Pinpoint Strike'
+        group.task === 'Pinpoint Strike' ||
+        group.task === 'Strategic Strike'
       ) {
         logCombatAction(draft, coalition, `${group.task} landed`, group.callsign, {
           entityType: 'flightGroup',
@@ -57,7 +65,7 @@ export function updateFlightGroups(
       debugLog('CAP patrolling', group)
       group.engageAirTargets(draft, coalition)
     } else {
-      debugLog('Not a strike/SEAD/DEAD/CAP group', group.task)
+      debugLog('Not a strike/strategic strike/SEAD/DEAD/CAP group', group.task)
     }
   }
 
@@ -65,6 +73,15 @@ export function updateFlightGroups(
   if (finishedIds.size > 0) {
     const enemyCoalition = coalition === 'player' ? 'opponent' : 'player'
     const finishedSeadGroups = groups.filter((g) => finishedIds.has(g.id) && isSeadFlightGroup(g))
+    const finishedStrategicStrikeGroups = groups.filter(
+      (g) => finishedIds.has(g.id) && g.task === 'Strategic Strike'
+    )
+
+    if (finishedStrategicStrikeGroups.length > 0) {
+      draft.coalitions[coalition].strategicStrikeCooldownUntil = createStrategicStrikeCooldown(
+        draft.time
+      )
+    }
 
     for (const seadGroup of finishedSeadGroups) {
       if (seadGroup.target) {

@@ -95,6 +95,7 @@ function detectEra(text: string): MissionPlan['era'] {
 function detectTask(text: string): MissionPlan['playerCoalition']['primaryFlight']['task'] {
   const normalized = text.toLowerCase()
   if (normalized.includes('sead')) return 'SEAD'
+  if (isStrategicStrikeRequest(normalized)) return 'Pinpoint Strike'
   if (normalized.includes('pinpoint strike')) return 'Pinpoint Strike'
   if (normalized.includes('cas')) return 'CAS'
   if (normalized.includes('escort')) return 'Escort'
@@ -107,12 +108,27 @@ function detectExplicitTaskRequest(text: string): MissionTask | null {
   const normalized = text.toLowerCase()
   if (/\bcas\b|close air support/.test(normalized)) return 'CAS'
   if (/\bsead\b/.test(normalized)) return 'SEAD'
-  if (/pinpoint strike|precision strike/.test(normalized)) return 'Pinpoint Strike'
+  if (isStrategicStrikeRequest(normalized) || /pinpoint strike|precision strike/.test(normalized)) {
+    return 'Pinpoint Strike'
+  }
   if (/\bcap\b|combat air patrol/.test(normalized)) return 'CAP'
   if (/escort/.test(normalized)) return 'Escort'
   if (/transport|airlift/.test(normalized)) return 'Transport'
   if (/ground attack/.test(normalized)) return 'Ground Attack'
   return null
+}
+
+function isStrategicStrikeRequest(text: string) {
+  return /strategic strike|bomber/.test(text.toLowerCase())
+}
+
+function selectStrategicStrikeAircraft(factionId: string) {
+  const faction =
+    getFactions().find((entry) => entry.id === factionId) ??
+    getFactions().find((entry) => entry.id === 'usa-2004') ??
+    getFactions()[0]
+  const aircraftTypes = faction?.aircraftTypes as Record<string, string[]> | undefined
+  return aircraftTypes?.['Strategic Strike']?.[0] ?? null
 }
 
 function detectExplicitAircraftRequest(text: string): string | null {
@@ -158,8 +174,17 @@ function enforceMissionIntentFromConversation(
   const explicitTask = detectExplicitTaskRequest(userText)
   const explicitAircraft = detectExplicitAircraftRequest(userText)
   const explicitAaaType = detectExplicitAaaRequest(fullConversationText)
+  const strategicStrikeAircraft =
+    !explicitAircraft && isStrategicStrikeRequest(userText)
+      ? selectStrategicStrikeAircraft(missionPlan.playerCoalition.factionId)
+      : null
   const hasAaaPlacements = missionPlan.opponentCoalition.aaaPlacements.length > 0
-  if (!explicitTask && !explicitAircraft && (!explicitAaaType || hasAaaPlacements)) {
+  if (
+    !explicitTask &&
+    !explicitAircraft &&
+    !strategicStrikeAircraft &&
+    (!explicitAaaType || hasAaaPlacements)
+  ) {
     return missionPlan
   }
 
@@ -182,6 +207,7 @@ function enforceMissionIntentFromConversation(
       primaryFlight: {
         ...missionPlan.playerCoalition.primaryFlight,
         ...(explicitTask ? { task: explicitTask } : {}),
+        ...(strategicStrikeAircraft ? { aircraftType: strategicStrikeAircraft } : {}),
         ...(explicitAircraft ? { aircraftType: explicitAircraft } : {})
       }
     },
@@ -280,6 +306,7 @@ function buildFallbackMissionPlan(messages: MissionChatMessage[], modelText?: st
   const availableAircraft = Object.values(aircraftTypesByTask).flat()
   const detectedAircraft =
     availableAircraft.find((aircraftType) => normalized.includes(aircraftType.toLowerCase())) ??
+    (isStrategicStrikeRequest(normalized) ? aircraftTypesByTask['Strategic Strike']?.[0] : null) ??
     aircraftTypesByTask['Ground Attack']?.[0] ??
     aircraftTypesByTask.CAS?.[0] ??
     availableAircraft[0]

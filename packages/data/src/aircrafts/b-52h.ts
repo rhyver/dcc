@@ -9,7 +9,7 @@ const aircraftDefinition: z.infer<typeof schemas.dcs.aircraft> = {
   max_height: 17000,
   max_speed: 1000,
   name: 'B-52H',
-  availableTasks: [],
+  availableTasks: ['Pinpoint Strike', 'Strategic Strike'],
   controllable: false,
   cruiseAltitude: 9144,
   cruiseSpeed: 220.97222222222,

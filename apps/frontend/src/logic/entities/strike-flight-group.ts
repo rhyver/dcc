@@ -5,6 +5,16 @@ import { buildStrikeMissionWaypoints, spawnPlannedFlightGroup } from './flight-g
 import { logCombatAction } from '../simulation-log'
 import { debugLog } from '@/lib/debug'
 
+function resolveStrikeAircraftCount(task: 'Pinpoint Strike' | 'Strategic Strike') {
+  if (task === 'Strategic Strike') {
+    const min = config.packages['Strategic Strike'].minAircraftsPerGroup
+    const max = config.packages['Strategic Strike'].maxAircraftsPerGroup
+    return Math.floor(Math.random() * (max - min + 1)) + min
+  }
+
+  return config.packages['Pinpoint Strike'].aircraftsPerGroup
+}
+
 export class StrikeFlightGroup extends FlightGroup {
   static spawn(
     draft: z.infer<typeof schemas.campaign.campaign>,
@@ -24,9 +34,11 @@ export class StrikeFlightGroup extends FlightGroup {
       aircraftType: z.infer<typeof schemas.dcs.aircraftName>
       packageId?: string
       exactTarget?: boolean
+      task?: 'Pinpoint Strike' | 'Strategic Strike'
     }
   ): { flightGroupId: string; tot: Date } {
-    const numAircraft = config.packages['Pinpoint Strike'].aircraftsPerGroup
+    const task = params.task ?? 'Pinpoint Strike'
+    const numAircraft = resolveStrikeAircraftCount(task)
     const firstBuilding = params.target.buildings?.[0]
     const aimpointPosition =
       params.exactTarget === true && params.target.position && firstBuilding
@@ -48,7 +60,7 @@ export class StrikeFlightGroup extends FlightGroup {
     const { flightGroupId, tot } = spawnPlannedFlightGroup({
       draft,
       coalition,
-      task: 'Pinpoint Strike',
+      task,
       aircraftType: params.aircraftType,
       aircraftCount: numAircraft,
       homeBase: params.homeBase,
@@ -118,5 +130,5 @@ export class StrikeFlightGroup extends FlightGroup {
 }
 
 export const isStrikeFlightGroup = (flightGroup: FlightGroup): flightGroup is StrikeFlightGroup => {
-  return flightGroup.task === 'Pinpoint Strike'
+  return flightGroup.task === 'Pinpoint Strike' || flightGroup.task === 'Strategic Strike'
 }

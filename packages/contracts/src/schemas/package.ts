@@ -8,7 +8,11 @@ export const packageMember = z.object({
   totOffset: z.number() // milliseconds offset from package ToT
 })
 
-export const packageType = z.enum(['Strike Package', 'SEAD Strike Package'])
+export const packageType = z.enum([
+  'Strike Package',
+  'SEAD Strike Package',
+  'SEAD Strategic Strike Package'
+])
 
 export const packageStatus = z.enum(['active', 'completed'])
 

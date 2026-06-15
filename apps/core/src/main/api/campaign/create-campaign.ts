@@ -3,7 +3,7 @@ import { getScenarios } from '../data/get-scenarios'
 import { getTemplates } from '../data/get-templates'
 import { pub } from '../orpc'
 import * as z from 'zod'
-import { schemas } from '@dcc/contracts'
+import { config, schemas } from '@dcc/contracts'
 import { writeFile, ensureDirectory, readFile, parseJson } from '../../utils'
 import path from 'path'
 import { getTheatre } from '../data/get-theatre'
@@ -17,7 +17,7 @@ import { randomDateForEra } from './campaign-date'
 type CampaignCreationEra = 'Korea' | 'Vietnam' | 'Late CW' | 'Modern'
 
 const factionIdsByEra: Record<CampaignCreationEra, { player: string; opponent: string }> = {
-  'Korea': {
+  Korea: {
     player: 'usa-1952',
     opponent: 'russia-1955'
   },
@@ -33,6 +33,21 @@ const factionIdsByEra: Record<CampaignCreationEra, { player: string; opponent: s
     player: 'usa-2004',
     opponent: 'russia-1996'
   }
+}
+
+function createInitialStrategicStrikeCooldown(
+  campaignTime: Date,
+  opponentFaction: z.infer<typeof schemas.faction>
+) {
+  const strategicAircraftTypes = opponentFaction.aircraftTypes['Strategic Strike']
+  if (!strategicAircraftTypes || strategicAircraftTypes.length === 0) {
+    return undefined
+  }
+
+  const min = config.packages['Strategic Strike'].cooldownMinMs
+  const max = config.packages['Strategic Strike'].cooldownMaxMs
+  const cooldownMs = Math.floor(Math.random() * (max - min + 1)) + min
+  return new Date(campaignTime.getTime() + cooldownMs)
 }
 
 async function setActiveCampaignId(id: string) {
@@ -293,6 +308,10 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
 
   const now = new Date()
   const campaignTime = randomDateForEra(input.era)
+  const opponentStrategicStrikeCooldownUntil = createInitialStrategicStrikeCooldown(
+    campaignTime,
+    opponentFaction
+  )
 
   const defaultState: z.infer<typeof schemas.campaign.campaign> = {
     version: '0.0.1',
@@ -339,6 +358,7 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
         groundGroups: opponentGroundGroups,
         flightGroups: [],
         packages: [],
+        strategicStrikeCooldownUntil: opponentStrategicStrikeCooldownUntil,
         supplyNodes: opponentSupplyNodes
       }
     }

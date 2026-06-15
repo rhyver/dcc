@@ -14,6 +14,7 @@ function listTaskTypes() {
   const tasks = new Set<string>()
   for (const faction of factions) {
     for (const task of Object.keys(faction.aircraftTypes)) {
+      if (task === 'Strategic Strike') continue
       tasks.add(task)
     }
   }
@@ -53,6 +54,7 @@ export function createMissionGeneratorSystemPrompt() {
     '',
     'Known task types:',
     listTaskTypes(),
+    'Strategic Strike is campaign-only; for single mission plans, use Pinpoint Strike instead.',
     '',
     'Sample available aircraft names:',
     listSampleAircraft(),

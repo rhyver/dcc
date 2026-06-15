@@ -83,6 +83,7 @@ const campaignCoalition = z.object({
   groundGroups: z.array(groundGroup),
   flightGroups: z.array(flightGroup),
   packages: z.array(missionPackage),
+  strategicStrikeCooldownUntil: z.date().optional(),
   supplyNodes: z.record(z.string(), supply).optional()
 })
 

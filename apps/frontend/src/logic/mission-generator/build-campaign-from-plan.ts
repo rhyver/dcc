@@ -1,6 +1,7 @@
 import { schemas, config } from '@dcc/contracts'
 import {
   factions as dataFactions,
+  aircrafts as dataAircrafts,
   scenarios as dataScenarios,
   templates as dataTemplates,
   theatres
@@ -14,6 +15,13 @@ type AircraftName = z.infer<typeof schemas.dcs.aircraftName>
 type FlightTarget = NonNullable<z.infer<typeof schemas.flightGroup>['target']>
 type Theatre = z.infer<typeof schemas.theatre>
 type TheatreTarget = z.infer<typeof schemas.target>
+
+const FORTY_THOUSAND_FEET_METERS = 12_192
+const DEFAULT_MISSION_ALTITUDE_METERS = 5_500
+const DEFAULT_RTB_ALTITUDE_METERS = 3_000
+const aircraftMap = new Map(
+  Object.values(dataAircrafts).map((aircraft) => [aircraft.name, aircraft])
+)
 
 function getTheatre(name: string): Theatre | null {
   return theatres.find((theatre) => theatre.name === name) ?? null
@@ -93,20 +101,45 @@ function createFlightplan(params: {
   start: z.infer<typeof schemas.position>
   target: z.infer<typeof schemas.position>
   startTime: Date
+  cruiseAltitude?: number
 }): z.infer<typeof schemas.flightplan> {
   const midpoint = {
     x: (params.start.x + params.target.x) / 2,
     y: (params.start.y + params.target.y) / 2
   }
+  const cruiseAltitude = params.cruiseAltitude ?? DEFAULT_MISSION_ALTITUDE_METERS
+  const rtbAltitude =
+    params.cruiseAltitude == null ? DEFAULT_RTB_ALTITUDE_METERS : params.cruiseAltitude
 
   return {
     id: crypto.randomUUID(),
     startTime: params.startTime,
     waypoints: [
       { name: 'Takeoff', position: params.start, altitude: 100, speed: 180, type: 'TakeOff' },
-      { name: 'Ingress', position: midpoint, altitude: 5500, speed: 220, type: 'Nav' },
-      { name: 'IP', position: params.target, altitude: 5500, speed: 220, type: 'Task' },
-      { name: 'RTB', position: params.start, altitude: 3000, speed: 220, type: 'Nav' },
+      {
+        name: 'Ingress',
+        position: midpoint,
+        altitude: cruiseAltitude,
+        altitudeType: 'BARO',
+        speed: 220,
+        type: 'Nav'
+      },
+      {
+        name: 'IP',
+        position: params.target,
+        altitude: cruiseAltitude,
+        altitudeType: 'BARO',
+        speed: 220,
+        type: 'Task'
+      },
+      {
+        name: 'RTB',
+        position: params.start,
+        altitude: rtbAltitude,
+        altitudeType: 'BARO',
+        speed: 220,
+        type: 'Nav'
+      },
       { name: 'Landing', position: params.start, altitude: 100, speed: 160, type: 'Landing' }
     ]
   }
@@ -138,6 +171,7 @@ function createFlightGroup(params: {
   targetPosition: z.infer<typeof schemas.position>
   tot: Date
   packageId?: string
+  cruiseAltitude?: number
 }) {
   return {
     id: crypto.randomUUID(),
@@ -156,10 +190,23 @@ function createFlightGroup(params: {
     flightplan: createFlightplan({
       start: params.homePosition,
       target: params.targetPosition,
-      startTime: new Date(params.tot.getTime() - 15 * 60 * 1000)
+      startTime: new Date(params.tot.getTime() - 15 * 60 * 1000),
+      cruiseAltitude: params.cruiseAltitude
     }),
     packageId: params.packageId
   } satisfies z.infer<typeof schemas.flightGroup>
+}
+
+function resolveMissionCruiseAltitude(
+  task: z.infer<typeof schemas.task>,
+  aircraftType: AircraftName
+) {
+  const aircraft = aircraftMap.get(aircraftType)
+  if (task === 'Pinpoint Strike' && aircraft?.availableTasks.includes('Strategic Strike')) {
+    return FORTY_THOUSAND_FEET_METERS
+  }
+
+  return undefined
 }
 
 function resolveFlightGroupCount(task: z.infer<typeof schemas.task>, requestedCount: number) {
@@ -272,6 +319,10 @@ export function buildCampaignFromPlan(
     preferredTask: playerPrimaryTask,
     factionAircraftTypes: playerFaction.aircraftTypes as Record<string, string[]>
   })
+  const playerPrimaryCruiseAltitude = resolveMissionCruiseAltitude(
+    playerPrimaryTask,
+    playerPrimaryAircraftType
+  )
 
   const fallbackGroundUnitType =
     opponentTemplate.groundUnitTypes.Vehicle[0] ??
@@ -331,7 +382,8 @@ export function buildCampaignFromPlan(
     target: playerTarget,
     targetPosition: playerTargetPosition,
     tot: new Date(missionTime.getTime() + 30 * 60 * 1000),
-    packageId
+    packageId,
+    cruiseAltitude: playerPrimaryCruiseAltitude
   })
 
   const opponentCapFlights = plan.opponentCoalition.capFlights.map((capFlight, index) =>

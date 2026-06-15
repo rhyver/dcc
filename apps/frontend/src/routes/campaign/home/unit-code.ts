@@ -68,6 +68,7 @@ function getUnitCode(item: z.infer<typeof schemas.MapItem>): SidcUnitCodeKey {
       switch (item.task) {
         case 'CAS':
         case 'Pinpoint Strike':
+        case 'Strategic Strike':
           return 'attack'
         case 'CSAR':
           return 'csar'

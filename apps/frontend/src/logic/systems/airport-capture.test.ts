@@ -34,6 +34,7 @@ function createCoalition(id: 'player' | 'opponent'): CoalitionData {
     aircraftTypes: {
       CAP: ['F-16C_50'],
       'Pinpoint Strike': ['F-16C_50'],
+      'Strategic Strike': ['B-52H'],
       SEAD: ['F-16C_50'],
       DEAD: ['F-16C_50'],
       CAS: ['F-16C_50'],

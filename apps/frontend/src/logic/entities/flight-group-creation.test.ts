@@ -39,6 +39,7 @@ function createCoalition(id: 'player' | 'opponent'): Campaign['coalitions']['pla
     aircraftTypes: {
       CAP: ['F-16C_50'],
       'Pinpoint Strike': ['F-16C_50'],
+      'Strategic Strike': ['B-52H'],
       SEAD: ['F-16C_50'],
       DEAD: ['F-16C_50'],
       CAS: ['F-16C_50'],
@@ -203,6 +204,45 @@ describe('Pinpoint Strike flight group creation', () => {
       altitudeType: 'RADIO',
       type: 'Nav'
     })
+  })
+})
+
+describe('Strategic Strike flight group creation', () => {
+  test('creates a strategic strike group with one to four bombers and strike waypoints', () => {
+    const campaign = createCampaign()
+
+    vi.mocked(Math.random).mockReturnValue(0)
+    const result = StrikeFlightGroup.spawn(campaign, 'player', {
+      homeBase: 'Home',
+      homeBasePosition,
+      target,
+      targetPosition,
+      aircraftType: 'B-52H',
+      task: 'Strategic Strike'
+    })
+
+    const group = getCreatedFlightGroup(campaign, result.flightGroupId)
+    expect(group.task).toBe('Strategic Strike')
+    expect(group.aircrafts).toHaveLength(config.packages['Strategic Strike'].minAircraftsPerGroup)
+    expect(group.aircrafts[0]?.aircraftName).toBe('B-52H')
+    expectStrikeFixedWingPlan(group)
+  })
+
+  test('caps strategic strike groups at four bombers', () => {
+    const campaign = createCampaign()
+
+    vi.mocked(Math.random).mockReturnValue(0.999)
+    const result = StrikeFlightGroup.spawn(campaign, 'player', {
+      homeBase: 'Home',
+      homeBasePosition,
+      target,
+      targetPosition,
+      aircraftType: 'B-52H',
+      task: 'Strategic Strike'
+    })
+
+    const group = getCreatedFlightGroup(campaign, result.flightGroupId)
+    expect(group.aircrafts).toHaveLength(config.packages['Strategic Strike'].maxAircraftsPerGroup)
   })
 })
 

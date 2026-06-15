@@ -8,6 +8,17 @@ export const config = {
       maxDistance: 300_000,
       aircraftsPerGroup: 2
     },
+    'Strategic Strike': {
+      maxActive: {
+        player: 0,
+        opponent: 1
+      },
+      maxDistance: 650_000,
+      minAircraftsPerGroup: 1,
+      maxAircraftsPerGroup: 4,
+      cooldownMinMs: 40 * 60 * 1000,
+      cooldownMaxMs: 90 * 60 * 1000
+    },
     SEAD: {
       maxActive: {
         player: 2,

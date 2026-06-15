@@ -400,6 +400,30 @@ describe('addFlightGroups enemy traffic throttle', () => {
     ])
   })
 
+  test('always includes opponent strategic strike flights when enemy traffic is throttled', () => {
+    const startTime = new Date('2026-01-01T00:00:00Z')
+    const mission = createMission()
+    const campaign = createCampaign(startTime)
+    campaign.coalitions.player.flightGroups = [
+      createTaskFlightGroup('blue-cas', 'Enfield-1', startTime, 'CAS')
+    ]
+    campaign.coalitions.opponent.flightGroups = [
+      createTaskFlightGroup('red-strategic', 'Buff-1', startTime, 'Strategic Strike'),
+      createTaskFlightGroup('red-strike', 'Bandit-1', startTime, 'Pinpoint Strike')
+    ]
+
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.9)
+
+    const result = addFlightGroups(mission, campaign, theatre)
+    randomSpy.mockRestore()
+
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) throw result.error
+
+    const redGroups = mission.coalition.red.country?.[0]?.plane?.group ?? []
+    expect(redGroups.map((group) => group.name)).toEqual(['Buff-1'])
+  })
+
   test('includes all opponent flights when a player client CAP is selected', () => {
     const startTime = new Date('2026-01-01T00:00:00Z')
     const mission = createMission()

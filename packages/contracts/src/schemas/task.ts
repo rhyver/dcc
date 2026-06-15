@@ -6,6 +6,7 @@ export const task = z.enum([
   'CAP',
   'Escort',
   'Pinpoint Strike',
+  'Strategic Strike',
   'CAS',
   'CSAR',
   'Air Assault',

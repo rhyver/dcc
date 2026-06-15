@@ -103,6 +103,7 @@ function shouldIncludeFlightGroupInMission(
   if (!options.throttleEnemyNonCapFlights) return true
   if (coalition !== 'opponent') return true
   if (flightGroup.task === 'CAP') return true
+  if (flightGroup.task === 'Strategic Strike') return true
   if (flightGroup.aircrafts.some((aircraft) => aircraft.client)) return true
 
   return Math.random() < 1 / 3

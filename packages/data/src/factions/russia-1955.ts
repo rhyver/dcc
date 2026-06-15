@@ -13,6 +13,7 @@ export const RUSSIA1955: z.infer<typeof schemas.faction> = {
     CAP: ['MiG-15bis', 'MiG-19P'],
     Escort: ['MiG-15bis', 'MiG-19P'],
     'Pinpoint Strike': ['MiG-19P', 'Ju-88A4'],
+    'Strategic Strike': ['Tu-95MS'],
     CAS: ['MiG-19P'],
     CSAR: [],
     'Air Assault': [],

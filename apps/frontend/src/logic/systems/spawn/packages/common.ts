@@ -79,22 +79,51 @@ export function pickRandomAircraftType(aircraftTypes: string[]): AircraftName | 
 export function selectHomeBaseAndTarget<T>({
   homeBases,
   targets,
-  maxDistance
+  maxDistance,
+  preference = 'nearest'
 }: {
   homeBases: AirdromeSelection[]
   targets: LocatedTarget<T>[]
   maxDistance: number
+  preference?: 'nearest' | 'farthest'
 }): { homeBase: AirdromeSelection; target: T; targetPosition: Position } | null {
+  let furthestAssignment: {
+    homeBase: AirdromeSelection
+    target: T
+    targetPosition: Position
+    distance: number
+  } | null = null
+
   for (const homeBase of homeBases) {
     for (const locatedTarget of targets) {
       const distance = calculateDistance(homeBase.position, locatedTarget.position)
       if (distance <= maxDistance) {
+        if (preference === 'farthest') {
+          if (!furthestAssignment || distance > furthestAssignment.distance) {
+            furthestAssignment = {
+              homeBase,
+              target: locatedTarget.target,
+              targetPosition: locatedTarget.position,
+              distance
+            }
+          }
+          continue
+        }
+
         return {
           homeBase,
           target: locatedTarget.target,
           targetPosition: locatedTarget.position
         }
       }
+    }
+  }
+
+  if (furthestAssignment) {
+    return {
+      homeBase: furthestAssignment.homeBase,
+      target: furthestAssignment.target,
+      targetPosition: furthestAssignment.targetPosition
     }
   }
 
@@ -166,11 +195,7 @@ export function selectCapPatrolAssignment({
       continue
     }
 
-    const assignment = assignCapPatrolForHomeBase(
-      homeBase,
-      enemyAirdromes,
-      maxHomeToEnemyDistance
-    )
+    const assignment = assignCapPatrolForHomeBase(homeBase, enemyAirdromes, maxHomeToEnemyDistance)
     if (assignment) {
       return assignment
     }

@@ -13,6 +13,7 @@ export const USA1952: z.infer<typeof schemas.faction> = {
     CAP: ['F-86F Sabre'],
     Escort: ['F-86F Sabre'],
     'Pinpoint Strike': ['F-86F Sabre', 'MosquitoFBMkVI'],
+    'Strategic Strike': [],
     CAS: ['F-86F Sabre'],
     CSAR: [],
     'Air Assault': [],

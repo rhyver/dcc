@@ -479,38 +479,44 @@ local function messageAll(message, displayTime)
 end
 
 local function canWrite(name)
-    local f = io.open(name, "a")
+    if type(io) ~= 'table' or type(io.open) ~= 'function' then
+        return false, 'io.open is unavailable'
+    end
+
+    local f, error = io.open(name, "a")
     if f then
         f:close()
-        return true
+        return true, nil
     end
-    return false
+    return false, error or 'unknown write error'
 end
 
 local function findFilePath()
-    if lfs then
-        local path = lfs.writedir().."Missions\\"
-        local filePath = string.format("%sdcc_state.json", path)
-
-        local isOk = canWrite(filePath)
-        if isOk then 
-            debugLog(string.format("The dcc_state.json file will be created in %s : (%s)", path, filePath))
-            return filePath
-        end
+    if type(lfs) ~= 'table' or type(lfs.writedir) ~= 'function' then
+        return nil, 'lfs.writedir is unavailable'
     end
 
-    return nil
+    local path = lfs.writedir().."Missions\\"
+    local filePath = string.format("%sdcc_state.json", path)
+
+    local isOk, error = canWrite(filePath)
+    if isOk then 
+        debugLog(string.format("The dcc_state.json file will be created in %s : (%s)", path, filePath))
+        return filePath, nil
+    end
+
+    return nil, string.format("Could not write %s: %s", filePath, tostring(error))
 end
 
-local filePath = findFilePath()
+local filePath, filePathError = findFilePath()
 loadMissionUnitCache()
 loadTransportGroups()
 
 if filePath then
     debugLog(string.format("State File Location: %s", filePath))
 else
-    debugLog('Insufficient libraries to run state.lua, you must disable the sanitization of the io and lfs libraries in ./Scripts/MissionScripting.lua')
-    messageAll('No Permission to save the Mission State! Mission Progress will not be saved! Please visit our github or discord to fix the Problem.', 600)
+    debugLog('State persistence unavailable: '..tostring(filePathError or 'unknown error'))
+    messageAll('No Permission to save the Mission State! Mission Progress will not be saved! Please visit our github or discord to fix the Problem. Details: '..tostring(filePathError or 'unknown error'), 600)
 end
 
 -- Get positions and unit info for aircraft groups (AIRPLANE and HELICOPTER)

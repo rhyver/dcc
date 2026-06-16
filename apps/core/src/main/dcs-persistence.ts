@@ -154,6 +154,7 @@ function restoreMissionScripting() {
   try {
     const originalContent = fs.readFileSync(backupPath, 'utf-8')
     fs.writeFileSync(meta.missionScriptingPath, originalContent, 'utf-8')
+    console.log(`Restored MissionScripting.lua: ${meta.missionScriptingPath}`)
   } catch (error) {
     console.error('Failed to restore MissionScripting.lua:', error)
   } finally {
@@ -219,6 +220,9 @@ export function syncDcsPersistenceForAppRuntime(input?: PersistenceSettingsInput
     const patchedContent = enablePersistenceInMissionScripting(currentContent)
     if (patchedContent !== currentContent) {
       fs.writeFileSync(missionScriptingPath, patchedContent, 'utf-8')
+      console.log(`Enabled DCS persistence in MissionScripting.lua: ${missionScriptingPath}`)
+    } else {
+      console.log(`DCS persistence already enabled in MissionScripting.lua: ${missionScriptingPath}`)
     }
 
     registerRestoreHook()

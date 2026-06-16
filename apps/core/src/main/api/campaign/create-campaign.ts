@@ -326,6 +326,7 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
       hotStart: false,
       culling: true,
       ewr: true,
+      iads: true,
       exactTarget: true,
       casJtac: true
     },

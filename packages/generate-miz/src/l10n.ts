@@ -20,11 +20,15 @@ export function mapResource(): z.infer<typeof schemas.dcs.l10n>['mapResource'] {
     splash_damage: 'splash_damage.lua',
     cas: 'cas.lua',
     ewr: 'ewr.lua',
+    skynet_iads: 'skynet-iads.lua',
+    dcc_iads: 'dcc_iads.lua',
     ResKey_Action_7: 'splash_damage.lua',
     ResKey_Action_8: 'state.lua',
     ResKey_Action_10: 'mist.lua',
     ResKey_Action_16: 'cas.lua',
     ResKey_Action_17: 'ctld.lua',
-    ResKey_Action_18: 'ewr.lua'
+    ResKey_Action_18: 'ewr.lua',
+    ResKey_Action_19: 'skynet-iads.lua',
+    ResKey_Action_20: 'dcc_iads.lua'
   }
 }

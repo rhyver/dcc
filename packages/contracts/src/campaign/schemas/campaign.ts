@@ -116,6 +116,7 @@ export const campaign = z.preprocess(
         hotStart: z.boolean().optional(),
         culling: z.boolean().optional(),
         ewr: z.boolean().optional(),
+        iads: z.boolean().optional(),
         exactTarget: z.boolean().optional(),
         casJtac: z.boolean().optional()
       })

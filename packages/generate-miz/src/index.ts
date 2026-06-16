@@ -9,6 +9,7 @@ import { addFlightGroups, type MissionFlightConfig } from './add-flight-groups'
 import { addGroundGroups } from './add-ground-groups'
 import { addStructures } from './add-structures'
 import { getFrontlineSegments } from './frontline'
+import { buildIadsConfig, type MissionIadsConfig } from './iads'
 import { createKneeboardImages } from './kneeboard'
 import { dictionary, mapResource } from './l10n'
 import {
@@ -22,8 +23,10 @@ import { buildMissionCullingPlan, type MissionCullingManifest } from './mission-
 import { options } from './options'
 import casLuaScript from './scripts/cas.lua?raw'
 import ctldLuaScript from './scripts/ctld.lua?raw'
+import dccIadsLuaScript from './scripts/dcc_iads.lua?raw'
 import ewrLuaScript from './scripts/ewr.lua?raw'
 import mistLuaScript from './scripts/mist_4_5_126.lua?raw'
+import skynetIadsLuaScript from './scripts/skynet-iads.lua?raw'
 import splashDamageLuaScript from './scripts/splash_damage.lua?raw'
 import stateLuaScript from './scripts/state.lua?raw'
 import { warehouses } from './warehouses'
@@ -67,6 +70,22 @@ type MissionScriptConfig = {
   missionId: string
   flightGroups: MissionFlightConfig[]
   cullingManifest?: MissionCullingManifest
+}
+
+function getStartupTriggerIndexes(ewrEnabled: boolean, iadsEnabled: boolean) {
+  return [1, 2, 3, 4, 5, 6, ...(ewrEnabled ? [7] : []), ...(iadsEnabled ? [8, 9] : [])]
+}
+
+function createIadsConfigScript(iadsConfig: MissionIadsConfig) {
+  const iadsConfigLuaResult = luaTable.stringify(iadsConfig, {
+    mixedKeyTypes: true,
+    pretty: false
+  })
+  if (iadsConfigLuaResult.isErr()) {
+    return err(iadsConfigLuaResult.error)
+  }
+
+  return ok(`DCC_IADS_CONFIG = ${iadsConfigLuaResult.value}`)
 }
 
 function createMissionMapConfig(theatre: z.infer<typeof schemas.theatre>) {
@@ -274,7 +293,7 @@ export async function generateMizFromCampaign(
   console.log('generating miz file')
 
   const ewrEnabled = campaign.campaignParams?.ewr !== false
-  const startupTriggerIndexes = ewrEnabled ? [1, 2, 3, 4, 5, 6, 7] : [1, 2, 3, 4, 5, 6]
+  const iadsRequested = campaign.campaignParams?.iads !== false
 
   const mission: z.infer<typeof schemas.dcs.mission> = {
     version: 23,
@@ -426,6 +445,18 @@ export async function generateMizFromCampaign(
                 createDoScriptFileAction('ResKey_Action_18')
               )
             }
+          : {}),
+        ...(iadsRequested
+          ? {
+              8: createLoggedStartupAction(
+                'Loading Skynet IADS',
+                createDoScriptFileAction('ResKey_Action_19')
+              ),
+              9: createLoggedStartupAction(
+                'Loading DCC IADS',
+                createDoScriptFileAction('ResKey_Action_20')
+              )
+            }
           : {})
       },
       events: {},
@@ -438,7 +469,8 @@ export async function generateMizFromCampaign(
         4: true,
         5: true,
         6: true,
-        ...(ewrEnabled ? { 7: true } : {})
+        ...(ewrEnabled ? { 7: true } : {}),
+        ...(iadsRequested ? { 8: true, 9: true } : {})
       },
       conditions: {
         1: 'return(true)',
@@ -447,10 +479,11 @@ export async function generateMizFromCampaign(
         4: 'return(true)',
         5: 'return(true)',
         6: 'return(true)',
-        ...(ewrEnabled ? { 7: 'return(true)' } : {})
+        ...(ewrEnabled ? { 7: 'return(true)' } : {}),
+        ...(iadsRequested ? { 8: 'return(true)', 9: 'return(true)' } : {})
       },
       customStartup: {},
-      funcStartup: createTriggerFunctionMap(startupTriggerIndexes)
+      funcStartup: createTriggerFunctionMap(getStartupTriggerIndexes(ewrEnabled, iadsRequested))
     },
     trigrules: {
       1: {
@@ -514,6 +547,26 @@ export async function generateMizFromCampaign(
               colorItem: '0x00ffffff'
             }
           }
+        : {}),
+      ...(iadsRequested
+        ? {
+            8: {
+              rules: {},
+              eventlist: '',
+              predicate: 'triggerStart',
+              comment: 'Skynet IADS Script',
+              actions: { 1: { predicate: 'a_do_script_file', file: 'ResKey_Action_19' } },
+              colorItem: '0x00ffffff'
+            },
+            9: {
+              rules: {},
+              eventlist: '',
+              predicate: 'triggerStart',
+              comment: 'DCC IADS Script',
+              actions: { 1: { predicate: 'a_do_script_file', file: 'ResKey_Action_20' } },
+              colorItem: '0x00ffffff'
+            }
+          }
         : {})
     },
     triggers: {
@@ -531,6 +584,20 @@ export async function generateMizFromCampaign(
   const groundGroupsResult = addGroundGroups(mission, campaign, theatre, cullingPlan)
   if (groundGroupsResult.isErr()) {
     return err(groundGroupsResult.error)
+  }
+
+  const iadsConfig = buildIadsConfig(mission, campaign, theatre)
+  if (iadsRequested && !iadsConfig) {
+    delete (mission.trig as MissionTriggerTables).actions[8]
+    delete (mission.trig as MissionTriggerTables).actions[9]
+    delete (mission.trig as MissionTriggerTables).flag[8]
+    delete (mission.trig as MissionTriggerTables).flag[9]
+    delete (mission.trig as MissionTriggerTables).conditions[8]
+    delete (mission.trig as MissionTriggerTables).conditions[9]
+    delete (mission.trig as MissionTriggerTables).funcStartup[8]
+    delete (mission.trig as MissionTriggerTables).funcStartup[9]
+    delete (mission.trigrules as MissionTriggerRules)[8]
+    delete (mission.trigrules as MissionTriggerRules)[9]
   }
 
   const flightGroupsResult = addFlightGroups(mission, campaign, theatre)
@@ -561,6 +628,28 @@ export async function generateMizFromCampaign(
   configTriggerRule.actions[1] = {
     predicate: 'a_do_script',
     text: configScript
+  }
+
+  if (iadsConfig) {
+    const iadsConfigScriptResult = createIadsConfigScript(iadsConfig)
+    if (iadsConfigScriptResult.isErr()) {
+      return err(iadsConfigScriptResult.error)
+    }
+
+    const iadsTriggerRule = trigrules[9]
+    if (!iadsTriggerRule) {
+      return err(new Error('DCC IADS trigger rule is missing'))
+    }
+    const iadsAction = `${createDoScriptAction(iadsConfigScriptResult.value)}; ${createDoScriptFileAction('ResKey_Action_20')}`
+    trig.actions[9] = createLoggedStartupAction('Loading DCC IADS', iadsAction)
+    iadsTriggerRule.actions[1] = {
+      predicate: 'a_do_script',
+      text: iadsConfigScriptResult.value
+    }
+    iadsTriggerRule.actions[2] = {
+      predicate: 'a_do_script_file',
+      file: 'ResKey_Action_20'
+    }
   }
 
   addTransportCargoTriggers(mission, campaign)
@@ -631,6 +720,10 @@ export async function generateMizFromCampaign(
   zip.addFile('l10n/DEFAULT/splash_damage.lua', Buffer.from(splashDamageLuaScript, 'utf-8'))
   zip.addFile('l10n/DEFAULT/cas.lua', Buffer.from(casLuaScript, 'utf-8'))
   zip.addFile('l10n/DEFAULT/ewr.lua', Buffer.from(ewrLuaScript, 'utf-8'))
+  if (iadsConfig) {
+    zip.addFile('l10n/DEFAULT/skynet-iads.lua', Buffer.from(skynetIadsLuaScript, 'utf-8'))
+    zip.addFile('l10n/DEFAULT/dcc_iads.lua', Buffer.from(dccIadsLuaScript, 'utf-8'))
+  }
   kneeboardImages.forEach((image) => {
     zip.addFile(`KNEEBOARD/IMAGES/${image.filename}`, image.buffer)
   })

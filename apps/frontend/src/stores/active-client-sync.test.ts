@@ -110,6 +110,34 @@ function createFlightGroup(params: {
 }
 
 describe('active store client flight timing sync', () => {
+  test('repairs saved campaigns that have compatible aircraft but no DEAD task list', () => {
+    const campaign = createCampaign()
+    campaign.coalitions.player.id = 'usa-1977'
+    campaign.coalitions.player.aircraftTypes.SEAD = ['F-4E-45MC']
+    campaign.coalitions.player.aircraftTypes['Ground Attack'] = ['F-4E-45MC']
+    campaign.coalitions.player.aircraftTypes.DEAD = []
+
+    activeStore.send({ type: 'loadCampaign', campaign })
+
+    expect(activeStore.getSnapshot().context.coalitions.player.aircraftTypes.DEAD).toEqual([
+      'F-4E-45MC'
+    ])
+  })
+
+  test('repairs saved campaigns with AI-only Russian DEAD-capable aircraft', () => {
+    const campaign = createCampaign()
+    campaign.coalitions.player.id = 'russia-1971'
+    campaign.coalitions.player.aircraftTypes.SEAD = ['Su-17M4']
+    campaign.coalitions.player.aircraftTypes['Ground Attack'] = ['Su-17M4']
+    campaign.coalitions.player.aircraftTypes.DEAD = []
+
+    activeStore.send({ type: 'loadCampaign', campaign })
+
+    expect(activeStore.getSnapshot().context.coalitions.player.aircraftTypes.DEAD).toEqual([
+      'Su-17M4'
+    ])
+  })
+
   test('shifts ToT and package members when syncing client flight starts', () => {
     const campaign = createCampaign()
     campaign.coalitions.player.flightGroups = [

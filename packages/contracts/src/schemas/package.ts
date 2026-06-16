@@ -30,5 +30,7 @@ export const missionPackage = z.object({
   status: packageStatus,
   priority: z.number().optional(),
   reason: z.string().optional(),
-  targetType: z.string().optional()
+  targetType: z.string().optional(),
+  variantId: z.string().optional(),
+  variantLabel: z.string().optional()
 })

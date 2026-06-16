@@ -8,6 +8,7 @@ import * as z from 'zod'
 
 import { generateMizFromCampaign } from './index'
 import {
+  buildKneeboardMissionDescription,
   buildKneeboardWaypointRows,
   createKneeboardFilename,
   getClientFlightGroups,
@@ -227,6 +228,43 @@ describe('kneeboard waypoint rows', () => {
         remarks: 'LAND'
       }
     ])
+  })
+})
+
+describe('kneeboard mission description', () => {
+  test('uses package variant and reason when available', () => {
+    const startTime = new Date('2026-01-01T12:00:00Z')
+    const flightGroup = createFlightGroup('blue-client', 'Enfield-1', startTime)
+    flightGroup.task = 'CAS'
+    flightGroup.packageId = 'package-1'
+    flightGroup.target = {
+      id: 'ground-1',
+      type: 'Ground Group',
+      objectiveId: 'Kobuleti'
+    }
+
+    const description = buildKneeboardMissionDescription({
+      flightGroup,
+      theatre: {
+        ...theatre,
+        objectives: [{ name: 'Kobuleti', type: 'Frontline', position: { x: 0, y: 0 } }]
+      },
+      missionPackage: {
+        id: 'package-1',
+        type: 'CAS Package',
+        targetObjectiveId: 'Kobuleti',
+        members: [{ flightGroupId: flightGroup.id, role: 'cas', totOffset: 0 }],
+        tot: startTime,
+        status: 'active',
+        variantId: 'defensive-cas',
+        variantLabel: 'Defensive CAS',
+        reason: 'Enemy ground attack threatening Kobuleti'
+      }
+    })
+
+    expect(description).toContain('Defensive CAS')
+    expect(description).toContain('Enemy ground attack threatening Kobuleti')
+    expect(description).toContain('ground group / kobuleti')
   })
 })
 

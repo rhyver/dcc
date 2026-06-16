@@ -23,6 +23,7 @@ export class DeadFlightGroup extends FlightGroup {
       targetPosition: z.infer<typeof schemas.position>
       runwayAngle?: number
       aircraftType: z.infer<typeof schemas.dcs.aircraftName>
+      tot?: Date
       packageId?: string
     }
   ): { flightGroupId: string; tot: Date } {
@@ -32,10 +33,16 @@ export class DeadFlightGroup extends FlightGroup {
       params.targetPosition
     )
 
-    // Start 30-50 minutes in the future
-    const startTime = new Date(
-      draft.time.getTime() + Math.floor(Math.random() * (50 - 30 + 1) + 30) * 60 * 1000
-    )
+    const startTime =
+      params.tot != null
+        ? FlightGroup.calculateStartTimeForTot(
+            params.homeBasePosition,
+            missionWaypoints,
+            params.tot
+          )
+        : new Date(
+            draft.time.getTime() + Math.floor(Math.random() * (50 - 30 + 1) + 30) * 60 * 1000
+          )
 
     const { flightGroupId, tot } = spawnPlannedFlightGroup({
       draft,

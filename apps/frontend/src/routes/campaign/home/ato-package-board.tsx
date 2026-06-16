@@ -43,7 +43,12 @@ export function AtoPackageBoard() {
   )
   const activePackages = packages
     .filter((missionPackage) => missionPackage.status === 'active')
-    .sort((a, b) => new Date(a.tot).getTime() - new Date(b.tot).getTime())
+    .sort((a, b) => {
+      const priorityDelta = (b.priority ?? 0) - (a.priority ?? 0)
+      if (priorityDelta !== 0) return priorityDelta
+
+      return new Date(a.tot).getTime() - new Date(b.tot).getTime()
+    })
   const visiblePackages = activePackages.slice(0, 3)
 
   return (
@@ -78,7 +83,7 @@ export function AtoPackageBoard() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="truncate text-sm font-medium text-primary">
-                      {missionPackage.type}
+                      {missionPackage.variantLabel ?? missionPackage.type}
                     </div>
                     <div className="mt-1 flex min-w-0 items-center gap-1.5 text-[10px] text-secondary/70">
                       <Target className="h-3 w-3 shrink-0 text-synthwave-pink" />

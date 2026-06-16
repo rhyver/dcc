@@ -17,9 +17,17 @@ export function spawnPackages(
 ) {
   const context = resolveSpawnContext(draft, coalition)
   if (!context) return
+  const tempo = draft.operationProfile?.tempo ?? 'standard'
+  const tempoPolicy: Partial<AtoPlannerPolicy> =
+    tempo === 'cautious'
+      ? { maxNewPackagesPerLogicTick: 1, maxActiveAircraft: 22 }
+      : tempo === 'surge'
+        ? { maxNewPackagesPerLogicTick: 3, maxActiveAircraft: 34 }
+        : {}
 
   const result = planAtoPackages(draft, coalition, context, {
     ...defaultAtoPlannerPolicy,
+    ...tempoPolicy,
     enableTransport: featureFlags.transportFlightGroups,
     ...policy
   })

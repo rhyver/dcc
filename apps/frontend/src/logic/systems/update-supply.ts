@@ -17,6 +17,9 @@ const DEFAULT_ROUTE_CAPACITY = 35
 const ROUTE_INTERDICTION_RADIUS = 20_000
 const ROUTE_REPAIR_PER_TICK = 0.015
 const RECOVERING_BASE_OUTPUT_MULTIPLIER = 0.25
+const AIRDROME_SUPPLY_MAX = 10_000
+const AIRDROME_PRODUCTION_RATE = 20
+const OBJECTIVE_SUPPLY_MAX = 1_000
 
 const DEFAULT_FLIGHT_LOGISTICS_COST = { fuel: 120, munitions: 80, repair: 30, supply: 60 }
 
@@ -79,16 +82,52 @@ export function updateSupply(draft: Campaign, coalition: Coalition, delta = 1000
 }
 
 function createBaselineSupply(isAirdrome: boolean): Supply {
-  const max = isAirdrome ? 10_000 : 1_000
+  const max = isAirdrome ? AIRDROME_SUPPLY_MAX : OBJECTIVE_SUPPLY_MAX
   const current = isAirdrome ? max * 0.75 : max * 0.5
 
   return {
     current,
     max,
-    productionRate: isAirdrome ? 20 : 0,
+    productionRate: isAirdrome ? AIRDROME_PRODUCTION_RATE : 0,
     consumptionRate: 0,
     status: getSupplyStatus(current / max)
   }
+}
+
+function scalePoolCapacity(pool: SupplyPool | undefined, max: number, productionRate: number): void {
+  if (!pool) return
+
+  const ratio = pool.max > 0 ? pool.current / pool.max : 0
+  pool.max = Math.max(pool.max, max)
+  pool.current = Math.min(pool.max, Math.max(pool.current, pool.max * ratio))
+  pool.productionRate = Math.max(pool.productionRate, productionRate)
+}
+
+function ensureAirdromeSupplyCapacity(supply: Supply): void {
+  if (supply.max >= AIRDROME_SUPPLY_MAX) {
+    supply.productionRate = Math.max(supply.productionRate, AIRDROME_PRODUCTION_RATE)
+    return
+  }
+
+  const ratio = supply.max > 0 ? supply.current / supply.max : 0
+  supply.max = AIRDROME_SUPPLY_MAX
+  supply.current = Math.min(supply.max, Math.max(supply.current, supply.max * ratio))
+  supply.productionRate = Math.max(supply.productionRate, AIRDROME_PRODUCTION_RATE)
+
+  scalePoolCapacity(supply.fuel, supply.max * 0.45, supply.productionRate * 0.45)
+  scalePoolCapacity(supply.munitions, supply.max * 0.35, supply.productionRate * 0.35)
+  scalePoolCapacity(supply.repair, supply.max * 0.2, supply.productionRate * 0.2)
+
+  if (supply.logistics) {
+    supply.logistics.hub = true
+    supply.logistics.hubLevel = Math.max(supply.logistics.hubLevel ?? 1, 2)
+    supply.logistics.routeCapacity = Math.max(
+      supply.logistics.routeCapacity ?? 0,
+      DEFAULT_ROUTE_CAPACITY * 1.5
+    )
+  }
+
+  updateSupplyStatus(supply)
 }
 
 function ensureSupplyNodes(draft: Campaign, coalition: Coalition): Record<string, Supply> {
@@ -97,6 +136,7 @@ function ensureSupplyNodes(draft: Campaign, coalition: Coalition): Record<string
 
   for (const airdromeName of coalitionData.airdromeNames) {
     supplyNodes[airdromeName] ??= createBaselineSupply(true)
+    ensureAirdromeSupplyCapacity(supplyNodes[airdromeName])
   }
 
   for (const objectiveId of coalitionData.objectiveIds) {

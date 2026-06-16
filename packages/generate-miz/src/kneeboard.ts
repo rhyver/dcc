@@ -181,6 +181,38 @@ function truncate(value: string, maxLength: number): string {
   return value.length > maxLength ? value.slice(0, Math.max(0, maxLength - 1)) + '.' : value
 }
 
+function wrapText(value: string, maxLineLength: number, maxLines: number): string[] {
+  const words = value.trim().split(/\s+/).filter(Boolean)
+  const lines: string[] = []
+  let current = ''
+
+  for (const word of words) {
+    const next = current ? `${current} ${word}` : word
+    if (next.length <= maxLineLength) {
+      current = next
+      continue
+    }
+
+    if (current) {
+      lines.push(current)
+    }
+    current = word
+
+    if (lines.length >= maxLines) break
+  }
+
+  if (current && lines.length < maxLines) {
+    lines.push(current)
+  }
+
+  if (lines.length === maxLines && words.join(' ').length > lines.join(' ').length) {
+    const last = lines[maxLines - 1] ?? ''
+    lines[maxLines - 1] = truncate(last, Math.max(4, maxLineLength - 2))
+  }
+
+  return lines.length > 0 ? lines : ['No mission details available.']
+}
+
 function renderField(label: string, value: string, x: number, y: number, width: number) {
   return `
     <text x="${x}" y="${y}" class="label">${escapeXml(label)}</text>
@@ -205,6 +237,19 @@ function findMissionConfig(
   return missionFlightConfigs.find((config) => config.name === flightGroup.callsign)
 }
 
+function findMissionPackage(campaign: Campaign, flightGroup: FlightGroup) {
+  if (!flightGroup.packageId) return undefined
+
+  for (const coalition of schemas.coalition.options) {
+    const missionPackage = campaign.coalitions[coalition].packages.find(
+      (candidate) => candidate.id === flightGroup.packageId
+    )
+    if (missionPackage) return missionPackage
+  }
+
+  return undefined
+}
+
 function getAircraftSummary(flightGroup: FlightGroup): string {
   const aircraftCounts = new Map<string, number>()
   flightGroup.aircrafts.forEach((aircraft) => {
@@ -225,6 +270,43 @@ function getTargetSummary(flightGroup: FlightGroup, theatre: Theatre): string {
   const targetType = flightGroup.target.type || 'Target'
   const objectiveName = objective?.name ?? flightGroup.target.objectiveId
   return `${targetType} / ${objectiveName}`
+}
+
+export function buildKneeboardMissionDescription(params: {
+  flightGroup: FlightGroup
+  missionPackage: ReturnType<typeof findMissionPackage>
+  theatre: Theatre
+}) {
+  const { flightGroup, missionPackage, theatre } = params
+  const targetSummary = getTargetSummary(flightGroup, theatre).toLowerCase()
+  const packageLabel = missionPackage?.variantLabel ?? missionPackage?.type
+  const packageReason = missionPackage?.reason
+
+  if (packageLabel && packageReason) {
+    return `${packageLabel}: ${packageReason}. Target is ${targetSummary}.`
+  }
+
+  if (packageLabel) {
+    return `${packageLabel}: execute ${flightGroup.task} tasking against ${targetSummary}.`
+  }
+
+  if (flightGroup.task === 'CAP') {
+    return `Conduct combat air patrol from ${flightGroup.homeBase}. Protect assigned airspace and intercept hostile aircraft.`
+  }
+
+  if (flightGroup.task === 'CAS') {
+    return `Provide close air support against ${targetSummary}. Use JTAC calls, smoke, or laser marks when available.`
+  }
+
+  if (flightGroup.task === 'Pinpoint Strike' || flightGroup.task === 'Strategic Strike') {
+    return `Strike ${targetSummary}. Navigate to the attack point, prosecute the target, then egress and recover.`
+  }
+
+  if (flightGroup.task === 'DEAD' || flightGroup.task === 'SEAD') {
+    return `Suppress or destroy enemy air defenses at ${targetSummary}. Support friendly package access through the threat area.`
+  }
+
+  return `Execute ${flightGroup.task} tasking from ${flightGroup.homeBase} against ${targetSummary}.`
 }
 
 function getSpecialNotes(flightGroup: FlightGroup, missionConfig: MissionFlightConfig | undefined) {
@@ -507,6 +589,12 @@ async function renderKneeboardSvg(params: {
   const { campaign, theatre, missionFlightConfigs, coalition, flightGroup } = params
   const rows = buildKneeboardWaypointRows(flightGroup)
   const missionConfig = findMissionConfig(missionFlightConfigs, flightGroup)
+  const missionPackage = findMissionPackage(campaign, flightGroup)
+  const missionDescriptionLines = wrapText(
+    buildKneeboardMissionDescription({ flightGroup, missionPackage, theatre }),
+    78,
+    3
+  )
   const clientCount = flightGroup.aircrafts.filter((aircraft) => aircraft.client).length
   const layout = buildKneeboardLayout(rows.length)
   const mission = layout.missionSummary
@@ -574,8 +662,13 @@ async function renderKneeboardSvg(params: {
   ${renderSectionHeader('TARGET / INTEL', CONTENT_X, target.panelY, CONTENT_WIDTH)}
   <text x="82" y="${target.contentY + 26}" class="value">${escapeXml(truncate(flightGroup.target?.objectiveId ?? 'N/A', 28))}</text>
   <text x="82" y="${target.contentY + 54}" class="value">${escapeXml(truncate(flightGroup.target?.type ?? 'N/A', 28))}</text>
-  <text x="408" y="${target.contentY + 26}" class="label">NOTES</text>
-  <text x="408" y="${target.contentY + 54}" class="value">${escapeXml(truncate(getSpecialNotes(flightGroup, missionConfig), 34))}</text>
+  <text x="408" y="${target.contentY + 26}" class="label">DESCRIPTION</text>
+  ${missionDescriptionLines
+    .map(
+      (line, index) =>
+        `<text x="408" y="${target.contentY + 50 + index * 17}" class="value">${escapeXml(line)}</text>`
+    )
+    .join('')}
 
   ${renderWaypointTable(rows, layout.waypoints)}
 

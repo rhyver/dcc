@@ -119,13 +119,49 @@ type FlightGroup = CoalitionData['flightGroups'][number]
 type MissionPackage = CoalitionData['packages'][number]
 type AircraftName = z.infer<typeof schemas.dcs.aircraftName>
 
-function isAircraftTaskCompatible(aircraftType: AircraftName, task: FlightGroup['task']) {
+function isAircraftTaskCompatible(
+  aircraftType: AircraftName,
+  task: FlightGroup['task'],
+  options: { includeAiOnly?: boolean } = {}
+) {
   return Object.values(aircraftDefinitions).some(
     (aircraft) =>
       aircraft.name === aircraftType &&
-      aircraft.controllable &&
+      (options.includeAiOnly === true || aircraft.controllable) &&
       aircraft.availableTasks.includes(task)
   )
+}
+
+function getTaskCompatibleAircraftTypes(
+  aircraftTypes: CoalitionData['aircraftTypes'],
+  task: FlightGroup['task']
+) {
+  return [
+    ...new Set(
+      Object.values(aircraftTypes)
+        .flat()
+        .filter((aircraftType): aircraftType is AircraftName => {
+          const parsedAircraftType = schemas.dcs.aircraftName.safeParse(aircraftType)
+          return (
+            parsedAircraftType.success &&
+            isAircraftTaskCompatible(parsedAircraftType.data, task, { includeAiOnly: true })
+          )
+        })
+    )
+  ]
+}
+
+function repairMissingDeadAircraftTypes(campaign: Campaign): Campaign {
+  return produce(campaign, (draft) => {
+    for (const coalition of [draft.coalitions.player, draft.coalitions.opponent]) {
+      if ((coalition.aircraftTypes.DEAD ?? []).length > 0) continue
+
+      const deadAircraftTypes = getTaskCompatibleAircraftTypes(coalition.aircraftTypes, 'DEAD')
+      if (deadAircraftTypes.length > 0) {
+        coalition.aircraftTypes.DEAD = deadAircraftTypes
+      }
+    }
+  })
 }
 
 function hasLiveGroundUnits(group: Campaign['coalitions']['player']['groundGroups'][number]) {
@@ -311,7 +347,8 @@ export function resetFlightGroupClientSelections(campaign: Campaign) {
 export const activeStore = createStore({
   context: initialState,
   on: {
-    loadCampaign: (_, { campaign }: { campaign: Campaign }) => removeEmptyGroundGroups(campaign),
+    loadCampaign: (_, { campaign }: { campaign: Campaign }) =>
+      repairMissingDeadAircraftTypes(removeEmptyGroundGroups(campaign)),
 
     updateTime: (context, { time }: { time: Date }) =>
       produce(context, (draft) => {

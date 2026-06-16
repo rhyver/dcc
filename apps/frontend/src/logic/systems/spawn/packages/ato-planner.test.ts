@@ -134,6 +134,21 @@ function createContext(): SpawnContext {
   }
 }
 
+function createOpponentContext(): SpawnContext {
+  return {
+    ...createContext(),
+    enemyCoalition: 'player',
+    theatre: {
+      ...createContext().theatre,
+      airdromeDetails: {
+        Home: { name: 'Home', x: 0, y: 0, runwayAngle: 90 },
+        Enemy: { name: 'Enemy', x: 100_000, y: 0, runwayAngle: 270 },
+        'Enemy Reserve': { name: 'Enemy Reserve', x: 150_000, y: 0, runwayAngle: 270 }
+      }
+    } as unknown as SpawnContext['theatre']
+  }
+}
+
 function plannerPolicy(overrides: Partial<AtoPlannerPolicy> = {}): AtoPlannerPolicy {
   return {
     ...defaultAtoPlannerPolicy,
@@ -152,6 +167,72 @@ describe('ATO package planner', () => {
     const result = planAtoPackages(campaign, 'player', createContext(), plannerPolicy())
 
     expect(result.admitted.some((plan) => plan.kind === 'cap')).toBe(true)
+  })
+
+  test('uses another reachable airbase when the nearest base cannot support combat flights', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0)
+    const campaign = createCampaign({ opponentAircraft: { CAP: ['MiG-21Bis'] } })
+    campaign.coalitions.opponent.airdromeNames = ['Enemy', 'Enemy Reserve']
+    campaign.coalitions.opponent.supplyNodes = {
+      Enemy: {
+        current: 100,
+        max: 1000,
+        productionRate: 0,
+        consumptionRate: 0,
+        status: 'critical'
+      },
+      'Enemy Reserve': {
+        current: 10_000,
+        max: 10_000,
+        productionRate: 20,
+        consumptionRate: 0,
+        status: 'abundant'
+      }
+    }
+
+    const result = planAtoPackages(campaign, 'opponent', createOpponentContext(), plannerPolicy())
+    const cap = result.admitted.find((plan) => plan.kind === 'cap')
+
+    expect(cap?.flights[0]?.homeBase.name).toBe('Enemy Reserve')
+  })
+
+  test('randomly picks among viable reachable airbases for normal tasks', () => {
+    const randomSpy = vi.spyOn(Math, 'random')
+    randomSpy.mockReturnValueOnce(0.9).mockReturnValue(0)
+    const campaign = createCampaign({ opponentAircraft: { 'Pinpoint Strike': ['MiG-21Bis'] } })
+    campaign.coalitions.opponent.airdromeNames = ['Enemy', 'Enemy Reserve']
+    campaign.coalitions.opponent.supplyNodes = {
+      Enemy: {
+        current: 10_000,
+        max: 10_000,
+        productionRate: 20,
+        consumptionRate: 0,
+        status: 'abundant'
+      },
+      'Enemy Reserve': {
+        current: 10_000,
+        max: 10_000,
+        productionRate: 20,
+        consumptionRate: 0,
+        status: 'abundant'
+      }
+    }
+    campaign.coalitions.player.structures = [
+      {
+        id: 'structure-1',
+        type: 'Ammo Depot',
+        objectiveId: 'Home Objective',
+        position: { x: 0, y: 0 },
+        name: 'Ammo Depot',
+        resources: 0,
+        buildings: [{ offset: { x: 0, y: 0 }, type: 'Workshop A', alive: true }]
+      }
+    ]
+
+    const result = planAtoPackages(campaign, 'opponent', createOpponentContext(), plannerPolicy())
+    const strike = result.admitted.find((plan) => plan.kind === 'strike')
+
+    expect(strike?.flights[0]?.homeBase.name).toBe('Enemy Reserve')
   })
 
   test('emits strike plus SEAD when a reachable structure is covered by an operational SAM', () => {
@@ -192,6 +273,78 @@ describe('ATO package planner', () => {
     expect(result.admitted.some((plan) => plan.kind === 'dead')).toBe(true)
   })
 
+  test('uses DEAD-capable aircraft from other task lists when saved DEAD list is empty', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0)
+    const campaign = createCampaign({
+      playerAircraft: {
+        DEAD: [],
+        SEAD: ['F-4E-45MC'],
+        'Ground Attack': ['F-4E-45MC']
+      }
+    })
+    campaign.coalitions.opponent.samGroups = [
+      { id: 'sam-1', type: 'SA-6', objectiveId: 'Target Objective' }
+    ]
+
+    const result = planAtoPackages(campaign, 'player', createContext(), plannerPolicy())
+    const dead = result.admitted.find((plan) => plan.kind === 'dead')
+
+    expect(dead?.flights[0]?.aircraftType).toBe('F-4E-45MC')
+  })
+
+  test('uses AI-only Russian DEAD-capable aircraft from other task lists when saved DEAD list is empty', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0)
+    const campaign = createCampaign({
+      playerAircraft: {
+        DEAD: [],
+        SEAD: ['Su-17M4'],
+        'Ground Attack': ['Su-17M4']
+      }
+    })
+    campaign.coalitions.opponent.samGroups = [
+      { id: 'sam-1', type: 'SA-6', objectiveId: 'Target Objective' }
+    ]
+
+    const result = planAtoPackages(campaign, 'player', createContext(), plannerPolicy())
+    const dead = result.admitted.find((plan) => plan.kind === 'dead')
+
+    expect(dead?.flights[0]?.aircraftType).toBe('Su-17M4')
+  })
+
+  test('prioritizes DEAD for active SAMs when package admission is constrained', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0)
+    const campaign = createCampaign({
+      playerAircraft: {
+        CAP: ['F-16C_50'],
+        DEAD: ['F-16C_50'],
+        'Pinpoint Strike': ['F-16C_50']
+      }
+    })
+    campaign.coalitions.opponent.structures = [
+      {
+        id: 'structure-1',
+        type: 'Ammo Depot',
+        objectiveId: 'Target Objective',
+        position: { x: 50_000, y: 0 },
+        name: 'Ammo Depot',
+        resources: 0,
+        buildings: [{ offset: { x: 0, y: 0 }, type: 'Workshop A', alive: true }]
+      }
+    ]
+    campaign.coalitions.opponent.samGroups = [
+      { id: 'sam-1', type: 'SA-6', objectiveId: 'Target Objective' }
+    ]
+
+    const result = planAtoPackages(
+      campaign,
+      'player',
+      createContext(),
+      plannerPolicy({ maxNewPackagesPerLogicTick: 2 })
+    )
+
+    expect(result.admitted.map((plan) => plan.kind)).toContain('dead')
+  })
+
   test('emits CAS for a valid enemy ground group', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0)
     const campaign = createCampaign({ playerAircraft: { CAS: ['A-10C_2'] } })
@@ -208,6 +361,37 @@ describe('ATO package planner', () => {
     const result = planAtoPackages(campaign, 'player', createContext(), plannerPolicy())
 
     expect(result.admitted.some((plan) => plan.kind === 'cas')).toBe(true)
+  })
+
+  test('emits defensive CAS with a staged battle lock for an attack on a friendly objective', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0)
+    const campaign = createCampaign({ playerAircraft: { CAS: ['A-10C_2'] } })
+    campaign.coalitions.player.groundGroups = [
+      {
+        id: 'defender-1',
+        objectiveId: 'Home Objective',
+        position: { x: 0, y: 0 },
+        state: 'idle',
+        units: [{ name: 'M-1 Abrams', count: 2 }]
+      }
+    ]
+    campaign.coalitions.opponent.groundGroups = [
+      {
+        id: 'attacker-1',
+        objectiveId: 'Target Objective',
+        targetObjectiveId: 'Home Objective',
+        position: { x: 5_000, y: 0 },
+        state: 'moving',
+        units: [{ name: 'BMP-2', count: 4 }]
+      }
+    ]
+
+    const result = planAtoPackages(campaign, 'player', createContext(), plannerPolicy())
+    const cas = result.admitted.find((plan) => plan.variantId === 'defensive-cas')
+
+    expect(cas?.variantLabel).toBe('Defensive CAS')
+    expect(cas?.battleLock?.attackerGroupIds).toEqual(['attacker-1'])
+    expect(cas?.battleLock?.defenderGroupIds).toContain('defender-1')
   })
 
   test('emits transport for urgent supply when policy enables logistics planning', () => {
@@ -229,6 +413,22 @@ describe('ATO package planner', () => {
     )
 
     expect(result.admitted.some((plan) => plan.kind === 'transport')).toBe(true)
+  })
+
+  test('does not emit transport when logistics planning is disabled', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0)
+    const campaign = createCampaign({ playerAircraft: { Transport: ['C-130'] } })
+    campaign.coalitions.player.supplyNodes!['Home Objective'] = {
+      current: 100,
+      max: 1000,
+      productionRate: 0,
+      consumptionRate: 0,
+      status: 'critical'
+    }
+
+    const result = planAtoPackages(campaign, 'player', createContext(), plannerPolicy())
+
+    expect(result.admitted.some((plan) => plan.kind === 'transport')).toBe(false)
   })
 
   test('rejects candidates when aircraft are unavailable', () => {

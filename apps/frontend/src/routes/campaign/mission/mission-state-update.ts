@@ -431,5 +431,16 @@ export function applyMissionStateUpdate(campaign: Campaign, missionState: Missio
 
     updatePackages(draft, 'player')
     updatePackages(draft, 'opponent')
+
+    const activePackageIds = new Set(
+      (['player', 'opponent'] as const).flatMap((coalition) =>
+        draft.coalitions[coalition].packages
+          .filter((missionPackage) => missionPackage.status === 'active')
+          .map((missionPackage) => missionPackage.id)
+      )
+    )
+    draft.groundBattleLocks = (draft.groundBattleLocks ?? []).filter(
+      (lock) => lock.expiresAt > draft.time && activePackageIds.has(lock.packageId)
+    )
   })
 }

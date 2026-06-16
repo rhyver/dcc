@@ -221,6 +221,49 @@ describe('applyMissionStateUpdate flight group cleanup', () => {
     expect(updated.coalitions.player.packages).toHaveLength(0)
   })
 
+  test('clears ground battle locks when the owning package completes', () => {
+    const campaign = createCampaign()
+    campaign.coalitions.player.flightGroups = [createFlightGroup()]
+    campaign.coalitions.player.packages = [
+      {
+        id: 'package-1',
+        type: 'CAS Package',
+        targetObjectiveId: 'target-1',
+        members: [{ flightGroupId: 'flight-1', role: 'cas', totOffset: 0 }],
+        tot: campaignTime,
+        status: 'active',
+        variantId: 'defensive-cas',
+        variantLabel: 'Defensive CAS'
+      }
+    ]
+    campaign.groundBattleLocks = [
+      {
+        id: 'lock-1',
+        packageId: 'package-1',
+        coalition: 'player',
+        attackerCoalition: 'opponent',
+        defenderCoalition: 'player',
+        attackerGroupIds: ['attacker-1'],
+        defenderGroupIds: ['defender-1'],
+        targetObjectiveId: 'target-1',
+        expiresAt: new Date(campaignTime.getTime() + 60 * 60 * 1000)
+      }
+    ]
+
+    const updated = applyMissionStateUpdate(
+      campaign,
+      createMissionState({
+        landedUnits: [trackedUnit('Enfield-1-1'), trackedUnit('Enfield-1-2')],
+        groupPositions: {
+          blue: { aircraft: [aircraftPositionGroup('Enfield-1', [])], ground: [] },
+          red: { aircraft: [], ground: [] }
+        }
+      })
+    )
+
+    expect(updated.groundBattleLocks).toEqual([])
+  })
+
   test('removes a flight group when all aircraft are destroyed or landed', () => {
     const campaign = createCampaign()
     campaign.coalitions.player.flightGroups = [createFlightGroup()]

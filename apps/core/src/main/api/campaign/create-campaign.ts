@@ -15,6 +15,9 @@ import { campaignsDir, stateFile } from '../../app-data'
 import { randomDateForEra } from './campaign-date'
 
 type CampaignCreationEra = 'Korea' | 'Vietnam' | 'Late CW' | 'Modern'
+type Coalition = z.infer<typeof schemas.coalition>
+type Campaign = z.infer<typeof schemas.campaign.campaign>
+type OperationProfile = NonNullable<Campaign['operationProfile']>
 
 const factionIdsByEra: Record<CampaignCreationEra, { player: string; opponent: string }> = {
   Korea: {
@@ -48,6 +51,116 @@ function createInitialStrategicStrikeCooldown(
   const max = config.packages['Strategic Strike'].cooldownMaxMs
   const cooldownMs = Math.floor(Math.random() * (max - min + 1)) + min
   return new Date(campaignTime.getTime() + cooldownMs)
+}
+
+function pickRandom<T>(items: T[]): T {
+  return items[Math.floor(Math.random() * items.length)] ?? items[0]!
+}
+
+function rollOperationProfile(): OperationProfile {
+  const archetypes: OperationProfile['archetype'][] = [
+    'balanced',
+    'breakthrough',
+    'attrition',
+    'air-superiority',
+    'defense-crisis'
+  ]
+  const frontlineShapes: OperationProfile['frontlineShape'][] = [
+    'linear',
+    'salient',
+    'split-front',
+    'overextended'
+  ]
+  const tempos: OperationProfile['tempo'][] = ['cautious', 'standard', 'surge']
+  const initiativeCoalition: Coalition = Math.random() < 0.55 ? 'opponent' : 'player'
+
+  return {
+    archetype: pickRandom(archetypes),
+    frontlineShape: pickRandom(frontlineShapes),
+    tempo: pickRandom(tempos),
+    initiativeCoalition
+  }
+}
+
+function findNearestBorderObjective(params: {
+  sourceIds: string[]
+  targetIds: string[]
+  protectedIds: Set<string>
+  objectiveMap: Map<string, { position: z.infer<typeof schemas.position> }>
+}) {
+  let best: string | null = null
+  let bestDistance = Number.POSITIVE_INFINITY
+
+  for (const sourceId of params.sourceIds) {
+    const source = params.objectiveMap.get(sourceId)
+    if (!source) continue
+
+    for (const targetId of params.targetIds) {
+      if (params.protectedIds.has(targetId)) continue
+      const target = params.objectiveMap.get(targetId)
+      if (!target) continue
+
+      const distance = Math.hypot(
+        source.position.x - target.position.x,
+        source.position.y - target.position.y
+      )
+      if (distance < bestDistance) {
+        best = targetId
+        bestDistance = distance
+      }
+    }
+  }
+
+  return best
+}
+
+function transferObjective(
+  assignments: Record<Coalition, string[]>,
+  from: Coalition,
+  to: Coalition,
+  objectiveId: string
+) {
+  if (assignments[from].length <= 1) return false
+  const index = assignments[from].indexOf(objectiveId)
+  if (index === -1 || assignments[to].includes(objectiveId)) return false
+
+  assignments[from].splice(index, 1)
+  assignments[to].push(objectiveId)
+  return true
+}
+
+function applyFrontlineVariation(params: {
+  assignments: Record<Coalition, string[]>
+  profile: OperationProfile
+  objectiveMap: Map<string, { position: z.infer<typeof schemas.position> }>
+  protectedIds: Set<string>
+}) {
+  const initiative = params.profile.initiativeCoalition ?? 'opponent'
+  const other: Coalition = initiative === 'player' ? 'opponent' : 'player'
+
+  if (params.profile.frontlineShape === 'linear') return
+
+  const captureForInitiative = findNearestBorderObjective({
+    sourceIds: params.assignments[initiative],
+    targetIds: params.assignments[other],
+    protectedIds: params.protectedIds,
+    objectiveMap: params.objectiveMap
+  })
+  if (captureForInitiative) {
+    transferObjective(params.assignments, other, initiative, captureForInitiative)
+  }
+
+  if (params.profile.frontlineShape !== 'split-front') return
+
+  const counterCapture = findNearestBorderObjective({
+    sourceIds: params.assignments[other],
+    targetIds: params.assignments[initiative],
+    protectedIds: params.protectedIds,
+    objectiveMap: params.objectiveMap
+  })
+  if (counterCapture) {
+    transferObjective(params.assignments, initiative, other, counterCapture)
+  }
 }
 
 async function setActiveCampaignId(id: string) {
@@ -114,6 +227,19 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
         }
       })
     }
+  })
+  const operationProfile = rollOperationProfile()
+  const protectedObjectiveIds = new Set([
+    ...startWithoutCarrierObjectives.player.objectiveIds,
+    ...startWithoutCarrierObjectives.opponent.objectiveIds,
+    ...carrierObjectiveIds,
+    ...(scenario.goal?.objectiveIds ?? [])
+  ])
+  applyFrontlineVariation({
+    assignments: objectiveAssignments,
+    profile: operationProfile,
+    objectiveMap,
+    protectedIds: protectedObjectiveIds
   })
 
   const getObjectiveInfos = (objectiveIds: string[]) => {
@@ -284,6 +410,8 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
 
     // Objectives/FARPs - low capacity, no production
     for (const objectiveId of objectiveIds) {
+      if (supplyNodes[objectiveId]) continue
+
       supplyNodes[objectiveId] = {
         current: 500,
         max: 1000,
@@ -305,6 +433,33 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
     scenario.start.opponent.airdromeNames,
     objectiveAssignments.opponent ?? []
   )
+
+  const applyProfileSupplyPressure = (
+    supplyNodes: Record<string, z.infer<typeof schemas.supply>>,
+    coalition: Coalition
+  ) => {
+    const objectiveIds = objectiveAssignments[coalition] ?? []
+    const pressuredObjectiveId = objectiveIds.find((objectiveId) => !protectedObjectiveIds.has(objectiveId))
+    if (!pressuredObjectiveId) return
+
+    const node = supplyNodes[pressuredObjectiveId]
+    if (!node) return
+
+    const isInitiative = operationProfile.initiativeCoalition === coalition
+    if (operationProfile.archetype === 'defense-crisis' && !isInitiative) {
+      node.current = Math.min(node.current, node.max * 0.2)
+      node.status = 'critical'
+    } else if (operationProfile.archetype === 'attrition') {
+      node.current = Math.min(node.current, node.max * 0.35)
+      node.status = 'low'
+    } else if (operationProfile.frontlineShape === 'overextended' && isInitiative) {
+      node.current = Math.min(node.current, node.max * 0.3)
+      node.status = 'low'
+    }
+  }
+
+  applyProfileSupplyPressure(playerSupplyNodes, 'player')
+  applyProfileSupplyPressure(opponentSupplyNodes, 'opponent')
 
   const now = new Date()
   const campaignTime = randomDateForEra(input.era)
@@ -332,6 +487,8 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
     },
     status: 'active',
     goal: scenario.goal,
+    operationProfile,
+    groundBattleLocks: [],
     logs: [],
     scenarioId: scenario.id,
     coalitions: {

@@ -92,6 +92,26 @@ describe('virtual logistics network', () => {
     })
   })
 
+  test('upgrades existing objective-sized supply for owned airdromes', () => {
+    const campaign = createCampaign()
+    campaign.coalitions.opponent.airdromeNames = ['Sukhumi-Babushara']
+    campaign.coalitions.opponent.objectiveIds = ['Sukhumi-Babushara']
+    campaign.coalitions.opponent.supplyNodes = {
+      'Sukhumi-Babushara': createSupply(500, 1_000)
+    }
+
+    updateSupply(campaign, 'opponent')
+
+    const supply = campaign.coalitions.opponent.supplyNodes?.['Sukhumi-Babushara']
+    expect(supply).toMatchObject({
+      max: 10_000,
+      productionRate: 20,
+      logistics: { hub: true, hubLevel: 2 }
+    })
+    expect(supply?.current).toBeGreaterThanOrEqual(5_000)
+    expect(supply?.fuel?.current).toBeGreaterThan(2_000)
+  })
+
   test('scales production and route transfer by fast-forwarded campaign time', () => {
     const campaign = createCampaign()
     campaign.timeMultiplier = 300

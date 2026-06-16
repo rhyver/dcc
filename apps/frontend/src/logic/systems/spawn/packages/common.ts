@@ -80,12 +80,12 @@ export function selectHomeBaseAndTarget<T>({
   homeBases,
   targets,
   maxDistance,
-  preference = 'nearest'
+  preference = 'random'
 }: {
   homeBases: AirdromeSelection[]
   targets: LocatedTarget<T>[]
   maxDistance: number
-  preference?: 'nearest' | 'farthest'
+  preference?: 'nearest' | 'farthest' | 'random'
 }): { homeBase: AirdromeSelection; target: T; targetPosition: Position } | null {
   let furthestAssignment: {
     homeBase: AirdromeSelection
@@ -93,8 +93,14 @@ export function selectHomeBaseAndTarget<T>({
     targetPosition: Position
     distance: number
   } | null = null
+  const randomAssignments: Array<{
+    homeBase: AirdromeSelection
+    targets: Array<{ target: T; targetPosition: Position }>
+  }> = []
 
   for (const homeBase of homeBases) {
+    const reachableTargets: Array<{ target: T; targetPosition: Position }> = []
+
     for (const locatedTarget of targets) {
       const distance = calculateDistance(homeBase.position, locatedTarget.position)
       if (distance <= maxDistance) {
@@ -110,12 +116,24 @@ export function selectHomeBaseAndTarget<T>({
           continue
         }
 
+        if (preference === 'random') {
+          reachableTargets.push({
+            target: locatedTarget.target,
+            targetPosition: locatedTarget.position
+          })
+          continue
+        }
+
         return {
           homeBase,
           target: locatedTarget.target,
           targetPosition: locatedTarget.position
         }
       }
+    }
+
+    if (reachableTargets.length > 0) {
+      randomAssignments.push({ homeBase, targets: reachableTargets })
     }
   }
 
@@ -124,6 +142,20 @@ export function selectHomeBaseAndTarget<T>({
       homeBase: furthestAssignment.homeBase,
       target: furthestAssignment.target,
       targetPosition: furthestAssignment.targetPosition
+    }
+  }
+
+  const randomAssignment =
+    randomAssignments[Math.floor(Math.random() * randomAssignments.length)]
+  if (randomAssignment) {
+    const randomTarget =
+      randomAssignment.targets[Math.floor(Math.random() * randomAssignment.targets.length)]
+    if (randomTarget) {
+      return {
+        homeBase: randomAssignment.homeBase,
+        target: randomTarget.target,
+        targetPosition: randomTarget.targetPosition
+      }
     }
   }
 

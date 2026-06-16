@@ -41,7 +41,9 @@ export function spawnCap(
   const flightGroups = FlightGroupFactory.getCoalitionFlightGroups(draft, coalition)
 
   const capGroups = flightGroups.filter((group) => group.task === 'CAP')
-  const automaticCapGroups = capGroups.filter((group) => group.spawnSource !== 'manual')
+  const automaticCapGroups = draft.coalitions[coalition].flightGroups.filter(
+    (group) => group.task === 'CAP' && group.spawnSource !== 'manual'
+  )
 
   debugLog(`${coalition}: CAP groups`, capGroups.length)
 

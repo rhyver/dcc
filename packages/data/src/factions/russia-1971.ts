@@ -8,7 +8,7 @@ export const RUSSIA1971: z.infer<typeof schemas.faction> = {
   year: 1971,
   playable: true,
   aircraftTypes: {
-    DEAD: [],
+    DEAD: ['Su-17M4'],
     AWACS: ['A-50'],
     CAP: ['MiG-21Bis', 'MiG-19P'],
     Escort: ['MiG-21Bis', 'MiG-19P'],

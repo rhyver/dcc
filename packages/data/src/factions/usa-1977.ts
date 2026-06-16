@@ -8,7 +8,7 @@ export const USA1977: z.infer<typeof schemas.faction> = {
   year: 1977,
   playable: true,
   aircraftTypes: {
-    DEAD: [],
+    DEAD: ['F-4E-45MC'],
     AWACS: ['E-3A'],
     CAP: ['F-5E-3', 'F-14A-135-GR'],
     Escort: ['F-5E-3', 'F-14A-135-GR'],

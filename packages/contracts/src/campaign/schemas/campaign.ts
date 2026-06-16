@@ -29,6 +29,32 @@ const campaignGoal = z.object({
   objectiveIds: z.array(z.string()).min(1)
 })
 
+const operationProfile = z.object({
+  archetype: z.enum([
+    'balanced',
+    'breakthrough',
+    'attrition',
+    'air-superiority',
+    'defense-crisis'
+  ]),
+  frontlineShape: z.enum(['linear', 'salient', 'split-front', 'overextended']),
+  tempo: z.enum(['cautious', 'standard', 'surge']),
+  initiativeCoalition: coalition.optional()
+})
+
+const groundBattleLock = z.object({
+  id: z.string(),
+  packageId: z.string(),
+  coalition,
+  attackerCoalition: coalition,
+  defenderCoalition: coalition,
+  attackerGroupIds: z.array(z.string()),
+  defenderGroupIds: z.array(z.string()),
+  targetObjectiveId: z.string().optional(),
+  targetAirdromeName: z.string().optional(),
+  expiresAt: z.date()
+})
+
 const campaignStructure = z.preprocess(
   (input) => {
     if (input == null || typeof input !== 'object') return input
@@ -111,6 +137,8 @@ export const campaign = z.preprocess(
     timeTarget: z.date().optional(),
     status: campaignStatus.optional(),
     goal: campaignGoal.optional(),
+    operationProfile: operationProfile.optional(),
+    groundBattleLocks: z.array(groundBattleLock).optional(),
     campaignParams: z
       .object({
         hotStart: z.boolean().optional(),

@@ -123,6 +123,23 @@ export function buildMissionCullingPlan(campaign: Campaign, theatre: Theatre): M
     }
   }
 
+  for (const lock of campaign.groundBattleLocks ?? []) {
+    if (lock.expiresAt <= campaign.time) continue
+    for (const groupId of [...lock.attackerGroupIds, ...lock.defenderGroupIds]) {
+      directTargetIds.add(groupId)
+      const group =
+        campaign.coalitions.player.groundGroups.find((entry) => entry.id === groupId) ??
+        campaign.coalitions.opponent.groundGroups.find((entry) => entry.id === groupId)
+      if (group) anchors.push(group.position)
+    }
+
+    const objectivePosition = findObjectivePosition(theatre, lock.targetObjectiveId)
+    if (objectivePosition) anchors.push(objectivePosition)
+
+    const airdromePosition = findAirdromePosition(theatre, lock.targetAirdromeName)
+    if (airdromePosition) anchors.push(airdromePosition)
+  }
+
   const includeAll = !enabled || anchors.length === 0
   const manifest = createEmptyManifest()
 

@@ -562,6 +562,7 @@ function processObjectiveBattlesAndCaptures(
   )
 
   for (const targetObjectiveId of targetObjectiveIds) {
+    if (isObjectiveBattleLocked(draft, coalition, targetObjectiveId)) continue
     resolveObjectiveBattle(draft, coalition, enemyCoalition, theatre, targetObjectiveId, delta)
   }
 
@@ -577,6 +578,7 @@ function processObjectiveBattlesAndCaptures(
   )
 
   for (const targetAirdromeName of targetAirdromeNames) {
+    if (isAirdromeBattleLocked(draft, coalition, targetAirdromeName)) continue
     resolveAirdromeBattle(draft, coalition, enemyCoalition, theatre, targetAirdromeName, delta)
   }
 }
@@ -584,6 +586,40 @@ function processObjectiveBattlesAndCaptures(
 type UpdateGroundGroupsOptions = {
   capture?: boolean
   move?: boolean
+}
+
+function isActiveGroundBattleLock(
+  lock: NonNullable<Campaign['groundBattleLocks']>[number],
+  now: Date
+) {
+  return lock.expiresAt > now
+}
+
+function isObjectiveBattleLocked(draft: Campaign, coalition: Coalition, objectiveId: string) {
+  return (draft.groundBattleLocks ?? []).some(
+    (lock) =>
+      isActiveGroundBattleLock(lock, draft.time) &&
+      lock.attackerCoalition === coalition &&
+      lock.targetObjectiveId === objectiveId
+  )
+}
+
+function isAirdromeBattleLocked(draft: Campaign, coalition: Coalition, airdromeName: string) {
+  return (draft.groundBattleLocks ?? []).some(
+    (lock) =>
+      isActiveGroundBattleLock(lock, draft.time) &&
+      lock.attackerCoalition === coalition &&
+      lock.targetAirdromeName === airdromeName
+  )
+}
+
+function isGroundGroupLocked(draft: Campaign, coalition: Coalition, groupId: string) {
+  return (draft.groundBattleLocks ?? []).some(
+    (lock) =>
+      isActiveGroundBattleLock(lock, draft.time) &&
+      ((lock.attackerCoalition === coalition && lock.attackerGroupIds.includes(groupId)) ||
+        (lock.defenderCoalition === coalition && lock.defenderGroupIds.includes(groupId)))
+  )
 }
 
 export function updateGroundGroups(
@@ -611,6 +647,7 @@ export function updateGroundGroups(
 
   for (const group of groundGroups) {
     if (group.state === 'idle') continue
+    if (isGroundGroupLocked(draft, coalition, group.id)) continue
     if (group.targetObjectiveId && group.targetAirdromeName) {
       group.targetAirdromeName = undefined
     }

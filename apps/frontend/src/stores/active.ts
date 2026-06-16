@@ -23,6 +23,7 @@ const initialState: z.infer<typeof schemas.campaign.campaign> = {
     hotStart: false,
     culling: true,
     ewr: true,
+    iads: true,
     exactTarget: true,
     casJtac: true
   },
@@ -344,6 +345,13 @@ export const activeStore = createStore({
           draft.campaignParams = {}
         }
         draft.campaignParams.ewr = ewr
+      }),
+    setIads: (context, { iads }: { iads: boolean }) =>
+      produce(context, (draft) => {
+        if (!draft.campaignParams) {
+          draft.campaignParams = {}
+        }
+        draft.campaignParams.iads = iads
       }),
     setExactTarget: (context, { exactTarget }: { exactTarget: boolean }) =>
       produce(context, (draft) => {

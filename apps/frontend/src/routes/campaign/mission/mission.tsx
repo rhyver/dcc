@@ -290,6 +290,7 @@ export function Mission() {
   const hotStart = useSelector(activeStore, (state) => state.context.campaignParams?.hotStart)
   const culling = useSelector(activeStore, (state) => state.context.campaignParams?.culling ?? true)
   const ewr = useSelector(activeStore, (state) => state.context.campaignParams?.ewr ?? true)
+  const iads = useSelector(activeStore, (state) => state.context.campaignParams?.iads ?? true)
   const exactTarget = useSelector(
     activeStore,
     (state) => state.context.campaignParams?.exactTarget ?? true
@@ -604,6 +605,20 @@ export function Mission() {
                                 checked={!!ewr}
                                 onCheckedChange={(checked) =>
                                   activeStore.send({ type: 'setEwr', ewr: checked })
+                                }
+                              />
+                            </div>
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <div className="text-sm font-medium text-white">IADS</div>
+                                <div className="text-sm text-white/40">
+                                  Add Skynet-controlled enemy SAM and radar behavior
+                                </div>
+                              </div>
+                              <Switch
+                                checked={!!iads}
+                                onCheckedChange={(checked) =>
+                                  activeStore.send({ type: 'setIads', iads: checked })
                                 }
                               />
                             </div>

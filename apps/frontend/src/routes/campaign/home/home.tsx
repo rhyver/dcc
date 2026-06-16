@@ -39,6 +39,8 @@ import { uiStore } from '@/stores/ui'
 import { coreClient, orpc } from '@/lib/orpc'
 import { Clock } from './clock'
 import { ActiveFlightGroups } from './active-flight-groups'
+import { AtoPackageBoard } from './ato-package-board'
+import { LogisticsOverview } from './logistics-overview'
 import { TakeoffButton } from './takeoff-button'
 import { CAUCASUS_DETAIL_MAX_ZOOM } from './offline-map-style'
 
@@ -451,6 +453,9 @@ export function Home() {
           onSelect={setSelectedItem}
           onPreview={setPreviewItem}
         />
+
+        <AtoPackageBoard />
+        <LogisticsOverview />
 
         {isLogOpen && (
           <div className="tactical-inset m-2 h-[240px] shrink-0 rounded-md p-2">

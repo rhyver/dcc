@@ -151,7 +151,10 @@ describe('airport capture', () => {
 
     expect(campaign.coalitions.player.airdromeNames).toContain('Sukhumi-Babushara')
     expect(campaign.coalitions.opponent.airdromeNames).not.toContain('Sukhumi-Babushara')
-    expect(campaign.coalitions.player.supplyNodes?.['Sukhumi-Babushara']?.current).toBe(900)
+    expect(campaign.coalitions.player.supplyNodes?.['Sukhumi-Babushara']?.current).toBe(700)
+    expect(
+      campaign.coalitions.player.supplyNodes?.['Sukhumi-Babushara']?.logistics?.recoveryUntil
+    ).toEqual(new Date('2026-01-01T13:00:00.000Z'))
     expect(campaign.coalitions.opponent.supplyNodes?.['Sukhumi-Babushara']).toBeUndefined()
     expect(campaign.coalitions.player.groundGroups[0]).toMatchObject({
       state: 'idle',

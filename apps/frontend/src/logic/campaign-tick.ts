@@ -45,7 +45,7 @@ export function applyLogicTick(draft: Campaign, delta: number) {
   if (!isCampaignActive(draft)) return
 
   forEachActiveCoalition((coalition) => updateResources(draft, coalition))
-  forEachActiveCoalition((coalition) => updateSupply(draft, coalition))
+  forEachActiveCoalition((coalition) => updateSupply(draft, coalition, delta))
   forEachActiveCoalition((coalition) =>
     updateGroundGroups(draft, coalition, delta, { move: false })
   )

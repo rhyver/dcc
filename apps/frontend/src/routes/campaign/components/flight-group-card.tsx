@@ -1,8 +1,14 @@
-import { Clock, Crosshair, PlaneTakeoff, User } from 'lucide-react'
+import { Clock, Crosshair, Layers3, PlaneTakeoff, User } from 'lucide-react'
 import { schemas } from '@dcc/contracts'
 import * as z from 'zod'
 
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { getAircraftDisplayName } from '@/lib/aircraft-display'
 import { cn } from '@/lib/utils'
@@ -59,7 +65,10 @@ export function FlightGroupCard({
   const availableClientCount = group.aircrafts.length
   const selectedAircraftType = group.aircrafts[0]?.aircraftName
   const showAircraftTypeSelect =
-    showAircraftType && selectedAircraftType && aircraftTypeOptions.length > 0 && onAircraftTypeChange
+    showAircraftType &&
+    selectedAircraftType &&
+    aircraftTypeOptions.length > 0 &&
+    onAircraftTypeChange
   const targetOutcomeTone = targetOutcome?.complete
     ? 'text-cyan-300'
     : targetOutcome?.label === 'Target damaged'
@@ -98,6 +107,12 @@ export function FlightGroupCard({
               <span className="flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-400/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
                 <PlaneTakeoff className="h-2.5 w-2.5" />
                 Airborne
+              </span>
+            )}
+            {group.packageId && (
+              <span className="flex items-center gap-1 rounded-full border border-cyan-400/25 bg-cyan-400/10 px-1.5 py-0.5 text-[10px] font-medium text-cyan-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+                <Layers3 className="h-2.5 w-2.5" />
+                ATO
               </span>
             )}
           </div>

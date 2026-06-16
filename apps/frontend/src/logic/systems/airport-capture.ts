@@ -2,6 +2,7 @@ import { schemas } from '@dcc/contracts'
 import * as z from 'zod'
 
 import { calculateDistance } from '@/logic/utils/calculate-distance'
+import { getSupplyStatus } from './update-supply'
 
 type Campaign = z.infer<typeof schemas.campaign.campaign>
 type Coalition = z.infer<typeof schemas.coalition>
@@ -82,27 +83,49 @@ function transferAirdromeSupplyNode(
     delete defenderSupplyNodes[airdromeName]
   }
 
-  attackerSupplyNodes[airdromeName] = normalizeCapturedAirdromeSupply(defenderSupply)
+  attackerSupplyNodes[airdromeName] = normalizeCapturedAirdromeSupply(defenderSupply, draft.time)
 }
 
-function normalizeCapturedAirdromeSupply(previousSupply: Supply | undefined): Supply {
+function normalizeCapturedAirdromeSupply(
+  previousSupply: Supply | undefined,
+  capturedAt: Date
+): Supply {
   const max = previousSupply?.max ?? 10_000
-  const current = Math.min(previousSupply?.current ?? 2_500, max)
+  const current = Math.min(previousSupply?.current ?? 2_500, max * 0.35)
+  const currentRatio = max > 0 ? current / max : 0
 
   return {
     current,
     max,
     productionRate: 0,
     consumptionRate: 0,
-    status: getSupplyStatus(current, max)
+    status: getSupplyStatus(currentRatio),
+    fuel: {
+      current: max * 0.45 * currentRatio,
+      max: max * 0.45,
+      productionRate: 0,
+      consumptionRate: 0
+    },
+    munitions: {
+      current: max * 0.35 * currentRatio,
+      max: max * 0.35,
+      productionRate: 0,
+      consumptionRate: 0
+    },
+    repair: {
+      current: max * 0.2 * currentRatio,
+      max: max * 0.2,
+      productionRate: 0,
+      consumptionRate: 0
+    },
+    logistics: {
+      hub: true,
+      hubLevel: 1,
+      routeCapacity: 20,
+      routes: [],
+      interdiction: 0,
+      repairRate: 0.02,
+      recoveryUntil: new Date(capturedAt.getTime() + 60 * 60 * 1000)
+    }
   }
-}
-
-function getSupplyStatus(current: number, max: number): Supply['status'] {
-  const percentage = max > 0 ? current / max : 0
-  if (percentage > 0.75) return 'abundant'
-  if (percentage > 0.5) return 'adequate'
-  if (percentage > 0.25) return 'low'
-  if (percentage > 0.05) return 'critical'
-  return 'depleted'
 }

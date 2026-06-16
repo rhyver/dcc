@@ -1,0 +1,147 @@
+import { describe, expect, test } from 'vitest'
+import { schemas } from '@dcc/contracts'
+import { theatres } from '@dcc/data'
+import type * as z from 'zod'
+
+import { updateSupply } from './update-supply'
+
+type Campaign = z.infer<typeof schemas.campaign.campaign>
+type CoalitionData = Campaign['coalitions']['player']
+
+const campaignTime = new Date('2026-01-01T12:00:00.000Z')
+const caucasus = theatres.find((theatre) => theatre.name === 'Caucasus')!
+const kobuleti = caucasus.airdromeDetails.Kobuleti!
+const enguriDam = caucasus.objectives.find((objective) => objective.name === 'Enguri Dam')!
+
+function createAircraftTypes(): CoalitionData['aircraftTypes'] {
+  return Object.fromEntries(
+    schemas.task.options.map((task) => [task, [] as string[]])
+  ) as CoalitionData['aircraftTypes']
+}
+
+function createGroundUnitTypes(): CoalitionData['groundUnitTypes'] {
+  return Object.fromEntries(
+    schemas.groundUnitType.options.map((type) => [type, [] as string[]])
+  ) as CoalitionData['groundUnitTypes']
+}
+
+function createSupply(current: number, max: number, hub = false) {
+  return {
+    current,
+    max,
+    consumptionRate: 0,
+    productionRate: hub ? 20 : 0,
+    status: current / max > 0.75 ? ('abundant' as const) : ('critical' as const)
+  }
+}
+
+function createCoalition(id: 'player' | 'opponent'): CoalitionData {
+  return {
+    id,
+    aircraftTypes: createAircraftTypes(),
+    groundUnitTypes: createGroundUnitTypes(),
+    airdromeNames: id === 'player' ? ['Kobuleti'] : [],
+    objectiveIds: id === 'player' ? ['Enguri Dam'] : [],
+    structures: [],
+    samGroups: [],
+    groundGroups: [],
+    flightGroups: [],
+    packages: [],
+    supplyNodes:
+      id === 'player'
+        ? {
+            Kobuleti: createSupply(10_000, 10_000, true),
+            'Enguri Dam': createSupply(100, 1_000)
+          }
+        : {}
+  }
+}
+
+function createCampaign(): Campaign {
+  return {
+    version: 'test',
+    id: 'campaign-1',
+    name: 'Test Campaign',
+    createdAt: campaignTime,
+    updatedAt: campaignTime,
+    time: campaignTime,
+    timeMultiplier: 1,
+    logs: [],
+    scenarioId: 'red-bullet',
+    coalitions: {
+      player: createCoalition('player'),
+      opponent: createCoalition('opponent')
+    }
+  }
+}
+
+describe('virtual logistics network', () => {
+  test('initializes missing owned supply nodes during the logic tick', () => {
+    const campaign = createCampaign()
+    campaign.coalitions.player.supplyNodes = {}
+
+    updateSupply(campaign, 'player')
+
+    expect(campaign.coalitions.player.supplyNodes?.Kobuleti).toMatchObject({
+      max: 10_000,
+      productionRate: 20
+    })
+    expect(campaign.coalitions.player.supplyNodes?.['Enguri Dam']).toMatchObject({
+      max: 1_000,
+      productionRate: 0
+    })
+  })
+
+  test('scales production and route transfer by fast-forwarded campaign time', () => {
+    const campaign = createCampaign()
+    campaign.timeMultiplier = 300
+    campaign.coalitions.player.supplyNodes!.Kobuleti.current = 5_000
+    campaign.coalitions.player.supplyNodes!['Enguri Dam'].current = 100
+
+    updateSupply(campaign, 'player', 1_000)
+
+    expect(campaign.coalitions.player.supplyNodes?.Kobuleti.current).toBeGreaterThan(5_000)
+    expect(campaign.coalitions.player.supplyNodes?.['Enguri Dam'].current).toBe(1_000)
+  })
+
+  test('moves supply from a hub to a low owned node over a virtual route', () => {
+    const campaign = createCampaign()
+
+    updateSupply(campaign, 'player')
+
+    const destination = campaign.coalitions.player.supplyNodes?.['Enguri Dam']
+    expect(destination?.current).toBeGreaterThan(100)
+    expect(destination?.fuel?.current).toBeGreaterThan(45)
+    expect(destination?.logistics?.routes[0]).toMatchObject({
+      from: 'Kobuleti',
+      to: 'Enguri Dam'
+    })
+  })
+
+  test('enemy ground interdiction reduces route throughput', () => {
+    const clearRoute = createCampaign()
+    const interdictedRoute = createCampaign()
+    interdictedRoute.coalitions.opponent.groundGroups.push({
+      id: 'interdictor-1',
+      position: {
+        x: (kobuleti.x + enguriDam.position.x) / 2,
+        y: (kobuleti.y + enguriDam.position.y) / 2
+      },
+      units: [{ name: 'BMP-2', count: 3 }],
+      state: 'idle'
+    })
+
+    updateSupply(clearRoute, 'player')
+    updateSupply(interdictedRoute, 'player')
+
+    const clearCurrent = clearRoute.coalitions.player.supplyNodes?.['Enguri Dam']?.current ?? 0
+    const interdictedCurrent =
+      interdictedRoute.coalitions.player.supplyNodes?.['Enguri Dam']?.current ?? 0
+    const routeDisruption =
+      interdictedRoute.coalitions.player.supplyNodes?.['Enguri Dam']?.logistics?.routes[0]
+        ?.disruption
+
+    expect(interdictedCurrent).toBeLessThan(clearCurrent)
+    expect(routeDisruption).toBeGreaterThan(0.5)
+  })
+})

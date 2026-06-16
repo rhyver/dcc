@@ -1,6 +1,6 @@
 import * as z from 'zod'
 
-export const packageMemberRole = z.enum(['primary', 'sead'])
+export const packageMemberRole = z.enum(['primary', 'sead', 'cap', 'dead', 'cas', 'transport'])
 
 export const packageMember = z.object({
   flightGroupId: z.string(),
@@ -11,7 +11,11 @@ export const packageMember = z.object({
 export const packageType = z.enum([
   'Strike Package',
   'SEAD Strike Package',
-  'SEAD Strategic Strike Package'
+  'SEAD Strategic Strike Package',
+  'CAP Package',
+  'DEAD Package',
+  'CAS Package',
+  'Transport Package'
 ])
 
 export const packageStatus = z.enum(['active', 'completed'])
@@ -23,5 +27,8 @@ export const missionPackage = z.object({
   members: z.array(packageMember),
   tot: z.date(),
   originalTot: z.date().optional(),
-  status: packageStatus
+  status: packageStatus,
+  priority: z.number().optional(),
+  reason: z.string().optional(),
+  targetType: z.string().optional()
 })

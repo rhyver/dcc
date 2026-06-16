@@ -6,11 +6,13 @@ import {
   CardContent,
   CardAction
 } from '@/components/ui/card'
-import { X, User } from 'lucide-react'
+import { Fuel, Layers3, PackageCheck, Route, User, Wrench, X } from 'lucide-react'
 import { useSelector } from '@xstate/store/react'
+import type { ReactNode } from 'react'
 import { activeStore } from '@/stores/active'
 import { calculateResourceGainPerLogicTick } from '@/logic/systems/update-resources'
 import type { SelectedItem } from './map'
+import { cn } from '@/lib/utils'
 
 function formatInGameClock(date: Date) {
   return new Intl.DateTimeFormat('en-GB', {
@@ -19,6 +21,32 @@ function formatInGameClock(date: Date) {
     hour12: false,
     timeZone: 'UTC'
   }).format(date)
+}
+
+function formatPercent(current: number, max: number) {
+  if (max <= 0) return '--'
+  return `${Math.round(Math.max(0, Math.min(1, current / max)) * 100)}%`
+}
+
+function getSupplyTone(current: number, max: number) {
+  const value = max > 0 ? current / max : 0
+  if (value <= 0.15) return 'text-red-300'
+  if (value <= 0.35) return 'text-amber-300'
+  return 'text-cyan-300'
+}
+
+function getConnectedRoutes(
+  supplyNodes: NonNullable<
+    ReturnType<typeof activeStore.getSnapshot>['context']['coalitions']['player']['supplyNodes']
+  >,
+  nodeName: string
+) {
+  return Object.values(supplyNodes).flatMap(
+    (supply) =>
+      supply.logistics?.routes.filter(
+        (route) => route.from === nodeName || route.to === nodeName
+      ) ?? []
+  )
 }
 
 export function DetailsCard({
@@ -98,6 +126,30 @@ export function DetailsCard({
       : null
   const selectedStructureCoalition =
     'type' in selectedItem && selectedItem.type === 'Structure' ? selectedItem.coalition : null
+  const selectedCoalition = 'coalition' in selectedItem ? selectedItem.coalition : 'player'
+  const selectedNodeName =
+    'flightplan' in selectedItem && 'homeBase' in selectedItem
+      ? selectedItem.homeBase
+      : 'type' in selectedItem && selectedItem.type === 'Airdrome'
+        ? selectedItem.name
+        : (objectiveName ?? ('isGoal' in selectedItem ? selectedItem.name : null))
+  const selectedSupply =
+    selectedNodeName != null
+      ? (campaign.coalitions[selectedCoalition].supplyNodes?.[selectedNodeName] ?? null)
+      : null
+  const selectedConnectedRoutes =
+    selectedNodeName != null
+      ? getConnectedRoutes(
+          campaign.coalitions[selectedCoalition].supplyNodes ?? {},
+          selectedNodeName
+        )
+      : []
+  const selectedPackage =
+    'flightplan' in selectedItem && 'packageId' in selectedItem && selectedItem.packageId
+      ? (campaign.coalitions[selectedCoalition].packages.find(
+          (missionPackage) => missionPackage.id === selectedItem.packageId
+        ) ?? null)
+      : null
 
   const gainPerInGameSecond =
     selectedStructure != null && selectedStructureCoalition != null
@@ -241,6 +293,12 @@ export function DetailsCard({
               <>
                 <div className="text-secondary/70">Task</div>
                 <div>{(selectedItem as { task: string }).task}</div>
+                {selectedPackage && (
+                  <>
+                    <div className="text-secondary/70">ATO Package</div>
+                    <div className="min-w-0 truncate">{selectedPackage.type}</div>
+                  </>
+                )}
                 <div className="text-secondary/70">Waypoints</div>
                 <div>{selectedItem.flightplan.waypoints.length}</div>
                 {'aircrafts' in selectedItem && (
@@ -256,6 +314,80 @@ export function DetailsCard({
                   </>
                 )}
               </>
+            )}
+            {selectedSupply && (
+              <div className="col-span-2 mt-2 border-t border-synthwave-pink/10 pt-3">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <PackageCheck className="h-3.5 w-3.5 shrink-0 text-synthwave-pink" />
+                    <span className="retro-font truncate text-[10px] uppercase text-primary">
+                      Logistics
+                    </span>
+                  </div>
+                  <span
+                    className={cn(
+                      'text-[10px] uppercase',
+                      getSupplyTone(selectedSupply.current, selectedSupply.max)
+                    )}
+                  >
+                    {selectedSupply.status}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <div className="mb-1 flex items-center justify-between text-[10px] text-secondary/70">
+                      <span>Supply</span>
+                      <span className={getSupplyTone(selectedSupply.current, selectedSupply.max)}>
+                        {formatPercent(selectedSupply.current, selectedSupply.max)}
+                      </span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-synthwave-pink/15">
+                      <div
+                        className="h-full rounded-full bg-synthwave-cyan"
+                        style={{
+                          width: formatPercent(selectedSupply.current, selectedSupply.max)
+                        }}
+                      />
+                    </div>
+                  </div>
+                  {selectedSupply.fuel && (
+                    <PoolMeter
+                      label="Fuel"
+                      icon={<Fuel className="h-3 w-3 text-synthwave-pink" />}
+                      current={selectedSupply.fuel.current}
+                      max={selectedSupply.fuel.max}
+                    />
+                  )}
+                  {selectedSupply.munitions && (
+                    <PoolMeter
+                      label="Munitions"
+                      icon={<Layers3 className="h-3 w-3 text-synthwave-pink" />}
+                      current={selectedSupply.munitions.current}
+                      max={selectedSupply.munitions.max}
+                    />
+                  )}
+                  {selectedSupply.repair && (
+                    <PoolMeter
+                      label="Repair"
+                      icon={<Wrench className="h-3 w-3 text-synthwave-pink" />}
+                      current={selectedSupply.repair.current}
+                      max={selectedSupply.repair.max}
+                    />
+                  )}
+                </div>
+                {selectedSupply.logistics && (
+                  <div className="mt-2 flex items-center justify-between rounded border border-synthwave-pink/10 bg-black/15 px-2 py-1.5 text-[10px] uppercase tracking-wide">
+                    <span className="flex items-center gap-1.5 text-secondary/65">
+                      <Route className="h-3 w-3 text-synthwave-cyan" />
+                      {selectedConnectedRoutes.length} routes
+                    </span>
+                    <span className="text-secondary/65">
+                      {selectedConnectedRoutes.filter((route) => route.disruption > 0.25).length}{' '}
+                      disrupted
+                    </span>
+                  </div>
+                )}
+              </div>
             )}
             {'range' in selectedItem && typeof selectedItem.range === 'number' && (
               <>
@@ -276,6 +408,35 @@ export function DetailsCard({
           </div>
         </CardContent>
       </Card>
+    </div>
+  )
+}
+
+function PoolMeter({
+  label,
+  icon,
+  current,
+  max
+}: {
+  label: string
+  icon: ReactNode
+  current: number
+  max: number
+}) {
+  const percent = formatPercent(current, max)
+
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between gap-2 text-[10px] text-secondary/70">
+        <span className="flex min-w-0 items-center gap-1">
+          {icon}
+          <span className="truncate">{label}</span>
+        </span>
+        <span className={getSupplyTone(current, max)}>{percent}</span>
+      </div>
+      <div className="h-1.5 rounded-full bg-synthwave-pink/15">
+        <div className="h-full rounded-full bg-synthwave-cyan" style={{ width: percent }} />
+      </div>
     </div>
   )
 }

@@ -8,6 +8,8 @@ export function Footer() {
     <footer className="footer">
       <div>© 2026 Digital Crew Chief · MIT License</div>
       <div className="links">
+        <a href="/docs">Docs</a>
+        <a href="/changelog">Changelog</a>
         <a href="/privacy">Privacy</a>
         <a href="https://discord.gg/jZZ3pFpY3e" onClick={trackDiscordClicked}>
           Discord
@@ -87,6 +89,12 @@ export function Nav({ onDownloadClick }: { onDownloadClick?: () => void }) {
         </div>
       </a>
       <div className="nav-links">
+        <a className="nav-link" href="/docs">
+          Docs
+        </a>
+        <a className="nav-link" href="/changelog">
+          Changelog
+        </a>
         <a className="nav-link" href="https://discord.gg/jZZ3pFpY3e" onClick={trackDiscordClicked}>
           Community
         </a>

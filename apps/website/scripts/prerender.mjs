@@ -11,6 +11,8 @@ const { getPageMeta, render } = await import(pathToFileURL(serverEntryPath).href
 
 const routes = [
   { pathname: '/', outputPath: templatePath },
+  { pathname: '/docs', outputPath: resolve(root, 'dist/docs/index.html') },
+  { pathname: '/changelog', outputPath: resolve(root, 'dist/changelog/index.html') },
   { pathname: '/privacy', outputPath: resolve(root, 'dist/privacy/index.html') }
 ]
 

@@ -1,5 +1,7 @@
 import { Analytics } from '@vercel/analytics/react'
 import { useEffect } from 'react'
+import { ChangelogPage } from './components/changelog-page'
+import { DocsPage } from './components/docs-page'
 import { HomePage } from './components/home-page'
 import { PrivacyPage } from './components/privacy-page'
 import { getPageMeta, normalizePathname } from './meta'
@@ -26,11 +28,19 @@ export function App({ pathname = globalThis.location?.pathname ?? '/' }: { pathn
       ?.setAttribute('content', meta.description)
   }, [pathname])
 
-  const isPrivacyPage = normalizePathname(pathname) === '/privacy'
+  const normalizedPathname = normalizePathname(pathname)
 
   return (
     <>
-      {isPrivacyPage ? <PrivacyPage /> : <HomePage />}
+      {normalizedPathname === '/privacy' ? (
+        <PrivacyPage />
+      ) : normalizedPathname === '/docs' ? (
+        <DocsPage />
+      ) : normalizedPathname === '/changelog' ? (
+        <ChangelogPage />
+      ) : (
+        <HomePage />
+      )}
       <Analytics />
     </>
   )

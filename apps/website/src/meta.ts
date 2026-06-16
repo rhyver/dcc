@@ -14,10 +14,30 @@ const PRIVACY_META: PageMeta = {
   description: 'Privacy policy for this open-source project website.'
 }
 
+const DOCS_META: PageMeta = {
+  title: 'Docs - Digital Crew Chief',
+  description:
+    'Documentation for Digital Crew Chief campaign workflows, mission generation, and developer setup.'
+}
+
+const CHANGELOG_META: PageMeta = {
+  title: 'Changelog - Digital Crew Chief',
+  description: 'Release notes and alpha changelog for Digital Crew Chief.'
+}
+
 export function normalizePathname(pathname = '/') {
   return pathname.replace(/\/+$/, '') || '/'
 }
 
 export function getPageMeta(pathname = '/'): PageMeta {
-  return normalizePathname(pathname) === '/privacy' ? PRIVACY_META : HOME_META
+  switch (normalizePathname(pathname)) {
+    case '/privacy':
+      return PRIVACY_META
+    case '/docs':
+      return DOCS_META
+    case '/changelog':
+      return CHANGELOG_META
+    default:
+      return HOME_META
+  }
 }

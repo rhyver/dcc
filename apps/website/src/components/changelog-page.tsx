@@ -109,10 +109,6 @@ export function ChangelogPage() {
               <span>14 June 2026</span>
             </div>
             <h2>v0.5.0-2026061401</h2>
-            <p>
-              Public Windows alpha release for building persistent DCS World campaigns and exporting
-              playable `.miz` missions.
-            </p>
             <div className="change-list">
               {changes.map((change) => (
                 <div className="change-item" key={change.title}>
@@ -129,10 +125,6 @@ export function ChangelogPage() {
               <span>11 June 2026</span>
             </div>
             <h2>v0.5.0-2026060901</h2>
-            <p>
-              First public 0.5 alpha release, introducing the rewritten application, updated user
-              experience, and the new campaign map foundation.
-            </p>
             <div className="release-group">
               <div className="change-list">
                 {previousReleaseNew.map((change) => (

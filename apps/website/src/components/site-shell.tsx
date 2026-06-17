@@ -1,6 +1,11 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { DOWNLOAD_URL } from '../constants'
-import { trackDiscordClicked, trackDownloadClicked, trackSourceClicked } from '../tracking'
+import {
+  trackDiscordClicked,
+  trackDownloadClicked,
+  trackDownloadModalOpened,
+  trackSourceClicked
+} from '../tracking'
 import { CloseIcon, DlIcon } from './icons'
 
 export function Footer() {
@@ -8,6 +13,7 @@ export function Footer() {
     <footer className="footer">
       <div>© 2026 Digital Crew Chief · MIT License</div>
       <div className="links">
+        <a href="/changelog">Changelog</a>
         <a href="/privacy">Privacy</a>
         <a href="https://discord.gg/jZZ3pFpY3e" onClick={trackDiscordClicked}>
           Discord
@@ -78,22 +84,42 @@ export function DownloadModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
 }
 
 export function Nav({ onDownloadClick }: { onDownloadClick?: () => void }) {
+  const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false)
+
+  const handleDownloadClick =
+    onDownloadClick ??
+    (() => {
+      trackDownloadModalOpened()
+      setIsDownloadModalOpen(true)
+    })
+
   return (
-    <nav className="nav">
-      <a className="nav-brand" href="/">
-        <img className="nav-logo" src="/favicon.png" alt="" />
-        <div className="nav-name">
-          <span className="accent">DIGITAL</span> CREW CHIEF
-        </div>
-      </a>
-      <div className="nav-links">
-        <a className="nav-link" href="https://discord.gg/jZZ3pFpY3e" onClick={trackDiscordClicked}>
-          Community
+    <>
+      <nav className="nav">
+        <a className="nav-brand" href="/">
+          <img className="nav-logo" src="/favicon.png" alt="" />
+          <div className="nav-name">
+            <span className="accent">DIGITAL</span> CREW CHIEF
+          </div>
         </a>
-        <button className="nav-cta" type="button" onClick={onDownloadClick}>
-          <DlIcon /> Download
-        </button>
-      </div>
-    </nav>
+        <div className="nav-links">
+          <a className="nav-link" href="/changelog">
+            Changelog
+          </a>
+          <a className="nav-link" href="https://discord.gg/jZZ3pFpY3e" onClick={trackDiscordClicked}>
+            Community
+          </a>
+          <button className="nav-cta" type="button" onClick={handleDownloadClick}>
+            <DlIcon /> Download
+          </button>
+        </div>
+      </nav>
+      {!onDownloadClick && (
+        <DownloadModal
+          isOpen={isDownloadModalOpen}
+          onClose={() => setIsDownloadModalOpen(false)}
+        />
+      )}
+    </>
   )
 }

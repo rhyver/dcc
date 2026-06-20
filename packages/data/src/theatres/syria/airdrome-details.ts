@@ -5786,6 +5786,7 @@ export const airdromeDetails: Record<string, z.infer<typeof schemas.airdromeDeta
     },
     frequency: 38.7,
     frequencyList: [360.1, 122.1, 38.7, 3.9],
+    tacan: { channel: 21, band: 'X', callsign: 'DAN' },
     runwayAngle: 55
   },
   Jirah: {
@@ -7169,6 +7170,7 @@ export const airdromeDetails: Record<string, z.infer<typeof schemas.airdromeDeta
     },
     frequency: 250.4,
     frequencyList: [38.85, 118.3, 250.4, 3.975],
+    tacan: { channel: 106, band: 'X', callsign: 'ABC' },
     runwayAngle: 312
   },
   'Kiryat Shmona': {
@@ -10180,6 +10182,7 @@ export const airdromeDetails: Record<string, z.infer<typeof schemas.airdromeDeta
     },
     frequency: 251.05,
     frequencyList: [39.5, 118.6, 251.05, 4.3],
+    tacan: { channel: 84, band: 'X', callsign: 'RMD' },
     runwayAngle: 89
   },
   Kuweires: {
@@ -14503,6 +14506,7 @@ export const airdromeDetails: Record<string, z.infer<typeof schemas.airdromeDeta
     },
     frequency: 251.75,
     frequencyList: [40.2, 128, 251.75, 4.65],
+    tacan: { channel: 107, band: 'X', callsign: 'AKR' },
     runwayAngle: 111
   },
   Kingsfield: {
@@ -14975,6 +14979,7 @@ export const airdromeDetails: Record<string, z.infer<typeof schemas.airdromeDeta
     },
     frequency: 251.85,
     frequencyList: [40.3, 119.9, 251.85, 4.7],
+    tacan: { channel: 79, band: 'X', callsign: 'PHA' },
     runwayAngle: 114
   },
   Larnaca: {

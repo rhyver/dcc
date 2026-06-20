@@ -11,6 +11,8 @@ import {
   buildKneeboardMissionDescription,
   buildKneeboardWaypointRows,
   createKneeboardFilename,
+  getKneeboardLandingTacanSummary,
+  getKneeboardTargetTacanSummary,
   getClientFlightGroups,
   sanitizeKneeboardFilenamePart
 } from './kneeboard'
@@ -265,6 +267,54 @@ describe('kneeboard mission description', () => {
     expect(description).toContain('Defensive CAS')
     expect(description).toContain('Enemy ground attack threatening Kobuleti')
     expect(description).toContain('ground group / kobuleti')
+  })
+})
+
+describe('kneeboard TACAN summaries', () => {
+  test('formats target and landing TACAN values for the kneeboard footer', () => {
+    const startTime = new Date('2026-01-01T12:00:00Z')
+    const flightGroup = createFlightGroup('blue-client', 'Enfield-1', startTime)
+    flightGroup.homeBase = 'Kobuleti'
+
+    expect(
+      getKneeboardTargetTacanSummary({
+        groupId: 101,
+        name: 'Enfield-1',
+        task: 'CAP',
+        unitNames: ['Enfield-1-1'],
+        navigation: {
+          mode: 'targetTacan',
+          targetLabel: 'Target',
+          targetPoint: { x: 0, z: 0 },
+          tacan: { channel: 31, band: 'X', callsign: 'DCC1' }
+        }
+      })
+    ).toBe('31X DCC1')
+
+    expect(
+      getKneeboardLandingTacanSummary(flightGroup, {
+        ...theatre,
+        airdromeDetails: {
+          Kobuleti: {
+            id: 1,
+            name: 'Kobuleti',
+            x: 0,
+            y: 0,
+            runwayAngle: 0,
+            standlist: {},
+            tacan: { channel: 67, band: 'X', callsign: 'KBL' }
+          }
+        }
+      })
+    ).toBe('67X KBL')
+  })
+
+  test('uses fallback when TACAN data is unavailable', () => {
+    const startTime = new Date('2026-01-01T12:00:00Z')
+    const flightGroup = createFlightGroup('blue-client', 'Enfield-1', startTime)
+
+    expect(getKneeboardTargetTacanSummary(undefined)).toBe('---')
+    expect(getKneeboardLandingTacanSummary(flightGroup, theatre)).toBe('---')
   })
 })
 

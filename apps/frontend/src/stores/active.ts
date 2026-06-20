@@ -25,7 +25,8 @@ const initialState: z.infer<typeof schemas.campaign.campaign> = {
     ewr: true,
     iads: true,
     exactTarget: true,
-    casJtac: true
+    casJtac: true,
+    navigationAid: 'targetVector'
   },
   logs: [],
   scenarioId: 'red-bullet',
@@ -404,6 +405,16 @@ export const activeStore = createStore({
         }
         draft.campaignParams.casJtac = casJtac
       }),
+    setNavigationAid: (
+      context,
+      { navigationAid }: { navigationAid: 'targetVector' | 'targetTacan' | undefined }
+    ) =>
+      produce(context, (draft) => {
+        if (!draft.campaignParams) {
+          draft.campaignParams = {}
+        }
+        draft.campaignParams.navigationAid = navigationAid
+      }),
 
     tick: (
       context,
@@ -500,6 +511,10 @@ const activeCampaignSaveRequestEventTypes = new Set<string>([
   'setHotStart',
   'setCulling',
   'setEwr',
+  'setIads',
+  'setExactTarget',
+  'setCasJtac',
+  'setNavigationAid',
   'removeAllFlightGroups',
   'clearLogs',
   'clearFlightGroupClientSelections',

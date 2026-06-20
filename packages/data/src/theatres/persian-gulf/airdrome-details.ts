@@ -2118,6 +2118,7 @@ export const airdromeDetails: Record<string, z.infer<typeof schemas.airdromeDeta
   'Al Dhafra AFB': {
     frequency: 251.1,
     frequencyList: [39.5, 126.5, 251.1, 4.3],
+    tacan: { channel: 96, band: 'X', callsign: 'MA' },
     id: 4,
     name: 'Al Dhafra AFB',
     runwayAngle: 0,
@@ -5330,6 +5331,7 @@ export const airdromeDetails: Record<string, z.infer<typeof schemas.airdromeDeta
   'Al Minhad AFB': {
     frequency: 250.1,
     frequencyList: [38.5, 118.55, 250.1, 3.8],
+    tacan: { channel: 99, band: 'X', callsign: 'MIN' },
     id: 12,
     name: 'Al Minhad AFB',
     runwayAngle: 0,
@@ -6452,6 +6454,7 @@ export const airdromeDetails: Record<string, z.infer<typeof schemas.airdromeDeta
   'Bandar Abbas Intl': {
     frequency: 251,
     frequencyList: [39.4, 118.1, 251, 4.25],
+    tacan: { channel: 78, band: 'X', callsign: 'BND' },
     id: 2,
     name: 'Bandar Abbas Intl',
     runwayAngle: 0,
@@ -7024,6 +7027,7 @@ export const airdromeDetails: Record<string, z.infer<typeof schemas.airdromeDeta
   'Bandar-e-Jask': {
     frequency: 250.5,
     frequencyList: [38.95, 118.15, 250.5, 4.025],
+    tacan: { channel: 110, band: 'X', callsign: 'JSK' },
     id: 21,
     name: 'Bandar-e-Jask',
     runwayAngle: 0,
@@ -8097,6 +8101,7 @@ export const airdromeDetails: Record<string, z.infer<typeof schemas.airdromeDeta
   Havadarya: {
     frequency: 251.3,
     frequencyList: [39.7, 123.15, 251.3, 4.4],
+    tacan: { channel: 47, band: 'X', callsign: 'HDR' },
     id: 9,
     name: 'Havadarya',
     runwayAngle: 0,
@@ -8369,6 +8374,7 @@ export const airdromeDetails: Record<string, z.infer<typeof schemas.airdromeDeta
   Kerman: {
     frequency: 250.3,
     frequencyList: [38.75, 118.25, 250.3, 3.925],
+    tacan: { channel: 97, band: 'X', callsign: 'KER' },
     id: 18,
     name: 'Kerman',
     runwayAngle: 0,
@@ -8931,6 +8937,7 @@ export const airdromeDetails: Record<string, z.infer<typeof schemas.airdromeDeta
   'Kish Intl': {
     frequency: 250.65,
     frequencyList: [39.1, 121.65, 250.65, 4.1],
+    tacan: { channel: 112, band: 'X', callsign: 'KIH' },
     id: 24,
     name: 'Kish Intl',
     runwayAngle: 0,
@@ -9504,6 +9511,7 @@ export const airdromeDetails: Record<string, z.infer<typeof schemas.airdromeDeta
   'Liwa AFB': {
     frequency: 250.95,
     frequencyList: [39.35, 119.3, 250.95, 4.225],
+    tacan: { channel: 121, band: 'X', callsign: 'OMLW' },
     id: 29,
     name: 'Liwa AFB',
     runwayAngle: 0,
@@ -11849,6 +11857,7 @@ export const airdromeDetails: Record<string, z.infer<typeof schemas.airdromeDeta
   'Shiraz Intl': {
     frequency: 250.35,
     frequencyList: [38.8, 121.9, 250.35, 3.95],
+    tacan: { channel: 94, band: 'X', callsign: 'SYZ1' },
     id: 19,
     name: 'Shiraz Intl',
     runwayAngle: 0,
@@ -13181,6 +13190,7 @@ export const airdromeDetails: Record<string, z.infer<typeof schemas.airdromeDeta
   'Tunb Kochak': {
     id: 16,
     name: 'Tunb Kochak',
+    tacan: { channel: 89, band: 'X', callsign: 'KCK' },
     runwayAngle: 0,
     standlist: {
       '01': {

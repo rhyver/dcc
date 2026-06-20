@@ -483,7 +483,8 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
       ewr: true,
       iads: true,
       exactTarget: true,
-      casJtac: true
+      casJtac: true,
+      navigationAid: 'targetVector'
     },
     status: 'active',
     goal: scenario.goal,

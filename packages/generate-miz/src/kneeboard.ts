@@ -324,7 +324,39 @@ function getSpecialNotes(flightGroup: FlightGroup, missionConfig: MissionFlightC
     notes.push(`Laser ${missionConfig.laserCode}`)
   }
 
+  if (missionConfig?.navigation?.tacan) {
+    const tacan = missionConfig.navigation.tacan
+    notes.push(`Target TACAN ${tacan.channel}${tacan.band} ${tacan.callsign}`)
+  } else if (missionConfig?.navigation) {
+    notes.push('F10 target vector')
+  }
+
   return notes.length > 0 ? notes.join(' / ') : 'SEE MISSION PLAN'
+}
+
+function formatTacanSummary(tacan: {
+  channel: number | string
+  band?: string
+  callsign?: string
+}) {
+  const band = tacan.band ?? 'X'
+  const callsign = tacan.callsign ? ` ${tacan.callsign}` : ''
+  return `${tacan.channel}${band}${callsign}`
+}
+
+export function getKneeboardTargetTacanSummary(
+  missionConfig: MissionFlightConfig | undefined
+): string {
+  const tacan = missionConfig?.navigation?.tacan
+  if (!tacan) return '---'
+  return formatTacanSummary(tacan)
+}
+
+export function getKneeboardLandingTacanSummary(flightGroup: FlightGroup, theatre: Theatre): string {
+  const airdrome = theatre.airdromeDetails[flightGroup.homeBase]
+  const tacan = airdrome?.tacan
+  if (!tacan) return '---'
+  return formatTacanSummary(tacan)
 }
 
 type SectionPanelLayout = {
@@ -677,11 +709,10 @@ async function renderKneeboardSvg(params: {
   ${await renderRouteSketch(flightGroup.flightplan.waypoints, theatre, layout.routeSketch)}
 
   <rect x="${CONTENT_X}" y="${layout.footer.panelY}" width="${CONTENT_WIDTH}" height="${layout.footer.height}" class="panel" />
-  <text x="82" y="${layout.footer.panelY + 22}" class="small">ATIS</text>
-  <text x="160" y="${layout.footer.panelY + 22}" class="value">XXX.XXX</text>
-  <text x="282" y="${layout.footer.panelY + 22}" class="small">AWACS</text>
-  <text x="374" y="${layout.footer.panelY + 22}" class="value">XXX.XXX</text>
-  <text x="506" y="${layout.footer.panelY + 22}" class="small">NOTES</text>
+  <text x="82" y="${layout.footer.panelY + 22}" class="small">TARGET TACAN</text>
+  <text x="212" y="${layout.footer.panelY + 22}" class="value">${escapeXml(getKneeboardTargetTacanSummary(missionConfig))}</text>
+  <text x="376" y="${layout.footer.panelY + 22}" class="small">LANDING TACAN</text>
+  <text x="520" y="${layout.footer.panelY + 22}" class="value">${escapeXml(getKneeboardLandingTacanSummary(flightGroup, theatre))}</text>
 </svg>`
 }
 

@@ -4759,6 +4759,7 @@ export const airdromeDetails: Record<string, z.infer<typeof schemas.airdromeDeta
       }
     },
     frequency: 260,
+    tacan: { channel: 16, band: 'X', callsign: 'BTM' },
     runwayAngle: 306
   },
   'Senaki-Kolkhi': {
@@ -5449,6 +5450,7 @@ export const airdromeDetails: Record<string, z.infer<typeof schemas.airdromeDeta
       }
     },
     frequency: 261,
+    tacan: { channel: 31, band: 'X', callsign: 'TSK' },
     runwayAngle: 275
   },
   Kobuleti: {
@@ -5879,6 +5881,7 @@ export const airdromeDetails: Record<string, z.infer<typeof schemas.airdromeDeta
       }
     },
     frequency: 262,
+    tacan: { channel: 67, band: 'X', callsign: 'KBL' },
     runwayAngle: 250
   },
   Kutaisi: {
@@ -6469,6 +6472,7 @@ export const airdromeDetails: Record<string, z.infer<typeof schemas.airdromeDeta
       }
     },
     frequency: 263,
+    tacan: { channel: 44, band: 'X', callsign: 'KTS' },
     runwayAngle: 254
   },
   'Mineralnye Vody': {
@@ -8069,6 +8073,7 @@ export const airdromeDetails: Record<string, z.infer<typeof schemas.airdromeDeta
       }
     },
     frequency: 267,
+    tacan: { channel: 25, band: 'X', callsign: 'GTB' },
     runwayAngle: 128
   },
   Soganlug: {
@@ -9059,6 +9064,7 @@ export const airdromeDetails: Record<string, z.infer<typeof schemas.airdromeDeta
       }
     },
     frequency: 269,
+    tacan: { channel: 22, band: 'X', callsign: 'VAS' },
     runwayAngle: 135
   },
   Beslan: {

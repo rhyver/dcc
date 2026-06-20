@@ -296,6 +296,10 @@ export function Mission() {
     (state) => state.context.campaignParams?.exactTarget ?? true
   )
   const casJtac = useSelector(activeStore, (state) => state.context.campaignParams?.casJtac ?? true)
+  const navigationAid = useSelector(
+    activeStore,
+    (state) => state.context.campaignParams?.navigationAid ?? 'targetVector'
+  )
   const playerFlightGroups = useSelector(
     activeStore,
     (state) => state.context.coalitions.player.flightGroups
@@ -654,6 +658,39 @@ export function Mission() {
                                   activeStore.send({ type: 'setCasJtac', casJtac: checked })
                                 }
                               />
+                            </div>
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <div className="text-sm font-medium text-white">
+                                  Target Navigation
+                                </div>
+                                <div className="text-sm text-white/40">
+                                  Add F10 target vectors or a generated target TACAN
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 overflow-hidden border border-[#ff00aa]/25">
+                                {[
+                                  ['targetVector', 'Vector'],
+                                  ['targetTacan', 'TACAN']
+                                ].map(([value, label]) => (
+                                  <button
+                                    key={value}
+                                    type="button"
+                                    onClick={() =>
+                                      activeStore.send({
+                                        type: 'setNavigationAid',
+                                        navigationAid: value as 'targetVector' | 'targetTacan'
+                                      })
+                                    }
+                                    className={cn(
+                                      'px-3 py-1.5 text-xs font-semibold text-white/60 transition-colors',
+                                      navigationAid === value && 'bg-[#ff00aa]/25 text-white'
+                                    )}
+                                  >
+                                    {label}
+                                  </button>
+                                ))}
+                              </div>
                             </div>
                           </div>
                         )}

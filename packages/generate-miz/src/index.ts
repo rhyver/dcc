@@ -26,6 +26,7 @@ import ctldLuaScript from './scripts/ctld.lua?raw'
 import dccIadsLuaScript from './scripts/dcc_iads.lua?raw'
 import ewrLuaScript from './scripts/ewr.lua?raw'
 import mistLuaScript from './scripts/mist_4_5_126.lua?raw'
+import navigationLuaScript from './scripts/navigation.lua?raw'
 import skynetIadsLuaScript from './scripts/skynet-iads.lua?raw'
 import splashDamageLuaScript from './scripts/splash_damage.lua?raw'
 import stateLuaScript from './scripts/state.lua?raw'
@@ -73,7 +74,7 @@ type MissionScriptConfig = {
 }
 
 function getStartupTriggerIndexes(ewrEnabled: boolean, iadsEnabled: boolean) {
-  return [1, 2, 3, 4, 5, 6, ...(ewrEnabled ? [7] : []), ...(iadsEnabled ? [8, 9] : [])]
+  return [1, 2, 3, 4, 5, 6, 10, ...(ewrEnabled ? [7] : []), ...(iadsEnabled ? [8, 9] : [])]
 }
 
 function createIadsConfigScript(iadsConfig: MissionIadsConfig) {
@@ -438,6 +439,10 @@ export async function generateMizFromCampaign(
           createDoScriptFileAction('ResKey_Action_7')
         ),
         6: createLoggedStartupAction('Loading cas', createDoScriptFileAction('ResKey_Action_16')),
+        10: createLoggedStartupAction(
+          'Loading navigation',
+          createDoScriptFileAction('ResKey_Action_21')
+        ),
         ...(ewrEnabled
           ? {
               7: createLoggedStartupAction(
@@ -469,6 +474,7 @@ export async function generateMizFromCampaign(
         4: true,
         5: true,
         6: true,
+        10: true,
         ...(ewrEnabled ? { 7: true } : {}),
         ...(iadsRequested ? { 8: true, 9: true } : {})
       },
@@ -479,6 +485,7 @@ export async function generateMizFromCampaign(
         4: 'return(true)',
         5: 'return(true)',
         6: 'return(true)',
+        10: 'return(true)',
         ...(ewrEnabled ? { 7: 'return(true)' } : {}),
         ...(iadsRequested ? { 8: 'return(true)', 9: 'return(true)' } : {})
       },
@@ -534,6 +541,14 @@ export async function generateMizFromCampaign(
         predicate: 'triggerStart',
         comment: 'CAS JTAC Script',
         actions: { 1: { predicate: 'a_do_script_file', file: 'ResKey_Action_16' } },
+        colorItem: '0x00ffffff'
+      },
+      10: {
+        rules: {},
+        eventlist: '',
+        predicate: 'triggerStart',
+        comment: 'DCC Navigation Script',
+        actions: { 1: { predicate: 'a_do_script_file', file: 'ResKey_Action_21' } },
         colorItem: '0x00ffffff'
       },
       ...(ewrEnabled
@@ -720,6 +735,7 @@ export async function generateMizFromCampaign(
   zip.addFile('l10n/DEFAULT/splash_damage.lua', Buffer.from(splashDamageLuaScript, 'utf-8'))
   zip.addFile('l10n/DEFAULT/cas.lua', Buffer.from(casLuaScript, 'utf-8'))
   zip.addFile('l10n/DEFAULT/ewr.lua', Buffer.from(ewrLuaScript, 'utf-8'))
+  zip.addFile('l10n/DEFAULT/navigation.lua', Buffer.from(navigationLuaScript, 'utf-8'))
   if (iadsConfig) {
     zip.addFile('l10n/DEFAULT/skynet-iads.lua', Buffer.from(skynetIadsLuaScript, 'utf-8'))
     zip.addFile('l10n/DEFAULT/dcc_iads.lua', Buffer.from(dccIadsLuaScript, 'utf-8'))

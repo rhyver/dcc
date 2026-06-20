@@ -146,7 +146,8 @@ export const campaign = z.preprocess(
         ewr: z.boolean().optional(),
         iads: z.boolean().optional(),
         exactTarget: z.boolean().optional(),
-        casJtac: z.boolean().optional()
+        casJtac: z.boolean().optional(),
+        navigationAid: z.enum(['targetVector', 'targetTacan']).optional()
       })
       .optional(),
     logs: z.array(campaignLogEntry).default([]),

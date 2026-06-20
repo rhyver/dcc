@@ -671,9 +671,110 @@ describe('addFlightGroups mission script config', () => {
     expect(result.value.map(({ groupId: _groupId, ...group }) => group)).toEqual([
       {
         name: 'Enfield-1',
+        navigation: {
+          mode: 'targetVector',
+          targetLabel: 'Ground Group objective-1',
+          targetPoint: {
+            x: 3000,
+            z: 3000
+          }
+        },
         task: 'CAS',
         unitNames: ['Enfield-1-1', 'Enfield-1-2']
       }
     ])
+  })
+
+  test('adds target vector navigation config for client flights with assigned targets', () => {
+    const startTime = new Date('2026-01-01T00:00:00Z')
+    const mission = createMission()
+    const campaign = createCampaign(startTime)
+    campaign.campaignParams = { navigationAid: 'targetVector' }
+    const clientGroup = createFlightGroup('blue-client', 'Enfield-1', startTime)
+    clientGroup.aircrafts[0]!.client = true
+    clientGroup.target = {
+      id: 'objective-1',
+      objectiveId: 'objective-1',
+      type: 'Structure'
+    }
+    campaign.coalitions.player.flightGroups = [clientGroup]
+    campaign.coalitions.opponent.flightGroups = []
+
+    const result = addFlightGroups(mission, campaign, {
+      ...theatre,
+      objectives: [{ name: 'objective-1', type: 'Frontline', position: { x: 3000, y: 4000 } }]
+    })
+
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) throw result.error
+
+    expect(result.value[0]).toMatchObject({
+      name: 'Enfield-1',
+      navigation: {
+        mode: 'targetVector',
+        targetLabel: 'Structure objective-1',
+        targetPoint: {
+          x: 3000,
+          z: 4000
+        }
+      }
+    })
+  })
+
+  test('adds hidden target TACAN beacon and channel config for target TACAN mode', () => {
+    const startTime = new Date('2026-01-01T00:00:00Z')
+    const mission = createMission()
+    const campaign = createCampaign(startTime)
+    campaign.campaignParams = { navigationAid: 'targetTacan' }
+    const clientGroup = createFlightGroup('blue-client', 'Enfield-1', startTime)
+    clientGroup.aircrafts[0]!.client = true
+    clientGroup.target = {
+      id: 'objective-1',
+      objectiveId: 'objective-1',
+      type: 'Structure'
+    }
+    campaign.coalitions.player.flightGroups = [clientGroup]
+    campaign.coalitions.opponent.flightGroups = []
+
+    const result = addFlightGroups(mission, campaign, {
+      ...theatre,
+      objectives: [{ name: 'objective-1', type: 'Frontline', position: { x: 3000, y: 4000 } }]
+    })
+
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) throw result.error
+
+    expect(result.value[0]).toMatchObject({
+      navigation: {
+        mode: 'targetTacan',
+        tacan: {
+          channel: 31,
+          band: 'X',
+          callsign: 'DCC1'
+        }
+      }
+    })
+
+    const beaconGroup = mission.coalition.blue.country?.[0]?.vehicle?.group?.[0]
+    expect(beaconGroup).toMatchObject({
+      hidden: true,
+      visible: false,
+      x: 3500,
+      y: 4500,
+      units: [
+        {
+          type: 'TACAN_beacon',
+          x: 3500,
+          y: 4500
+        }
+      ]
+    })
+
+    const beaconRouteTask = JSON.stringify(beaconGroup?.route?.points[0]?.task)
+    expect(beaconRouteTask).toContain('"id":"SetImmortal"')
+    expect(beaconRouteTask).toContain('"id":"SetInvisible"')
+    expect(beaconRouteTask).toContain('"id":"ActivateBeacon"')
+    expect(beaconRouteTask).toContain('"channel":31')
+    expect(beaconRouteTask).toContain('"callsign":"DCC1"')
   })
 })

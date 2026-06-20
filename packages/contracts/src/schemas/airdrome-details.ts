@@ -19,6 +19,13 @@ export const airdromeDetails = position.extend({
   standlist: z.record(z.string(), airdromeStand),
   frequency: z.number().optional(),
   frequencyList: z.tuple([z.number(), z.number(), z.number(), z.number()]).optional(), // TODO
+  tacan: z
+    .object({
+      channel: z.number(),
+      band: z.enum(['X', 'Y']).optional(),
+      callsign: z.string().optional()
+    })
+    .optional(),
   runwayAngle: z.number(),
   supply: supply.optional()
 })

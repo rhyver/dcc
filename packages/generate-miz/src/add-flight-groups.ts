@@ -19,6 +19,8 @@ const DEFAULT_FLIGHT_GROUP_FREQUENCY: FrequencyRange = [251, 399]
 const FREQUENCY_STEP = 0.05
 const FREQUENCY_PRECISION = 2
 const JTAC_LASER_CODE = 1688
+const TARGET_TACAN_OFFSET_METERS = 500
+const TARGET_TACAN_START_CHANNEL = 31
 
 type Mission = z.infer<typeof schemas.dcs.mission>
 type MissionCountry = NonNullable<Mission['coalition']['blue']['country']>[number]
@@ -26,6 +28,7 @@ type Campaign = z.infer<typeof schemas.campaign.campaign>
 type CoalitionKey = z.infer<typeof schemas.coalition>
 type FlightGroup = Campaign['coalitions']['player']['flightGroups'][number]
 type FrequencyRange = [number, number]
+type NavigationAid = NonNullable<NonNullable<Campaign['campaignParams']>['navigationAid']>
 
 const DEFAULT_CALLSIGN = 'Enfield'
 
@@ -69,11 +72,120 @@ function createAircraftUnitName(groupCallsign: string, unitIndex: number) {
   return `${groupCallsign}-${unitIndex + 1}`
 }
 
+function formatTargetLabel(flightGroup: FlightGroup) {
+  if (!flightGroup.target) return 'Target'
+  return flightGroup.target.type
+    ? `${flightGroup.target.type} ${flightGroup.target.objectiveId}`
+    : flightGroup.target.objectiveId
+}
+
+function resolveTargetPosition(
+  campaign: Campaign,
+  theatre: z.infer<typeof schemas.theatre>,
+  flightGroup: FlightGroup
+) {
+  if (!flightGroup.target) return undefined
+
+  for (const coalition of Object.values(campaign.coalitions)) {
+    const groundGroup = coalition.groundGroups.find((group) => group.id === flightGroup.target?.id)
+    if (groundGroup) return groundGroup.position
+
+    const structure = coalition.structures.find(
+      (candidate) => candidate.id === flightGroup.target?.id
+    )
+    if (structure) return structure.position
+  }
+
+  const theatreTarget = theatre.targets[flightGroup.target.objectiveId]?.find(
+    (target) => target.name === flightGroup.target?.id
+  )
+  if (theatreTarget) return theatreTarget.position
+
+  return theatre.objectives.find((objective) => objective.name === flightGroup.target?.objectiveId)
+    ?.position
+}
+
+function createTargetTacanGroup(params: {
+  groupId: number
+  unitId: number
+  name: string
+  position: z.infer<typeof schemas.position>
+  channel: number
+  callsign: string
+}) {
+  const x = params.position.x + TARGET_TACAN_OFFSET_METERS
+  const y = params.position.y + TARGET_TACAN_OFFSET_METERS
+
+  return {
+    groupId: params.groupId,
+    name: params.name,
+    task: 'Ground Nothing',
+    hidden: true,
+    visible: false,
+    x,
+    y,
+    units: [
+      {
+        unitId: params.unitId,
+        name: `${params.name}-1`,
+        type: 'TACAN_beacon',
+        skill: 'Excellent',
+        playerCanDrive: false,
+        coldAtStart: false,
+        heading: 0,
+        x,
+        y
+      }
+    ],
+    route: {
+      points: [
+        {
+          alt: 0,
+          alt_type: 'BARO',
+          action: 'Off Road',
+          type: 'Turning Point',
+          ETA: 0,
+          ETA_locked: true,
+          speed: 0,
+          speed_locked: true,
+          x,
+          y,
+          task: {
+            id: 'ComboTask',
+            params: {
+              tasks: [
+                createWrappedActionTask({ id: 'SetImmortal', params: { value: true } }, 1),
+                createWrappedActionTask({ id: 'SetInvisible', params: { value: true } }, 2),
+                createWrappedActionTask(
+                  {
+                    id: 'ActivateBeacon',
+                    params: {
+                      type: 4,
+                      system: 4,
+                      name: params.callsign,
+                      callsign: params.callsign,
+                      channel: params.channel,
+                      modeChannel: 'X',
+                      bearing: true
+                    }
+                  },
+                  3
+                )
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+
 export type CasFlightConfig = {
   groupId: number
   name: string
   task: 'CAS'
   unitNames: string[]
+  navigation?: MissionNavigationConfig
   jtacName: string
   targetGroupName: string
   laserCode: number
@@ -86,7 +198,22 @@ export type MissionFlightConfig =
       name: string
       task: z.infer<typeof schemas.task>
       unitNames: string[]
+      navigation?: MissionNavigationConfig
     }
+
+export type MissionNavigationConfig = {
+  mode: NavigationAid
+  targetLabel: string
+  targetPoint: {
+    x: number
+    z: number
+  }
+  tacan?: {
+    channel: number
+    band: 'X'
+    callsign: string
+  }
+}
 
 function hasPlayerClientCap(campaign: Campaign) {
   return campaign.coalitions.player.flightGroups.some(
@@ -715,6 +842,9 @@ export function addFlightGroups(
   const flightGroupIdToUnitIds = new Map<string, number[]>()
   const coalitionLink16UnitIds = new Map<string, number[]>()
   const link16StationNumberByUnitId = new Map<number, string>()
+  const navigationAid = campaign.campaignParams?.navigationAid ?? 'targetVector'
+  let nextTacanChannel = TARGET_TACAN_START_CHANNEL
+  let nextTacanCallsign = 1
 
   for (const [key, value] of Object.entries(campaign.coalitions)) {
     const flightGroups = value.flightGroups
@@ -811,6 +941,10 @@ export function addFlightGroups(
     if (!country.helicopter) {
       country.helicopter = { group: [] }
     }
+    if (!country.vehicle) {
+      country.vehicle = { group: [] }
+    }
+    const vehicleGroups = country.vehicle.group
 
     flightGroups.forEach((fg) => {
       const firstAircraft = fg.aircrafts[0]
@@ -1316,11 +1450,49 @@ export function addFlightGroups(
       }
 
       if (fg.aircrafts.some((ac) => ac.client)) {
+        const targetPosition = resolveTargetPosition(campaign, theatre, fg)
+        let navigation: MissionNavigationConfig | undefined
+
+        if (navigationAid && targetPosition) {
+          navigation = {
+            mode: navigationAid,
+            targetLabel: formatTargetLabel(fg),
+            targetPoint: {
+              x: targetPosition.x,
+              z: targetPosition.y
+            }
+          }
+
+          if (navigationAid === 'targetTacan') {
+            const channel = nextTacanChannel++
+            const callsign = `DCC${nextTacanCallsign++}`
+            const beaconName = `DCC Target TACAN ${groupName}`
+
+            navigation.tacan = {
+              channel,
+              band: 'X',
+              callsign
+            }
+
+            vehicleGroups.push(
+              createTargetTacanGroup({
+                groupId: nextId(),
+                unitId: nextId(),
+                name: beaconName,
+                position: targetPosition,
+                channel,
+                callsign
+              })
+            )
+          }
+        }
+
         flightConfigs.push({
           groupId,
           name: groupName,
           task: fg.task,
-          unitNames: units.map((unit) => unit.name)
+          unitNames: units.map((unit) => unit.name),
+          ...(navigation ? { navigation } : {})
         })
       }
 

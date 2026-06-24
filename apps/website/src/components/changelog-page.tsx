@@ -1,6 +1,37 @@
 import { Footer, Nav } from './site-shell'
 
-const changes = [
+const latestReleaseChanges = [
+  {
+    title: 'IADS campaign options',
+    body: 'Campaigns can now include integrated air defense systems, with generated DCS mission support through Skynet IADS integration.'
+  },
+  {
+    title: 'Air Tasking Order and logistics planning',
+    body: 'ATO planning coordinates flight packages with package spacing and airbase supply status.'
+  },
+  {
+    title: 'Player navigation aids',
+    body: 'F10 menus can now provide target vectors, generated target TACAN, and landing airport vectors.'
+  },
+  {
+    title: 'Mission start welcome message',
+    body: 'New missions now summarize the enabled F10 menu features when the mission begins.'
+  },
+  {
+    title: 'More detailed supply simulation',
+    body: 'Supply management now models airbase logistics, capture behavior, and supply state updates in more detail.'
+  },
+  {
+    title: 'More reliable mission state',
+    body: 'Mission scripts now persist DCS state more reliably and report state handling errors more clearly.'
+  },
+  {
+    title: 'Richer kneeboard and mission output',
+    body: 'Kneeboards and generated missions now include relevant strike, navigation, TACAN, and landing vector details for eligible client flights.'
+  }
+]
+
+const currentReleaseChanges = [
   {
     title: 'New campaign setup flow',
     body: 'Scenario and era selection now guide campaign creation.'
@@ -99,18 +130,34 @@ export function ChangelogPage() {
           <p className="copy-kicker">Release notes</p>
           <h1>Changelog</h1>
           <p className="privacy-lede">
-            Digital Crew Chief is still in alpha. This page tracks the current public release and
-            the changes included in it.
+            Digital Crew Chief is still in alpha. This page tracks current releases and the older
+            alpha history.
           </p>
 
           <section className="release-block current">
             <div className="release-meta">
               <span>Current alpha</span>
+              <span>24 June 2026</span>
+            </div>
+            <h2>v0.5.0-2026062401</h2>
+            <div className="change-list">
+              {latestReleaseChanges.map((change) => (
+                <div className="change-item" key={change.title}>
+                  <h3>{change.title}</h3>
+                  <p>{change.body}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="release-block">
+            <div className="release-meta">
+              <span />
               <span>14 June 2026</span>
             </div>
             <h2>v0.5.0-2026061401</h2>
             <div className="change-list">
-              {changes.map((change) => (
+              {currentReleaseChanges.map((change) => (
                 <div className="change-item" key={change.title}>
                   <h3>{change.title}</h3>
                   <p>{change.body}</p>

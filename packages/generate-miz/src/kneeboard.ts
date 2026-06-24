@@ -178,15 +178,43 @@ function escapeXml(value: unknown): string {
 }
 
 function truncate(value: string, maxLength: number): string {
+  if (maxLength <= 1) return value.slice(0, Math.max(0, maxLength))
   return value.length > maxLength ? value.slice(0, Math.max(0, maxLength - 1)) + '.' : value
+}
+
+function maxCharactersForWidth(width: number, averageCharacterWidth: number) {
+  return Math.max(4, Math.floor(width / averageCharacterWidth))
+}
+
+function truncateToWidth(value: string, width: number, averageCharacterWidth: number) {
+  return truncate(value, maxCharactersForWidth(width, averageCharacterWidth))
 }
 
 function wrapText(value: string, maxLineLength: number, maxLines: number): string[] {
   const words = value.trim().split(/\s+/).filter(Boolean)
   const lines: string[] = []
   let current = ''
+  let truncated = false
 
   for (const word of words) {
+    if (lines.length >= maxLines) {
+      truncated = true
+      break
+    }
+
+    if (word.length > maxLineLength) {
+      if (current) {
+        lines.push(current)
+        current = ''
+      }
+
+      if (lines.length < maxLines) {
+        lines.push(truncate(word, maxLineLength))
+      }
+      truncated = true
+      continue
+    }
+
     const next = current ? `${current} ${word}` : word
     if (next.length <= maxLineLength) {
       current = next
@@ -196,27 +224,36 @@ function wrapText(value: string, maxLineLength: number, maxLines: number): strin
     if (current) {
       lines.push(current)
     }
-    current = word
 
-    if (lines.length >= maxLines) break
+    if (lines.length >= maxLines) {
+      truncated = true
+      break
+    }
+
+    current = word
   }
 
   if (current && lines.length < maxLines) {
     lines.push(current)
+  } else if (current) {
+    truncated = true
   }
 
-  if (lines.length === maxLines && words.join(' ').length > lines.join(' ').length) {
-    const last = lines[maxLines - 1] ?? ''
-    lines[maxLines - 1] = truncate(last, Math.max(4, maxLineLength - 2))
+  if (truncated && lines.length > 0) {
+    const lastIndex = lines.length - 1
+    lines[lastIndex] = truncate(lines[lastIndex] ?? '', Math.max(4, maxLineLength - 2))
   }
 
   return lines.length > 0 ? lines : ['No mission details available.']
 }
 
 function renderField(label: string, value: string, x: number, y: number, width: number) {
+  const valueXOffset = 104
+  const valueWidth = width - valueXOffset
+
   return `
     <text x="${x}" y="${y}" class="label">${escapeXml(label)}</text>
-    <text x="${x + 104}" y="${y}" class="value">${escapeXml(truncate(value, 28))}</text>
+    <text x="${x + valueXOffset}" y="${y}" class="value">${escapeXml(truncateToWidth(value, valueWidth, 7))}</text>
     <line x1="${x}" y1="${y + 8}" x2="${x + width}" y2="${y + 8}" class="rule" />
   `
 }
@@ -327,7 +364,13 @@ function getSpecialNotes(flightGroup: FlightGroup, missionConfig: MissionFlightC
   if (missionConfig?.navigation?.tacan) {
     const tacan = missionConfig.navigation.tacan
     notes.push(`Target TACAN ${tacan.channel}${tacan.band} ${tacan.callsign}`)
-  } else if (missionConfig?.navigation) {
+  }
+
+  if (missionConfig?.navigation?.landingPoint) {
+    notes.push('F10 landing vector')
+  }
+
+  if (missionConfig?.navigation?.targetPoint) {
     notes.push('F10 target vector')
   }
 
@@ -544,6 +587,9 @@ function renderWaypointTable(rows: KneeboardWaypointRow[], layout: KneeboardLayo
   const y = layout.panelY
   const rowHeight = WAYPOINT_ROW_HEIGHT
   const visibleRows = rows.slice(0, MAX_VISIBLE_WAYPOINTS)
+  const remarksColumnX = x + 574
+  const remarksTextX = remarksColumnX + 8
+  const remarksTextWidth = CONTENT_WIDTH - (remarksTextX - x) - 8
   const columns = [
     { label: 'WP', width: 42 },
     { label: 'DESCRIPTION', width: 180 },
@@ -592,7 +638,7 @@ function renderWaypointTable(rows: KneeboardWaypointRow[], layout: KneeboardLayo
         <text x="${x + 449}" y="${rowY + 17}" class="table-text center">${escapeXml(row.legDistance)}</text>
         <text x="${x + 501}" y="${rowY + 17}" class="table-text center">${escapeXml(row.totalDistance)}</text>
         <text x="${x + 551}" y="${rowY + 17}" class="table-text center">${escapeXml(row.bearing)}</text>
-        <text x="${x + 590}" y="${rowY + 17}" class="table-text">${escapeXml(truncate(row.remarks, 8))}</text>
+        <text x="${remarksTextX}" y="${rowY + 17}" class="table-text">${escapeXml(truncateToWidth(row.remarks, remarksTextWidth, 6.7))}</text>
       `
     })
     .join('')
@@ -611,7 +657,7 @@ function renderWaypointTable(rows: KneeboardWaypointRow[], layout: KneeboardLayo
   `
 }
 
-async function renderKneeboardSvg(params: {
+export async function renderKneeboardSvg(params: {
   campaign: Campaign
   theatre: Theatre
   missionFlightConfigs: MissionFlightConfig[]
@@ -622,9 +668,11 @@ async function renderKneeboardSvg(params: {
   const rows = buildKneeboardWaypointRows(flightGroup)
   const missionConfig = findMissionConfig(missionFlightConfigs, flightGroup)
   const missionPackage = findMissionPackage(campaign, flightGroup)
+  const targetDescriptionX = 408
+  const targetDescriptionWidth = 280
   const missionDescriptionLines = wrapText(
     buildKneeboardMissionDescription({ flightGroup, missionPackage, theatre }),
-    78,
+    maxCharactersForWidth(targetDescriptionWidth, 7),
     3
   )
   const clientCount = flightGroup.aircrafts.filter((aircraft) => aircraft.client).length
@@ -642,7 +690,7 @@ async function renderKneeboardSvg(params: {
     .rule, .table-line { stroke: #3b403f; stroke-width: 1; opacity: 0.78; }
     .label { font-family: Arial, sans-serif; font-size: 12px; font-weight: 700; fill: #1c2226; }
     .value { font-family: Arial, sans-serif; font-size: 13px; font-weight: 700; fill: #173f66; }
-    .section-title { font-family: Arial, sans-serif; font-size: 15px; font-weight: 800; fill: #ffffff; letter-spacing: 0.6px; }
+    .section-title { font-family: Arial, sans-serif; font-size: 15px; font-weight: 800; fill: #ffffff; letter-spacing: 0; }
     .title { font-family: Arial, sans-serif; font-size: 32px; font-weight: 900; fill: #f1e6d2; font-style: italic; }
     .subtitle { font-family: Arial, sans-serif; font-size: 17px; font-weight: 800; fill: #1c2226; }
     .headline { font-family: Arial, sans-serif; font-size: 28px; font-weight: 900; fill: #173f66; }
@@ -694,13 +742,18 @@ async function renderKneeboardSvg(params: {
   ${renderSectionHeader('TARGET / INTEL', CONTENT_X, target.panelY, CONTENT_WIDTH)}
   <text x="82" y="${target.contentY + 26}" class="value">${escapeXml(truncate(flightGroup.target?.objectiveId ?? 'N/A', 28))}</text>
   <text x="82" y="${target.contentY + 54}" class="value">${escapeXml(truncate(flightGroup.target?.type ?? 'N/A', 28))}</text>
-  <text x="408" y="${target.contentY + 26}" class="label">DESCRIPTION</text>
-  ${missionDescriptionLines
-    .map(
-      (line, index) =>
-        `<text x="408" y="${target.contentY + 50 + index * 17}" class="value">${escapeXml(line)}</text>`
-    )
-    .join('')}
+  <text x="${targetDescriptionX}" y="${target.contentY + 26}" class="label">DESCRIPTION</text>
+  <clipPath id="targetDescriptionClip">
+    <rect x="${targetDescriptionX}" y="${target.contentY + 37}" width="${targetDescriptionWidth}" height="58" />
+  </clipPath>
+  <g clip-path="url(#targetDescriptionClip)">
+    ${missionDescriptionLines
+      .map(
+        (line, index) =>
+          `<text x="${targetDescriptionX}" y="${target.contentY + 50 + index * 17}" class="value">${escapeXml(line)}</text>`
+      )
+      .join('')}
+  </g>
 
   ${renderWaypointTable(rows, layout.waypoints)}
 

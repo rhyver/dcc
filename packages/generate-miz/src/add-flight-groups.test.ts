@@ -353,6 +353,70 @@ describe('addFlightGroups parking assignment', () => {
   })
 })
 
+describe('addFlightGroups airborne client spawn altitude', () => {
+  test('spawns airborne fixed-wing groups at least 10000 feet above ground-level interpolation', () => {
+    const startTime = new Date('2026-01-01T00:00:00Z')
+    const mission = createMission()
+    const campaign = createCampaign(startTime)
+    const group = createFlightGroup('blue-airborne', 'Enfield-1', startTime)
+    group.aircrafts[0]!.client = true
+    campaign.time = new Date(startTime.getTime() + 10 * 60 * 1000)
+    campaign.coalitions.player.flightGroups = [group]
+    campaign.coalitions.opponent.flightGroups = []
+
+    const result = addFlightGroups(mission, campaign, theatre)
+
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) throw result.error
+
+    const emittedGroup = mission.coalition.blue.country?.[0]?.plane?.group?.[0]
+    const firstUnit = emittedGroup?.units[0]
+    const currentRoutePoint = emittedGroup?.route?.points[0]
+
+    expect(firstUnit?.alt).toBeCloseTo(3048)
+    expect(firstUnit?.parking).toBeUndefined()
+    expect(currentRoutePoint).toMatchObject({
+      alt: 3048,
+      type: 'Turning Point',
+      action: 'Turning Point',
+      name: 'Current'
+    })
+  })
+
+  test('spawns airborne helicopter groups at least 200 feet above ground-level interpolation', () => {
+    const startTime = new Date('2026-01-01T00:00:00Z')
+    const mission = createMission()
+    const campaign = createCampaign(startTime)
+    const group = createFlightGroup('blue-heli-airborne', 'Enfield-1', startTime)
+    group.task = 'Transport'
+    group.aircrafts.forEach((aircraft) => {
+      aircraft.aircraftName = 'UH-60L'
+    })
+    group.aircrafts[0]!.client = true
+    campaign.time = new Date(startTime.getTime() + 10 * 60 * 1000)
+    campaign.coalitions.player.flightGroups = [group]
+    campaign.coalitions.opponent.flightGroups = []
+
+    const result = addFlightGroups(mission, campaign, theatre)
+
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) throw result.error
+
+    const emittedGroup = mission.coalition.blue.country?.[0]?.helicopter?.group?.[0]
+    const firstUnit = emittedGroup?.units[0]
+    const currentRoutePoint = emittedGroup?.route?.points[0]
+
+    expect(firstUnit?.alt).toBeCloseTo(60.96)
+    expect(firstUnit?.parking).toBeUndefined()
+    expect(currentRoutePoint).toMatchObject({
+      alt: 60.96,
+      type: 'Turning Point',
+      action: 'Turning Point',
+      name: 'Current'
+    })
+  })
+})
+
 describe('addFlightGroups enemy traffic throttle', () => {
   test('randomly samples opponent non-CAP flights when no player client CAP is selected', () => {
     const startTime = new Date('2026-01-01T00:00:00Z')
@@ -776,5 +840,121 @@ describe('addFlightGroups mission script config', () => {
     expect(beaconRouteTask).toContain('"id":"ActivateBeacon"')
     expect(beaconRouteTask).toContain('"channel":31')
     expect(beaconRouteTask).toContain('"callsign":"DCC1"')
+    expect(beaconRouteTask).toContain('"unitId"')
+    expect(beaconRouteTask).toContain('"system":18')
+    expect(beaconRouteTask).toContain('"frequency":992000000')
+  })
+
+  test('can enable F10 vectors and target TACAN together', () => {
+    const startTime = new Date('2026-01-01T00:00:00Z')
+    const mission = createMission()
+    const campaign = createCampaign(startTime)
+    campaign.campaignParams = {
+      navigationVectors: true,
+      navigationTargetTacan: true
+    }
+    const clientGroup = createFlightGroup('blue-client', 'Enfield-1', startTime)
+    clientGroup.aircrafts[0]!.client = true
+    clientGroup.homeBase = 'Test Base'
+    clientGroup.target = {
+      id: 'objective-1',
+      objectiveId: 'objective-1',
+      type: 'Structure'
+    }
+    campaign.coalitions.player.flightGroups = [clientGroup]
+    campaign.coalitions.opponent.flightGroups = []
+
+    const result = addFlightGroups(mission, campaign, {
+      ...theatre,
+      airdromeDetails: {
+        'Test Base': {
+          id: 1,
+          name: 'Test Base',
+          x: 1200,
+          y: 3400,
+          runwayAngle: 0,
+          standlist: {},
+          tacan: { channel: 67, band: 'X', callsign: 'TST' }
+        }
+      },
+      objectives: [{ name: 'objective-1', type: 'Frontline', position: { x: 3000, y: 4000 } }]
+    })
+
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) throw result.error
+
+    expect(result.value[0]).toMatchObject({
+      navigation: {
+        mode: 'targetTacan',
+        targetLabel: 'Structure objective-1',
+        targetPoint: {
+          x: 3000,
+          z: 4000
+        },
+        landingLabel: 'Test Base',
+        landingPoint: {
+          x: 1200,
+          z: 3400
+        },
+        landingTacan: {
+          channel: 67,
+          band: 'X',
+          callsign: 'TST'
+        },
+        tacan: {
+          channel: 31,
+          band: 'X',
+          callsign: 'DCC1'
+        }
+      }
+    })
+    expect(mission.coalition.blue.country?.[0]?.vehicle?.group).toHaveLength(1)
+  })
+
+  test('adds landing airport navigation config for client flights', () => {
+    const startTime = new Date('2026-01-01T00:00:00Z')
+    const mission = createMission()
+    const campaign = createCampaign(startTime)
+    campaign.campaignParams = { navigationAid: 'landingAirport' }
+    const clientGroup = createFlightGroup('blue-client', 'Enfield-1', startTime)
+    clientGroup.aircrafts[0]!.client = true
+    clientGroup.homeBase = 'Test Base'
+    campaign.coalitions.player.flightGroups = [clientGroup]
+    campaign.coalitions.opponent.flightGroups = []
+
+    const result = addFlightGroups(mission, campaign, {
+      ...theatre,
+      airdromeDetails: {
+        'Test Base': {
+          id: 1,
+          name: 'Test Base',
+          x: 1200,
+          y: 3400,
+          runwayAngle: 0,
+          standlist: {},
+          tacan: { channel: 67, band: 'X', callsign: 'TST' }
+        }
+      }
+    })
+
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) throw result.error
+
+    expect(result.value[0]).toMatchObject({
+      name: 'Enfield-1',
+      navigation: {
+        mode: 'landingAirport',
+        landingLabel: 'Test Base',
+        landingPoint: {
+          x: 1200,
+          z: 3400
+        },
+        landingTacan: {
+          channel: 67,
+          band: 'X',
+          callsign: 'TST'
+        }
+      }
+    })
   })
 })

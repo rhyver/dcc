@@ -12,6 +12,9 @@ Object.values(aircrafts).forEach((def) => {
 })
 
 const STARTUP_DELAY_MS = 10 * 60 * 1000 // 10 minutes in milliseconds
+const FEET_TO_METERS = 0.3048
+const MIN_AIRCRAFT_AIRBORNE_SPAWN_ALTITUDE = 10_000 * FEET_TO_METERS
+const MIN_HELICOPTER_AIRBORNE_SPAWN_ALTITUDE = 200 * FEET_TO_METERS
 const JTAC_ALTITUDE = 3048
 const JTAC_SPEED = 80
 const JTAC_FREQUENCY = 133
@@ -29,6 +32,10 @@ type CoalitionKey = z.infer<typeof schemas.coalition>
 type FlightGroup = Campaign['coalitions']['player']['flightGroups'][number]
 type FrequencyRange = [number, number]
 type NavigationAid = NonNullable<NonNullable<Campaign['campaignParams']>['navigationAid']>
+type NavigationFeatureFlags = {
+  vectors: boolean
+  targetTacan: boolean
+}
 
 const DEFAULT_CALLSIGN = 'Enfield'
 
@@ -105,6 +112,21 @@ function resolveTargetPosition(
     ?.position
 }
 
+function resolveNavigationFeatureFlags(campaign: Campaign): NavigationFeatureFlags {
+  const params = campaign.campaignParams
+  const legacyNavigationAid = params?.navigationAid ?? 'targetVector'
+  const legacyVectorsEnabled = legacyNavigationAid === 'targetVector' || legacyNavigationAid === 'landingAirport'
+
+  return {
+    vectors:
+      params?.navigationVectors ??
+      params?.navigationTargetVectors ??
+      params?.navigationLandingVectors ??
+      legacyVectorsEnabled,
+    targetTacan: params?.navigationTargetTacan ?? legacyNavigationAid === 'targetTacan'
+  }
+}
+
 function createTargetTacanGroup(params: {
   groupId: number
   unitId: number
@@ -115,6 +137,7 @@ function createTargetTacanGroup(params: {
 }) {
   const x = params.position.x + TARGET_TACAN_OFFSET_METERS
   const y = params.position.y + TARGET_TACAN_OFFSET_METERS
+  const frequency = (params.channel + 961) * 1_000_000
 
   return {
     groupId: params.groupId,
@@ -161,12 +184,15 @@ function createTargetTacanGroup(params: {
                     id: 'ActivateBeacon',
                     params: {
                       type: 4,
-                      system: 4,
+                      AA: false,
+                      unitId: params.unitId,
+                      system: 18,
                       name: params.callsign,
-                      callsign: params.callsign,
                       channel: params.channel,
+                      callsign: params.callsign,
                       modeChannel: 'X',
-                      bearing: true
+                      bearing: true,
+                      frequency
                     }
                   },
                   3
@@ -185,6 +211,7 @@ export type CasFlightConfig = {
   name: string
   task: 'CAS'
   unitNames: string[]
+  isHelicopter?: boolean
   navigation?: MissionNavigationConfig
   jtacName: string
   targetGroupName: string
@@ -198,15 +225,26 @@ export type MissionFlightConfig =
       name: string
       task: z.infer<typeof schemas.task>
       unitNames: string[]
+      isHelicopter?: boolean
       navigation?: MissionNavigationConfig
     }
 
 export type MissionNavigationConfig = {
-  mode: NavigationAid
-  targetLabel: string
-  targetPoint: {
+  mode?: NavigationAid
+  targetLabel?: string
+  targetPoint?: {
     x: number
     z: number
+  }
+  landingLabel?: string
+  landingPoint?: {
+    x: number
+    z: number
+  }
+  landingTacan?: {
+    channel: number | string
+    band?: string
+    callsign?: string
   }
   tacan?: {
     channel: number
@@ -814,6 +852,13 @@ function calculateInFlightPosition(
   return null
 }
 
+function getAirborneSpawnAltitude(altitude: number, isHelicopter?: boolean) {
+  const minimumAltitude = isHelicopter
+    ? MIN_HELICOPTER_AIRBORNE_SPAWN_ALTITUDE
+    : MIN_AIRCRAFT_AIRBORNE_SPAWN_ALTITUDE
+  return Math.max(altitude, minimumAltitude)
+}
+
 export function addFlightGroups(
   mission: z.infer<typeof schemas.dcs.mission>,
   campaign: z.infer<typeof schemas.campaign.campaign>,
@@ -842,7 +887,7 @@ export function addFlightGroups(
   const flightGroupIdToUnitIds = new Map<string, number[]>()
   const coalitionLink16UnitIds = new Map<string, number[]>()
   const link16StationNumberByUnitId = new Map<number, string>()
-  const navigationAid = campaign.campaignParams?.navigationAid ?? 'targetVector'
+  const navigationFeatures = resolveNavigationFeatureFlags(campaign)
   let nextTacanChannel = TARGET_TACAN_START_CHANNEL
   let nextTacanCallsign = 1
 
@@ -1002,6 +1047,9 @@ export function addFlightGroups(
         fg.task === 'CAP' ? config.packages.CAP.patrolDuration : undefined
       )
       const isInFlight = inFlightState !== null
+      const airborneSpawnAltitude = inFlightState
+        ? getAirborneSpawnAltitude(inFlightState.altitude, isHelicopter)
+        : undefined
 
       if (isInFlight) {
         // eslint-disable-next-line no-console
@@ -1026,7 +1074,7 @@ export function addFlightGroups(
           // Spawn in the air at current position
           x = inFlightState.position.x + index * 50 // Slight offset for formation
           y = inFlightState.position.y + index * 50
-          alt = inFlightState.altitude
+          alt = airborneSpawnAltitude ?? inFlightState.altitude
           heading = inFlightState.heading
           speed = fg.flightplan.waypoints[1]?.speed ?? 250 // Use cruise speed
           // No parking for airborne aircraft
@@ -1216,7 +1264,7 @@ export function addFlightGroups(
           )
         }
         routePoints.push({
-          alt: inFlightState.altitude,
+          alt: airborneSpawnAltitude ?? inFlightState.altitude,
           action: 'Turning Point',
           alt_type: 'BARO',
           speed: nextWp?.speed ?? 250,
@@ -1451,27 +1499,51 @@ export function addFlightGroups(
 
       if (fg.aircrafts.some((ac) => ac.client)) {
         const targetPosition = resolveTargetPosition(campaign, theatre, fg)
+        const landingAirdrome = theatre.airdromeDetails[fg.homeBase]
         let navigation: MissionNavigationConfig | undefined
 
-        if (navigationAid && targetPosition) {
+        if (navigationFeatures.vectors && landingAirdrome) {
           navigation = {
-            mode: navigationAid,
-            targetLabel: formatTargetLabel(fg),
-            targetPoint: {
-              x: targetPosition.x,
-              z: targetPosition.y
-            }
+            ...navigation,
+            mode: 'landingAirport',
+            landingLabel: landingAirdrome.name,
+            landingPoint: {
+              x: landingAirdrome.x,
+              z: landingAirdrome.y
+            },
+            ...(landingAirdrome.tacan ? { landingTacan: landingAirdrome.tacan } : {})
+          }
+        }
+
+        if ((navigationFeatures.vectors || navigationFeatures.targetTacan) && targetPosition) {
+          navigation = {
+            ...navigation,
+            mode: navigationFeatures.targetTacan ? 'targetTacan' : 'targetVector',
+            ...(navigationFeatures.vectors ? { targetLabel: formatTargetLabel(fg) } : {}),
+            ...(navigationFeatures.vectors
+              ? {
+                  targetPoint: {
+                    x: targetPosition.x,
+                    z: targetPosition.y
+                  }
+                }
+              : {})
           }
 
-          if (navigationAid === 'targetTacan') {
+          if (navigationFeatures.targetTacan) {
             const channel = nextTacanChannel++
             const callsign = `DCC${nextTacanCallsign++}`
             const beaconName = `DCC Target TACAN ${groupName}`
 
-            navigation.tacan = {
-              channel,
-              band: 'X',
-              callsign
+            navigation = {
+              ...navigation,
+              mode: 'targetTacan',
+              targetLabel: navigation.targetLabel ?? formatTargetLabel(fg),
+              tacan: {
+                channel,
+                band: 'X',
+                callsign
+              }
             }
 
             vehicleGroups.push(
@@ -1492,6 +1564,7 @@ export function addFlightGroups(
           name: groupName,
           task: fg.task,
           unitNames: units.map((unit) => unit.name),
+          ...(isHelicopter ? { isHelicopter } : {}),
           ...(navigation ? { navigation } : {})
         })
       }

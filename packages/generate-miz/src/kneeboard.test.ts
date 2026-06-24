@@ -14,6 +14,7 @@ import {
   getKneeboardLandingTacanSummary,
   getKneeboardTargetTacanSummary,
   getClientFlightGroups,
+  renderKneeboardSvg,
   sanitizeKneeboardFilenamePart
 } from './kneeboard'
 import {
@@ -267,6 +268,52 @@ describe('kneeboard mission description', () => {
     expect(description).toContain('Defensive CAS')
     expect(description).toContain('Enemy ground attack threatening Kobuleti')
     expect(description).toContain('ground group / kobuleti')
+  })
+
+  test('renders long package IDs and target descriptions without raw overflow text', async () => {
+    const startTime = new Date('2026-01-01T12:00:00Z')
+    const campaign = createCampaign(startTime)
+    const flightGroup = createFlightGroup('blue-client', 'Dodge-2', startTime)
+    const packageId = 'planned-dead-30aa-fdc3-46ff-b085-5bd6efbb1f02'
+    flightGroup.task = 'DEAD'
+    flightGroup.packageId = packageId
+    flightGroup.target = {
+      id: 'sam-1',
+      type: 'SA-2',
+      objectiveId: 'Qatana'
+    }
+    campaign.coalitions.player.flightGroups = [flightGroup]
+    campaign.coalitions.player.packages = [
+      {
+        id: packageId,
+        type: 'DEAD Package',
+        targetObjectiveId: 'Qatana',
+        members: [{ flightGroupId: flightGroup.id, role: 'dead', totOffset: 0 }],
+        tot: startTime,
+        status: 'active',
+        variantId: 'standalone-dead',
+        variantLabel: 'Standalone DEAD',
+        reason: 'Untargeted SAM threat'
+      }
+    ]
+
+    const svg = await renderKneeboardSvg({
+      campaign,
+      theatre: {
+        ...theatre,
+        name: 'Syria',
+        objectives: [{ name: 'Qatana', type: 'Military', position: { x: 0, y: 0 } }]
+      },
+      missionFlightConfigs: [],
+      coalition: 'player',
+      flightGroup
+    })
+
+    expect(svg).not.toContain(packageId)
+    expect(svg).toContain('planned-dead-30aa')
+    expect(svg).toContain('Standalone DEAD: Untargeted SAM threat.')
+    expect(svg).toContain('Target is sa-2 / qatana.')
+    expect(svg).toContain('targetDescriptionClip')
   })
 })
 

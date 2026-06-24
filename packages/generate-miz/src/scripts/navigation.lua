@@ -22,6 +22,19 @@ local function sendMessageToUnits(text, unitNames, duration)
     trigger.action.outText(text, duration or 15)
 end
 
+local function getObjectName(object)
+    if not object or not object.getName then
+        return nil
+    end
+
+    local ok, name = pcall(function() return object:getName() end)
+    if ok then
+        return name
+    end
+
+    return nil
+end
+
 local function getLeadUnit(groupName)
     local group = Group.getByName(groupName)
     if not group then
@@ -54,7 +67,7 @@ local function formatBearing(fromPoint, targetPoint)
 end
 
 function DCC_NAVIGATION.Register(groupId, groupName, unitNames, navigation)
-    if not groupId or not groupName or not navigation or not navigation.targetPoint then
+    if not groupId or not groupName or not navigation or (not navigation.targetPoint and not navigation.landingPoint) then
         debugLog('Skipping incomplete navigation config')
         return
     end
@@ -65,6 +78,24 @@ function DCC_NAVIGATION.Register(groupId, groupName, unitNames, navigation)
         unitNames = unitNames or {},
         navigation = navigation
     }
+end
+
+local function createVectorMessage(prefix, fromPoint, destinationPoint, destinationLabel)
+    local dx = destinationPoint.x - fromPoint.x
+    local dz = destinationPoint.z - fromPoint.z
+    local distanceMeters = math.sqrt(dx * dx + dz * dz)
+    local bearing = formatBearing(fromPoint, destinationPoint)
+    local distanceNm = distanceMeters / metersPerNauticalMile
+    local distanceKm = distanceMeters / 1000
+
+    return string.format(
+        '%s: BRG %s / %.1f NM / %.1f KM / %s',
+        prefix,
+        bearing,
+        distanceNm,
+        distanceKm,
+        destinationLabel
+    )
 end
 
 function DCC_NAVIGATION.RequestTargetVector(groupName)
@@ -81,27 +112,46 @@ function DCC_NAVIGATION.RequestTargetVector(groupName)
 
     local fromPoint = unit:getPoint()
     local targetPoint = groupConfig.navigation.targetPoint
-    local dx = targetPoint.x - fromPoint.x
-    local dz = targetPoint.z - fromPoint.z
-    local distanceMeters = math.sqrt(dx * dx + dz * dz)
-    local bearing = formatBearing(fromPoint, targetPoint)
-    local distanceNm = distanceMeters / metersPerNauticalMile
-    local distanceKm = distanceMeters / 1000
     local targetLabel = groupConfig.navigation.targetLabel or 'Target'
 
-    local message = string.format(
-        'TARGET VECTOR: BRG %s / %.1f NM / %.1f KM / %s',
-        bearing,
-        distanceNm,
-        distanceKm,
-        targetLabel
-    )
+    local message = createVectorMessage('TARGET VECTOR', fromPoint, targetPoint, targetLabel)
 
     if groupConfig.navigation.tacan then
         local tacan = groupConfig.navigation.tacan
         message = message .. string.format(
             '\nTARGET TACAN: %d%s %s',
             tacan.channel,
+            tacan.band or 'X',
+            tacan.callsign or ''
+        )
+    end
+
+    sendMessageToUnits(message, groupConfig.unitNames, 20)
+end
+
+function DCC_NAVIGATION.RequestLandingVector(groupName)
+    local groupConfig = DCC_NAVIGATION.groups[groupName]
+    if not groupConfig then
+        return
+    end
+
+    local unit = getLeadUnit(groupConfig.groupName)
+    if not unit then
+        sendMessageToUnits('LANDING VECTOR: no live flight lead found.', groupConfig.unitNames, 10)
+        return
+    end
+
+    local fromPoint = unit:getPoint()
+    local landingPoint = groupConfig.navigation.landingPoint
+    local landingLabel = groupConfig.navigation.landingLabel or 'Landing Airport'
+
+    local message = createVectorMessage('LANDING VECTOR', fromPoint, landingPoint, landingLabel)
+
+    if groupConfig.navigation.landingTacan then
+        local tacan = groupConfig.navigation.landingTacan
+        message = message .. string.format(
+            '\nLANDING TACAN: %s%s %s',
+            tostring(tacan.channel),
             tacan.band or 'X',
             tacan.callsign or ''
         )
@@ -121,18 +171,54 @@ function DCC_NAVIGATION.CreateMenu(groupName)
         groupConfig.groupId = flightGroup:getID()
     end
 
-    missionCommands.removeItemForGroup(groupConfig.groupId, 'Navigation')
-    missionCommands.addSubMenuForGroup(groupConfig.groupId, 'Navigation')
-    missionCommands.addCommandForGroup(
-        groupConfig.groupId,
-        'Request Target Vector',
-        { 'Navigation' },
-        DCC_NAVIGATION.RequestTargetVector,
-        groupName
-    )
+    if groupConfig.menuPath then
+        missionCommands.removeItemForGroup(groupConfig.groupId, groupConfig.menuPath)
+        groupConfig.menuPath = nil
+    end
+
+    groupConfig.menuPath = missionCommands.addSubMenuForGroup(groupConfig.groupId, 'Navigation')
+    if groupConfig.navigation.targetPoint then
+        missionCommands.addCommandForGroup(
+            groupConfig.groupId,
+            'Request Target Vector',
+            groupConfig.menuPath,
+            DCC_NAVIGATION.RequestTargetVector,
+            groupName
+        )
+    end
+
+    if groupConfig.navigation.landingPoint then
+        missionCommands.addCommandForGroup(
+            groupConfig.groupId,
+            'Request Landing Airport Vector',
+            groupConfig.menuPath,
+            DCC_NAVIGATION.RequestLandingVector,
+            groupName
+        )
+    end
+end
+
+function DCC_NAVIGATION:onEvent(event)
+    if not event or not event.initiator then
+        return
+    end
+
+    if event.id == world.event.S_EVENT_BIRTH then
+        local unit = event.initiator
+        if not unit.getGroup then return end
+
+        local group = unit:getGroup()
+        local groupName = getObjectName(group)
+        if groupName and DCC_NAVIGATION.groups[groupName] then
+            DCC_NAVIGATION.groups[groupName].groupId = group:getID()
+            DCC_NAVIGATION.CreateMenu(groupName)
+        end
+    end
 end
 
 function DCC_NAVIGATION.Start()
+    world.addEventHandler(DCC_NAVIGATION)
+
     for groupName in pairs(DCC_NAVIGATION.groups) do
         DCC_NAVIGATION.CreateMenu(groupName)
     end

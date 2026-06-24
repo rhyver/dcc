@@ -295,14 +295,7 @@ class Parser {
       }
       if (char === quote) {
         this.pos++
-        return ok(
-          this.input
-            .slice(start, this.pos - 1)
-            .replaceAll('\\"', '"')
-            .replaceAll("\\'", "'")
-            .replaceAll('\\n', '\n')
-            .replaceAll('\\t', '\t')
-        )
+        return ok(unescapeLuaString(this.input.slice(start, this.pos - 1)))
       }
     }
     return err(new Error(errMsg.end()))
@@ -425,4 +418,41 @@ class Parser {
       return ok(arr)
     }
   }
+}
+
+function unescapeLuaString(value: string): string {
+  let result = ''
+  for (let index = 0; index < value.length; index++) {
+    const char = value[index]
+    if (char !== '\\' || index === value.length - 1) {
+      result += char
+      continue
+    }
+
+    const escapedChar = value[++index]
+    switch (escapedChar) {
+      case 'n':
+        result += '\n'
+        break
+      case 'r':
+        result += '\r'
+        break
+      case 't':
+        result += '\t'
+        break
+      case '"':
+        result += '"'
+        break
+      case "'":
+        result += "'"
+        break
+      case '\\':
+        result += '\\'
+        break
+      default:
+        result += escapedChar
+        break
+    }
+  }
+  return result
 }

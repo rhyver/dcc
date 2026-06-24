@@ -26,7 +26,8 @@ const initialState: z.infer<typeof schemas.campaign.campaign> = {
     iads: true,
     exactTarget: true,
     casJtac: true,
-    navigationAid: 'targetVector'
+    navigationVectors: true,
+    navigationTargetTacan: false
   },
   logs: [],
   scenarioId: 'red-bullet',
@@ -405,17 +406,20 @@ export const activeStore = createStore({
         }
         draft.campaignParams.casJtac = casJtac
       }),
-    setNavigationAid: (
-      context,
-      { navigationAid }: { navigationAid: 'targetVector' | 'targetTacan' | undefined }
-    ) =>
+    setNavigationVectors: (context, { enabled }: { enabled: boolean }) =>
       produce(context, (draft) => {
         if (!draft.campaignParams) {
           draft.campaignParams = {}
         }
-        draft.campaignParams.navigationAid = navigationAid
+        draft.campaignParams.navigationVectors = enabled
       }),
-
+    setNavigationTargetTacan: (context, { enabled }: { enabled: boolean }) =>
+      produce(context, (draft) => {
+        if (!draft.campaignParams) {
+          draft.campaignParams = {}
+        }
+        draft.campaignParams.navigationTargetTacan = enabled
+      }),
     tick: (
       context,
       { delta: _delta, logic }: { delta: number; logic: (draft: typeof context) => void }
@@ -514,7 +518,8 @@ const activeCampaignSaveRequestEventTypes = new Set<string>([
   'setIads',
   'setExactTarget',
   'setCasJtac',
-  'setNavigationAid',
+  'setNavigationVectors',
+  'setNavigationTargetTacan',
   'removeAllFlightGroups',
   'clearLogs',
   'clearFlightGroupClientSelections',

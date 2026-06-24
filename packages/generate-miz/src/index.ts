@@ -70,11 +70,17 @@ type MissionTriggerRules = Record<number, MissionTriggerRule>
 type MissionScriptConfig = {
   missionId: string
   flightGroups: MissionFlightConfig[]
+  welcomeMessage?: MissionWelcomeMessage
   cullingManifest?: MissionCullingManifest
 }
 
+type MissionWelcomeMessage = {
+  text: string
+  duration: number
+}
+
 function getStartupTriggerIndexes(ewrEnabled: boolean, iadsEnabled: boolean) {
-  return [1, 2, 3, 4, 5, 6, 10, ...(ewrEnabled ? [7] : []), ...(iadsEnabled ? [8, 9] : [])]
+  return [1, 2, 3, 4, 5, 6, 10, 11, ...(ewrEnabled ? [7] : []), ...(iadsEnabled ? [8, 9] : [])]
 }
 
 function createIadsConfigScript(iadsConfig: MissionIadsConfig) {
@@ -95,6 +101,61 @@ function createMissionMapConfig(theatre: z.infer<typeof schemas.theatre>) {
     zoom: 3381.3919135227,
     centerX: theatre.info.center.x
   }
+}
+
+function createWelcomeMessage(
+  flightGroups: MissionFlightConfig[],
+  options: { ewrEnabled: boolean }
+): MissionWelcomeMessage | undefined {
+  const features = new Set<string>()
+
+  if (flightGroups.some((flightGroup) => flightGroup.navigation?.targetPoint)) {
+    features.add('target vectors')
+  }
+
+  if (flightGroups.some((flightGroup) => flightGroup.navigation?.landingPoint)) {
+    features.add('landing vectors')
+  }
+
+  if (flightGroups.some((flightGroup) => flightGroup.navigation?.tacan)) {
+    features.add('target TACAN details')
+  }
+
+  if (flightGroups.some((flightGroup) => flightGroup.task === 'CAS')) {
+    features.add('JTAC smoke, coordinates, and laser control')
+  }
+
+  if (options.ewrEnabled && flightGroups.length > 0) {
+    features.add('EWR picture calls')
+  }
+
+  if (flightGroups.some((flightGroup) => flightGroup.isHelicopter)) {
+    features.add('CTLD cargo commands')
+  }
+
+  if (features.size === 0) return undefined
+
+  const featureList = Array.from(features)
+
+  return {
+    text: [
+      'Welcome aboard. DCC is online and your mission support is ready.',
+      'Open F10 > Other for:',
+      ...featureList.map((feature) => `- ${feature}`),
+      'Good hunting.'
+    ].join('\n'),
+    duration: 25
+  }
+}
+
+function createWelcomeMessageScript() {
+  return [
+    'timer.scheduleFunction(function()',
+    '  if config and config.welcomeMessage and trigger and trigger.action then',
+    '    trigger.action.outText(config.welcomeMessage.text, config.welcomeMessage.duration or 20, false)',
+    '  end',
+    'end, {}, timer.getTime() + 8)'
+  ].join('\n')
 }
 
 type DrawingLine = {
@@ -443,6 +504,10 @@ export async function generateMizFromCampaign(
           'Loading navigation',
           createDoScriptFileAction('ResKey_Action_21')
         ),
+        11: createLoggedStartupAction(
+          'Scheduling welcome message',
+          createDoScriptAction(createWelcomeMessageScript())
+        ),
         ...(ewrEnabled
           ? {
               7: createLoggedStartupAction(
@@ -475,6 +540,7 @@ export async function generateMizFromCampaign(
         5: true,
         6: true,
         10: true,
+        11: true,
         ...(ewrEnabled ? { 7: true } : {}),
         ...(iadsRequested ? { 8: true, 9: true } : {})
       },
@@ -486,6 +552,7 @@ export async function generateMizFromCampaign(
         5: 'return(true)',
         6: 'return(true)',
         10: 'return(true)',
+        11: 'return(true)',
         ...(ewrEnabled ? { 7: 'return(true)' } : {}),
         ...(iadsRequested ? { 8: 'return(true)', 9: 'return(true)' } : {})
       },
@@ -549,6 +616,14 @@ export async function generateMizFromCampaign(
         predicate: 'triggerStart',
         comment: 'DCC Navigation Script',
         actions: { 1: { predicate: 'a_do_script_file', file: 'ResKey_Action_21' } },
+        colorItem: '0x00ffffff'
+      },
+      11: {
+        rules: {},
+        eventlist: '',
+        predicate: 'triggerStart',
+        comment: 'DCC Welcome Message',
+        actions: { 1: { predicate: 'a_do_script', text: createWelcomeMessageScript() } },
         colorItem: '0x00ffffff'
       },
       ...(ewrEnabled
@@ -619,9 +694,11 @@ export async function generateMizFromCampaign(
   if (flightGroupsResult.isErr()) {
     return err(flightGroupsResult.error)
   }
+  const welcomeMessage = createWelcomeMessage(flightGroupsResult.value, { ewrEnabled })
   const scriptConfig: MissionScriptConfig = {
     missionId: campaign.id,
     flightGroups: flightGroupsResult.value,
+    ...(welcomeMessage ? { welcomeMessage } : {}),
     ...(cullingPlan.enabled ? { cullingManifest: cullingPlan.manifest } : {})
   }
   const scriptConfigLuaResult = luaTable.stringify(scriptConfig, {

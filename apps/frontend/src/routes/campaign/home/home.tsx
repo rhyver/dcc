@@ -93,6 +93,8 @@ export function Home() {
     (state) => state.context.coalitions.opponent.flightGroups
   )
   const isLogOpen = useSelector(uiStore, (state) => state.context.isLogOpen)
+  const showAtoPackages = useSelector(uiStore, (state) => state.context.showAtoPackages)
+  const showLogistics = useSelector(uiStore, (state) => state.context.showLogistics)
   const timerState = timeMultiplier === 0 ? 'pause' : timeMultiplier === 1 ? 'play' : 'fast-forward'
   const visibleLogs = React.useMemo(() => [...logEntries].reverse(), [logEntries])
   const activeFlightGroupIds = React.useMemo(
@@ -139,11 +141,20 @@ export function Home() {
     activeStore.trigger.updateTimeMultiplier({ timeMultiplier: 0 })
   }, [])
 
-  const resumeTimer = React.useCallback(() => {
-    activeStore.trigger.updateTimeMultiplier({
-      timeMultiplier: lastRunningTimeMultiplierRef.current
-    })
-  }, [])
+  const resumeTimer = React.useCallback(
+    (
+      timeMultiplier = lastRunningTimeMultiplierRef.current,
+      options?: { clearTimeTarget?: boolean }
+    ) => {
+      if (options?.clearTimeTarget) {
+        activeStore.trigger.setTimeTarget({ timeTarget: undefined })
+      }
+      activeStore.trigger.updateTimeMultiplier({
+        timeMultiplier
+      })
+    },
+    []
+  )
 
   const toggleTimerPaused = React.useCallback(() => {
     const { timeMultiplier: currentTimeMultiplier } = activeStore.getSnapshot().context
@@ -365,9 +376,10 @@ export function Home() {
                       pauseTimer()
                       break
                     case 'play':
-                      resumeTimer()
+                      resumeTimer(1, { clearTimeTarget: true })
                       break
                     case 'fast-forward':
+                      activeStore.trigger.setTimeTarget({ timeTarget: undefined })
                       activeStore.trigger.updateTimeMultiplier({ timeMultiplier: 300 })
                       break
                   }
@@ -454,8 +466,8 @@ export function Home() {
           onPreview={setPreviewItem}
         />
 
-        <AtoPackageBoard />
-        <LogisticsOverview />
+        {showAtoPackages ? <AtoPackageBoard /> : null}
+        {showLogistics ? <LogisticsOverview /> : null}
 
         {isLogOpen && (
           <div className="tactical-inset m-2 h-[240px] shrink-0 rounded-md p-2">

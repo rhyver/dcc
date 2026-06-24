@@ -87,7 +87,12 @@ function _stringify({
   }
 
   if (typeof data === 'string') {
-    const str = data.replaceAll('"', '\\"').replaceAll('\n', '\\n')
+    const str = data
+      .replaceAll('\\', '\\\\')
+      .replaceAll('"', '\\"')
+      .replaceAll('\r', '\\r')
+      .replaceAll('\n', '\\n')
+      .replaceAll('\t', '\\t')
     return ok(`"${str}"`)
   }
 

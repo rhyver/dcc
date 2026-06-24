@@ -15,7 +15,7 @@ import {
 describe('mission config trigger action', () => {
   test('serializes as valid mission Lua after the trigger action is stringified', () => {
     const configScript =
-      'config = {["missionId"]="abc",["flightGroups"]={[1]={["name"]="Enfield-9",["task"]="CAS"}}}'
+      'config = {["missionId"]="abc",["flightGroups"]={[1]={["name"]="Enfield-9",["task"]="CAS"}},["welcomeMessage"]={["text"]="DCC mission ready.\\nF10 menu features enabled."}}'
     const action = createDoScriptAction(configScript)
 
     expect(action).toBe(`a_do_script([[${configScript}]])`)
@@ -31,6 +31,7 @@ describe('mission config trigger action', () => {
     }
 
     expect(missionLuaResult.value).toContain('a_do_script([[config = {[\\"missionId\\"]')
+    expect(missionLuaResult.value).toContain('DCC mission ready.\\\\nF10 menu features enabled.')
     expect(missionLuaResult.value).not.toContain('a_do_script(\\"config =')
     expect(missionLuaResult.value).not.toContain('[\\\\"missionId\\\\"]')
   })

@@ -484,7 +484,8 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
       iads: true,
       exactTarget: true,
       casJtac: true,
-      navigationAid: 'targetVector'
+      navigationVectors: true,
+      navigationTargetTacan: false,
     },
     status: 'active',
     goal: scenario.goal,

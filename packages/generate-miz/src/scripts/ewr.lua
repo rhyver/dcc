@@ -353,13 +353,17 @@ function DCC_EWR.CreateMenu(groupName)
         groupConfig.unitNames = getGroupUnitNames(groupName)
     end
 
-    missionCommands.removeItemForGroup(groupConfig.groupId, "EWR")
-    missionCommands.addSubMenuForGroup(groupConfig.groupId, "EWR")
+    if groupConfig.menuPath then
+        missionCommands.removeItemForGroup(groupConfig.groupId, groupConfig.menuPath)
+        groupConfig.menuPath = nil
+    end
+
+    groupConfig.menuPath = missionCommands.addSubMenuForGroup(groupConfig.groupId, "EWR")
 
     if groupConfig.bvrSchedule or groupConfig.wvrSchedule then
-        missionCommands.addCommandForGroup(groupConfig.groupId, "Stop Picture", { "EWR" }, DCC_EWR.Stop, groupName)
+        missionCommands.addCommandForGroup(groupConfig.groupId, "Stop Picture", groupConfig.menuPath, DCC_EWR.Stop, groupName)
     else
-        missionCommands.addCommandForGroup(groupConfig.groupId, "Start Picture", { "EWR" }, DCC_EWR.StartInterval, groupName)
+        missionCommands.addCommandForGroup(groupConfig.groupId, "Start Picture", groupConfig.menuPath, DCC_EWR.StartInterval, groupName)
     end
 end
 

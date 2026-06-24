@@ -20,10 +20,12 @@ import {
   Clipboard,
   FolderOpen,
   Home,
+  Package,
   Maximize2,
   Minimize2,
   Minus,
   RefreshCw,
+  Route,
   ScrollText,
   Settings,
   X
@@ -178,6 +180,8 @@ function AppTitleBar({ showDevMenu = true }: { showDevMenu?: boolean }) {
   const [isMaximized, setIsMaximized] = useState(false)
   const [isDevMenuOpen, setIsDevMenuOpen] = useState(false)
   const isLogOpen = useSelector(uiStore, (state) => state.context.isLogOpen)
+  const showAtoPackages = useSelector(uiStore, (state) => state.context.showAtoPackages)
+  const showLogistics = useSelector(uiStore, (state) => state.context.showLogistics)
   const logEntries = useSelector(activeStore, (state) => state.context.logs)
 
   useEffect(() => {
@@ -248,6 +252,36 @@ function AppTitleBar({ showDevMenu = true }: { showDevMenu?: boolean }) {
                     <ScrollText className="h-3.5 w-3.5" />
                     {isLogOpen ? 'Hide' : 'Show'} Action Log
                     <span className="ml-auto text-[10px] opacity-70">{logEntries.length}</span>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="titlebar-menu-item"
+                  role="menuitemcheckbox"
+                  aria-checked={showAtoPackages}
+                  onClick={() => uiStore.trigger.toggleAtoPackages()}
+                >
+                  <span className="flex w-full items-center gap-2">
+                    <Package className="h-3.5 w-3.5" />
+                    ATO Packages
+                    <span className="ml-auto text-[10px] opacity-70">
+                      {showAtoPackages ? 'Shown' : 'Hidden'}
+                    </span>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="titlebar-menu-item"
+                  role="menuitemcheckbox"
+                  aria-checked={showLogistics}
+                  onClick={() => uiStore.trigger.toggleLogistics()}
+                >
+                  <span className="flex w-full items-center gap-2">
+                    <Route className="h-3.5 w-3.5" />
+                    Logistics
+                    <span className="ml-auto text-[10px] opacity-70">
+                      {showLogistics ? 'Shown' : 'Hidden'}
+                    </span>
                   </span>
                 </button>
                 <button

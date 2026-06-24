@@ -20,6 +20,7 @@ const aircraftDefinition: z.infer<typeof schemas.dcs.aircraft> = {
     'Ground Attack',
     'Runway Attack',
     'CAS',
+    'DEAD',
     'SEAD'
   ],
   carrierCapable: false,
@@ -110,6 +111,19 @@ const aircraftDefinition: z.infer<typeof schemas.dcs.aircraft> = {
         { CLSID: '{GD_F100_TER_MK-82_x3}', num: 5 },
         { CLSID: '{GD_F100_335_GAL_TANK_R}', num: 6 },
         { CLSID: '{BCE4E030-38E9-423E-98ED-24BE3DA87C32}', num: 7 }
+      ]
+    },
+    {
+      task: 'DEAD',
+      name: 'DEAD',
+      displayName: 'DEAD',
+      pylons: [
+        { CLSID: '{GD_F100_CBU-38/A}', num: 1 },
+        { CLSID: '{GD_F100_335_GAL_TANK_L}', num: 2 },
+        { CLSID: '{GD_F100_CBU-38/A}', num: 3 },
+        { CLSID: '{GD_F100_CBU-38/A}', num: 5 },
+        { CLSID: '{GD_F100_335_GAL_TANK_R}', num: 6 },
+        { CLSID: '{GD_F100_CBU-38/A}', num: 7 }
       ]
     },
     {

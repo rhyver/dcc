@@ -127,18 +127,14 @@ export function DetailsCard({
   const selectedStructureCoalition =
     'type' in selectedItem && selectedItem.type === 'Structure' ? selectedItem.coalition : null
   const selectedCoalition = 'coalition' in selectedItem ? selectedItem.coalition : 'player'
-  const selectedNodeName =
-    'flightplan' in selectedItem && 'homeBase' in selectedItem
-      ? selectedItem.homeBase
-      : 'type' in selectedItem && selectedItem.type === 'Airdrome'
-        ? selectedItem.name
-        : (objectiveName ?? ('isGoal' in selectedItem ? selectedItem.name : null))
+  const isSelectedAirdrome = 'type' in selectedItem && selectedItem.type === 'Airdrome'
+  const selectedNodeName = isSelectedAirdrome ? selectedItem.name : null
   const selectedSupply =
     selectedNodeName != null
       ? (campaign.coalitions[selectedCoalition].supplyNodes?.[selectedNodeName] ?? null)
       : null
   const selectedConnectedRoutes =
-    selectedNodeName != null
+    selectedSupply != null && selectedNodeName != null
       ? getConnectedRoutes(
           campaign.coalitions[selectedCoalition].supplyNodes ?? {},
           selectedNodeName

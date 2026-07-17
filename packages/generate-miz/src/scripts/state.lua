@@ -1,6 +1,8 @@
 local logName = 'DCC.STATE'
 local function debugLog(message) log.write(logName, log.INFO, tostring(message)) end
 local autosaveIntervalSeconds = 30
+local eventSaveDelaySeconds = 5
+local maxPendingSaveReasonsLogged = 5
 
 local function debugError(context, error)
     debugLog(tostring(context)..": "..tostring(error))
@@ -113,6 +115,9 @@ local unitCache = {}
 local lostUnitIndexesByName = {}
 local landedUnitIndexesByName = {}
 local getInitiatorGroup
+local pendingSaveReasons = {}
+local saveScheduled = false
+local pendingSaveReasonCount = 0
 
 local function safeCall(callback, fallback)
     local ok, result = pcall(callback)
@@ -690,6 +695,57 @@ local function saveState(reason)
     end
 end
 
+local function joinPendingSaveReasons()
+    if pendingSaveReasonCount == 0 then
+        return 'scheduled'
+    end
+
+    local reason = table.concat(pendingSaveReasons, ', ')
+    if pendingSaveReasonCount > #pendingSaveReasons then
+        reason = reason..' +'..tostring(pendingSaveReasonCount - #pendingSaveReasons)..' more'
+    end
+
+    pendingSaveReasons = {}
+    pendingSaveReasonCount = 0
+    return reason
+end
+
+local function requestSave(reason)
+    pendingSaveReasonCount = pendingSaveReasonCount + 1
+    if #pendingSaveReasons < maxPendingSaveReasonsLogged then
+        pendingSaveReasons[#pendingSaveReasons + 1] = tostring(reason or 'event')
+    end
+
+    if saveScheduled then
+        return
+    end
+
+    if not timer or not timer.scheduleFunction then
+        saveState(joinPendingSaveReasons())
+        return
+    end
+
+    saveScheduled = true
+    timer.scheduleFunction(function()
+        saveScheduled = false
+        if pendingSaveReasonCount > 0 then
+            saveState(joinPendingSaveReasons())
+        end
+        return nil
+    end, {}, timer.getTime() + eventSaveDelaySeconds)
+end
+
+local function flushSave(reason)
+    local pendingReason = joinPendingSaveReasons()
+    saveScheduled = false
+
+    if pendingReason == 'scheduled' then
+        saveState(reason)
+    else
+        saveState(tostring(reason or 'flush')..' ('..pendingReason..')')
+    end
+end
+
 local function scheduleAutosave()
     if not timer or not timer.scheduleFunction then
         return
@@ -712,15 +768,13 @@ getInitiatorGroup = function(initiator)
 end
 
 local function handleEvent(event)
-    debugLog('onEvent: '..event.id)
-    
     -- UNIT DESTRUCTION
     if event.id == world.event.S_EVENT_UNIT_LOST then
         debugLog('S_EVENT_UNIT_LOST')
         recordLostUnit(event.initiator, 'unit_lost', {
             lossType = 'lost'
         })
-        saveState('unit lost')
+        requestSave('unit lost')
     end
 
     if event.id == world.event.S_EVENT_DEAD then
@@ -728,7 +782,7 @@ local function handleEvent(event)
         recordLostUnit(event.initiator, 'dead', {
             lossType = 'destroyed'
         })
-        saveState('dead')
+        requestSave('dead')
     end
 
     if event.id == world.event.S_EVENT_KILL then
@@ -743,7 +797,7 @@ local function handleEvent(event)
             killCause = 'direct',
             lossType = 'killed'
         })
-        saveState('kill')
+        requestSave('kill')
     end
 
     if event.id == world.event.S_EVENT_CRASH then
@@ -751,7 +805,7 @@ local function handleEvent(event)
         recordLostUnit(event.initiator, 'crash', {
             lossType = 'crashed'
         })
-        saveState('crash')
+        requestSave('crash')
     end
 
     if event.id == world.event.S_EVENT_EJECTION then
@@ -759,7 +813,7 @@ local function handleEvent(event)
         recordLostUnit(event.initiator, 'ejection', {
             lossType = 'ejected'
         })
-        saveState('ejection')
+        requestSave('ejection')
     end
 
     if event.id == world.event.S_EVENT_PILOT_DEAD then
@@ -767,13 +821,13 @@ local function handleEvent(event)
         recordLostUnit(event.initiator, 'pilot_dead', {
             lossType = 'pilot_dead'
         })
-        saveState('pilot dead')
+        requestSave('pilot dead')
     end
 
     if event.id == world.event.S_EVENT_TAKEOFF then
         debugLog('S_EVENT_TAKEOFF')
         if removeLandedUnit(event.initiator) then
-            saveState('takeoff')
+            requestSave('takeoff')
         end
     end
 
@@ -799,7 +853,7 @@ local function handleEvent(event)
         end
 
         if recordedLanding or recordedCargoDelivery then
-            saveState('land')
+            requestSave('land')
         end
     end
 
@@ -825,19 +879,19 @@ local function handleEvent(event)
                     x = position.x,
                     y = position.z
                 }
-                saveState('pilot landed after ejection')
+                requestSave('pilot landed after ejection')
             end
         end
     end
 
     if world.event.S_EVENT_PLAYER_LEAVE_UNIT and event.id == world.event.S_EVENT_PLAYER_LEAVE_UNIT then
         debugLog('S_EVENT_PLAYER_LEAVE_UNIT - Saving state')
-        saveState('player leave unit')
+        requestSave('player leave unit')
     end
 
     if world.event.S_EVENT_DISCONNECT and event.id == world.event.S_EVENT_DISCONNECT then
         debugLog('S_EVENT_DISCONNECT - Saving state')
-        saveState('disconnect')
+        requestSave('disconnect')
     end
 
     -- PLAYER BIRTH (for logging)
@@ -856,7 +910,7 @@ local function handleEvent(event)
     if event.id == world.event.S_EVENT_MISSION_END then
         debugLog('S_EVENT_MISSION_END - Saving final state')
         missionState.missionEnded = true
-        saveState('mission end')
+        flushSave('mission end')
     end
 end
 

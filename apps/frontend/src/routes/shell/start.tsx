@@ -1,10 +1,30 @@
-import { ArrowLeft, ArrowRight, BookOpen, Clock3, FolderOpen, Globe2, LogOut, Settings } from 'lucide-react'
+import {
+  ArrowLeft,
+  ArrowRight,
+  BookOpen,
+  Bot,
+  Clock3,
+  FolderOpen,
+  Gamepad2,
+  Globe2,
+  LogOut,
+  Plane,
+  Settings
+} from 'lucide-react'
 import { motion } from 'motion/react'
 import { useState } from 'react'
-import { scenarios } from '@dcc/data'
+import { aircrafts as aircraftDefinitions, factions, scenarios } from '@dcc/data'
 
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { coreClient } from '@/lib/orpc'
 import { useNavigate } from 'react-router'
 
@@ -30,32 +50,63 @@ const eraOptions: Array<{
   label: string
   callsign: string
   description: string
+  playerFactionId: string
 }> = [
   {
     id: 'Korea',
     label: 'Korea',
     callsign: 'ANALOG AGE',
-    description: 'Korean War-era aircraft with sparse electronics and close-range fights.'
+    description: 'Korean War-era aircraft with sparse electronics and close-range fights.',
+    playerFactionId: 'usa-1952'
   },
   {
     id: 'Vietnam',
     label: 'Vietnam',
     callsign: 'JUNGLE AGE',
-    description: '1960s-era aircraft and helicopters with early missiles and close air support.'
+    description: '1960s-era aircraft and helicopters with early missiles and close air support.',
+    playerFactionId: 'usa-vietnam'
   },
   {
     id: 'Late CW',
     label: 'Late Cold War',
     callsign: 'MISSILE AGE',
-    description: '1970s-era aircraft and weapons with early BVR tactics and heavier SAM coverage.'
+    description: '1970s-era aircraft and weapons with early BVR tactics and heavier SAM coverage.',
+    playerFactionId: 'usa-1977'
   },
   {
     id: 'Modern',
     label: 'Modern',
     callsign: 'DIGITAL AGE',
-    description: 'Contemporary aircraft, advanced weapons, and high-tempo operations.'
+    description: 'Contemporary aircraft, advanced weapons, and high-tempo operations.',
+    playerFactionId: 'usa-2004'
   }
 ]
+
+function getFactionAircraft(factionId: string) {
+  const faction = factions.find((candidate) => candidate.id === factionId)
+  if (!faction) return []
+
+  const rolesByAircraft = new Map<string, string[]>()
+  for (const [role, aircraftNames] of Object.entries(faction.aircraftTypes)) {
+    for (const aircraftName of aircraftNames) {
+      const roles = rolesByAircraft.get(aircraftName) ?? []
+      roles.push(role)
+      rolesByAircraft.set(aircraftName, roles)
+    }
+  }
+
+  const definitions = Object.values(aircraftDefinitions)
+  return Array.from(rolesByAircraft, ([name, roles]) => {
+    const definition = definitions.find((candidate) => candidate.name === name)
+    return {
+      name,
+      displayName: definition?.display_name ?? name,
+      controllable: definition?.controllable ?? false,
+      isHelicopter: definition?.isHelicopter ?? false,
+      roles
+    }
+  }).sort((left, right) => left.displayName.localeCompare(right.displayName))
+}
 
 export function ScenarioSelect() {
   const navigate = useNavigate()
@@ -63,11 +114,19 @@ export function ScenarioSelect() {
   const firstAvailableScenario = availableScenarios[0] ?? scenarios[0]
   const [selectedScenarioId, setSelectedScenarioId] = useState(firstAvailableScenario?.id ?? '')
   const [selectedEra, setSelectedEra] = useState<CampaignEra>('Modern')
+  const [aircraftDialogEra, setAircraftDialogEra] = useState<CampaignEra | null>(null)
   const [step, setStep] = useState<ScenarioStep>('scenario')
   const [isCreatingCampaign, setIsCreatingCampaign] = useState(false)
   const selectedScenario =
     scenarios.find((scenario) => scenario.id === selectedScenarioId) ?? firstAvailableScenario
-  const selectedEraOption = eraOptions.find((era) => era.id === selectedEra) ?? eraOptions[0]
+  const selectedEraOption = eraOptions.find((era) => era.id === selectedEra) ?? eraOptions[0]!
+  const aircraftDialogEraOption = eraOptions.find((era) => era.id === aircraftDialogEra)
+  const aircraftDialogFaction = factions.find(
+    (faction) => faction.id === aircraftDialogEraOption?.playerFactionId
+  )
+  const factionAircraft = aircraftDialogEraOption
+    ? getFactionAircraft(aircraftDialogEraOption.playerFactionId)
+    : []
 
   const createCampaign = async () => {
     if (selectedScenario == null || !selectedScenario.available || isCreatingCampaign) {
@@ -76,7 +135,10 @@ export function ScenarioSelect() {
 
     setIsCreatingCampaign(true)
     try {
-      await coreClient.campaign.createCampaign({ scenarioId: selectedScenario.id, era: selectedEra })
+      await coreClient.campaign.createCampaign({
+        scenarioId: selectedScenario.id,
+        era: selectedEra
+      })
       navigate('/', { state: { showWelcomeDialog: true } })
     } finally {
       setIsCreatingCampaign(false)
@@ -84,63 +146,66 @@ export function ScenarioSelect() {
   }
 
   return (
-      <div className="relative flex h-full w-full items-center justify-center overflow-hidden bg-synthwave-dark">
-        <div
-          className="absolute inset-0 z-0 bg-cover bg-center opacity-20"
-          style={{
-            backgroundImage:
-              'linear-gradient(to right, var(--synthwave-cyan) 1px, transparent 1px), linear-gradient(to bottom, var(--synthwave-purple) 1px, transparent 1px)',
-            backgroundSize: '44px 44px'
-          }}
-        />
-        <div className="absolute bottom-0 left-0 right-0 h-[42vh] bg-linear-to-t from-synthwave-purple via-synthwave-pink/35 to-transparent opacity-35" />
+    <div className="relative flex h-full w-full items-center justify-center overflow-hidden bg-synthwave-dark">
+      <div
+        className="absolute inset-0 z-0 bg-cover bg-center opacity-20"
+        style={{
+          backgroundImage:
+            'linear-gradient(to right, var(--synthwave-cyan) 1px, transparent 1px), linear-gradient(to bottom, var(--synthwave-purple) 1px, transparent 1px)',
+          backgroundSize: '44px 44px'
+        }}
+      />
+      <div className="absolute bottom-0 left-0 right-0 h-[42vh] bg-linear-to-t from-synthwave-purple via-synthwave-pink/35 to-transparent opacity-35" />
 
-        <div className="relative z-10 flex h-full w-full max-w-6xl flex-col px-8 py-8">
-          <div className="mb-6 flex items-center justify-between">
-            <Button
-              type="button"
-              variant="outline"
-              className="border-synthwave-purple bg-synthwave-dark/80 text-synthwave-cyan hover:border-synthwave-pink hover:bg-synthwave-purple/10 hover:text-white"
-              onClick={() => {
-                if (step === 'era') {
-                  setStep('scenario')
-                } else {
-                  navigate('/new')
-                }
-              }}
-            >
-              <ArrowLeft className="h-4 w-4" />
-              {step === 'era' ? 'SCENARIO' : 'BACK'}
-            </Button>
-            <div className="retro-font text-sm text-synthwave-cyan/75">
-              {step === 'era' ? 'ERA SELECT' : `${availableScenarios.length} SCENARIOS`}
-            </div>
-          </div>
-
-          <motion.div
-            className="mb-6"
-            initial={{ y: -24, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.35 }}
+      <div className="relative z-10 flex h-full w-full max-w-6xl flex-col px-8 py-8">
+        <div className="mb-6 flex items-center justify-between">
+          <Button
+            type="button"
+            variant="outline"
+            className="border-synthwave-purple bg-synthwave-dark/80 text-synthwave-cyan hover:border-synthwave-pink hover:bg-synthwave-purple/10 hover:text-white"
+            onClick={() => {
+              if (step === 'era') {
+                setStep('scenario')
+              } else {
+                navigate('/new')
+              }
+            }}
           >
-            <h1 className="retro-font text-4xl font-bold tracking-tighter text-white md:text-5xl">
-              <span className="text-transparent bg-clip-text bg-linear-to-r from-synthwave-cyan to-synthwave-pink">
-                SELECT
-              </span>
-              <span className="ml-3 text-white drop-shadow-[0_0_14px_rgba(255,0,170,0.45)]">
-                {step === 'era' ? 'ERA' : 'SCENARIO'}
-              </span>
-            </h1>
-          </motion.div>
+            <ArrowLeft className="h-4 w-4" />
+            {step === 'era' ? 'SCENARIO' : 'BACK'}
+          </Button>
+          <div className="retro-font text-sm text-synthwave-cyan/75">
+            {step === 'era' ? 'ERA SELECT' : `${availableScenarios.length} SCENARIOS`}
+          </div>
+        </div>
 
-          {step === 'scenario' ? (
+        <motion.div
+          className="mb-6"
+          initial={{ y: -24, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.35 }}
+        >
+          <h1 className="retro-font text-4xl font-bold tracking-tighter text-white md:text-5xl">
+            <span className="text-transparent bg-clip-text bg-linear-to-r from-synthwave-cyan to-synthwave-pink">
+              SELECT
+            </span>
+            <span className="ml-3 text-white drop-shadow-[0_0_14px_rgba(255,0,170,0.45)]">
+              {step === 'era' ? 'ERA' : 'SCENARIO'}
+            </span>
+          </h1>
+        </motion.div>
+
+        {step === 'scenario' ? (
           <div className="grid min-h-0 flex-1 gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
             <div className="min-h-0 overflow-auto pr-2">
               <div className="grid gap-3">
                 {scenarios.map((scenario) => {
                   const isSelected = scenario.id === selectedScenario?.id
                   const briefingPreview =
-                    scenario.briefing.split(/\n{2,}/)[0]?.replace(/\s+/g, ' ').trim() ?? ''
+                    scenario.briefing
+                      .split(/\n{2,}/)[0]
+                      ?.replace(/\s+/g, ' ')
+                      .trim() ?? ''
 
                   return (
                     <button
@@ -188,9 +253,7 @@ export function ScenarioSelect() {
               </div>
             </div>
 
-            <aside
-              className="flex min-h-0 flex-col rounded-md border border-synthwave-pink/35 bg-black/30 p-5 shadow-[0_0_44px_rgba(255,0,170,0.14)] backdrop-blur"
-            >
+            <aside className="flex min-h-0 flex-col rounded-md border border-synthwave-pink/35 bg-black/30 p-5 shadow-[0_0_44px_rgba(255,0,170,0.14)] backdrop-blur">
               {selectedScenario ? (
                 <>
                   <div className="retro-font text-2xl text-white">{selectedScenario.name}</div>
@@ -237,27 +300,30 @@ export function ScenarioSelect() {
               ) : null}
             </aside>
           </div>
-          ) : (
-            <div className="grid min-h-0 flex-1 gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-              <div className="grid content-start gap-2.5">
-                {eraOptions.map((era) => {
-                  const isSelected = era.id === selectedEra
+        ) : (
+          <div className="grid min-h-0 flex-1 gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+            <div className="grid min-h-0 content-start gap-2.5 overflow-auto pr-2">
+              {eraOptions.map((era) => {
+                const isSelected = era.id === selectedEra
 
-                  return (
+                return (
+                  <div
+                    key={era.id}
+                    className={cn(
+                      'group flex flex-col rounded-md border text-left transition-all',
+                      '[min-height:clamp(7rem,16.5vh,12rem)]',
+                      'bg-synthwave-dark/78 shadow-[0_18px_45px_rgba(0,0,0,0.22)] backdrop-blur',
+                      isSelected
+                        ? 'border-synthwave-pink text-white shadow-[0_0_32px_rgba(255,0,170,0.24)]'
+                        : 'border-synthwave-purple/45 text-synthwave-light hover:border-synthwave-cyan hover:bg-synthwave-purple/10'
+                    )}
+                  >
                     <button
-                      key={era.id}
                       type="button"
-                      className={cn(
-                        'group rounded-md border p-[clamp(0.875rem,1.7vh,1.25rem)] text-left transition-all',
-                        '[min-height:clamp(7rem,16.5vh,12rem)]',
-                        'bg-synthwave-dark/78 shadow-[0_18px_45px_rgba(0,0,0,0.22)] backdrop-blur',
-                        isSelected
-                          ? 'border-synthwave-pink text-white shadow-[0_0_32px_rgba(255,0,170,0.24)]'
-                          : 'border-synthwave-purple/45 text-synthwave-light hover:border-synthwave-cyan hover:bg-synthwave-purple/10'
-                      )}
+                      className="flex w-full flex-col p-[clamp(0.875rem,1.7vh,1.25rem)] text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-synthwave-cyan"
                       onClick={() => setSelectedEra(era.id)}
                     >
-                      <div className="mb-[clamp(0.5rem,1.3vh,1rem)] flex items-start justify-between gap-3">
+                      <div className="mb-[clamp(0.5rem,1.3vh,1rem)] flex w-full items-start justify-between gap-3">
                         <div>
                           <div className="retro-font text-[clamp(1.25rem,2.35vh,1.5rem)] tracking-wide">
                             {era.label}
@@ -282,60 +348,160 @@ export function ScenarioSelect() {
                         {era.description}
                       </p>
                     </button>
-                  )
-                })}
-              </div>
-
-              <aside
-                className="flex min-h-0 flex-col rounded-md border border-synthwave-pink/35 bg-black/30 p-5 shadow-[0_0_44px_rgba(255,0,170,0.14)] backdrop-blur"
-              >
-                {selectedScenario ? (
-                  <>
-                    <div className="retro-font text-2xl text-white">{selectedScenario.name}</div>
-                    <div className="mt-2 flex flex-wrap gap-2 text-xs text-synthwave-cyan/80">
-                      <span>{selectedScenario.theatreName}</span>
-                      <span>{selectedEraOption.label}</span>
+                    <div className="flex items-center justify-between gap-3 border-t border-synthwave-purple/25 px-[clamp(0.875rem,1.7vh,1.25rem)] py-2.5">
+                      <span className="text-[0.65rem] uppercase tracking-[0.18em] text-synthwave-light/40">
+                        {factions.find((faction) => faction.id === era.playerFactionId)?.name}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        aria-label={`View ${era.label} aircraft`}
+                        className="h-8 border-synthwave-cyan/45 bg-synthwave-dark/70 px-3 text-xs text-synthwave-cyan hover:border-synthwave-pink hover:bg-synthwave-pink/10 hover:text-white"
+                        onClick={() => {
+                          setSelectedEra(era.id)
+                          setAircraftDialogEra(era.id)
+                        }}
+                      >
+                        <Plane className="h-3.5 w-3.5" />
+                        VIEW AIRCRAFT
+                      </Button>
                     </div>
-                    <div className="mt-5 border-y border-synthwave-purple/30 py-4">
-                      <div className="text-xs text-synthwave-light/55">SELECTED ERA</div>
-                      <div className="mt-2 retro-font text-xl text-synthwave-pink">
-                        {selectedEraOption.label}
-                      </div>
-                      <p className="mt-3 text-sm leading-6 text-synthwave-light/72">
-                        {selectedEraOption.description}
-                      </p>
-                    </div>
-                    <div className="mt-5 space-y-3 text-sm">
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-synthwave-light/55">PLAYER</span>
-                        <span className="truncate text-right text-white">
-                          {selectedScenario.start.player.airdromeNames.join(', ')}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-synthwave-light/55">OBJECTIVE</span>
-                        <span className="truncate text-right text-synthwave-pink">
-                          {selectedScenario.goal?.objectiveIds.join(', ') ?? 'Campaign advance'}
-                        </span>
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      className="mt-auto h-11 bg-synthwave-pink text-white hover:bg-synthwave-pink/85"
-                      onClick={() => void createCampaign()}
-                      disabled={isCreatingCampaign || !selectedScenario.available}
-                    >
-                      <BookOpen className="h-4 w-4" />
-                      {isCreatingCampaign ? 'CREATING' : 'CREATE CAMPAIGN'}
-                    </Button>
-                  </>
-                ) : null}
-              </aside>
+                  </div>
+                )
+              })}
             </div>
-          )}
-        </div>
+
+            <aside className="flex min-h-0 flex-col rounded-md border border-synthwave-pink/35 bg-black/30 p-5 shadow-[0_0_44px_rgba(255,0,170,0.14)] backdrop-blur">
+              {selectedScenario ? (
+                <>
+                  <div className="retro-font text-2xl text-white">{selectedScenario.name}</div>
+                  <div className="mt-2 flex flex-wrap gap-2 text-xs text-synthwave-cyan/80">
+                    <span>{selectedScenario.theatreName}</span>
+                    <span>{selectedEraOption.label}</span>
+                  </div>
+                  <div className="mt-5 border-y border-synthwave-purple/30 py-4">
+                    <div className="text-xs text-synthwave-light/55">SELECTED ERA</div>
+                    <div className="mt-2 retro-font text-xl text-synthwave-pink">
+                      {selectedEraOption.label}
+                    </div>
+                    <p className="mt-3 text-sm leading-6 text-synthwave-light/72">
+                      {selectedEraOption.description}
+                    </p>
+                  </div>
+                  <div className="mt-5 space-y-3 text-sm">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-synthwave-light/55">PLAYER</span>
+                      <span className="truncate text-right text-white">
+                        {selectedScenario.start.player.airdromeNames.join(', ')}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-synthwave-light/55">OBJECTIVE</span>
+                      <span className="truncate text-right text-synthwave-pink">
+                        {selectedScenario.goal?.objectiveIds.join(', ') ?? 'Campaign advance'}
+                      </span>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    className="mt-auto h-11 bg-synthwave-pink text-white hover:bg-synthwave-pink/85"
+                    onClick={() => void createCampaign()}
+                    disabled={isCreatingCampaign || !selectedScenario.available}
+                  >
+                    <BookOpen className="h-4 w-4" />
+                    {isCreatingCampaign ? 'CREATING' : 'CREATE CAMPAIGN'}
+                  </Button>
+                </>
+              ) : null}
+            </aside>
+          </div>
+        )}
       </div>
-    )
+
+      <Dialog
+        open={aircraftDialogEra != null}
+        onOpenChange={(open) => {
+          if (!open) setAircraftDialogEra(null)
+        }}
+      >
+        <DialogContent className="max-h-[min(44rem,88vh)] overflow-hidden border-synthwave-cyan/45 bg-synthwave-dark/95 p-0 text-synthwave-light shadow-[0_0_70px_rgba(0,229,255,0.18)] sm:max-w-3xl">
+          <DialogHeader className="relative border-b border-synthwave-purple/35 bg-black/20 px-6 py-5 pr-14">
+            <div className="mb-1 flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-synthwave-pink">
+              <Plane className="h-4 w-4" />
+              Faction roster
+            </div>
+            <DialogTitle className="retro-font text-2xl tracking-wide text-white">
+              {aircraftDialogFaction?.name ?? 'Player'} // {aircraftDialogEraOption?.label} Aircraft
+            </DialogTitle>
+            <DialogDescription className="text-synthwave-light/60">
+              {factionAircraft.length} aircraft available to the player faction
+              {aircraftDialogFaction?.year ? ` in ${aircraftDialogFaction.year}` : ''}.
+            </DialogDescription>
+          </DialogHeader>
+
+          <ScrollArea className="max-h-[min(32rem,64vh)]">
+            <div className="grid gap-3 p-6 sm:grid-cols-2">
+              {factionAircraft.map((aircraft, index) => (
+                <motion.div
+                  key={aircraft.name}
+                  className="relative overflow-hidden rounded border border-synthwave-purple/35 bg-black/25 p-4"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2, delay: Math.min(index * 0.025, 0.2) }}
+                >
+                  <div className="absolute inset-y-0 left-0 w-0.5 bg-synthwave-cyan/70" />
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="truncate font-medium text-white">{aircraft.displayName}</div>
+                      {aircraft.displayName !== aircraft.name ? (
+                        <div className="mt-0.5 truncate font-mono text-[0.65rem] text-synthwave-light/35">
+                          {aircraft.name}
+                        </div>
+                      ) : null}
+                    </div>
+                    <span
+                      className={cn(
+                        'inline-flex shrink-0 items-center gap-1 rounded border px-2 py-1 text-[0.6rem] uppercase tracking-wider',
+                        aircraft.controllable
+                          ? 'border-synthwave-pink/50 text-synthwave-pink'
+                          : 'border-synthwave-cyan/35 text-synthwave-cyan/70'
+                      )}
+                    >
+                      {aircraft.controllable ? (
+                        <Gamepad2 className="h-3 w-3" />
+                      ) : (
+                        <Bot className="h-3 w-3" />
+                      )}
+                      {aircraft.controllable ? 'Player' : 'AI'}
+                    </span>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    <span className="rounded bg-synthwave-purple/18 px-2 py-1 text-[0.65rem] text-synthwave-light/55">
+                      {aircraft.isHelicopter ? 'HELICOPTER' : 'FIXED WING'}
+                    </span>
+                    {aircraft.roles.slice(0, 3).map((role) => (
+                      <span
+                        key={role}
+                        className="rounded bg-synthwave-purple/18 px-2 py-1 text-[0.65rem] text-synthwave-light/55"
+                      >
+                        {role.toUpperCase()}
+                      </span>
+                    ))}
+                    {aircraft.roles.length > 3 ? (
+                      <span className="rounded bg-synthwave-purple/18 px-2 py-1 text-[0.65rem] text-synthwave-cyan/65">
+                        +{aircraft.roles.length - 3} ROLES
+                      </span>
+                    ) : null}
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
 }
 
 export function StartMenu() {

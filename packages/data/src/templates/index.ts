@@ -1,3 +1,4 @@
+import { FranceModern } from './france-modern'
 import { RussiaModern } from './russia-modern'
 import { RussiaColdWar } from './russia-cold-war'
 import { RussiaKoreaWar } from './russia-korea-war'
@@ -15,5 +16,6 @@ export const templates = [
   UsaColdWar,
   RussiaColdWar,
   UsaModern,
-  RussiaModern
+  RussiaModern,
+  FranceModern
 ]

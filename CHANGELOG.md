@@ -4,6 +4,9 @@
 
 ### New
 
+- Campaign creation can customize player and opponent factions after era selection.
+- Additional preset factions from the classic DCC set: France 1982, Israel 1967, Sweden 1970,
+  Russia 1984, US Navy 1964, and US Navy 1987, plus a France Modern ground template.
 - CSAR campaign missions for eligible pilots down behind enemy lines, including automatic rescue
   packages, map markers, one-hour pilot persistence, FARP support, kneeboard guidance, and F10
   pilot status, smoke, and pickup commands.

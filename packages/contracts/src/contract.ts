@@ -54,7 +54,9 @@ const createCampaign = base
   .input(
     z.object({
       scenarioId: z.string(),
-      era: campaignCreationEra
+      era: campaignCreationEra,
+      playerFactionId: z.string(),
+      opponentFactionId: z.string()
     })
   )
   .errors({

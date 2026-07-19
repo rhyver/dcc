@@ -14,29 +14,9 @@ import { assignGroundGroups } from './assign-ground-groups'
 import { campaignsDir, stateFile } from '../../app-data'
 import { randomDateForEra } from './campaign-date'
 
-type CampaignCreationEra = 'Korea' | 'Vietnam' | 'Late CW' | 'Modern'
 type Coalition = z.infer<typeof schemas.coalition>
 type Campaign = z.infer<typeof schemas.campaign.campaign>
 type OperationProfile = NonNullable<Campaign['operationProfile']>
-
-const factionIdsByEra: Record<CampaignCreationEra, { player: string; opponent: string }> = {
-  Korea: {
-    player: 'usa-1952',
-    opponent: 'russia-1955'
-  },
-  Vietnam: {
-    player: 'usa-vietnam',
-    opponent: 'russia-vietnam'
-  },
-  'Late CW': {
-    player: 'usa-1977',
-    opponent: 'russia-1971'
-  },
-  Modern: {
-    player: 'usa-2004',
-    opponent: 'russia-1996'
-  }
-}
 
 function createInitialStrategicStrikeCooldown(
   campaignTime: Date,
@@ -279,16 +259,27 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
     })
   }
 
-  const factionIds = factionIdsByEra[input.era]
+  if (input.playerFactionId === input.opponentFactionId) {
+    throw errors.NOT_FOUND({
+      data: {
+        message: 'Player and opponent factions must be different',
+        path: input.playerFactionId
+      }
+    })
+  }
+
   const factions = getFactions()
-  const playerFaction = factions.find((faction) => faction.id === factionIds.player)
-  const opponentFaction = factions.find((faction) => faction.id === factionIds.opponent)
+  const playerFaction = factions.find((faction) => faction.id === input.playerFactionId)
+  const opponentFaction = factions.find((faction) => faction.id === input.opponentFactionId)
 
   if (playerFaction == null || opponentFaction == null) {
     throw errors.NOT_FOUND({
       data: {
-        message: `No factions found for ${input.era}`,
-        path: `${factionIds.player} or ${factionIds.opponent}`
+        message: 'Faction not found',
+        path:
+          playerFaction == null
+            ? input.playerFactionId
+            : input.opponentFactionId
       }
     })
   }

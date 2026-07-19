@@ -1,7 +1,13 @@
+import { France1982 } from './france-1982'
+import { Israel1967 } from './israel-1967'
 import { RUSSIA1996 } from './russia-1996'
+import { RUSSIA1984 } from './russia-1984'
 import { RUSSIA1971 } from './russia-1971'
 import { RUSSIA1955 } from './russia-1955'
 import { RussiaVietnam } from './russia-vietnam'
+import { Sweden1970 } from './sweden-1970'
+import { UsNavy1964 } from './us-navy-1964'
+import { UsNavy1987 } from './us-navy-1987'
 import { USA2004 } from './usa-2004'
 import { USA1977 } from './usa-1977'
 import { USA1952 } from './usa-1952'
@@ -10,10 +16,20 @@ import { USAVietnam } from './usa-vietnam'
 export const factions = [
   USA1952,
   RUSSIA1955,
-  USAVietnam,
+  UsNavy1964,
+  Israel1967,
   RussiaVietnam,
-  USA1977,
+  USAVietnam,
+  Sweden1970,
   RUSSIA1971,
-  USA2004,
-  RUSSIA1996
-]
+  USA1977,
+  France1982,
+  RUSSIA1984,
+  UsNavy1987,
+  RUSSIA1996,
+  USA2004
+].sort((left, right) => {
+  const yearDelta = (left.year ?? 0) - (right.year ?? 0)
+  if (yearDelta !== 0) return yearDelta
+  return left.name.localeCompare(right.name)
+})

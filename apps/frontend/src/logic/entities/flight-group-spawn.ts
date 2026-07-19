@@ -348,6 +348,30 @@ export function buildTransportMissionWaypoints(
   ]
 }
 
+export function buildCsarMissionWaypoints(
+  pilotPosition: Position,
+  dropOffPosition: Position
+): Waypoint[] {
+  return [
+    {
+      name: 'Pick Up',
+      position: pilotPosition,
+      altitude: 30,
+      altitudeType: 'RADIO',
+      speed: 70,
+      type: 'Task'
+    },
+    {
+      name: 'Drop Off',
+      position: dropOffPosition,
+      altitude: 30,
+      altitudeType: 'RADIO',
+      speed: 70,
+      type: 'Nav'
+    }
+  ]
+}
+
 export function createAircrafts(aircraftType: AircraftName, count: number): Aircraft[] {
   const aircrafts: Aircraft[] = []
   for (let i = 0; i < count; i++) {

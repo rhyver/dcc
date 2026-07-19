@@ -704,6 +704,59 @@ describe('addFlightGroups mission script config', () => {
     ])
   })
 
+  test('returns downed pilot details for client CSAR mission commands', () => {
+    const startTime = new Date('2026-01-01T00:00:00Z')
+    const mission = createMission()
+    const campaign = createCampaign(startTime)
+    const clientGroup = createTaskFlightGroup('blue-csar', 'Enfield-1', startTime, 'CSAR')
+    clientGroup.aircrafts = [
+      {
+        id: 'blue-csar-1',
+        unitName: 'Enfield-1-1',
+        aircraftName: 'UH-1H',
+        client: true
+      }
+    ]
+    clientGroup.target = {
+      id: 'pilot-1',
+      type: 'Downed Pilot',
+      objectiveId: 'objective-1'
+    }
+    campaign.coalitions.player.downedPilots = [
+      {
+        id: 'pilot-1',
+        name: 'Pilot 1',
+        position: { x: 3000, y: 4000 },
+        ejectedAt: startTime
+      }
+    ]
+    campaign.coalitions.player.flightGroups = [clientGroup]
+    campaign.coalitions.opponent.flightGroups = []
+
+    const result = addFlightGroups(mission, campaign, theatre)
+
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) throw result.error
+    expect(result.value[0]).toMatchObject({
+      name: 'Enfield-1',
+      task: 'CSAR',
+      isHelicopter: true,
+      csar: {
+        pilotId: 'pilot-1',
+        pilotName: 'Pilot 1',
+        position: { x: 3000, y: 4000 },
+        pickupRadius: 150
+      }
+    })
+    expect(
+      mission.coalition.blue.country?.[0]?.helicopter?.group?.[0]?.route?.points[0]
+    ).toMatchObject({
+      action: 'From Ground Area',
+      type: 'TakeOffGround'
+    })
+    expect(mission.coalition.blue.country?.[0]?.helicopter?.group?.[0]?.task).toBe('Transport')
+  })
+
   test('skips CAS JTAC support when disabled in campaign params', () => {
     const startTime = new Date('2026-01-01T00:00:00Z')
     const mission = createMission()

@@ -1,5 +1,5 @@
 import { schemas } from '@dcc/contracts'
-import { scenarios, theatres } from '@dcc/data'
+import { aircrafts, scenarios, theatres } from '@dcc/data'
 import * as z from 'zod'
 
 import { calculateDistance } from '@/logic/utils/calculate-distance'
@@ -10,6 +10,12 @@ type Position = z.infer<typeof schemas.position>
 type AircraftName = z.infer<typeof schemas.dcs.aircraftName>
 type Scenario = z.infer<typeof schemas.scenario>
 type Theatre = z.infer<typeof schemas.theatre>
+
+const helicopterAircraftTypes = new Set(
+  Object.values(aircrafts)
+    .filter((aircraft) => aircraft.isHelicopter)
+    .map((aircraft) => aircraft.name)
+)
 
 export type AirdromeSelection = {
   name: string
@@ -69,6 +75,27 @@ export function getCoalitionAirdromes(
   }
 
   return homeBases
+}
+
+export function getCoalitionFarps(draft: Campaign, coalition: Coalition): AirdromeSelection[] {
+  return draft.coalitions[coalition].structures
+    .filter((structure) => structure.type === 'Farp')
+    .map((structure) => ({
+      name: structure.id,
+      position: structure.position
+    }))
+}
+
+export function getCoalitionCasHomeBases(
+  draft: Campaign,
+  theatre: Theatre,
+  coalition: Coalition,
+  aircraftType: AircraftName
+): AirdromeSelection[] {
+  const airdromes = getCoalitionAirdromes(draft, theatre, coalition)
+  return helicopterAircraftTypes.has(aircraftType)
+    ? [...airdromes, ...getCoalitionFarps(draft, coalition)]
+    : airdromes
 }
 
 export function pickRandomAircraftType(aircraftTypes: string[]): AircraftName | null {
@@ -145,8 +172,7 @@ export function selectHomeBaseAndTarget<T>({
     }
   }
 
-  const randomAssignment =
-    randomAssignments[Math.floor(Math.random() * randomAssignments.length)]
+  const randomAssignment = randomAssignments[Math.floor(Math.random() * randomAssignments.length)]
   if (randomAssignment) {
     const randomTarget =
       randomAssignment.targets[Math.floor(Math.random() * randomAssignment.targets.length)]

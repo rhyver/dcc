@@ -363,6 +363,78 @@ describe('ATO package planner', () => {
     expect(result.admitted.some((plan) => plan.kind === 'cas')).toBe(true)
   })
 
+  test('uses a FARP as the home base for helicopter CAS', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0)
+    const campaign = createCampaign({ playerAircraft: { CAS: ['AH-64D_BLK_II'] } })
+    campaign.coalitions.player.airdromeNames = []
+    campaign.coalitions.player.structures = [
+      {
+        id: 'farp-1',
+        type: 'Farp',
+        objectiveId: 'Home Objective',
+        position: { x: 40_000, y: 0 },
+        name: 'Forward FARP',
+        resources: 0,
+        buildings: []
+      }
+    ]
+    campaign.coalitions.opponent.groundGroups = [
+      {
+        id: 'ground-1',
+        objectiveId: 'Target Objective',
+        position: { x: 50_000, y: 0 },
+        state: 'idle',
+        units: [{ name: 'BMP-2', count: 3 }]
+      }
+    ]
+
+    const result = planAtoPackages(campaign, 'player', createContext(), plannerPolicy())
+    const cas = result.admitted.find((plan) => plan.kind === 'cas')
+
+    expect(cas?.flights[0]?.homeBase).toMatchObject({
+      name: 'farp-1',
+      position: { x: 40_000, y: 0 }
+    })
+    expect(cas?.flights[0]?.aircraftType).toBe('AH-64D_BLK_II')
+
+    if (cas) commitAtoPackages(campaign, 'player', [cas])
+    expect(campaign.coalitions.player.flightGroups[0]).toMatchObject({
+      homeBase: 'farp-1',
+      position: { x: 40_000, y: 0 },
+      task: 'CAS'
+    })
+  })
+
+  test('does not use a FARP as the home base for fixed-wing CAS', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0)
+    const campaign = createCampaign({ playerAircraft: { CAS: ['A-10C_2'] } })
+    campaign.coalitions.player.airdromeNames = []
+    campaign.coalitions.player.structures = [
+      {
+        id: 'farp-1',
+        type: 'Farp',
+        objectiveId: 'Home Objective',
+        position: { x: 40_000, y: 0 },
+        name: 'Forward FARP',
+        resources: 0,
+        buildings: []
+      }
+    ]
+    campaign.coalitions.opponent.groundGroups = [
+      {
+        id: 'ground-1',
+        objectiveId: 'Target Objective',
+        position: { x: 50_000, y: 0 },
+        state: 'idle',
+        units: [{ name: 'BMP-2', count: 3 }]
+      }
+    ]
+
+    const result = planAtoPackages(campaign, 'player', createContext(), plannerPolicy())
+
+    expect(result.admitted.some((plan) => plan.kind === 'cas')).toBe(false)
+  })
+
   test('emits defensive CAS with a staged battle lock for an attack on a friendly objective', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0)
     const campaign = createCampaign({ playerAircraft: { CAS: ['A-10C_2'] } })

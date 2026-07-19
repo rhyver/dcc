@@ -125,6 +125,10 @@ function createWelcomeMessage(
     features.add('JTAC smoke, coordinates, and laser control')
   }
 
+  if (flightGroups.some((flightGroup) => 'csar' in flightGroup && flightGroup.csar)) {
+    features.add('CSAR pilot status, smoke, and pickup')
+  }
+
   if (options.ewrEnabled && flightGroups.length > 0) {
     features.add('EWR picture calls')
   }

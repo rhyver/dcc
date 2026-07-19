@@ -566,7 +566,8 @@ export function buildCampaignFromPlan(
         samGroups: [],
         groundGroups: [],
         flightGroups: [playerFlightGroup, ...supportFlights],
-        packages: [missionPackage]
+        packages: [missionPackage],
+        downedPilots: []
       },
       opponent: {
         id: opponentFaction.id,
@@ -581,7 +582,8 @@ export function buildCampaignFromPlan(
         samGroups,
         groundGroups: [...aaaGroundGroups, ...(casTargetGroundGroup ? [casTargetGroundGroup] : [])],
         flightGroups: opponentCapFlights,
-        packages: []
+        packages: [],
+        downedPilots: []
       }
     }
   }

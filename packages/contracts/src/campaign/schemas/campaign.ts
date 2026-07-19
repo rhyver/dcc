@@ -30,13 +30,7 @@ const campaignGoal = z.object({
 })
 
 const operationProfile = z.object({
-  archetype: z.enum([
-    'balanced',
-    'breakthrough',
-    'attrition',
-    'air-superiority',
-    'defense-crisis'
-  ]),
+  archetype: z.enum(['balanced', 'breakthrough', 'attrition', 'air-superiority', 'defense-crisis']),
   frontlineShape: z.enum(['linear', 'salient', 'split-front', 'overextended']),
   tempo: z.enum(['cautious', 'standard', 'surge']),
   initiativeCoalition: coalition.optional()
@@ -53,6 +47,13 @@ const groundBattleLock = z.object({
   targetObjectiveId: z.string().optional(),
   targetAirdromeName: z.string().optional(),
   expiresAt: z.date()
+})
+
+export const campaignDownedPilot = z.object({
+  id: z.string(),
+  name: z.string(),
+  position,
+  ejectedAt: z.date()
 })
 
 const campaignStructure = z.preprocess(
@@ -109,6 +110,7 @@ const campaignCoalition = z.object({
   groundGroups: z.array(groundGroup),
   flightGroups: z.array(flightGroup),
   packages: z.array(missionPackage),
+  downedPilots: z.array(campaignDownedPilot).optional(),
   strategicStrikeCooldownUntil: z.date().optional(),
   supplyNodes: z.record(z.string(), supply).optional()
 })

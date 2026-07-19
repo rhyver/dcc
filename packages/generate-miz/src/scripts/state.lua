@@ -95,6 +95,7 @@ local missionState = {
     cullingManifest = config.cullingManifest,
     missionEnded = false,
     ejectedPilots = {},
+    rescuedPilots = {},
     lostUnits = {},
     landedUnits = {},
     cargoDeliveries = {},
@@ -875,6 +876,12 @@ local function handleEvent(event)
             if srfType ~= land.SurfaceType.WATER and srfType ~= land.SurfaceType.SHALLOW_WATER then
                 missionState.ejectedPilots[#missionState.ejectedPilots + 1] = {
                     name = name,
+                    coalition = safeCall(function()
+                        local coalitionId = initiator:getCoalition()
+                        if coalitionId == coalition.side.BLUE then return 'blue' end
+                        if coalitionId == coalition.side.RED then return 'red' end
+                        return nil
+                    end, nil),
                     time = timer.getAbsTime(),
                     x = position.x,
                     y = position.z
@@ -914,6 +921,122 @@ local function handleEvent(event)
     end
 end
 
+local rescuedPilotIds = {}
+
+local function recordCsarRescue(groupConfig, position)
+    local csar = groupConfig and groupConfig.csar
+    if not csar or not csar.pilotId or rescuedPilotIds[csar.pilotId] then
+        return false
+    end
+
+    rescuedPilotIds[csar.pilotId] = true
+    missionState.rescuedPilots[#missionState.rescuedPilots + 1] = {
+        pilotId = tostring(csar.pilotId),
+        pilotName = csar.pilotName,
+        groupName = groupConfig.name,
+        time = timer.getAbsTime(),
+        x = position and position.x or nil,
+        y = position and position.z or nil
+    }
+    requestSave('CSAR pickup')
+    debugLog('CSAR pilot rescued: '..tostring(csar.pilotId)..' by '..tostring(groupConfig.name))
+    return true
+end
+
+DCC.recordCsarRescue = recordCsarRescue
+
+local function csarGroupUnit(groupConfig)
+    local group = groupConfig and groupConfig.name and Group.getByName(groupConfig.name) or nil
+    if not group or not group:isExist() then return nil end
+    local units = group:getUnits()
+    return units and units[1] or nil
+end
+
+local function csarMessage(groupConfig, message, duration)
+    trigger.action.outTextForGroup(groupConfig.groupId, message, duration or 15, false)
+end
+
+local function csarStatus(groupConfig)
+    local unit = csarGroupUnit(groupConfig)
+    local csar = groupConfig.csar
+    if not unit or not csar then
+        csarMessage(groupConfig, 'CSAR pilot location unavailable.')
+        return
+    end
+    if rescuedPilotIds[csar.pilotId] then
+        csarMessage(groupConfig, tostring(csar.pilotName)..' is aboard.')
+        return
+    end
+
+    local point = unit:getPoint()
+    local dx = csar.position.x - point.x
+    local dz = csar.position.y - point.z
+    local distance = math.sqrt(dx * dx + dz * dz)
+    local bearing = math.deg(math.atan2(dx, dz))
+    if bearing < 0 then bearing = bearing + 360 end
+    csarMessage(
+        groupConfig,
+        string.format('%s: bearing %03d, %.1f km.', tostring(csar.pilotName), math.floor(bearing + 0.5), distance / 1000)
+    )
+end
+
+local function csarSmoke(groupConfig)
+    local csar = groupConfig.csar
+    if not csar or rescuedPilotIds[csar.pilotId] then
+        csarMessage(groupConfig, 'No pilot awaiting pickup.')
+        return
+    end
+    local point = {
+        x = csar.position.x,
+        y = land.getHeight({ x = csar.position.x, y = csar.position.y }),
+        z = csar.position.y
+    }
+    trigger.action.smoke(point, trigger.smokeColor.Orange)
+    csarMessage(groupConfig, tostring(csar.pilotName)..' deployed orange smoke.')
+end
+
+local function csarPickup(groupConfig)
+    local unit = csarGroupUnit(groupConfig)
+    local csar = groupConfig.csar
+    if not unit or not csar then
+        csarMessage(groupConfig, 'CSAR pickup unavailable.')
+        return
+    end
+    if rescuedPilotIds[csar.pilotId] then
+        csarMessage(groupConfig, tostring(csar.pilotName)..' is already aboard.')
+        return
+    end
+
+    local point = unit:getPoint()
+    local dx = csar.position.x - point.x
+    local dz = csar.position.y - point.z
+    local distance = math.sqrt(dx * dx + dz * dz)
+    if distance > (csar.pickupRadius or 150) then
+        csarMessage(groupConfig, string.format('Move closer to the pilot (%.0f m).', distance))
+        return
+    end
+    if unit:inAir() then
+        csarMessage(groupConfig, 'Land before picking up the pilot.')
+        return
+    end
+
+    if recordCsarRescue(groupConfig, point) then
+        csarMessage(groupConfig, tostring(csar.pilotName)..' is aboard. Return to base.', 25)
+    end
+end
+
+local function setupCsarMenus()
+    if not config or not config.flightGroups then return end
+    for _, groupConfig in ipairs(config.flightGroups) do
+        if groupConfig.csar and groupConfig.groupId then
+            local menu = missionCommands.addSubMenuForGroup(groupConfig.groupId, 'CSAR')
+            missionCommands.addCommandForGroup(groupConfig.groupId, 'Pilot Status', menu, csarStatus, groupConfig)
+            missionCommands.addCommandForGroup(groupConfig.groupId, 'Request Orange Smoke', menu, csarSmoke, groupConfig)
+            missionCommands.addCommandForGroup(groupConfig.groupId, 'Pick Up Pilot', menu, csarPickup, groupConfig)
+        end
+    end
+end
+
 local ev = {}
 function ev:onEvent(event)
     local ok, error = pcall(handleEvent, event)
@@ -923,6 +1046,7 @@ function ev:onEvent(event)
 end
 
 world.addEventHandler(ev)
+setupCsarMenus()
 saveState('startup')
 scheduleAutosave()
 

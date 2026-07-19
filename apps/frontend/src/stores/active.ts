@@ -5,6 +5,7 @@ import { produce } from 'immer'
 import * as z from 'zod'
 
 import { createManualFlightGroup } from '@/logic/systems/spawn/manual-flight-group'
+import { rehomeCasForAircraftChange } from '@/logic/systems/rehome-farp-cas'
 
 const initialState: z.infer<typeof schemas.campaign.campaign> = {
   time: new Date(),
@@ -70,6 +71,7 @@ const initialState: z.infer<typeof schemas.campaign.campaign> = {
       flightGroups: [],
       groundGroups: [],
       packages: [],
+      downedPilots: [],
       supplyNodes: {}
     },
     opponent: {
@@ -110,6 +112,7 @@ const initialState: z.infer<typeof schemas.campaign.campaign> = {
       flightGroups: [],
       groundGroups: [],
       packages: [],
+      downedPilots: [],
       supplyNodes: {}
     }
   }
@@ -482,10 +485,13 @@ export const activeStore = createStore({
       { flightGroupId, aircraftType }: { flightGroupId: string; aircraftType: string }
     ) =>
       produce(context, (draft) => {
-        const coalitions = [draft.coalitions.player, draft.coalitions.opponent]
+        const coalitions = [
+          { key: 'player' as const, data: draft.coalitions.player },
+          { key: 'opponent' as const, data: draft.coalitions.opponent }
+        ]
 
         for (const coalition of coalitions) {
-          const group = coalition.flightGroups.find((g) => g.id === flightGroupId)
+          const group = coalition.data.flightGroups.find((g) => g.id === flightGroupId)
           if (!group) {
             continue
           }
@@ -495,6 +501,10 @@ export const activeStore = createStore({
             !parsedAircraftType.success ||
             !isAircraftTaskCompatible(parsedAircraftType.data, group.task)
           ) {
+            break
+          }
+
+          if (!rehomeCasForAircraftChange(draft, coalition.key, group, parsedAircraftType.data)) {
             break
           }
 

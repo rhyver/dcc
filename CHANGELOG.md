@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+### New
+
+- CSAR campaign missions for eligible pilots down behind enemy lines, including automatic rescue
+  packages, map markers, one-hour pilot persistence, FARP support, kneeboard guidance, and F10
+  pilot status, smoke, and pickup commands.
+
+### Improved
+
+- Friendly FARPs can launch automatic and manual helicopter CAS missions. Mission-start aircraft
+  changes move CAS flights to the nearest reachable compatible FARP or airbase; fixed-wing CAS
+  remains restricted to airbases.
+
 ## v0.5.0-2026062401 - 2026-06-24
 
 Changes since `v0.5.0-2026061401` (released 2026-06-14).

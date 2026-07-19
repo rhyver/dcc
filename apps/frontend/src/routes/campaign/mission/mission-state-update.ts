@@ -5,6 +5,7 @@ import * as z from 'zod'
 
 import { FlightGroup } from '@/logic/entities/flight-group'
 import { updatePackages } from '@/logic/systems/update-packages'
+import { syncDownedPilotsFromMissionState } from '@/logic/systems/downed-pilots'
 
 type Campaign = z.infer<typeof schemas.campaign.campaign>
 type MissionState = z.infer<typeof schemas.missionState>
@@ -359,6 +360,8 @@ export function applyMissionStateUpdate(campaign: Campaign, missionState: Missio
       draft.time = missionDate
       draft.timeTarget = undefined
     }
+
+    syncDownedPilotsFromMissionState(draft, missionState, campaign.time)
 
     applyToCoalition(
       draft,

@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { schemas } from '@dcc/contracts'
+import { theatres } from '@dcc/data'
 import type * as z from 'zod'
 
 import { activeStore } from './active'
@@ -194,5 +195,349 @@ describe('active store client flight timing sync', () => {
     expect(sead.flightplan.startTime).toEqual(new Date('2026-01-01T12:08:00.000Z'))
     expect(sead.tot).toEqual(new Date('2026-01-01T12:38:00.000Z'))
     expect(missionPackage.tot).toEqual(new Date('2026-01-01T12:40:00.000Z'))
+  })
+})
+
+describe('active store aircraft overrides', () => {
+  test('keeps CAS at the airport when it is closer than a FARP after changing to a helicopter', () => {
+    const campaign = createCampaign()
+    const caucasus = theatres.find((theatre) => theatre.name === 'Caucasus')!
+    const kobuleti = caucasus.airdromeDetails.Kobuleti!
+    const farpPosition = { x: kobuleti.x - 40_000, y: kobuleti.y }
+    const targetPosition = { x: kobuleti.x + 10_000, y: kobuleti.y }
+    campaign.scenarioId = 'red-bullet'
+    campaign.coalitions.player.airdromeNames = ['Kobuleti']
+    campaign.coalitions.player.structures = [
+      {
+        id: 'farp-1',
+        type: 'Farp',
+        objectiveId: 'Home Objective',
+        position: farpPosition,
+        name: 'Forward FARP',
+        resources: 0,
+        buildings: []
+      }
+    ]
+    campaign.coalitions.player.flightGroups = [
+      {
+        id: 'cas-1',
+        callsign: 'Hawg-1',
+        task: 'CAS',
+        homeBase: 'Kobuleti',
+        position: { x: kobuleti.x, y: kobuleti.y },
+        aircrafts: [
+          {
+            id: 'cas-1-1',
+            unitName: 'Hawg-1-1',
+            aircraftName: 'A-10C_2',
+            client: true
+          }
+        ],
+        flightplan: {
+          id: 'cas-plan',
+          startTime: campaignTime,
+          waypoints: [
+            {
+              name: 'TakeOff',
+              position: { x: kobuleti.x, y: kobuleti.y },
+              altitude: 0,
+              speed: 150,
+              type: 'TakeOff'
+            },
+            {
+              name: 'Ascend',
+              position: { x: kobuleti.x + 20_000, y: kobuleti.y },
+              altitude: 2000,
+              speed: 200,
+              type: 'Nav'
+            },
+            {
+              name: 'Target',
+              position: targetPosition,
+              altitude: 0,
+              speed: 180,
+              type: 'Task'
+            },
+            {
+              name: 'Descent',
+              position: { x: kobuleti.x - 20_000, y: kobuleti.y },
+              altitude: 2000,
+              speed: 200,
+              type: 'Nav'
+            },
+            {
+              name: 'Landing',
+              position: { x: kobuleti.x, y: kobuleti.y },
+              altitude: 0,
+              speed: 150,
+              type: 'Landing'
+            }
+          ]
+        }
+      }
+    ]
+
+    activeStore.send({ type: 'loadCampaign', campaign })
+    activeStore.send({
+      type: 'setFlightGroupAircraftType',
+      flightGroupId: 'cas-1',
+      aircraftType: 'AH-64D_BLK_II'
+    })
+
+    const group = activeStore.getSnapshot().context.coalitions.player.flightGroups[0]!
+    expect(group.aircrafts[0]?.aircraftName).toBe('AH-64D_BLK_II')
+    expect(group.homeBase).toBe('Kobuleti')
+    expect(group.position).toEqual({ x: kobuleti.x, y: kobuleti.y })
+    expect(group.flightplan.waypoints.some((waypoint) => waypoint.name === 'Ascend')).toBe(false)
+    expect(group.flightplan.waypoints.some((waypoint) => waypoint.name === 'Descent')).toBe(false)
+  })
+
+  test('moves airbase-based CAS to a FARP when changed to a helicopter', () => {
+    const campaign = createCampaign()
+    const caucasus = theatres.find((theatre) => theatre.name === 'Caucasus')!
+    const kobuleti = caucasus.airdromeDetails.Kobuleti!
+    const farpPosition = { x: kobuleti.x + 20_000, y: kobuleti.y }
+    const targetPosition = { x: kobuleti.x + 40_000, y: kobuleti.y }
+    campaign.scenarioId = 'red-bullet'
+    campaign.coalitions.player.airdromeNames = ['Kobuleti']
+    campaign.coalitions.player.structures = [
+      {
+        id: 'farp-1',
+        type: 'Farp',
+        objectiveId: 'Home Objective',
+        position: farpPosition,
+        name: 'Forward FARP',
+        resources: 0,
+        buildings: []
+      }
+    ]
+    campaign.coalitions.player.flightGroups = [
+      {
+        id: 'cas-1',
+        callsign: 'Hawg-1',
+        task: 'CAS',
+        homeBase: 'Kobuleti',
+        position: { x: kobuleti.x, y: kobuleti.y },
+        aircrafts: [
+          {
+            id: 'cas-1-1',
+            unitName: 'Hawg-1-1',
+            aircraftName: 'A-10C_2',
+            client: true
+          }
+        ],
+        flightplan: {
+          id: 'cas-plan',
+          startTime: campaignTime,
+          waypoints: [
+            {
+              name: 'TakeOff',
+              position: { x: kobuleti.x, y: kobuleti.y },
+              altitude: 0,
+              speed: 150,
+              type: 'TakeOff'
+            },
+            {
+              name: 'Ascend',
+              position: { x: kobuleti.x + 20_000, y: kobuleti.y },
+              altitude: 2000,
+              speed: 200,
+              type: 'Nav'
+            },
+            {
+              name: 'Contact',
+              position: { x: targetPosition.x - 10_000, y: targetPosition.y },
+              altitude: 3500,
+              speed: 200,
+              type: 'Task'
+            },
+            {
+              name: 'Target',
+              position: targetPosition,
+              altitude: 0,
+              speed: 180,
+              type: 'Nav'
+            },
+            {
+              name: 'Descent',
+              position: { x: kobuleti.x - 20_000, y: kobuleti.y },
+              altitude: 2000,
+              speed: 200,
+              type: 'Nav'
+            },
+            {
+              name: 'Landing',
+              position: { x: kobuleti.x, y: kobuleti.y },
+              altitude: 0,
+              speed: 150,
+              type: 'Landing'
+            }
+          ]
+        }
+      }
+    ]
+
+    activeStore.send({ type: 'loadCampaign', campaign })
+    activeStore.send({
+      type: 'setFlightGroupAircraftType',
+      flightGroupId: 'cas-1',
+      aircraftType: 'AH-64D_BLK_II'
+    })
+
+    const group = activeStore.getSnapshot().context.coalitions.player.flightGroups[0]!
+    expect(group.aircrafts[0]?.aircraftName).toBe('AH-64D_BLK_II')
+    expect(group.homeBase).toBe('farp-1')
+    expect(group.position).toEqual(farpPosition)
+    expect(group.flightplan.waypoints[0]).toMatchObject({
+      name: 'TakeOff',
+      position: farpPosition
+    })
+    expect(group.flightplan.waypoints.some((waypoint) => waypoint.name === 'Ascend')).toBe(false)
+    expect(group.flightplan.waypoints.some((waypoint) => waypoint.name === 'Descent')).toBe(false)
+    expect(group.flightplan.waypoints.at(-1)).toMatchObject({
+      name: 'Landing',
+      position: farpPosition
+    })
+  })
+
+  test('moves FARP-based CAS to an airbase when changed to fixed-wing', () => {
+    const campaign = createCampaign()
+    const caucasus = theatres.find((theatre) => theatre.name === 'Caucasus')!
+    const kobuleti = caucasus.airdromeDetails.Kobuleti!
+    const farpPosition = { x: kobuleti.x + 20_000, y: kobuleti.y }
+    const targetPosition = { x: kobuleti.x + 40_000, y: kobuleti.y }
+    campaign.scenarioId = 'red-bullet'
+    campaign.coalitions.player.airdromeNames = ['Kobuleti']
+    campaign.coalitions.player.structures = [
+      {
+        id: 'farp-1',
+        type: 'Farp',
+        objectiveId: 'Home Objective',
+        position: farpPosition,
+        name: 'Forward FARP',
+        resources: 0,
+        buildings: []
+      }
+    ]
+    campaign.coalitions.player.flightGroups = [
+      {
+        id: 'cas-1',
+        callsign: 'Uzi-1',
+        task: 'CAS',
+        homeBase: 'farp-1',
+        position: farpPosition,
+        aircrafts: [
+          {
+            id: 'cas-1-1',
+            unitName: 'Uzi-1-1',
+            aircraftName: 'AH-64D_BLK_II',
+            client: true
+          }
+        ],
+        flightplan: {
+          id: 'cas-plan',
+          startTime: campaignTime,
+          waypoints: [
+            { name: 'TakeOff', position: farpPosition, altitude: 0, speed: 50, type: 'TakeOff' },
+            {
+              name: 'Contact',
+              position: { x: targetPosition.x - 10_000, y: targetPosition.y },
+              altitude: 3500,
+              speed: 200,
+              type: 'Task'
+            },
+            {
+              name: 'Target',
+              position: targetPosition,
+              altitude: 0,
+              speed: 180,
+              type: 'Nav'
+            },
+            { name: 'Landing', position: farpPosition, altitude: 0, speed: 50, type: 'Landing' }
+          ]
+        }
+      }
+    ]
+
+    activeStore.send({ type: 'loadCampaign', campaign })
+    activeStore.send({
+      type: 'setFlightGroupAircraftType',
+      flightGroupId: 'cas-1',
+      aircraftType: 'A-10C_2'
+    })
+
+    const group = activeStore.getSnapshot().context.coalitions.player.flightGroups[0]!
+    expect(group.aircrafts[0]?.aircraftName).toBe('A-10C_2')
+    expect(group.homeBase).toBe('Kobuleti')
+    expect(group.position).toEqual({ x: kobuleti.x, y: kobuleti.y })
+    expect(group.flightplan.waypoints[0]).toMatchObject({
+      name: 'TakeOff',
+      position: { x: kobuleti.x, y: kobuleti.y }
+    })
+    expect(group.flightplan.waypoints.some((waypoint) => waypoint.name === 'Ascend')).toBe(true)
+    expect(group.flightplan.waypoints.at(-1)).toMatchObject({
+      name: 'Landing',
+      position: { x: kobuleti.x, y: kobuleti.y }
+    })
+  })
+
+  test('keeps the helicopter when a FARP-based CAS flight has no reachable airbase', () => {
+    const campaign = createCampaign()
+    campaign.scenarioId = 'red-bullet'
+    campaign.coalitions.player.airdromeNames = []
+    campaign.coalitions.player.structures = [
+      {
+        id: 'farp-1',
+        type: 'Farp',
+        objectiveId: 'Home Objective',
+        position: { x: 0, y: 0 },
+        name: 'Forward FARP',
+        resources: 0,
+        buildings: []
+      }
+    ]
+    campaign.coalitions.player.flightGroups = [
+      {
+        id: 'cas-1',
+        callsign: 'Uzi-1',
+        task: 'CAS',
+        homeBase: 'farp-1',
+        position: { x: 0, y: 0 },
+        aircrafts: [
+          {
+            id: 'cas-1-1',
+            unitName: 'Uzi-1-1',
+            aircraftName: 'AH-64D_BLK_II',
+            client: true
+          }
+        ],
+        flightplan: {
+          id: 'cas-plan',
+          startTime: campaignTime,
+          waypoints: [
+            { name: 'TakeOff', position: { x: 0, y: 0 }, altitude: 0, speed: 50, type: 'TakeOff' },
+            {
+              name: 'Target',
+              position: { x: 10_000, y: 0 },
+              altitude: 0,
+              speed: 180,
+              type: 'Task'
+            },
+            { name: 'Landing', position: { x: 0, y: 0 }, altitude: 0, speed: 50, type: 'Landing' }
+          ]
+        }
+      }
+    ]
+
+    activeStore.send({ type: 'loadCampaign', campaign })
+    activeStore.send({
+      type: 'setFlightGroupAircraftType',
+      flightGroupId: 'cas-1',
+      aircraftType: 'A-10C_2'
+    })
+
+    const group = activeStore.getSnapshot().context.coalitions.player.flightGroups[0]!
+    expect(group.aircrafts[0]?.aircraftName).toBe('AH-64D_BLK_II')
+    expect(group.homeBase).toBe('farp-1')
   })
 })

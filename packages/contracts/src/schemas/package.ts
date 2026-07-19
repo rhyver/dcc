@@ -1,6 +1,14 @@
 import * as z from 'zod'
 
-export const packageMemberRole = z.enum(['primary', 'sead', 'cap', 'dead', 'cas', 'transport'])
+export const packageMemberRole = z.enum([
+  'primary',
+  'sead',
+  'cap',
+  'dead',
+  'cas',
+  'transport',
+  'csar'
+])
 
 export const packageMember = z.object({
   flightGroupId: z.string(),
@@ -15,6 +23,7 @@ export const packageType = z.enum([
   'CAP Package',
   'DEAD Package',
   'CAS Package',
+  'CSAR Package',
   'Transport Package'
 ])
 

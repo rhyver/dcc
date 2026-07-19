@@ -352,8 +352,20 @@ function getSpecialNotes(flightGroup: FlightGroup, missionConfig: MissionFlightC
   if (flightGroup.task === 'Transport') {
     notes.push(`Cargo ${flightGroup.cargoAmount ?? 0}`)
     if (flightGroup.sourceNode || flightGroup.destinationNode) {
-      notes.push(`${flightGroup.sourceNode ?? 'SOURCE'} -> ${flightGroup.destinationNode ?? 'DEST'}`)
+      notes.push(
+        `${flightGroup.sourceNode ?? 'SOURCE'} -> ${flightGroup.destinationNode ?? 'DEST'}`
+      )
     }
+  }
+
+  if (
+    flightGroup.task === 'CSAR' &&
+    missionConfig &&
+    'csar' in missionConfig &&
+    missionConfig.csar
+  ) {
+    notes.push(`Recover ${missionConfig.csar.pilotName}`)
+    notes.push('F10 CSAR status / smoke / pickup')
   }
 
   if (missionConfig && missionConfig.task === 'CAS' && 'laserCode' in missionConfig) {
@@ -377,11 +389,7 @@ function getSpecialNotes(flightGroup: FlightGroup, missionConfig: MissionFlightC
   return notes.length > 0 ? notes.join(' / ') : 'SEE MISSION PLAN'
 }
 
-function formatTacanSummary(tacan: {
-  channel: number | string
-  band?: string
-  callsign?: string
-}) {
+function formatTacanSummary(tacan: { channel: number | string; band?: string; callsign?: string }) {
   const band = tacan.band ?? 'X'
   const callsign = tacan.callsign ? ` ${tacan.callsign}` : ''
   return `${tacan.channel}${band}${callsign}`
@@ -395,7 +403,10 @@ export function getKneeboardTargetTacanSummary(
   return formatTacanSummary(tacan)
 }
 
-export function getKneeboardLandingTacanSummary(flightGroup: FlightGroup, theatre: Theatre): string {
+export function getKneeboardLandingTacanSummary(
+  flightGroup: FlightGroup,
+  theatre: Theatre
+): string {
   const airdrome = theatre.airdromeDetails[flightGroup.homeBase]
   const tacan = airdrome?.tacan
   if (!tacan) return '---'
@@ -484,7 +495,8 @@ function buildKneeboardLayout(waypointCount: number): KneeboardLayout {
       mapX: CONTENT_X + MAP_INSET,
       mapY: routeSketch.contentY + MAP_INSET,
       mapWidth: CONTENT_WIDTH - MAP_INSET * 2,
-      mapHeight: routeSketch.height - SECTION_TITLE_HEIGHT - SECTION_CONTENT_PADDING_TOP - MAP_INSET * 2
+      mapHeight:
+        routeSketch.height - SECTION_TITLE_HEIGHT - SECTION_CONTENT_PADDING_TOP - MAP_INSET * 2
     },
     footer: {
       panelY: footerPanelY,
@@ -505,9 +517,7 @@ async function renderRouteSketch(
   }
 
   const lngLatPoints = waypoints
-    .map((waypoint) =>
-      dcsPositionToLngLat(waypoint.position.x, waypoint.position.y, theatre.name)
-    )
+    .map((waypoint) => dcsPositionToLngLat(waypoint.position.x, waypoint.position.y, theatre.name))
     .filter((point): point is NonNullable<typeof point> => point != null)
 
   const viewport = createRouteMapViewport({
@@ -521,11 +531,7 @@ async function renderRouteSketch(
 
   const routeLine = waypoints
     .map((waypoint) => {
-      const lngLat = dcsPositionToLngLat(
-        waypoint.position.x,
-        waypoint.position.y,
-        theatre.name
-      )
+      const lngLat = dcsPositionToLngLat(waypoint.position.x, waypoint.position.y, theatre.name)
       if (!lngLat) return null
       const pixel = viewport.projectLngLat(lngLat.lng, lngLat.lat)
       return `${pixel.x.toFixed(1)},${pixel.y.toFixed(1)}`
@@ -536,11 +542,7 @@ async function renderRouteSketch(
   let routeWaypointNumber = 0
   const points = waypoints
     .map((waypoint) => {
-      const lngLat = dcsPositionToLngLat(
-        waypoint.position.x,
-        waypoint.position.y,
-        theatre.name
-      )
+      const lngLat = dcsPositionToLngLat(waypoint.position.x, waypoint.position.y, theatre.name)
       if (!lngLat) return ''
       const pixel = viewport.projectLngLat(lngLat.lng, lngLat.lat)
       const isTask = waypoint.type === 'Task'
@@ -622,8 +624,8 @@ function renderWaypointTable(rows: KneeboardWaypointRow[], layout: KneeboardLayo
         return acc
       },
       { cursor: x, lines: [] as string[] }
-    ).lines
-    .join('')
+    )
+    .lines.join('')
 
   const body = visibleRows
     .map((row, index) => {

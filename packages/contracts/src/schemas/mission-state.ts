@@ -106,12 +106,25 @@ export const missionState = z
       .array(
         z.object({
           name: z.coerce.string(),
+          coalition: z.union([z.literal('blue'), z.literal('red'), z.number()]).optional(),
           time: z.number().optional(),
           x: z.number(),
           y: z.number()
         })
       )
       .default([]),
+    rescuedPilots: z
+      .array(
+        z.object({
+          pilotId: z.string(),
+          pilotName: z.string().optional(),
+          groupName: z.string().optional(),
+          time: z.number().optional(),
+          x: z.number().optional(),
+          y: z.number().optional()
+        })
+      )
+      .optional(),
     lostUnits: z.array(missionStateTrackedUnit).default([]),
     landedUnits: z.array(missionStateTrackedUnit).default([]),
     cargoDeliveries: cargoDeliveries.default({}),

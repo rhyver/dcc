@@ -16,6 +16,7 @@ import { getClosestThreateningSam } from '@/logic/utils/threat-analyzer'
 import { calculateDistance } from '@/logic/utils/calculate-distance'
 import {
   getCoalitionAirdromes,
+  getCoalitionCasHomeBases,
   pickRandomAircraftType,
   selectCapPatrolAssignment,
   selectHomeBaseAndTarget,
@@ -144,9 +145,7 @@ function getAvailableAircraftTypes(draft: Campaign, coalition: Coalition, task: 
 
   return [...coalitionAircraftTypes].filter((aircraftType) =>
     Object.values(aircrafts).some(
-      (aircraft) =>
-        aircraft.name === aircraftType &&
-        aircraft.availableTasks.includes(task)
+      (aircraft) => aircraft.name === aircraftType && aircraft.availableTasks.includes(task)
     )
   )
 }
@@ -171,9 +170,7 @@ function getTaskAircraftCount(task: FlightTask) {
     return config.packages['Strategic Strike'].maxAircraftsPerGroup
   }
   const packageConfig = config.packages[task as keyof typeof config.packages]
-  return packageConfig && 'aircraftsPerGroup' in packageConfig
-    ? packageConfig.aircraftsPerGroup
-    : 1
+  return packageConfig && 'aircraftsPerGroup' in packageConfig ? packageConfig.aircraftsPerGroup : 1
 }
 
 function getPlanAircraftCount(plan: AtoPackagePlan) {
@@ -708,7 +705,12 @@ function makeCasPlans(
   }
 
   const existingTargets = collectExistingPackageTargetIds(draft, coalition)
-  const allHomeBases = getCoalitionAirdromes(draft, context.theatre, coalition)
+  const aircraftType = pickAircraft(draft, coalition, 'CAS')
+  if (!aircraftType) {
+    pushRejection(rejected, 'cas', 'no aircraft')
+    return []
+  }
+  const allHomeBases = getCoalitionCasHomeBases(draft, context.theatre, coalition, aircraftType)
   const homeBases = getSupportedHomeBases(draft, coalition, allHomeBases, 'CAS')
   if (allHomeBases.length > 0 && homeBases.length === 0) {
     pushRejection(rejected, 'cas', 'supply blocked')
@@ -753,12 +755,6 @@ function makeCasPlans(
     }
     if (isAirbaseSupplyBlocked(draft, coalition, assignment.homeBase.name)) {
       pushRejection(rejected, 'cas', 'supply blocked', assignment.homeBase.name)
-      return null
-    }
-
-    const aircraftType = pickAircraft(draft, coalition, 'CAS')
-    if (!aircraftType) {
-      pushRejection(rejected, 'cas', 'no aircraft')
       return null
     }
 

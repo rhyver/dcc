@@ -16,6 +16,7 @@ import { getObjectivePosition } from '@/logic/utils/get-objective-position'
 import { calculateDistance } from '@/logic/utils/calculate-distance'
 import {
   getCoalitionAirdromes,
+  getCoalitionCasHomeBases,
   pickRandomAircraftType,
   resolveSpawnContext,
   selectCapPatrolAssignment,
@@ -316,6 +317,7 @@ function createManualSpawnPlan(
   if (task === 'CAS') {
     const aircraftType = pickRandomAircraftType(draft.coalitions[coalition].aircraftTypes.CAS)
     if (!aircraftType) return null
+    const casHomeBases = getCoalitionCasHomeBases(draft, theatre, coalition, aircraftType)
 
     const targetedGroundGroupIds = new Set(
       flightGroups
@@ -347,7 +349,7 @@ function createManualSpawnPlan(
       .filter((target): target is NonNullable<typeof target> => target != null)
 
     const assignment = selectHomeBaseAndTarget({
-      homeBases,
+      homeBases: casHomeBases,
       targets,
       maxDistance: config.packages.CAS.maxDistance
     })

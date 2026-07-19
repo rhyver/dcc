@@ -9,6 +9,7 @@ import {
   type AtoPlannerPolicy
 } from './ato-planner'
 import { resolveSpawnContext } from './common'
+import { spawnCsar } from './csar'
 
 export function spawnPackages(
   draft: z.infer<typeof schemas.campaign.campaign>,
@@ -17,6 +18,7 @@ export function spawnPackages(
 ) {
   const context = resolveSpawnContext(draft, coalition)
   if (!context) return
+  spawnCsar(draft, coalition)
   const tempo = draft.operationProfile?.tempo ?? 'standard'
   const tempoPolicy: Partial<AtoPlannerPolicy> =
     tempo === 'cautious'

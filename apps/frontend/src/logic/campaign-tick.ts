@@ -11,6 +11,7 @@ import { updateGroundGroups } from './systems/update-ground-groups'
 import { updatePackages } from './systems/update-packages'
 import { updateResources } from './systems/update-resources'
 import { updateSupply } from './systems/update-supply'
+import { updateDownedPilots } from './systems/downed-pilots'
 
 type Campaign = z.infer<typeof schemas.campaign.campaign>
 type Coalition = z.infer<typeof schemas.coalition>
@@ -32,6 +33,7 @@ export function applyFastTick(draft: Campaign, delta: number) {
 
   debugLog('fast tick', draft.time)
 
+  forEachActiveCoalition((coalition) => updateDownedPilots(draft, coalition))
   forEachActiveCoalition((coalition) => updateFlightGroups(draft, coalition))
   forEachActiveCoalition((coalition) => updatePackages(draft, coalition))
   forEachActiveCoalition((coalition) => removeDestroyedStructures(draft, coalition))

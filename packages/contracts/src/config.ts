@@ -54,6 +54,16 @@ export const config = {
       engagementRange: 80_000, // Radar + missile range for A2A engagement
       patrolDuration: 60 * 60 * 1000 // 1 hour patrol time
     },
+    CSAR: {
+      maxActive: {
+        player: 2,
+        opponent: 2
+      },
+      maxDistance: 30_000,
+      aircraftsPerGroup: 1,
+      pilotLifetimeMs: 60 * 60 * 1000,
+      pickupRadius: 150
+    },
     Transport: {
       maxActive: {
         player: 3,

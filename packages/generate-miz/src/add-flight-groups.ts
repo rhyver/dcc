@@ -94,6 +94,9 @@ function resolveTargetPosition(
   if (!flightGroup.target) return undefined
 
   for (const coalition of Object.values(campaign.coalitions)) {
+    const downedPilot = coalition.downedPilots?.find((pilot) => pilot.id === flightGroup.target?.id)
+    if (downedPilot) return downedPilot.position
+
     const groundGroup = coalition.groundGroups.find((group) => group.id === flightGroup.target?.id)
     if (groundGroup) return groundGroup.position
 
@@ -115,7 +118,8 @@ function resolveTargetPosition(
 function resolveNavigationFeatureFlags(campaign: Campaign): NavigationFeatureFlags {
   const params = campaign.campaignParams
   const legacyNavigationAid = params?.navigationAid ?? 'targetVector'
-  const legacyVectorsEnabled = legacyNavigationAid === 'targetVector' || legacyNavigationAid === 'landingAirport'
+  const legacyVectorsEnabled =
+    legacyNavigationAid === 'targetVector' || legacyNavigationAid === 'landingAirport'
 
   return {
     vectors:
@@ -218,6 +222,13 @@ export type CasFlightConfig = {
   laserCode: number
 }
 
+export type CsarMissionConfig = {
+  pilotId: string
+  pilotName: string
+  position: { x: number; y: number }
+  pickupRadius: number
+}
+
 export type MissionFlightConfig =
   | CasFlightConfig
   | {
@@ -227,6 +238,7 @@ export type MissionFlightConfig =
       unitNames: string[]
       isHelicopter?: boolean
       navigation?: MissionNavigationConfig
+      csar?: CsarMissionConfig
     }
 
 export type MissionNavigationConfig = {
@@ -1009,6 +1021,7 @@ export function addFlightGroups(
 
       const isHelicopter = aircraftDef.isHelicopter ?? false
       const taskName = fg.task
+      const dcsTaskName = fg.task === 'CSAR' ? 'Transport' : fg.task
 
       // Find loadout
       let selectedLoadout = aircraftDef.loadouts.find((l) => l.task === taskName)
@@ -1298,8 +1311,13 @@ export function addFlightGroups(
         if (wp.type === 'TakeOff') {
           // If already in flight, use Turning Point instead of a ground start
           if (!isInFlight) {
-            action = hotStart ? 'From Parking Area Hot' : 'From Parking Area'
-            type = hotStart ? 'TakeOffParkingHot' : 'TakeOffParking'
+            if (isHelicopter && !airdrome) {
+              action = hotStart ? 'From Ground Area Hot' : 'From Ground Area'
+              type = hotStart ? 'TakeOffGroundHot' : 'TakeOffGround'
+            } else {
+              action = hotStart ? 'From Parking Area Hot' : 'From Parking Area'
+              type = hotStart ? 'TakeOffParkingHot' : 'TakeOffParking'
+            }
           }
         } else if (wp.type === 'Landing') {
           action = 'Landing'
@@ -1471,7 +1489,7 @@ export function addFlightGroups(
         groupId: groupId,
         name: groupName, // Group Name
         start_time: 0,
-        task: fg.task,
+        task: dcsTaskName,
         uncontrollable: false,
         uncontrolled: false,
         tasks: [],
@@ -1499,6 +1517,7 @@ export function addFlightGroups(
 
       if (fg.aircrafts.some((ac) => ac.client)) {
         const targetPosition = resolveTargetPosition(campaign, theatre, fg)
+        const downedPilot = value.downedPilots?.find((pilot) => pilot.id === fg.target?.id)
         const landingAirdrome = theatre.airdromeDetails[fg.homeBase]
         let navigation: MissionNavigationConfig | undefined
 
@@ -1565,6 +1584,16 @@ export function addFlightGroups(
           task: fg.task,
           unitNames: units.map((unit) => unit.name),
           ...(isHelicopter ? { isHelicopter } : {}),
+          ...(fg.task === 'CSAR' && downedPilot
+            ? {
+                csar: {
+                  pilotId: downedPilot.id,
+                  pilotName: downedPilot.name,
+                  position: downedPilot.position,
+                  pickupRadius: config.packages.CSAR.pickupRadius
+                }
+              }
+            : {}),
           ...(navigation ? { navigation } : {})
         })
       }

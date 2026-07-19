@@ -17,14 +17,6 @@ import { aircrafts as aircraftDefinitions, factions, scenarios } from '@dcc/data
 
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle
-} from '@/components/ui/dialog'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { coreClient } from '@/lib/orpc'
 import { useNavigate } from 'react-router'
 
@@ -114,19 +106,15 @@ export function ScenarioSelect() {
   const firstAvailableScenario = availableScenarios[0] ?? scenarios[0]
   const [selectedScenarioId, setSelectedScenarioId] = useState(firstAvailableScenario?.id ?? '')
   const [selectedEra, setSelectedEra] = useState<CampaignEra>('Modern')
-  const [aircraftDialogEra, setAircraftDialogEra] = useState<CampaignEra | null>(null)
   const [step, setStep] = useState<ScenarioStep>('scenario')
   const [isCreatingCampaign, setIsCreatingCampaign] = useState(false)
   const selectedScenario =
     scenarios.find((scenario) => scenario.id === selectedScenarioId) ?? firstAvailableScenario
   const selectedEraOption = eraOptions.find((era) => era.id === selectedEra) ?? eraOptions[0]!
-  const aircraftDialogEraOption = eraOptions.find((era) => era.id === aircraftDialogEra)
-  const aircraftDialogFaction = factions.find(
-    (faction) => faction.id === aircraftDialogEraOption?.playerFactionId
+  const selectedEraFaction = factions.find(
+    (faction) => faction.id === selectedEraOption.playerFactionId
   )
-  const factionAircraft = aircraftDialogEraOption
-    ? getFactionAircraft(aircraftDialogEraOption.playerFactionId)
-    : []
+  const selectedEraAircraft = getFactionAircraft(selectedEraOption.playerFactionId)
 
   const createCampaign = async () => {
     if (selectedScenario == null || !selectedScenario.available || isCreatingCampaign) {
@@ -301,8 +289,8 @@ export function ScenarioSelect() {
             </aside>
           </div>
         ) : (
-          <div className="grid min-h-0 flex-1 gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-            <div className="grid min-h-0 content-start gap-2.5 overflow-auto pr-2">
+          <div className="grid min-h-0 flex-1 gap-5 lg:grid-cols-[minmax(0,1fr)_400px]">
+            <div className="synthwave-scrollbar grid min-h-0 content-start gap-2.5 overflow-auto pr-2 [scrollbar-gutter:stable]">
               {eraOptions.map((era) => {
                 const isSelected = era.id === selectedEra
 
@@ -348,158 +336,130 @@ export function ScenarioSelect() {
                         {era.description}
                       </p>
                     </button>
-                    <div className="flex items-center justify-between gap-3 border-t border-synthwave-purple/25 px-[clamp(0.875rem,1.7vh,1.25rem)] py-2.5">
+                    <div className="flex items-center gap-2 border-t border-synthwave-purple/25 px-[clamp(0.875rem,1.7vh,1.25rem)] py-2.5">
+                      <Plane className="h-3.5 w-3.5 text-synthwave-cyan/60" />
                       <span className="text-[0.65rem] uppercase tracking-[0.18em] text-synthwave-light/40">
                         {factions.find((faction) => faction.id === era.playerFactionId)?.name}
                       </span>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        aria-label={`View ${era.label} aircraft`}
-                        className="h-8 border-synthwave-cyan/45 bg-synthwave-dark/70 px-3 text-xs text-synthwave-cyan hover:border-synthwave-pink hover:bg-synthwave-pink/10 hover:text-white"
-                        onClick={() => {
-                          setSelectedEra(era.id)
-                          setAircraftDialogEra(era.id)
-                        }}
-                      >
-                        <Plane className="h-3.5 w-3.5" />
-                        VIEW AIRCRAFT
-                      </Button>
                     </div>
                   </div>
                 )
               })}
             </div>
 
-            <aside className="flex min-h-0 flex-col rounded-md border border-synthwave-pink/35 bg-black/30 p-5 shadow-[0_0_44px_rgba(255,0,170,0.14)] backdrop-blur">
+            <aside className="flex min-h-0 flex-col overflow-hidden rounded-md border border-synthwave-pink/35 bg-black/30 shadow-[0_0_44px_rgba(255,0,170,0.14)] backdrop-blur">
               {selectedScenario ? (
                 <>
-                  <div className="retro-font text-2xl text-white">{selectedScenario.name}</div>
-                  <div className="mt-2 flex flex-wrap gap-2 text-xs text-synthwave-cyan/80">
-                    <span>{selectedScenario.theatreName}</span>
-                    <span>{selectedEraOption.label}</span>
-                  </div>
-                  <div className="mt-5 border-y border-synthwave-purple/30 py-4">
-                    <div className="text-xs text-synthwave-light/55">SELECTED ERA</div>
-                    <div className="mt-2 retro-font text-xl text-synthwave-pink">
-                      {selectedEraOption.label}
+                  <div className="border-b border-synthwave-purple/30 p-5">
+                    <div className="mb-2 flex items-center gap-2 text-[0.65rem] uppercase tracking-[0.2em] text-synthwave-pink">
+                      <Plane className="h-3.5 w-3.5" />
+                      Aircraft roster
                     </div>
-                    <p className="mt-3 text-sm leading-6 text-synthwave-light/72">
-                      {selectedEraOption.description}
-                    </p>
-                  </div>
-                  <div className="mt-5 space-y-3 text-sm">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-synthwave-light/55">PLAYER</span>
-                      <span className="truncate text-right text-white">
-                        {selectedScenario.start.player.airdromeNames.join(', ')}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-synthwave-light/55">OBJECTIVE</span>
-                      <span className="truncate text-right text-synthwave-pink">
-                        {selectedScenario.goal?.objectiveIds.join(', ') ?? 'Campaign advance'}
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="retro-font text-xl text-white">
+                          {selectedEraFaction?.name ?? 'Player faction'}
+                        </div>
+                        <div className="mt-1 text-xs text-synthwave-cyan/75">
+                          {selectedEraOption.label}
+                          {selectedEraFaction?.year ? ` // ${selectedEraFaction.year}` : ''}
+                        </div>
+                      </div>
+                      <span className="rounded border border-synthwave-cyan/35 px-2 py-1 text-[0.65rem] text-synthwave-cyan">
+                        {selectedEraAircraft.length} TYPES
                       </span>
                     </div>
                   </div>
-                  <Button
-                    type="button"
-                    className="mt-auto h-11 bg-synthwave-pink text-white hover:bg-synthwave-pink/85"
-                    onClick={() => void createCampaign()}
-                    disabled={isCreatingCampaign || !selectedScenario.available}
-                  >
-                    <BookOpen className="h-4 w-4" />
-                    {isCreatingCampaign ? 'CREATING' : 'CREATE CAMPAIGN'}
-                  </Button>
+
+                  <div className="synthwave-scrollbar min-h-0 flex-1 overflow-y-auto p-3 [scrollbar-gutter:stable]">
+                    <motion.div
+                      key={selectedEra}
+                      className="grid gap-2"
+                      initial={{ opacity: 0, x: 8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      {selectedEraAircraft.map((aircraft) => (
+                        <div
+                          key={aircraft.name}
+                          className="relative overflow-hidden rounded border border-synthwave-purple/30 bg-synthwave-dark/55 p-3"
+                        >
+                          <div className="absolute inset-y-0 left-0 w-0.5 bg-synthwave-cyan/65" />
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="truncate text-sm font-medium text-white">
+                                {aircraft.displayName}
+                              </div>
+                              {aircraft.displayName !== aircraft.name ? (
+                                <div className="mt-0.5 truncate font-mono text-[0.6rem] text-synthwave-light/35">
+                                  {aircraft.name}
+                                </div>
+                              ) : null}
+                            </div>
+                            <span
+                              className={cn(
+                                'inline-flex shrink-0 items-center gap-1 rounded border px-1.5 py-0.5 text-[0.55rem] uppercase tracking-wider',
+                                aircraft.controllable
+                                  ? 'border-synthwave-pink/50 text-synthwave-pink'
+                                  : 'border-synthwave-cyan/30 text-synthwave-cyan/65'
+                              )}
+                            >
+                              {aircraft.controllable ? (
+                                <Gamepad2 className="h-2.5 w-2.5" />
+                              ) : (
+                                <Bot className="h-2.5 w-2.5" />
+                              )}
+                              {aircraft.controllable ? 'Player' : 'AI'}
+                            </span>
+                          </div>
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            <span className="rounded bg-synthwave-purple/18 px-1.5 py-0.5 text-[0.58rem] text-synthwave-light/50">
+                              {aircraft.isHelicopter ? 'HELICOPTER' : 'FIXED WING'}
+                            </span>
+                            {aircraft.roles.slice(0, 2).map((role) => (
+                              <span
+                                key={role}
+                                className="rounded bg-synthwave-purple/18 px-1.5 py-0.5 text-[0.58rem] text-synthwave-light/50"
+                              >
+                                {role.toUpperCase()}
+                              </span>
+                            ))}
+                            {aircraft.roles.length > 2 ? (
+                              <span className="rounded bg-synthwave-purple/18 px-1.5 py-0.5 text-[0.58rem] text-synthwave-cyan/60">
+                                +{aircraft.roles.length - 2}
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+                      ))}
+                    </motion.div>
+                  </div>
+
+                  <div className="border-t border-synthwave-purple/30 p-4">
+                    <div className="mb-3 flex items-center justify-between gap-3 text-xs">
+                      <span className="truncate text-synthwave-light/50">
+                        {selectedScenario.name} // {selectedScenario.theatreName}
+                      </span>
+                      <span className="shrink-0 text-synthwave-pink">
+                        {selectedEraOption.label}
+                      </span>
+                    </div>
+                    <Button
+                      type="button"
+                      className="h-11 w-full bg-synthwave-pink text-white hover:bg-synthwave-pink/85"
+                      onClick={() => void createCampaign()}
+                      disabled={isCreatingCampaign || !selectedScenario.available}
+                    >
+                      <BookOpen className="h-4 w-4" />
+                      {isCreatingCampaign ? 'CREATING' : 'CREATE CAMPAIGN'}
+                    </Button>
+                  </div>
                 </>
               ) : null}
             </aside>
           </div>
         )}
       </div>
-
-      <Dialog
-        open={aircraftDialogEra != null}
-        onOpenChange={(open) => {
-          if (!open) setAircraftDialogEra(null)
-        }}
-      >
-        <DialogContent className="max-h-[min(44rem,88vh)] overflow-hidden border-synthwave-cyan/45 bg-synthwave-dark/95 p-0 text-synthwave-light shadow-[0_0_70px_rgba(0,229,255,0.18)] sm:max-w-3xl">
-          <DialogHeader className="relative border-b border-synthwave-purple/35 bg-black/20 px-6 py-5 pr-14">
-            <div className="mb-1 flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-synthwave-pink">
-              <Plane className="h-4 w-4" />
-              Faction roster
-            </div>
-            <DialogTitle className="retro-font text-2xl tracking-wide text-white">
-              {aircraftDialogFaction?.name ?? 'Player'} // {aircraftDialogEraOption?.label} Aircraft
-            </DialogTitle>
-            <DialogDescription className="text-synthwave-light/60">
-              {factionAircraft.length} aircraft available to the player faction
-              {aircraftDialogFaction?.year ? ` in ${aircraftDialogFaction.year}` : ''}.
-            </DialogDescription>
-          </DialogHeader>
-
-          <ScrollArea className="max-h-[min(32rem,64vh)]">
-            <div className="grid gap-3 p-6 sm:grid-cols-2">
-              {factionAircraft.map((aircraft, index) => (
-                <motion.div
-                  key={aircraft.name}
-                  className="relative overflow-hidden rounded border border-synthwave-purple/35 bg-black/25 p-4"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.2, delay: Math.min(index * 0.025, 0.2) }}
-                >
-                  <div className="absolute inset-y-0 left-0 w-0.5 bg-synthwave-cyan/70" />
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="truncate font-medium text-white">{aircraft.displayName}</div>
-                      {aircraft.displayName !== aircraft.name ? (
-                        <div className="mt-0.5 truncate font-mono text-[0.65rem] text-synthwave-light/35">
-                          {aircraft.name}
-                        </div>
-                      ) : null}
-                    </div>
-                    <span
-                      className={cn(
-                        'inline-flex shrink-0 items-center gap-1 rounded border px-2 py-1 text-[0.6rem] uppercase tracking-wider',
-                        aircraft.controllable
-                          ? 'border-synthwave-pink/50 text-synthwave-pink'
-                          : 'border-synthwave-cyan/35 text-synthwave-cyan/70'
-                      )}
-                    >
-                      {aircraft.controllable ? (
-                        <Gamepad2 className="h-3 w-3" />
-                      ) : (
-                        <Bot className="h-3 w-3" />
-                      )}
-                      {aircraft.controllable ? 'Player' : 'AI'}
-                    </span>
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    <span className="rounded bg-synthwave-purple/18 px-2 py-1 text-[0.65rem] text-synthwave-light/55">
-                      {aircraft.isHelicopter ? 'HELICOPTER' : 'FIXED WING'}
-                    </span>
-                    {aircraft.roles.slice(0, 3).map((role) => (
-                      <span
-                        key={role}
-                        className="rounded bg-synthwave-purple/18 px-2 py-1 text-[0.65rem] text-synthwave-light/55"
-                      >
-                        {role.toUpperCase()}
-                      </span>
-                    ))}
-                    {aircraft.roles.length > 3 ? (
-                      <span className="rounded bg-synthwave-purple/18 px-2 py-1 text-[0.65rem] text-synthwave-cyan/65">
-                        +{aircraft.roles.length - 3} ROLES
-                      </span>
-                    ) : null}
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </ScrollArea>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

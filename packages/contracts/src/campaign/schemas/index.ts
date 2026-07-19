@@ -1,9 +1,15 @@
-import { campaign as campaignSchema, campaignSamGroup, campaignSummary } from './campaign'
+import {
+  campaign as campaignSchema,
+  campaignDownedPilot,
+  campaignSamGroup,
+  campaignSummary
+} from './campaign'
 import { entityTypeSchema } from './entity'
 import { settings, settingsOutput } from './settings'
 
 export const campaign = {
   campaign: campaignSchema,
+  campaignDownedPilot,
   campaignSamGroup,
   campaignSummary,
   entityType: entityTypeSchema,

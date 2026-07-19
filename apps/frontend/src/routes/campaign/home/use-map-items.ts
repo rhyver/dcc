@@ -301,6 +301,25 @@ export function useMapItems(options: { showGoalMarkers?: boolean } = {}): {
       }
     }
 
+    const addDownedPilotMarkers = (
+      downedPilots: Array<{ id: string; name: string; position: { x: number; y: number } }>,
+      coalition: z.infer<typeof schemas.coalition>
+    ) => {
+      for (const pilot of downedPilots) {
+        mapItems.push({
+          id: pilot.id,
+          type: 'Downed Pilot',
+          name: pilot.name,
+          coalition,
+          position: LOtoLL({
+            theatre: theatre.name as 'Caucasus',
+            x: pilot.position.x,
+            z: pilot.position.y
+          })
+        })
+      }
+    }
+
     //_addObjectiveMarkers(playerCoalition.objectiveIds ?? [], 'player')
     //_addObjectiveMarkers(opponentCoalition.objectiveIds ?? [], 'opponent')
     const goal = campaignGoal ?? scenarioGoal
@@ -323,6 +342,8 @@ export function useMapItems(options: { showGoalMarkers?: boolean } = {}): {
     addSamMarkers(opponentCoalition.samGroups ?? [], 'opponent')
     addFlightGroupMarkers(playerCoalition.flightGroups ?? [], 'player')
     addFlightGroupMarkers(opponentCoalition.flightGroups ?? [], 'opponent')
+    addDownedPilotMarkers(playerCoalition.downedPilots ?? [], 'player')
+    addDownedPilotMarkers(opponentCoalition.downedPilots ?? [], 'opponent')
 
     let frontline: GeoJSON.FeatureCollection<GeoJSON.LineString> | null = null
 

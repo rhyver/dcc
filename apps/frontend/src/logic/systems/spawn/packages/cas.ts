@@ -7,7 +7,7 @@ import {
 import { FlightGroupFactory } from '../../../entities/flight-group-factory'
 import { getObjectivePosition } from '@/logic/utils/get-objective-position'
 import {
-  getCoalitionAirdromes,
+  getCoalitionCasHomeBases,
   pickRandomAircraftType,
   resolveSpawnContext,
   selectHomeBaseAndTarget
@@ -69,7 +69,11 @@ export function spawnCas(
     return
   }
 
-  const homeBases = getCoalitionAirdromes(draft, theatre, coalition)
+  const selectedAircraftType = pickRandomAircraftType(availableAircraftTypes)
+  if (!selectedAircraftType) {
+    return
+  }
+  const homeBases = getCoalitionCasHomeBases(draft, theatre, coalition, selectedAircraftType)
   const availableTargets: Array<{
     target: {
       id: string
@@ -107,11 +111,6 @@ export function spawnCas(
 
   const spawnModifier = getAirbaseSpawnModifier(draft, coalition, selectedAssignment.homeBase.name)
   if (Math.random() > spawnModifier) {
-    return
-  }
-
-  const selectedAircraftType = pickRandomAircraftType(availableAircraftTypes)
-  if (!selectedAircraftType) {
     return
   }
 

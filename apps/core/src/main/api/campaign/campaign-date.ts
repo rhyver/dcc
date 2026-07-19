@@ -21,11 +21,11 @@ export const eraDateRanges: Record<CampaignEra, { start: Date; end: Date }> = {
     end: new Date('1964-12-31T00:00:00Z')
   },
   'Late CW': {
-    start: new Date('1965-01-01T00:00:00Z'),
-    end: new Date('1989-12-31T00:00:00Z')
+    start: new Date('1979-01-01T00:00:00Z'),
+    end: new Date('1991-12-31T00:00:00Z')
   },
   Modern: {
-    start: new Date('1990-01-01T00:00:00Z'),
+    start: new Date('1992-01-01T00:00:00Z'),
     end: new Date('2026-12-31T00:00:00Z')
   }
 }

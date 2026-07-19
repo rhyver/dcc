@@ -5,6 +5,12 @@ import { eraDateRanges, randomDateForEra, type CampaignEra } from './campaign-da
 const eras: CampaignEra[] = ['WW2', 'Korea', 'Vietnam', 'Late CW', 'Modern']
 
 describe('randomDateForEra', () => {
+  test('uses historically accurate, non-overlapping Late Cold War and Modern boundaries', () => {
+    expect(eraDateRanges['Late CW'].start.toISOString()).toBe('1979-01-01T00:00:00.000Z')
+    expect(eraDateRanges['Late CW'].end.toISOString()).toBe('1991-12-31T00:00:00.000Z')
+    expect(eraDateRanges.Modern.start.toISOString()).toBe('1992-01-01T00:00:00.000Z')
+  })
+
   test.each(eras)('returns the first day in the %s range when random is 0', (era) => {
     const date = randomDateForEra(era, () => 0)
 

@@ -34,7 +34,7 @@ export const eraOptions: Array<{
     id: 'Late CW',
     label: 'Late Cold War',
     callsign: 'MISSILE AGE',
-    description: '1970s-era aircraft and weapons with early BVR tactics and heavier SAM coverage.'
+    description: '1979–1991 aircraft and weapons with early BVR tactics and heavier SAM coverage.'
   },
   {
     id: 'Modern',

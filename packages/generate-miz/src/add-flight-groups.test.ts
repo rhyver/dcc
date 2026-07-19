@@ -631,6 +631,36 @@ describe('addFlightGroups mission script config', () => {
     expect(units.map((unit) => unit.payload?.ammo_type)).toEqual([2, 2])
   })
 
+  test('equips Harrier DEAD flights with anti-radiation and strike weapons', () => {
+    const startTime = new Date('2026-01-01T00:00:00Z')
+    const mission = createMission()
+    const campaign = createCampaign(startTime)
+    const group = createTaskFlightGroup('blue-harrier-dead', 'Enfield-1', startTime, 'DEAD')
+    group.aircrafts.forEach((aircraft) => {
+      aircraft.aircraftName = 'AV8BNA'
+    })
+    campaign.coalitions.player.flightGroups = [group]
+    campaign.coalitions.opponent.flightGroups = []
+
+    const result = addFlightGroups(mission, campaign, theatre)
+
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) throw result.error
+
+    const units = mission.coalition.blue.country?.[0]?.plane?.group?.[0]?.units ?? []
+    expect(units).toHaveLength(2)
+    expect(units[0]?.payload?.pylons).toEqual({
+      1: { CLSID: '{AGM_122_SIDEARM}', num: 1 },
+      2: { CLSID: '{LAU_7_AGM_122_SIDEARM}', num: 2 },
+      3: { CLSID: 'LAU_117_AGM_65F', num: 3 },
+      4: { CLSID: '{GAU_12_Equalizer}', num: 4 },
+      5: { CLSID: '{ALQ_164_RF_Jammer}', num: 5 },
+      6: { CLSID: 'LAU_117_AGM_65F', num: 6 },
+      7: { CLSID: '{LAU_7_AGM_122_SIDEARM}', num: 7 },
+      8: { CLSID: '{AGM_122_SIDEARM}', num: 8 }
+    })
+  })
+
   test('assigns a unique radio frequency to each generated flight group', () => {
     const startTime = new Date('2026-01-01T00:00:00Z')
     const mission = createMission()

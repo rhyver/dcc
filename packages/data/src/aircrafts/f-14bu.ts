@@ -8,7 +8,7 @@ const aircraftDefinition: z.infer<typeof schemas.dcs.aircraft> = {
   max_fuel: 7348,
   max_height: 17000,
   max_speed: 2520,
-  name: 'F-14B',
+  name: 'F-14BU',
   availableTasks: ['CAP', 'Escort', 'Ground Attack', 'Intercept', 'Pinpoint Strike', 'CAS'],
   controllable: true,
   isHelicopter: false,

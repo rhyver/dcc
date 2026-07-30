@@ -10,9 +10,9 @@ export const UsNavy1987: z.infer<typeof schemas.faction> = {
   aircraftTypes: {
     DEAD: ['FA-18C_hornet'],
     AWACS: ['E-2C'],
-    CAP: ['F-14B', 'FA-18C_hornet'],
-    Escort: ['F-14B', 'FA-18C_hornet'],
-    'Pinpoint Strike': ['AV8BNA', 'FA-18C_hornet'],
+    CAP: ['F-14B', 'F-14BU', 'FA-18C_hornet'],
+    Escort: ['F-14B', 'F-14BU', 'FA-18C_hornet'],
+    'Pinpoint Strike': ['AV8BNA', 'F-14BU', 'FA-18C_hornet'],
     'Strategic Strike': [],
     CAS: ['AV8BNA'],
     CSAR: ['UH-1H'],
@@ -26,7 +26,7 @@ export const UsNavy1987: z.infer<typeof schemas.faction> = {
     Refueling: [],
     RescueHelo: ['UH-1H'],
     AFAC: [],
-    Intercept: ['F-14B', 'FA-18C_hornet']
+    Intercept: ['F-14B', 'F-14BU', 'FA-18C_hornet']
   },
   color: 'blue',
   templateName: 'USA - Modern'

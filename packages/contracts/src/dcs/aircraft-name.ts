@@ -92,6 +92,7 @@ export const aircraftName = z.enum([
   'F-100D',
   'F-86F Sabre',
   'F-14B',
+  'F-14BU',
   'F-14A-135-GR',
   'FA-18C_hornet',
   // "Hawk",

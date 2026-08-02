@@ -28,6 +28,9 @@ const missionStateTrackedUnit = z
     killerGroupName: z.string().optional(),
     weaponName: z.string().optional(),
     killCause: z.string().optional(),
+    crashed: z.boolean().optional(),
+    pilotEjected: z.boolean().optional(),
+    pilotSurvivedCrash: z.boolean().optional(),
     time: z.number().optional(),
     x: z.number(),
     y: z.number()

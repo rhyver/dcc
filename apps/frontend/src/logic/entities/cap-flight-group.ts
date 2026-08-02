@@ -4,6 +4,7 @@ import { FlightGroup } from './flight-group'
 import { calculateDistance } from '../utils/calculate-distance'
 import { buildCapMissionWaypoints, spawnPlannedFlightGroup } from './flight-group-spawn'
 import { logCombatAction } from '../simulation-log'
+import { maybeCreateDownedPilotFromAircraftLoss } from '../systems/downed-pilots'
 import { debugLog } from '@/lib/debug'
 
 export class CapFlightGroup extends FlightGroup {
@@ -84,6 +85,10 @@ export class CapFlightGroup extends FlightGroup {
               `CAP aircraft ${capAircraft.unitName} shot down enemy ${shotDownAircraft?.unitName}`
             )
             if (shotDownAircraft) {
+              maybeCreateDownedPilotFromAircraftLoss(draft, enemyCoalition, {
+                name: shotDownAircraft.unitName,
+                position: enemyFg.position
+              })
               logCombatAction(
                 draft,
                 coalition,
@@ -107,6 +112,10 @@ export class CapFlightGroup extends FlightGroup {
               `CAP aircraft ${lostAircraft?.unitName} shot down by enemy ${enemyAircraft.unitName}`
             )
             if (lostAircraft) {
+              maybeCreateDownedPilotFromAircraftLoss(draft, coalition, {
+                name: lostAircraft.unitName,
+                position: this._data.position
+              })
               logCombatAction(
                 draft,
                 coalition,

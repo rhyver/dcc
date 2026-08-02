@@ -3,7 +3,11 @@ import { describe, expect, test } from 'vitest'
 import * as z from 'zod'
 
 import { spawnCsar } from './spawn/packages/csar'
-import { syncDownedPilotsFromMissionState, updateDownedPilots } from './downed-pilots'
+import {
+  maybeCreateDownedPilotFromAircraftLoss,
+  syncDownedPilotsFromMissionState,
+  updateDownedPilots
+} from './downed-pilots'
 
 type Campaign = z.infer<typeof schemas.campaign.campaign>
 type CoalitionData = Campaign['coalitions']['player']
@@ -101,6 +105,76 @@ describe('downed pilot lifecycle', () => {
 
     expect(campaign.coalitions.player.downedPilots).toEqual([])
     expect(campaign.logs.at(-1)?.message).toBe('Springfield-1 rescued Pilot 1')
+  })
+
+  test('records an aircraft crash survivor reported by the flown mission', () => {
+    const campaign = createCampaign()
+    campaign.coalitions.player.structures.push({
+      id: 'farp-1',
+      type: 'Farp',
+      objectiveId: 'Maharadze',
+      position: bataria,
+      name: 'Forward FARP',
+      resources: 0,
+      buildings: []
+    })
+
+    syncDownedPilotsFromMissionState(
+      campaign,
+      createMissionState({
+        lostUnits: [
+          {
+            name: 'Enfield-1-1',
+            type: 'F-16C_50',
+            coalition: 'blue',
+            categoryName: 'plane',
+            event: 'crash',
+            crashed: true,
+            pilotSurvivedCrash: true,
+            time: 12 * 3600 + 60,
+            ...bataria
+          }
+        ]
+      }),
+      campaignTime
+    )
+
+    expect(campaign.coalitions.player.downedPilots).toHaveLength(1)
+    expect(campaign.coalitions.player.downedPilots?.[0]).toMatchObject({
+      name: 'Enfield-1-1',
+      position: bataria
+    })
+  })
+
+  test('gives simulated aircraft losses a 25 percent survival chance', () => {
+    const campaign = createCampaign()
+    campaign.coalitions.player.structures.push({
+      id: 'farp-1',
+      type: 'Farp',
+      objectiveId: 'Maharadze',
+      position: bataria,
+      name: 'Forward FARP',
+      resources: 0,
+      buildings: []
+    })
+
+    expect(
+      maybeCreateDownedPilotFromAircraftLoss(
+        campaign,
+        'player',
+        { name: 'Enfield-1-1', position: bataria },
+        () => 0.249
+      )
+    ).toBe(true)
+    expect(
+      maybeCreateDownedPilotFromAircraftLoss(
+        campaign,
+        'player',
+        { name: 'Enfield-1-2', position: bataria },
+        () => 0.25
+      )
+    ).toBe(false)
+    expect(campaign.coalitions.player.downedPilots).toHaveLength(1)
   })
 
   test('spawns one-helicopter CSAR package and resolves it at pickup time', () => {

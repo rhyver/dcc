@@ -1,4 +1,4 @@
-import { schemas } from '@dcc/contracts'
+import { config, schemas } from '@dcc/contracts'
 import * as luaTable from '@dcc/lua-table'
 import AdmZip from 'adm-zip'
 import { err, ok, Result } from 'neverthrow'
@@ -70,6 +70,7 @@ type MissionTriggerRules = Record<number, MissionTriggerRule>
 type MissionScriptConfig = {
   missionId: string
   flightGroups: MissionFlightConfig[]
+  crashPilotSurvivalChance: number
   welcomeMessage?: MissionWelcomeMessage
   cullingManifest?: MissionCullingManifest
 }
@@ -702,6 +703,7 @@ export async function generateMizFromCampaign(
   const scriptConfig: MissionScriptConfig = {
     missionId: campaign.id,
     flightGroups: flightGroupsResult.value,
+    crashPilotSurvivalChance: config.packages.CSAR.pilotSurvivalChance,
     ...(welcomeMessage ? { welcomeMessage } : {}),
     ...(cullingPlan.enabled ? { cullingManifest: cullingPlan.manifest } : {})
   }

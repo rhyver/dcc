@@ -42,6 +42,23 @@ function createPilotId(coalition: Coalition, pilot: MissionState['ejectedPilots'
   ].join('-')
 }
 
+function createCrashPilotId(
+  coalition: Coalition,
+  name: string,
+  position: DownedPilot['position'],
+  lostAt: Date
+): string {
+  return [
+    'downed-pilot',
+    coalition,
+    'crash',
+    encodeURIComponent(name),
+    lostAt.getTime(),
+    Math.round(position.x),
+    Math.round(position.y)
+  ].join('-')
+}
+
 function isBehindEnemyLines(
   campaign: Campaign,
   coalition: Coalition,
@@ -87,6 +104,45 @@ function isWithinRescueRange(
   )
 }
 
+function addDownedPilotIfEligible(
+  draft: Campaign,
+  coalition: Coalition,
+  pilot: DownedPilot
+): boolean {
+  const allPilots = (['player', 'opponent'] as const).flatMap(
+    (side) => draft.coalitions[side].downedPilots ?? []
+  )
+  if (allPilots.some((candidate) => candidate.id === pilot.id)) return false
+  if (!isBehindEnemyLines(draft, coalition, pilot.position)) return false
+  if (!isWithinRescueRange(draft, coalition, pilot.position)) return false
+
+  const pilots = (draft.coalitions[coalition].downedPilots ??= [])
+  pilots.push(pilot)
+  logCampaignAction(draft, coalition, `${pilot.name} is down behind enemy lines`)
+  return true
+}
+
+export function maybeCreateDownedPilotFromAircraftLoss(
+  draft: Campaign,
+  coalition: Coalition,
+  loss: { name: string; position: DownedPilot['position']; lostAt?: Date },
+  random: () => number = Math.random
+): boolean {
+  const lostAt = loss.lostAt ?? draft.time
+  const pilot: DownedPilot = {
+    id: createCrashPilotId(coalition, loss.name, loss.position, lostAt),
+    name: loss.name,
+    position: { ...loss.position },
+    ejectedAt: new Date(lostAt)
+  }
+
+  if (!isBehindEnemyLines(draft, coalition, pilot.position)) return false
+  if (!isWithinRescueRange(draft, coalition, pilot.position)) return false
+  if (random() >= config.packages.CSAR.pilotSurvivalChance) return false
+
+  return addDownedPilotIfEligible(draft, coalition, pilot)
+}
+
 export function syncDownedPilotsFromMissionState(
   draft: Campaign,
   missionState: MissionState,
@@ -110,23 +166,46 @@ export function syncDownedPilotsFromMissionState(
     if (!coalition) continue
 
     const id = createPilotId(coalition, eventPilot)
-    const allPilots = (['player', 'opponent'] as const).flatMap(
-      (side) => draft.coalitions[side].downedPilots ?? []
-    )
-    if (allPilots.some((pilot) => pilot.id === id)) continue
-
     const pilot: DownedPilot = {
       id,
       name: eventPilot.name,
       position: { x: eventPilot.x, y: eventPilot.y },
       ejectedAt: eventDate(missionStartTime, eventPilot.time)
     }
-    if (!isBehindEnemyLines(draft, coalition, pilot.position)) continue
-    if (!isWithinRescueRange(draft, coalition, pilot.position)) continue
+    addDownedPilotIfEligible(draft, coalition, pilot)
+  }
 
-    const pilots = (draft.coalitions[coalition].downedPilots ??= [])
-    pilots.push(pilot)
-    logCampaignAction(draft, coalition, `${pilot.name} is down behind enemy lines`)
+  for (const lostUnit of missionState.lostUnits) {
+    const coalition = missionCoalitionToCampaignCoalition(lostUnit.coalition)
+    const isAircraft =
+      lostUnit.categoryName === 'plane' ||
+      lostUnit.categoryName === 'helicopter' ||
+      lostUnit.category === 0 ||
+      lostUnit.category === 1
+    const crashed =
+      lostUnit.crashed === true || lostUnit.event === 'crash' || lostUnit.lossType === 'crashed'
+
+    if (!coalition || !isAircraft || !crashed || lostUnit.pilotEjected === true) continue
+
+    const lostAt = eventDate(missionStartTime, lostUnit.time)
+    const pilot: DownedPilot = {
+      id: createCrashPilotId(coalition, lostUnit.name, { x: lostUnit.x, y: lostUnit.y }, lostAt),
+      name: lostUnit.name,
+      position: { x: lostUnit.x, y: lostUnit.y },
+      ejectedAt: lostAt
+    }
+
+    if (lostUnit.pilotSurvivedCrash === true) {
+      addDownedPilotIfEligible(draft, coalition, pilot)
+    } else if (
+      lostUnit.pilotSurvivedCrash == null &&
+      isBehindEnemyLines(draft, coalition, pilot.position) &&
+      isWithinRescueRange(draft, coalition, pilot.position) &&
+      Math.random() < config.packages.CSAR.pilotSurvivalChance
+    ) {
+      // Backward compatibility for mission files generated before crash survival was recorded.
+      addDownedPilotIfEligible(draft, coalition, pilot)
+    }
   }
 }
 

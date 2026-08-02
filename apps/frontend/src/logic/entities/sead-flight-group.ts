@@ -6,6 +6,7 @@ import { calculateDistance } from '../utils/calculate-distance'
 import { getObjectivePosition } from '../utils/get-objective-position'
 import { buildSeadMissionWaypoints, spawnPlannedFlightGroup } from './flight-group-spawn'
 import { logCombatAction } from '../simulation-log'
+import { maybeCreateDownedPilotFromAircraftLoss } from '../systems/downed-pilots'
 import { debugLog } from '@/lib/debug'
 
 export class SeadFlightGroup extends FlightGroup {
@@ -132,6 +133,10 @@ export class SeadFlightGroup extends FlightGroup {
           const removedAircraft = this._data.aircrafts.pop()
           debugLog(`SEAD aircraft ${removedAircraft?.unitName} shot down by ${samGroup.type}`)
           if (removedAircraft) {
+            maybeCreateDownedPilotFromAircraftLoss(draft, coalition, {
+              name: removedAircraft.unitName,
+              position: this._data.position
+            })
             logCombatAction(
               draft,
               coalition,

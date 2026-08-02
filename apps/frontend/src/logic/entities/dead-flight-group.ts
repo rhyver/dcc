@@ -6,6 +6,7 @@ import { calculateDistance } from '../utils/calculate-distance'
 import { getObjectivePosition } from '../utils/get-objective-position'
 import { buildDeadMissionWaypoints, spawnPlannedFlightGroup } from './flight-group-spawn'
 import { logCombatAction } from '../simulation-log'
+import { maybeCreateDownedPilotFromAircraftLoss } from '../systems/downed-pilots'
 import { debugLog } from '@/lib/debug'
 
 export class DeadFlightGroup extends FlightGroup {
@@ -158,6 +159,10 @@ export class DeadFlightGroup extends FlightGroup {
           const removedAircraft = this._data.aircrafts.pop()
           debugLog(`DEAD aircraft ${removedAircraft?.unitName} shot down by ${samGroup.type}`)
           if (removedAircraft) {
+            maybeCreateDownedPilotFromAircraftLoss(draft, coalition, {
+              name: removedAircraft.unitName,
+              position: this._data.position
+            })
             logCombatAction(
               draft,
               coalition,

@@ -61,6 +61,7 @@ export const config = {
       },
       maxDistance: 30_000,
       aircraftsPerGroup: 1,
+      pilotSurvivalChance: 0.25,
       pilotLifetimeMs: 60 * 60 * 1000,
       pickupRadius: 150
     },

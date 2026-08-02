@@ -236,9 +236,22 @@ local function mergeLostUnitEventData(existingLostUnit, newLostUnit)
     existingLostUnit.categoryName = existingLostUnit.categoryName or newLostUnit.categoryName
     existingLostUnit.coalition = existingLostUnit.coalition or newLostUnit.coalition
     existingLostUnit.event = existingLostUnit.event or newLostUnit.event
-    existingLostUnit.time = existingLostUnit.time or newLostUnit.time
-    existingLostUnit.x = existingLostUnit.x or newLostUnit.x
-    existingLostUnit.y = existingLostUnit.y or newLostUnit.y
+    existingLostUnit.crashed = existingLostUnit.crashed or newLostUnit.crashed
+    existingLostUnit.pilotEjected = existingLostUnit.pilotEjected or newLostUnit.pilotEjected
+    if existingLostUnit.pilotSurvivedCrash == nil then
+        existingLostUnit.pilotSurvivedCrash = newLostUnit.pilotSurvivedCrash
+    end
+    if newLostUnit.crashed then
+        -- A prior UNIT_LOST event may only have a stale cached position. The CRASH event is
+        -- authoritative for deciding whether the pilot is within CSAR range.
+        existingLostUnit.time = newLostUnit.time or existingLostUnit.time
+        existingLostUnit.x = newLostUnit.x or existingLostUnit.x
+        existingLostUnit.y = newLostUnit.y or existingLostUnit.y
+    else
+        existingLostUnit.time = existingLostUnit.time or newLostUnit.time
+        existingLostUnit.x = existingLostUnit.x or newLostUnit.x
+        existingLostUnit.y = existingLostUnit.y or newLostUnit.y
+    end
 end
 
 local function addOrUpdateLostUnit(lostUnit, attribution)
@@ -282,15 +295,25 @@ local function recordLostUnit(unit, eventName, attribution)
     local group = getInitiatorGroup(unit)
     local groupName = stringifyName(group and safeCall(function() return group:getName() end, nil) or cached.groupName)
     local category = group and safeCall(function() return group:getCategory() end, nil) or cached.category
+    local categoryName = cached.categoryName
+    local isAircraft = categoryName == 'plane' or categoryName == 'helicopter' or category == 0 or category == 1
+    local crashed = eventName == 'crash'
+    local pilotSurvivedCrash = nil
+    if crashed and isAircraft then
+        pilotSurvivedCrash = math.random() < (config.crashPilotSurvivalChance or 0.25)
+    end
 
     addOrUpdateLostUnit({
         name = name,
         groupName = groupName,
         type = safeCall(function() return unit:getTypeName() end, cached.type or "unknown"),
         category = category,
-        categoryName = cached.categoryName,
+        categoryName = categoryName,
         coalition = cached.coalition,
         event = eventName,
+        crashed = crashed,
+        pilotEjected = eventName == 'ejection',
+        pilotSurvivedCrash = pilotSurvivedCrash,
         time = timer.getAbsTime(),
         x = position and position.x or cached.x or 0,
         y = position and position.z or cached.y or 0

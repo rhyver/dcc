@@ -1,4 +1,5 @@
 import { schemas } from '@dcc/contracts'
+import { structureTemplates } from '@dcc/data'
 import { describe, expect, test } from 'vitest'
 import * as z from 'zod'
 
@@ -216,6 +217,89 @@ function addTestGroundGroups(campaign: Campaign) {
 }
 
 describe('mission culling', () => {
+  test('keeps a FARP used as a flight home base', () => {
+    const campaign = createCampaign()
+    const farpTemplate = structureTemplates.Farp[0]
+    expect(farpTemplate).toBeDefined()
+
+    const farp = {
+      id: 'farp-home',
+      type: 'Farp' as const,
+      objectiveId: 'far-objective',
+      position: { x: 100_000, y: 0 },
+      name: 'Forward FARP',
+      resources: 0,
+      buildings: farpTemplate!.buildings.map((building) => ({ ...building, alive: true }))
+    }
+    campaign.coalitions.player.structures = [farp]
+    campaign.coalitions.player.flightGroups[0]!.homeBase = farp.id
+
+    const cullingPlan = buildMissionCullingPlan(campaign, theatre)
+
+    expect(cullingPlan.getStructureMode('player', farp)).toBe('full')
+  })
+
+  test('emits the complete legacy FARP template instead of the theatre placeholder', () => {
+    const campaign = createCampaign(false)
+    const farpTemplate = structureTemplates.Farp[0]
+    expect(farpTemplate).toBeDefined()
+
+    campaign.coalitions.player.structures = [
+      {
+        id: 'farp-template',
+        type: 'Farp',
+        objectiveId: 'far-objective',
+        position: { x: 100_000, y: 0 },
+        name: 'Forward FARP',
+        resources: 0,
+        buildings: farpTemplate!.buildings.map((building) => ({ ...building, alive: true }))
+      }
+    ]
+    const farpTheatre: Theatre = {
+      ...theatre,
+      targets: {
+        'far-objective': [
+          {
+            name: 'far-objective|Structure|1',
+            type: 'Structure',
+            objectiveName: 'far-objective',
+            groupId: 1,
+            structureType: 'Warehouse',
+            structureCategory: 'Warehouses',
+            position: { x: 100_000, y: 0 },
+            unitPositions: [{ x: 100_000, y: 0, heading: 1 }]
+          }
+        ]
+      }
+    }
+    const mission = createMission()
+    const cullingPlan = buildMissionCullingPlan(campaign, farpTheatre)
+
+    const result = addStructures(mission, campaign, farpTheatre, cullingPlan)
+
+    expect(result.isOk()).toBe(true)
+    const groups = mission.coalition.blue.country?.[0]?.static?.group ?? []
+    expect(groups).toHaveLength(1)
+    expect(groups[0]?.units.map((unit) => unit.type)).toEqual([
+      'FARP',
+      'FARP Ammo Dump Coating',
+      'FARP CP Blindage',
+      'FARP Fuel Depot',
+      'FARP Tent',
+      'FARP Tent'
+    ])
+    expect(groups[0]?.units.map((unit) => unit.category)).toEqual([
+      'Heliports',
+      'Fortifications',
+      'Fortifications',
+      'Fortifications',
+      'Fortifications',
+      'Fortifications'
+    ])
+    expect(groups[0]?.units[0]).toMatchObject({ x: 100_000, y: 0 })
+    expect(groups[0]?.units[1]).toMatchObject({ x: 100_075, y: -75 })
+  })
+
   test('includes nearby structures and omits distant structures while filtering dead buildings', () => {
     const campaign = createCampaign()
     addTestStructures(campaign)

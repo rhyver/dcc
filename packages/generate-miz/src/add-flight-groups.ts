@@ -24,6 +24,8 @@ const FREQUENCY_PRECISION = 2
 const JTAC_LASER_CODE = 1688
 const TARGET_TACAN_OFFSET_METERS = 500
 const TARGET_TACAN_START_CHANNEL = 31
+const FARP_NATIVE_PARKING_SLOTS = 4
+const FARP_SPAWN_SPACING_METERS = 70
 
 type Mission = z.infer<typeof schemas.dcs.mission>
 type MissionCountry = NonNullable<Mission['coalition']['blue']['country']>[number]
@@ -38,6 +40,30 @@ type NavigationFeatureFlags = {
 }
 
 const DEFAULT_CALLSIGN = 'Enfield'
+
+function getFarpOverflowSpawnOffset(slotIndex: number) {
+  return {
+    x: ((slotIndex % 3) - 1) * FARP_SPAWN_SPACING_METERS,
+    y: FARP_SPAWN_SPACING_METERS * 1.5 + Math.floor(slotIndex / 3) * FARP_SPAWN_SPACING_METERS
+  }
+}
+
+function findFarpHelipadId(
+  mission: Mission,
+  coalition: keyof Mission['coalition'],
+  position: { x: number; y: number }
+) {
+  for (const country of mission.coalition[coalition].country ?? []) {
+    for (const group of country.static?.group ?? []) {
+      const farpUnit = group.units.find(
+        (unit) => unit.type === 'FARP' && Math.hypot(unit.x - position.x, unit.y - position.y) <= 1
+      )
+      if (farpUnit) return farpUnit.unitId
+    }
+  }
+
+  return undefined
+}
 
 function parseGroupCallsign(groupCallsign: string) {
   const match = groupCallsign.match(/^([A-Za-z]+)-(\d+)$/)
@@ -964,6 +990,8 @@ export function addFlightGroups(
   }
 
   const usedParkingSlots = new Map<string, Set<string>>() // Airdrome Name -> Set of Slot IDs
+  const usedFarpParkingSlots = new Map<string, number>() // Coalition/FARP -> used native pads
+  const usedFarpOverflowSlots = new Map<string, number>() // Coalition/FARP -> next fallback slot
   const flightConfigs: MissionFlightConfig[] = []
   const assignFlightGroupFrequency = createFlightGroupFrequencyAllocator()
   const hotStart = campaign.campaignParams?.hotStart === true
@@ -1063,6 +1091,29 @@ export function addFlightGroups(
       const airborneSpawnAltitude = inFlightState
         ? getAirborneSpawnAltitude(inFlightState.altitude, isHelicopter)
         : undefined
+      const homeStructure = structureMap.get(fg.homeBase)
+      const farpHome = isHelicopter && homeStructure?.type === 'Farp' ? homeStructure : undefined
+      const farpSpawnKey = `${key}:${fg.homeBase}`
+      const farpHelipadId = farpHome
+        ? findFarpHelipadId(mission, missionCoalitionKey, farpHome.position)
+        : undefined
+      const usedNativeFarpSlots = usedFarpParkingSlots.get(farpSpawnKey) ?? 0
+      const canUseNativeFarpParking =
+        farpHome != null &&
+        farpHelipadId != null &&
+        !isInFlight &&
+        usedNativeFarpSlots + fg.aircrafts.length <= FARP_NATIVE_PARKING_SLOTS
+      const farpParkingSlotStart = canUseNativeFarpParking ? usedNativeFarpSlots : undefined
+      const farpOverflowSlotStart =
+        farpHome && !isInFlight && !canUseNativeFarpParking
+          ? (usedFarpOverflowSlots.get(farpSpawnKey) ?? 0)
+          : undefined
+
+      if (farpParkingSlotStart !== undefined) {
+        usedFarpParkingSlots.set(farpSpawnKey, farpParkingSlotStart + fg.aircrafts.length)
+      } else if (farpOverflowSlotStart !== undefined) {
+        usedFarpOverflowSlots.set(farpSpawnKey, farpOverflowSlotStart + fg.aircrafts.length)
+      }
 
       if (isInFlight) {
         // eslint-disable-next-line no-console
@@ -1091,6 +1142,15 @@ export function addFlightGroups(
           heading = inFlightState.heading
           speed = fg.flightplan.waypoints[1]?.speed ?? 250 // Use cruise speed
           // No parking for airborne aircraft
+        } else if (farpHome && farpParkingSlotStart !== undefined) {
+          parking = (farpParkingSlotStart + index + 1).toString()
+          parking_id = parking
+          x = farpHome.position.x
+          y = farpHome.position.y
+        } else if (farpHome && farpOverflowSlotStart !== undefined) {
+          const offset = getFarpOverflowSpawnOffset(farpOverflowSlotStart + index)
+          x = farpHome.position.x + offset.x
+          y = farpHome.position.y + offset.y
         } else if (airdrome && airdromeUsedSlots) {
           // Spawn on the ground at parking slot
           const isHelicopter = aircraftDef.isHelicopter ?? false
@@ -1312,8 +1372,13 @@ export function addFlightGroups(
           // If already in flight, use Turning Point instead of a ground start
           if (!isInFlight) {
             if (isHelicopter && !airdrome) {
-              action = hotStart ? 'From Ground Area Hot' : 'From Ground Area'
-              type = hotStart ? 'TakeOffGroundHot' : 'TakeOffGround'
+              if (farpParkingSlotStart !== undefined && farpHelipadId !== undefined) {
+                action = hotStart ? 'From Parking Area Hot' : 'From Parking Area'
+                type = hotStart ? 'TakeOffParkingHot' : 'TakeOffParking'
+              } else {
+                action = hotStart ? 'From Ground Area Hot' : 'From Ground Area'
+                type = hotStart ? 'TakeOffGroundHot' : 'TakeOffGround'
+              }
             } else {
               action = hotStart ? 'From Parking Area Hot' : 'From Parking Area'
               type = hotStart ? 'TakeOffParkingHot' : 'TakeOffParking'
@@ -1327,7 +1392,14 @@ export function addFlightGroups(
         let x = wp.position.x
         let y = wp.position.y
 
-        if (type === 'TakeOffParking' && index === 0 && units[0]) {
+        if (
+          (type === 'TakeOffParking' ||
+            type === 'TakeOffParkingHot' ||
+            type === 'TakeOffGround' ||
+            type === 'TakeOffGroundHot') &&
+          index === 0 &&
+          units[0]
+        ) {
           x = units[0].x
           y = units[0].y
         }
@@ -1476,6 +1548,16 @@ export function addFlightGroups(
           !isInFlight
         ) {
           routePoint.airdromeId = airdrome.id
+        }
+
+        if (
+          (type === 'TakeOffParking' || type === 'TakeOffParkingHot') &&
+          farpParkingSlotStart !== undefined &&
+          farpHelipadId !== undefined &&
+          !isInFlight
+        ) {
+          routePoint.helipadId = farpHelipadId
+          routePoint.linkUnit = farpHelipadId
         }
 
         routePoints.push(routePoint)

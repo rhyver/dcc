@@ -232,6 +232,39 @@ describe('kneeboard waypoint rows', () => {
       }
     ])
   })
+
+  test('calculates bearings clockwise from north using DCS coordinates', () => {
+    const startTime = new Date('2026-01-01T12:00:00Z')
+    const flightGroup = createFlightGroup('blue-client', 'Enfield-1', startTime)
+
+    flightGroup.flightplan.waypoints = [
+      { name: 'Origin', type: 'TakeOff', position: { x: 0, y: 0 }, altitude: 0, speed: 150 },
+      { name: 'North', type: 'Nav', position: { x: 10_000, y: 0 }, altitude: 0, speed: 150 },
+      {
+        name: 'East',
+        type: 'Nav',
+        position: { x: 10_000, y: 10_000 },
+        altitude: 0,
+        speed: 150
+      },
+      {
+        name: 'South',
+        type: 'Nav',
+        position: { x: 0, y: 10_000 },
+        altitude: 0,
+        speed: 150
+      },
+      { name: 'West', type: 'Nav', position: { x: 0, y: 0 }, altitude: 0, speed: 150 }
+    ]
+
+    expect(buildKneeboardWaypointRows(flightGroup).map((row) => row.bearing)).toEqual([
+      '---',
+      '000',
+      '090',
+      '180',
+      '270'
+    ])
+  })
 })
 
 describe('kneeboard mission description', () => {

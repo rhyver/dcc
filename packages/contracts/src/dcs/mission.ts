@@ -171,6 +171,8 @@ export const aircraftRoutePoint = z
     speed_locked: z.boolean(),
     formation_template: z.string().optional(),
     airdromeId: z.number().optional(),
+    helipadId: z.number().optional(),
+    linkUnit: z.number().optional(),
     properties: z.any().optional(),
     name: z.string().optional()
   })

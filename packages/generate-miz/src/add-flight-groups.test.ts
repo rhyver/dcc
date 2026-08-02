@@ -351,6 +351,90 @@ describe('addFlightGroups parking assignment', () => {
     expect(units.map((unit) => unit.parking_id)).toEqual(['02', '03'])
     expect(units.map((unit) => unit.parking)).toEqual(['2', '3'])
   })
+
+  test('assigns native FARP parking slots across client helicopter groups', () => {
+    const startTime = new Date('2026-01-01T00:00:00Z')
+    const mission = createMission()
+    mission.coalition.blue.country![0]!.static = {
+      group: [
+        {
+          groupId: 700,
+          name: 'Static-farp-1-Farp-700',
+          heading: 0,
+          x: 1000,
+          y: 1000,
+          units: [
+            {
+              unitId: 701,
+              name: 'Static-farp-1-Farp-700-1',
+              x: 1000,
+              y: 1000,
+              type: 'FARP',
+              heading: 0,
+              category: 'Heliports'
+            }
+          ]
+        }
+      ]
+    }
+    const campaign = createCampaign(startTime)
+    const firstGroup = createTaskFlightGroup('blue-csar-1', 'Enfield-1', startTime, 'CSAR')
+    const secondGroup = createTaskFlightGroup('blue-csar-2', 'Springfield-1', startTime, 'CSAR')
+
+    for (const [index, group] of [firstGroup, secondGroup].entries()) {
+      group.aircrafts = [
+        {
+          id: `blue-csar-${index + 1}-1`,
+          unitName: `${group.callsign}-1`,
+          aircraftName: 'UH-1H',
+          client: true
+        }
+      ]
+      group.homeBase = 'farp-1'
+      group.position = { x: 1000, y: 1000 }
+      group.flightplan.waypoints[0]!.position = group.position
+      group.flightplan.waypoints[2]!.position = group.position
+    }
+
+    campaign.coalitions.player.structures = [
+      {
+        id: 'farp-1',
+        type: 'Farp',
+        objectiveId: 'objective-1',
+        position: { x: 1000, y: 1000 },
+        name: 'Forward FARP',
+        resources: 0,
+        buildings: [{ type: 'FARP', offset: { x: 0, y: 0 }, alive: true }]
+      }
+    ]
+    campaign.coalitions.player.flightGroups = [firstGroup, secondGroup]
+    campaign.coalitions.opponent.flightGroups = []
+
+    const result = addFlightGroups(mission, campaign, theatre)
+
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) throw result.error
+
+    const groups = mission.coalition.blue.country?.[0]?.helicopter?.group ?? []
+    expect(groups.map((group) => group.units[0]?.parking_id)).toEqual(['1', '2'])
+    expect(groups.map((group) => group.units[0]?.parking)).toEqual(['1', '2'])
+    expect(groups.map((group) => group.route?.points[0])).toEqual([
+      expect.objectContaining({
+        x: 1000,
+        y: 1000,
+        type: 'TakeOffParking',
+        helipadId: 701,
+        linkUnit: 701
+      }),
+      expect.objectContaining({
+        x: 1000,
+        y: 1000,
+        type: 'TakeOffParking',
+        helipadId: 701,
+        linkUnit: 701
+      })
+    ])
+  })
 })
 
 describe('addFlightGroups airborne client spawn altitude', () => {

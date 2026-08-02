@@ -107,11 +107,12 @@ function formatSpeedKnots(metersPerSecond: number): string {
 }
 
 function formatBearingDegrees(from: Waypoint, to: Waypoint): string {
-  const dx = to.position.x - from.position.x
-  const dy = to.position.y - from.position.y
-  if (dx === 0 && dy === 0) return '---'
+  // DCS uses x for north/south and z for east/west. Campaign positions store z as y.
+  const northing = to.position.x - from.position.x
+  const easting = to.position.y - from.position.y
+  if (northing === 0 && easting === 0) return '---'
 
-  const degrees = (Math.atan2(dx, dy) * 180) / Math.PI
+  const degrees = (Math.atan2(easting, northing) * 180) / Math.PI
   const normalized = Math.round((degrees + 360) % 360)
   return normalized.toString().padStart(3, '0')
 }

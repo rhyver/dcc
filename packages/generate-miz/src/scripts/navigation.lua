@@ -51,13 +51,14 @@ local function getLeadUnit(groupName)
 end
 
 local function formatBearing(fromPoint, targetPoint)
-    local dx = targetPoint.x - fromPoint.x
-    local dz = targetPoint.z - fromPoint.z
-    if dx == 0 and dz == 0 then
+    -- DCS world coordinates use x for north/south and z for east/west.
+    local northing = targetPoint.x - fromPoint.x
+    local easting = targetPoint.z - fromPoint.z
+    if northing == 0 and easting == 0 then
         return '---'
     end
 
-    local degrees = math.deg(math.atan2(dx, dz))
+    local degrees = math.deg(math.atan2(easting, northing))
     local normalized = math.floor((degrees + 360) % 360 + 0.5)
     if normalized == 0 then
         normalized = 360

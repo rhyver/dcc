@@ -104,6 +104,11 @@ export function buildMissionCullingPlan(campaign: Campaign, theatre: Theatre): M
 
   for (const coalition of Object.values(campaign.coalitions)) {
     for (const flightGroup of coalition.flightGroups) {
+      const homeStructure = coalition.structures.find(
+        (structure) => structure.id === flightGroup.homeBase
+      )
+      if (homeStructure) anchors.push(homeStructure.position)
+
       if (flightGroup.target) {
         directTargetIds.add(flightGroup.target.id)
         const targetPosition = resolveTargetPosition(campaign, theatre, flightGroup.target)

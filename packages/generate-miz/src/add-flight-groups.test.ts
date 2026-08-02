@@ -386,7 +386,7 @@ describe('addFlightGroups parking assignment', () => {
         {
           id: `blue-csar-${index + 1}-1`,
           unitName: `${group.callsign}-1`,
-          aircraftName: 'UH-1H',
+          aircraftName: index === 0 ? 'CH-47Fbl1' : 'UH-1H',
           client: true
         }
       ]
@@ -418,6 +418,10 @@ describe('addFlightGroups parking assignment', () => {
     const groups = mission.coalition.blue.country?.[0]?.helicopter?.group ?? []
     expect(groups.map((group) => group.units[0]?.parking_id)).toEqual(['1', '2'])
     expect(groups.map((group) => group.units[0]?.parking)).toEqual(['1', '2'])
+    expect(groups[0]?.units[0]?.AddPropAircraft).toEqual({
+      DustProtectionDevices: false,
+      NetCrewControlPriority: 0
+    })
     expect(groups.map((group) => group.route?.points[0])).toEqual([
       expect.objectContaining({
         x: 1000,
@@ -742,6 +746,36 @@ describe('addFlightGroups mission script config', () => {
       6: { CLSID: 'LAU_117_AGM_65F', num: 6 },
       7: { CLSID: '{LAU_7_AGM_122_SIDEARM}', num: 7 },
       8: { CLSID: '{AGM_122_SIDEARM}', num: 8 }
+    })
+  })
+
+  test('equips Harrier CAS flights with air-to-ground weapons and a targeting pod', () => {
+    const startTime = new Date('2026-01-01T00:00:00Z')
+    const mission = createMission()
+    const campaign = createCampaign(startTime)
+    const group = createTaskFlightGroup('blue-harrier-cas', 'Enfield-1', startTime, 'CAS')
+    group.aircrafts.forEach((aircraft) => {
+      aircraft.aircraftName = 'AV8BNA'
+    })
+    campaign.coalitions.player.flightGroups = [group]
+    campaign.coalitions.opponent.flightGroups = []
+
+    const result = addFlightGroups(mission, campaign, theatre)
+
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) throw result.error
+
+    const units = mission.coalition.blue.country?.[0]?.plane?.group?.[0]?.units ?? []
+    expect(units).toHaveLength(2)
+    expect(units[0]?.payload?.pylons).toEqual({
+      1: { CLSID: '{6CEB49FC-DED8-4DED-B053-E1F033FF72D3}', num: 1 },
+      2: { CLSID: '{DB769D48-67D7-42ED-A2BE-108D566C8B1E}', num: 2 },
+      3: { CLSID: 'LAU_117_AGM_65F', num: 3 },
+      4: { CLSID: '{GAU_12_Equalizer}', num: 4 },
+      5: { CLSID: '{A111396E-D3E8-4b9c-8AC9-2432489304D5}', num: 5 },
+      6: { CLSID: 'LAU_117_AGM_65F', num: 6 },
+      7: { CLSID: '{DB769D48-67D7-42ED-A2BE-108D566C8B1E}', num: 7 },
+      8: { CLSID: '{6CEB49FC-DED8-4DED-B053-E1F033FF72D3}', num: 8 }
     })
   })
 

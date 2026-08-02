@@ -1,5 +1,48 @@
 import { Footer, Nav } from './site-shell'
 
+const unreleasedChanges = [
+  {
+    title: 'Redesigned campaign setup',
+    body: 'Campaign creation now guides players through scenario and era selection, player and opponent faction customization, and aircraft roster previews.'
+  },
+  {
+    title: 'Additional classic factions',
+    body: 'France 1982, Israel 1967, Sweden 1970, Russia 1984, US Navy 1964, and US Navy 1987 are now available, together with a France Modern ground template.'
+  },
+  {
+    title: 'CSAR campaign operations',
+    body: 'Downed pilots behind enemy lines can generate rescue packages, persist on the campaign map for one hour, and be recovered with kneeboard guidance and F10 status, smoke, and pickup commands.'
+  },
+  {
+    title: 'Crash survivors',
+    body: 'Aircraft lost in flown missions or simulated CAP, SEAD, and DEAD combat have a 25% pilot-survival chance when the crash is within CSAR range.'
+  },
+  {
+    title: 'F-14BU support',
+    body: 'The F-14B Upgrade is available for eligible US Navy 1987 missions, contributed by virhed.'
+  },
+  {
+    title: 'Expanded FARP operations',
+    body: 'Friendly FARPs can launch helicopter CAS and CSAR flights, use native helipad parking with safe overflow positions, remain available during mission culling, and emit the complete deployable template.'
+  },
+  {
+    title: 'Reliable FARP helicopter spawns',
+    body: 'Generated FARPs now register their helipads correctly with DCS, preventing client helicopters from returning to the spectator camera when spawning, including the CH-47F.'
+  },
+  {
+    title: 'More responsive mission-state saving',
+    body: 'Losses, landings, ejections, cargo deliveries, and CSAR pickups now trigger batched state saves, with periodic autosaves retained as a fallback.'
+  },
+  {
+    title: 'AV-8B N/A DEAD loadout',
+    body: 'AV-8B N/A DEAD missions now use a dedicated Sidearm and Maverick weapon loadout.'
+  },
+  {
+    title: 'Navigation and campaign-date corrections',
+    body: 'DCS bearings now use the correct north/east axes, Late Cold War campaigns cover 1979–1991, and the Modern era begins in 1992.'
+  }
+]
+
 const latestReleaseChanges = [
   {
     title: 'IADS campaign options',
@@ -136,7 +179,23 @@ export function ChangelogPage() {
 
           <section className="release-block current">
             <div className="release-meta">
-              <span>Current alpha</span>
+              <span>Next alpha</span>
+              <span>In development</span>
+            </div>
+            <h2>Unreleased</h2>
+            <div className="change-list">
+              {unreleasedChanges.map((change) => (
+                <div className="change-item" key={change.title}>
+                  <h3>{change.title}</h3>
+                  <p>{change.body}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="release-block">
+            <div className="release-meta">
+              <span>Current release</span>
               <span>24 June 2026</span>
             </div>
             <h2>v0.5.0-2026062401</h2>

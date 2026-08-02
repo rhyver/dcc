@@ -16,6 +16,10 @@ const aircraftDefinition: z.infer<typeof schemas.dcs.aircraft> = {
   cruiseSpeed: 46.25,
   era: 'Vietnam',
   carrierCapable: true,
+  AddPropAircraft: {
+    DustProtectionDevices: false,
+    NetCrewControlPriority: 0
+  },
   loadouts: [
     {
       task: 'default',

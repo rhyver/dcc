@@ -32,9 +32,16 @@ const airport: z.infer<typeof schemas.dcs.warehouseState> = {
   size: 100
 }
 
+const staticWarehouse: z.infer<typeof schemas.dcs.warehouseState> = {
+  ...airport,
+  dynamicCargo: true,
+  coalition: 'NEUTRAL'
+}
+
 export function warehouses(
   theatre: z.infer<typeof schemas.theatre>,
-  campaign: z.infer<typeof schemas.campaign.campaign>
+  campaign: z.infer<typeof schemas.campaign.campaign>,
+  mission: z.infer<typeof schemas.dcs.mission>
 ): z.infer<typeof schemas.dcs.warehouses> {
   const warehouses: z.infer<typeof schemas.dcs.warehouses> = {
     airports: {},
@@ -47,6 +54,16 @@ export function warehouses(
     const isRed = campaign.coalitions.opponent.airdromeNames.includes(airdrome.name)
     const coalition = isBlue ? 'BLUE' : isRed ? 'RED' : 'NEUTRAL'
     warehouses.airports[id] = { ...airport, coalition }
+  }
+
+  for (const coalition of Object.values(mission.coalition)) {
+    for (const country of coalition.country ?? []) {
+      for (const group of country.static?.group ?? []) {
+        for (const unit of group.units) {
+          warehouses.warehouses[unit.unitId.toString()] = structuredClone(staticWarehouse)
+        }
+      }
+    }
   }
 
   return warehouses

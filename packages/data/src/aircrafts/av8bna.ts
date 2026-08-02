@@ -45,6 +45,21 @@ const aircraftDefinition: z.infer<typeof schemas.dcs.aircraft> = {
       pylons: []
     },
     {
+      task: 'CAS',
+      name: 'CAS',
+      displayName: 'CAS',
+      pylons: [
+        { CLSID: '{6CEB49FC-DED8-4DED-B053-E1F033FF72D3}', num: 1 },
+        { CLSID: '{DB769D48-67D7-42ED-A2BE-108D566C8B1E}', num: 2 },
+        { CLSID: 'LAU_117_AGM_65F', num: 3 },
+        { CLSID: '{GAU_12_Equalizer}', num: 4 },
+        { CLSID: '{A111396E-D3E8-4b9c-8AC9-2432489304D5}', num: 5 },
+        { CLSID: 'LAU_117_AGM_65F', num: 6 },
+        { CLSID: '{DB769D48-67D7-42ED-A2BE-108D566C8B1E}', num: 7 },
+        { CLSID: '{6CEB49FC-DED8-4DED-B053-E1F033FF72D3}', num: 8 }
+      ]
+    },
+    {
       task: 'SEAD',
       name: 'SEAD',
       displayName: 'SEAD',

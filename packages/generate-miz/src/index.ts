@@ -771,7 +771,7 @@ export async function generateMizFromCampaign(
   }
   const optionsLua = optionsLuaResult.value
 
-  const warehousesLuaResult = luaTable.stringify(warehouses(theatre, campaign), {
+  const warehousesLuaResult = luaTable.stringify(warehouses(theatre, campaign, mission), {
     mixedKeyTypes: true
   })
   if (warehousesLuaResult.isErr()) {

@@ -27,7 +27,7 @@ const unreleasedChanges = [
   },
   {
     title: 'Reliable FARP helicopter spawns',
-    body: 'Generated FARPs now register their helipads correctly with DCS, preventing client helicopters from returning to the spectator camera when spawning, including the CH-47F.'
+    body: 'Generated FARPs now register their helipads correctly with DCS, preventing client helicopters from returning to the spectator camera when spawning and routing returning AI helicopters through FARP landing control instead of occupied player positions.'
   },
   {
     title: 'More responsive mission-state saving',

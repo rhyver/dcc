@@ -116,6 +116,7 @@ local unitCache = {}
 local lostUnitIndexesByName = {}
 local landedUnitIndexesByName = {}
 local getInitiatorGroup
+local handleCsarLanding
 local pendingSaveReasons = {}
 local saveScheduled = false
 local pendingSaveReasonCount = 0
@@ -869,11 +870,15 @@ local function handleEvent(event)
 
         local groupName = stringifyName(group:getName())
         local recordedCargoDelivery = false
+        local position = initiator:getPosition().p
 
         if groupName and transportGroups[groupName] then
-            local position = initiator:getPosition().p
             recordCargoDelivery(groupName, position, 'landing')
             recordedCargoDelivery = true
+        end
+
+        if handleCsarLanding then
+            handleCsarLanding(groupName, position)
         end
 
         if recordedLanding or recordedCargoDelivery then
@@ -945,6 +950,8 @@ local function handleEvent(event)
 end
 
 local rescuedPilotIds = {}
+local pickedUpPilotIds = {}
+local csarGroups = {}
 
 local function recordCsarRescue(groupConfig, position)
     local csar = groupConfig and groupConfig.csar
@@ -987,7 +994,11 @@ local function csarStatus(groupConfig)
         return
     end
     if rescuedPilotIds[csar.pilotId] then
-        csarMessage(groupConfig, tostring(csar.pilotName)..' is aboard.')
+        csarMessage(groupConfig, tostring(csar.pilotName)..' has been delivered.')
+        return
+    end
+    if pickedUpPilotIds[csar.pilotId] then
+        csarMessage(groupConfig, tostring(csar.pilotName)..' is aboard. Return to the drop-off point.')
         return
     end
 
@@ -1005,7 +1016,7 @@ end
 
 local function csarSmoke(groupConfig)
     local csar = groupConfig.csar
-    if not csar or rescuedPilotIds[csar.pilotId] then
+    if not csar or rescuedPilotIds[csar.pilotId] or pickedUpPilotIds[csar.pilotId] then
         csarMessage(groupConfig, 'No pilot awaiting pickup.')
         return
     end
@@ -1026,6 +1037,10 @@ local function csarPickup(groupConfig)
         return
     end
     if rescuedPilotIds[csar.pilotId] then
+        csarMessage(groupConfig, tostring(csar.pilotName)..' has already been delivered.')
+        return
+    end
+    if pickedUpPilotIds[csar.pilotId] then
         csarMessage(groupConfig, tostring(csar.pilotName)..' is already aboard.')
         return
     end
@@ -1043,15 +1058,43 @@ local function csarPickup(groupConfig)
         return
     end
 
-    if recordCsarRescue(groupConfig, point) then
-        csarMessage(groupConfig, tostring(csar.pilotName)..' is aboard. Return to base.', 25)
+    pickedUpPilotIds[csar.pilotId] = true
+    csarMessage(groupConfig, tostring(csar.pilotName)..' is aboard. Return to the drop-off point.', 25)
+end
+
+handleCsarLanding = function(groupName, position)
+    local groupConfig = groupName and csarGroups[groupName] or nil
+    local csar = groupConfig and groupConfig.csar or nil
+    if not csar or not pickedUpPilotIds[csar.pilotId] or rescuedPilotIds[csar.pilotId] then
+        return false
     end
+
+    local dropOff = csar.dropOffPosition
+    if not dropOff or not position then
+        return false
+    end
+
+    local dx = dropOff.x - position.x
+    local dz = dropOff.y - position.z
+    local distance = math.sqrt(dx * dx + dz * dz)
+    if distance > (csar.pickupRadius or 150) then
+        csarMessage(groupConfig, tostring(csar.pilotName)..' remains aboard. Land at the designated drop-off point.')
+        return false
+    end
+
+    if recordCsarRescue(groupConfig, position) then
+        pickedUpPilotIds[csar.pilotId] = nil
+        csarMessage(groupConfig, tostring(csar.pilotName)..' unloaded safely.', 25)
+        return true
+    end
+    return false
 end
 
 local function setupCsarMenus()
     if not config or not config.flightGroups then return end
     for _, groupConfig in ipairs(config.flightGroups) do
         if groupConfig.csar and groupConfig.groupId then
+            csarGroups[groupConfig.name] = groupConfig
             local menu = missionCommands.addSubMenuForGroup(groupConfig.groupId, 'CSAR')
             missionCommands.addCommandForGroup(groupConfig.groupId, 'Pilot Status', menu, csarStatus, groupConfig)
             missionCommands.addCommandForGroup(groupConfig.groupId, 'Request Orange Smoke', menu, csarSmoke, groupConfig)

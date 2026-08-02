@@ -31,7 +31,8 @@ Changes since `v0.5.0-2026062401` (released 2026-06-24).
 ### Fixed
 
 - Fixed client helicopters returning to the spectator camera when spawning on generated FARP
-  helipads, including the required CH-47F multicrew defaults.
+  helipads, including the required CH-47F multicrew defaults, and linked returning AI helicopters
+  to FARP landing control so they no longer land directly on occupied player positions.
 - Corrected DCS north/east bearing calculations in kneeboards and F10 navigation vectors.
 - Corrected campaign date generation so Late Cold War covers 1979–1991 and Modern begins in 1992.
 

@@ -146,7 +146,7 @@ describe('downed pilot lifecycle', () => {
     })
   })
 
-  test('gives simulated aircraft losses a 25 percent survival chance', () => {
+  test('gives simulated aircraft losses a 50 percent survival chance', () => {
     const campaign = createCampaign()
     campaign.coalitions.player.structures.push({
       id: 'farp-1',
@@ -163,7 +163,7 @@ describe('downed pilot lifecycle', () => {
         campaign,
         'player',
         { name: 'Enfield-1-1', position: bataria },
-        () => 0.249
+        () => 0.499
       )
     ).toBe(true)
     expect(
@@ -171,7 +171,7 @@ describe('downed pilot lifecycle', () => {
         campaign,
         'player',
         { name: 'Enfield-1-2', position: bataria },
-        () => 0.25
+        () => 0.5
       )
     ).toBe(false)
     expect(campaign.coalitions.player.downedPilots).toHaveLength(1)

@@ -366,7 +366,7 @@ function getSpecialNotes(flightGroup: FlightGroup, missionConfig: MissionFlightC
     missionConfig.csar
   ) {
     notes.push(`Recover ${missionConfig.csar.pilotName}`)
-    notes.push('F10 CSAR status / smoke / pickup')
+    notes.push('F10 CSAR status / smoke / pickup; land at drop-off to unload')
   }
 
   if (missionConfig && missionConfig.task === 'CAS' && 'laserCode' in missionConfig) {

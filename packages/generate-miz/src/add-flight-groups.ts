@@ -252,6 +252,7 @@ export type CsarMissionConfig = {
   pilotId: string
   pilotName: string
   position: { x: number; y: number }
+  dropOffPosition: { x: number; y: number }
   pickupRadius: number
 }
 
@@ -1560,6 +1561,16 @@ export function addFlightGroups(
           routePoint.linkUnit = farpHelipadId
         }
 
+        if (
+          type === 'Land' &&
+          farpHome !== undefined &&
+          farpHelipadId !== undefined &&
+          Math.hypot(x - farpHome.position.x, y - farpHome.position.y) <= 1
+        ) {
+          routePoint.helipadId = farpHelipadId
+          routePoint.linkUnit = farpHelipadId
+        }
+
         routePoints.push(routePoint)
       })
 
@@ -1600,6 +1611,10 @@ export function addFlightGroups(
       if (fg.aircrafts.some((ac) => ac.client)) {
         const targetPosition = resolveTargetPosition(campaign, theatre, fg)
         const downedPilot = value.downedPilots?.find((pilot) => pilot.id === fg.target?.id)
+        const dropOffPosition =
+          fg.flightplan.waypoints.find((waypoint) => waypoint.name === 'Drop Off')?.position ??
+          fg.flightplan.waypoints.find((waypoint) => waypoint.type === 'Landing')?.position ??
+          fg.position
         const landingAirdrome = theatre.airdromeDetails[fg.homeBase]
         let navigation: MissionNavigationConfig | undefined
 
@@ -1672,6 +1687,7 @@ export function addFlightGroups(
                   pilotId: downedPilot.id,
                   pilotName: downedPilot.name,
                   position: downedPilot.position,
+                  dropOffPosition,
                   pickupRadius: config.packages.CSAR.pickupRadius
                 }
               }

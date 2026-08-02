@@ -438,6 +438,22 @@ describe('addFlightGroups parking assignment', () => {
         linkUnit: 701
       })
     ])
+    expect(groups.map((group) => group.route?.points.at(-1))).toEqual([
+      expect.objectContaining({
+        x: 1000,
+        y: 1000,
+        type: 'Land',
+        helipadId: 701,
+        linkUnit: 701
+      }),
+      expect.objectContaining({
+        x: 1000,
+        y: 1000,
+        type: 'Land',
+        helipadId: 701,
+        linkUnit: 701
+      })
+    ])
   })
 })
 
@@ -870,6 +886,13 @@ describe('addFlightGroups mission script config', () => {
       type: 'Downed Pilot',
       objectiveId: 'objective-1'
     }
+    clientGroup.flightplan.waypoints.splice(-1, 0, {
+      name: 'Drop Off',
+      position: { x: 1500, y: 1600 },
+      altitude: 30,
+      speed: 70,
+      type: 'Nav'
+    })
     campaign.coalitions.player.downedPilots = [
       {
         id: 'pilot-1',
@@ -893,6 +916,7 @@ describe('addFlightGroups mission script config', () => {
         pilotId: 'pilot-1',
         pilotName: 'Pilot 1',
         position: { x: 3000, y: 4000 },
+        dropOffPosition: { x: 1500, y: 1600 },
         pickupRadius: 150
       }
     })

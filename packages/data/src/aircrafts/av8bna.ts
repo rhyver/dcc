@@ -9,7 +9,15 @@ const aircraftDefinition: z.infer<typeof schemas.dcs.aircraft> = {
   max_height: 13716,
   max_speed: 990,
   name: 'AV8BNA',
-  availableTasks: ['CAS', 'Ground Attack', 'Pinpoint Strike', 'CAP', 'DEAD', 'SEAD'],
+  availableTasks: [
+    'CAS',
+    'Ground Attack',
+    'Pinpoint Strike',
+    'CAP',
+    'DEAD',
+    'SEAD',
+    'Antiship Strike'
+  ],
   carrierCapable: true,
   controllable: true,
   cruiseAltitude: 6096,

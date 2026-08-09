@@ -73,4 +73,66 @@ describe('warehouses', () => {
       unlimitedMunitions: true
     })
   })
+
+  test('registers carrier units as coalition airbase warehouses', () => {
+    const mission = {
+      coalition: {
+        blue: {
+          country: [
+            {
+              id: 4,
+              name: 'UK',
+              ship: {
+                group: [
+                  {
+                    groupId: 800,
+                    name: 'NavalGroup-uk-carrier-group',
+                    x: 80_000,
+                    y: 185_000,
+                    units: [
+                      {
+                        unitId: 801,
+                        name: 'NavalUnit-uk-carrier-group-ship-1',
+                        x: 80_000,
+                        y: 185_000,
+                        type: 'hms_invincible',
+                        heading: 0
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        red: {},
+        neutrals: {}
+      }
+    } as unknown as Mission
+    const campaign = {
+      coalitions: {
+        player: {
+          airdromeNames: [],
+          navalGroups: [
+            {
+              id: 'uk-carrier-group',
+              role: 'carrier'
+            }
+          ]
+        },
+        opponent: { airdromeNames: [], navalGroups: [] }
+      }
+    } as unknown as Campaign
+    const theatre = { airdromeDetails: {} } as Theatre
+
+    const result = warehouses(theatre, campaign, mission)
+
+    expect(result.warehouses['801']).toMatchObject({
+      coalition: 'blue',
+      dynamicCargo: true,
+      unlimitedAircrafts: true,
+      unlimitedFuel: true,
+      unlimitedMunitions: true
+    })
+  })
 })

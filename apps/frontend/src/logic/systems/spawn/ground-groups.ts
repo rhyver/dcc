@@ -1,4 +1,5 @@
 import { schemas } from '@dcc/contracts'
+import { assignDeploymentSite } from '@dcc/campaign'
 import { scenarios, theatres } from '@dcc/data'
 import * as z from 'zod'
 import { GroundGroup } from '../../entities/ground-group'
@@ -12,6 +13,57 @@ const NM_TO_METERS = 1852
 const INFANTRY_MAX_TARGET_RANGE_METERS = 20 * NM_TO_METERS
 const VEHICLE_MAX_TARGET_RANGE_METERS = 40 * NM_TO_METERS
 const DEFAULT_GROUND_GROUP_SPAWN_MULTIPLIER = 1
+
+function getLocalReplacementPool(
+  draft: z.infer<typeof schemas.campaign.campaign>,
+  coalition: z.infer<typeof schemas.coalition>,
+  objectiveId: string
+) {
+  const pools = (draft.coalitions[coalition].replacementPools ??= {})
+  return (pools[objectiveId] ??= {
+    readyPersonnel: 0,
+    recoveringPersonnel: [],
+    equipment: []
+  })
+}
+
+function consumeFormationAssets(params: {
+  draft: z.infer<typeof schemas.campaign.campaign>
+  coalition: z.infer<typeof schemas.coalition>
+  objectiveId: string
+  group: z.infer<typeof schemas.groundGroup>
+  kind: 'infantry' | 'vehicle'
+  unitName: string
+  count: number
+}) {
+  const pool = getLocalReplacementPool(params.draft, params.coalition, params.objectiveId)
+  if (params.kind === 'infantry') {
+    // Barrack production enters the local pool before the authorized formation consumes it.
+    pool.readyPersonnel += Math.max(0, params.count - pool.readyPersonnel)
+    pool.readyPersonnel -= params.count
+    return
+  }
+
+  const matching = pool.equipment.filter((equipment) => equipment.name === params.unitName)
+  for (let index = matching.length; index < params.count; index += 1) {
+    pool.equipment.push({
+      id: crypto.randomUUID(),
+      name: params.unitName,
+      condition: 'operational'
+    })
+  }
+  const selected = pool.equipment
+    .filter((equipment) => equipment.name === params.unitName)
+    .slice(0, params.count)
+  const selectedIds = new Set(selected.map((equipment) => equipment.id))
+  pool.equipment = pool.equipment.filter((equipment) => !selectedIds.has(equipment.id))
+  params.group.units.forEach((unit, index) => {
+    const equipment = selected[index]
+    if (!equipment) return
+    unit.id = equipment.id
+    unit.condition = equipment.condition
+  })
+}
 
 export function spawnGroundGroups(
   draft: z.infer<typeof schemas.campaign.campaign>,
@@ -87,6 +139,35 @@ export function spawnGroundGroups(
           targetObjectiveId: target?.type === 'objective' ? target.name : undefined,
           targetAirdromeName: target?.type === 'airdrome' ? target.name : undefined
         })
+        const groundGroup = draft.coalitions[coalition].groundGroups.find(
+          (group) => group.id === groundGroupId
+        )
+        const site = groundGroup
+          ? assignDeploymentSite({
+              campaign: draft,
+              coalition,
+              theatre,
+              group: groundGroup,
+              objectiveId: structure.objectiveId,
+              roles: ['infantry', 'staging'],
+              reason: 'creation'
+            })
+          : null
+        if (!groundGroup || !site) {
+          draft.coalitions[coalition].groundGroups = draft.coalitions[
+            coalition
+          ].groundGroups.filter((group) => group.id !== groundGroupId)
+          continue
+        }
+        consumeFormationAssets({
+          draft,
+          coalition,
+          objectiveId: structure.objectiveId,
+          group: groundGroup,
+          kind: 'infantry',
+          unitName,
+          count: 10
+        })
         const targetLabel =
           target?.type === 'objective'
             ? ` moving to ${target.name}`
@@ -132,10 +213,39 @@ export function spawnGroundGroups(
         const groundGroupId = GroundGroup.create(draft, coalition, {
           position: structure.position,
           objectiveId: structure.objectiveId,
-          units: [{ name: unitName, count: 3 }],
+          units: [{ name: unitName, count: 6 }],
           state: target ? 'moving' : 'idle',
           targetObjectiveId: target?.type === 'objective' ? target.name : undefined,
           targetAirdromeName: target?.type === 'airdrome' ? target.name : undefined
+        })
+        const groundGroup = draft.coalitions[coalition].groundGroups.find(
+          (group) => group.id === groundGroupId
+        )
+        const site = groundGroup
+          ? assignDeploymentSite({
+              campaign: draft,
+              coalition,
+              theatre,
+              group: groundGroup,
+              objectiveId: structure.objectiveId,
+              roles: ['vehicle', 'staging'],
+              reason: 'creation'
+            })
+          : null
+        if (!groundGroup || !site) {
+          draft.coalitions[coalition].groundGroups = draft.coalitions[
+            coalition
+          ].groundGroups.filter((group) => group.id !== groundGroupId)
+          continue
+        }
+        consumeFormationAssets({
+          draft,
+          coalition,
+          objectiveId: structure.objectiveId,
+          group: groundGroup,
+          kind: 'vehicle',
+          unitName,
+          count: 6
         })
         const targetLabel =
           target?.type === 'objective'
@@ -146,7 +256,7 @@ export function spawnGroundGroups(
         logSpawnAction(
           draft,
           coalition,
-          `Ground group spawned at ${structure.objectiveId}: 3x ${unitName}${targetLabel}`,
+          `Ground group spawned at ${structure.objectiveId}: 6x ${unitName}${targetLabel}`,
           undefined,
           {
             entityType: 'groundGroup',

@@ -2,7 +2,6 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 
 import { Crosshair, Map as MapIcon, Plane, ShieldAlert, Table2 } from 'lucide-react'
 import { schemas } from '@dcc/contracts'
-import { LOtoLL } from '@kilcekru/dcs-coordinates'
 import { useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/store/react'
 import maplibregl from 'maplibre-gl'
@@ -15,6 +14,7 @@ import MaplibreMap, {
 import * as z from 'zod'
 
 import { Button } from '@/components/ui/button'
+import { tryDcsPositionToLngLat } from '@/logic/dcs-coordinates'
 import { hasFlightGroupTakenOff } from '@/logic/entities/flight-status'
 import { orpc } from '@/lib/orpc'
 import { cn } from '@/lib/utils'
@@ -164,17 +164,14 @@ function DebriefEventMarker({
   const [isHovered, setIsHovered] = useState(false)
   const side = getLostUnitSide(unit)
   const position = useMemo(
-    () =>
-      LOtoLL({
-        theatre: theatreName as 'Caucasus',
-        x: unit.x,
-        z: unit.y
-      }),
+    () => tryDcsPositionToLngLat(theatreName, unit.x, unit.y),
     [theatreName, unit.x, unit.y]
   )
   const color =
     side === 'blue' ? '#00ddff' : side === 'red' ? '#ff3366' : 'rgba(255,255,255,0.72)'
   const time = formatEventTime(unit)
+
+  if (!position) return null
 
   return (
     <MaplibreMarker
@@ -330,11 +327,10 @@ function MissionDebriefMap({ missionState }: { missionState: MissionState }) {
             y: eventUnits.reduce((sum, unit) => sum + unit.y, 0) / eventUnits.length
           }
         : theatre.info.center
-    const latLng = LOtoLL({
-      theatre: theatre.name as 'Caucasus',
-      x: center.x,
-      z: center.y
-    })
+    const latLng =
+      tryDcsPositionToLngLat(theatre.name, center.x, center.y) ??
+      tryDcsPositionToLngLat(theatre.name, theatre.info.center.x, theatre.info.center.y)
+    if (!latLng) return null
 
     return {
       longitude: latLng.lng,

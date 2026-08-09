@@ -36,6 +36,14 @@ export const config = {
       maxDistance: 300_000,
       aircraftsPerGroup: 2
     },
+    'Antiship Strike': {
+      maxActive: {
+        player: 1,
+        opponent: 1
+      },
+      maxDistance: 350_000,
+      aircraftsPerGroup: 2
+    },
     CAS: {
       maxActive: {
         player: 2,
@@ -64,6 +72,29 @@ export const config = {
       pilotSurvivalChance: 0.5,
       pilotLifetimeMs: 60 * 60 * 1000,
       pickupRadius: 150
+    },
+    CASEVAC: {
+      maxActive: {
+        player: 2,
+        opponent: 2
+      },
+      maxDistance: 80_000,
+      aircraftsPerGroup: 1,
+      pickupRadius: 150,
+      woundedChance: 0.5,
+      casualtyLifetimeMs: 120 * 60 * 1000,
+      recoveryTimeMs: 24 * 60 * 60 * 1000
+    },
+    'Troop Extraction': {
+      maxActive: {
+        player: 1,
+        opponent: 1
+      },
+      maxDistance: 80_000,
+      aircraftsPerGroup: 1,
+      pickupRadius: 150,
+      retryCooldownMs: 30 * 60 * 1000,
+      surrenderDelayMs: 120 * 60 * 1000
     },
     Transport: {
       maxActive: {

@@ -66,5 +66,29 @@ export function warehouses(
     }
   }
 
+  for (const [campaignCoalition, missionCoalition] of [
+    ['player', 'blue'],
+    ['opponent', 'red']
+  ] as const) {
+    const carrierGroupNames = new Set(
+      (campaign.coalitions[campaignCoalition].navalGroups ?? [])
+        .filter((group) => group.role === 'carrier')
+        .map((group) => `NavalGroup-${group.id}`)
+    )
+    if (carrierGroupNames.size === 0) continue
+
+    for (const country of mission.coalition[missionCoalition].country ?? []) {
+      for (const group of country.ship?.group ?? []) {
+        if (!carrierGroupNames.has(group.name)) continue
+        for (const unit of group.units) {
+          warehouses.warehouses[unit.unitId.toString()] = {
+            ...structuredClone(staticWarehouse),
+            coalition: missionCoalition
+          }
+        }
+      }
+    }
+  }
+
   return warehouses
 }

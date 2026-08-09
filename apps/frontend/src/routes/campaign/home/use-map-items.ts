@@ -6,10 +6,11 @@ import { schemas } from '@dcc/contracts'
 import { isSamOperational, samTemplates } from '@dcc/data'
 import { useQuery } from '@tanstack/react-query'
 import { orpc } from '@/lib/orpc'
-import { LOtoLL } from '@kilcekru/dcs-coordinates'
 import * as turf from '@turf/turf'
+import { tryDcsPositionToLngLat } from '@/logic/dcs-coordinates'
 import { hasFlightGroupTakenOff } from '@/logic/entities/flight-status'
 import { getGroundGroupSpawnCost } from '@/logic/systems/spawn/ground-group-costs'
+import { createNavalGroupMapItems } from './naval-map-items'
 
 export type ObjectiveMarker = {
   id: string
@@ -60,31 +61,27 @@ export function useMapItems(options: { showGoalMarkers?: boolean } = {}): {
     for (const airdromeName of playerCoalition.airdromeNames) {
       const airdrome = theatre.airdromeDetails[airdromeName]
       if (airdrome == null) continue
+      const position = tryDcsPositionToLngLat(theatre.name, airdrome.x, airdrome.y)
+      if (!position) continue
       mapItems.push({
         id: `player-${airdromeName}`,
         type: 'Airdrome',
         name: airdromeName,
         coalition: 'player',
-        position: LOtoLL({
-          theatre: theatre.name as 'Caucasus',
-          x: airdrome.x,
-          z: airdrome.y
-        })
+        position
       })
     }
     for (const airdromeName of opponentCoalition.airdromeNames) {
       const airdrome = theatre.airdromeDetails[airdromeName]
       if (airdrome == null) continue
+      const position = tryDcsPositionToLngLat(theatre.name, airdrome.x, airdrome.y)
+      if (!position) continue
       mapItems.push({
         id: `opponent-${airdromeName}`,
         type: 'Airdrome',
         name: airdromeName,
         coalition: 'opponent',
-        position: LOtoLL({
-          theatre: theatre.name as 'Caucasus',
-          x: airdrome.x,
-          z: airdrome.y
-        })
+        position
       })
     }
     const objectiveMarkers: ObjectiveMarker[] = []
@@ -108,11 +105,12 @@ export function useMapItems(options: { showGoalMarkers?: boolean } = {}): {
       for (const objectiveId of objectiveIds) {
         const objective = objectivesByName.get(objectiveId)
         if (objective == null) continue
-        const latLng = LOtoLL({
-          theatre: theatre.name as 'Caucasus',
-          x: objective.position.x,
-          z: objective.position.y
-        })
+        const latLng = tryDcsPositionToLngLat(
+          theatre.name,
+          objective.position.x,
+          objective.position.y
+        )
+        if (!latLng) continue
         objectiveMarkers.push({
           id: `objective-${coalition}-${objectiveId}`,
           name: objectiveId,
@@ -155,11 +153,12 @@ export function useMapItems(options: { showGoalMarkers?: boolean } = {}): {
         }
 
         // Use the structure's actual position (from target data)
-        const latLng = LOtoLL({
-          theatre: theatre.name as 'Caucasus',
-          x: structure.position.x,
-          z: structure.position.y
-        })
+        const latLng = tryDcsPositionToLngLat(
+          theatre.name,
+          structure.position.x,
+          structure.position.y
+        )
+        if (!latLng) continue
 
         const isResourceStructure =
           structureTypeResult.data === 'Barrack' || structureTypeResult.data === 'Depot'
@@ -199,11 +198,8 @@ export function useMapItems(options: { showGoalMarkers?: boolean } = {}): {
         }
 
         // Use the group's actual position (from target data)
-        const latLng = LOtoLL({
-          theatre: theatre.name as 'Caucasus',
-          x: group.position.x,
-          z: group.position.y
-        })
+        const latLng = tryDcsPositionToLngLat(theatre.name, group.position.x, group.position.y)
+        if (!latLng) continue
 
         // Determine group type based on majority units or first unit
         // Since we have Vehicle and Infantry groups, we can infer type
@@ -256,11 +252,12 @@ export function useMapItems(options: { showGoalMarkers?: boolean } = {}): {
         const samTemplate = samTemplates[samGroup.type]
         if (samTemplate == null) continue
 
-        const latLng = LOtoLL({
-          theatre: theatre.name as 'Caucasus',
-          x: objective.position.x,
-          z: objective.position.y
-        })
+        const latLng = tryDcsPositionToLngLat(
+          theatre.name,
+          objective.position.x,
+          objective.position.y
+        )
+        if (!latLng) continue
 
         mapItems.push({
           id: samGroup.id,
@@ -282,11 +279,8 @@ export function useMapItems(options: { showGoalMarkers?: boolean } = {}): {
       for (const group of flightGroups) {
         if (!hasFlightGroupTakenOff(group, campaignTime)) continue
 
-        const latLng = LOtoLL({
-          theatre: theatre.name as 'Caucasus',
-          x: group.position.x,
-          z: group.position.y
-        })
+        const latLng = tryDcsPositionToLngLat(theatre.name, group.position.x, group.position.y)
+        if (!latLng) continue
 
         mapItems.push({
           id: group.id,
@@ -306,16 +300,18 @@ export function useMapItems(options: { showGoalMarkers?: boolean } = {}): {
       coalition: z.infer<typeof schemas.coalition>
     ) => {
       for (const pilot of downedPilots) {
+        const position = tryDcsPositionToLngLat(
+          theatre.name,
+          pilot.position.x,
+          pilot.position.y
+        )
+        if (!position) continue
         mapItems.push({
           id: pilot.id,
           type: 'Downed Pilot',
           name: pilot.name,
           coalition,
-          position: LOtoLL({
-            theatre: theatre.name as 'Caucasus',
-            x: pilot.position.x,
-            z: pilot.position.y
-          })
+          position
         })
       }
     }
@@ -340,6 +336,10 @@ export function useMapItems(options: { showGoalMarkers?: boolean } = {}): {
     addGroundGroupMarkers(opponentCoalition.groundGroups ?? [], 'opponent')
     addSamMarkers(playerCoalition.samGroups ?? [], 'player')
     addSamMarkers(opponentCoalition.samGroups ?? [], 'opponent')
+    mapItems.push(
+      ...createNavalGroupMapItems(playerCoalition.navalGroups ?? [], 'player', theatre.name),
+      ...createNavalGroupMapItems(opponentCoalition.navalGroups ?? [], 'opponent', theatre.name)
+    )
     addFlightGroupMarkers(playerCoalition.flightGroups ?? [], 'player')
     addFlightGroupMarkers(opponentCoalition.flightGroups ?? [], 'opponent')
     addDownedPilotMarkers(playerCoalition.downedPilots ?? [], 'player')
@@ -422,8 +422,9 @@ export function useMapItems(options: { showGoalMarkers?: boolean } = {}): {
             const bx = b[0]
             const bz = b[1]
             if (ax == null || az == null || bx == null || bz == null) continue
-            const aLL = LOtoLL({ theatre: theatre.name as 'Caucasus', x: ax, z: az })
-            const bLL = LOtoLL({ theatre: theatre.name as 'Caucasus', x: bx, z: bz })
+            const aLL = tryDcsPositionToLngLat(theatre.name, ax, az)
+            const bLL = tryDcsPositionToLngLat(theatre.name, bx, bz)
+            if (!aLL || !bLL) continue
             frontlineSegments.push(
               turf.lineString([
                 [aLL.lng, aLL.lat],

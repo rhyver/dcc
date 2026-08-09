@@ -2,6 +2,7 @@ import * as z from 'zod'
 
 import { coalition } from './coalition'
 import { era } from './era'
+import { navalGroup } from './naval-group'
 
 const startObjectives = z.object({
   airdromeNames: z.array(z.string()),
@@ -24,6 +25,8 @@ export const scenario = z.object({
   era,
   date: z.date(),
   briefing: z.string(),
+  navalGroups: z.record(coalition, z.array(navalGroup)).optional(),
+  deferredObjectiveIds: z.array(z.string()).optional(),
   goal: scenarioGoal.optional(),
   start: z.record(coalition, startObjectives)
 })

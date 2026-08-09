@@ -1,4 +1,5 @@
 import { config, schemas } from '@dcc/contracts'
+import { evaluateCombatViability, getGroundGroupUnitCount } from '@dcc/campaign'
 import { aircrafts, isSamFullyDestroyed, isSamOperational } from '@dcc/data'
 import * as z from 'zod'
 
@@ -206,7 +207,7 @@ function addMinutes(date: Date, minutes: number) {
 }
 
 function getGroundUnitCount(group: Campaign['coalitions']['player']['groundGroups'][number]) {
-  return group.units.reduce((sum, unit) => sum + Math.max(0, unit.count), 0)
+  return getGroundGroupUnitCount(group)
 }
 
 function getDefaultOperationProfile(draft: Campaign): OperationProfile {
@@ -720,7 +721,7 @@ function makeCasPlans(
   const friendlyObjectiveIds = new Set(draft.coalitions[coalition].objectiveIds)
   const friendlyAirdromeNames = new Set(draft.coalitions[coalition].airdromeNames)
   const enemyGroundGroups = draft.coalitions[context.enemyCoalition].groundGroups.filter(
-    (group) => getGroundUnitCount(group) > 0 && !existingTargets.has(group.id)
+    (group) => evaluateCombatViability(group).casEligible && !existingTargets.has(group.id)
   )
   const plans: AtoPackagePlan[] = []
 

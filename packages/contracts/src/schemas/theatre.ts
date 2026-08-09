@@ -1,13 +1,18 @@
 import * as z from 'zod'
 
 import { airdromeDetails } from './airdrome-details'
+import { deploymentSite, objectiveConnection } from './deployment-site'
 import { objective } from './objective'
 import { target } from './target'
 
 export const theatre = z.object({
   name: z.string(),
+  /** Internal DCS terrain identifier when it differs from DCC's display/data name. */
+  dcsName: z.string().optional(),
   objectives: z.array(objective),
   targets: z.record(z.string(), z.array(target)),
+  deploymentSites: z.array(deploymentSite).optional(),
+  connections: z.array(objectiveConnection).optional(),
   airdromeDetails: z.record(z.string(), airdromeDetails),
   info: z.object({
     center: z.object({

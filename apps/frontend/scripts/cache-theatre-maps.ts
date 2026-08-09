@@ -35,6 +35,11 @@ const theatreMaps = [
     name: 'Syria',
     bbox: '31.667351,31.871518,40.806337,37.861136',
     outputPath: join(mapsRoot, 'syria', 'syria.pmtiles')
+  },
+  {
+    name: 'South Atlantic',
+    bbox: '-75,-56,-56,-45',
+    outputPath: join(mapsRoot, 'south-atlantic', 'south-atlantic.pmtiles')
   }
 ]
 
@@ -137,7 +142,9 @@ async function downloadPmtilesCli() {
 }
 
 async function getLatestBuildUrl() {
-  const builds = await fetchJson<ProtomapsBuild[]>('https://build-metadata.protomaps.dev/builds.json')
+  const builds = await fetchJson<ProtomapsBuild[]>(
+    'https://build-metadata.protomaps.dev/builds.json'
+  )
   const latest = builds
     .filter((build) => build.key.endsWith('.pmtiles'))
     .sort((a, b) => b.key.localeCompare(a.key))[0]

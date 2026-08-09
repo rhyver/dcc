@@ -21,11 +21,12 @@ const targets = [
 ]
 
 describe('home base and target selection', () => {
-  test('returns the first valid assignment by default', () => {
+  test('can return the first valid assignment', () => {
     const assignment = selectHomeBaseAndTarget({
       homeBases,
       targets,
-      maxDistance: 120_000
+      maxDistance: 120_000,
+      preference: 'nearest'
     })
 
     expect(assignment?.homeBase.name).toBe('Near')

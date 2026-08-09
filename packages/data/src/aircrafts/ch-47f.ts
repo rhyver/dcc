@@ -9,7 +9,7 @@ const aircraftDefinition: z.infer<typeof schemas.dcs.aircraft> = {
   max_height: 6750,
   max_speed: 300,
   name: 'CH-47Fbl1',
-  availableTasks: ['CSAR', 'Transport', 'Air Assault'],
+  availableTasks: ['CSAR', 'CASEVAC', 'Troop Extraction', 'Transport', 'Air Assault'],
   controllable: true,
   isHelicopter: true,
   cruiseAltitude: 150,

@@ -221,14 +221,15 @@ describe('ground battle attrition', () => {
 describe('ground group spawning airport targets', () => {
   test('continues targeting enemy objectives before farther vulnerable airports', () => {
     const campaign = createCampaign()
+    const source = caucasus.objectives.find((entry) => entry.name === 'Hidmagala')!
     campaign.coalitions.player.objectiveIds = ['Maharadze', 'Hidmagala']
     campaign.coalitions.opponent.objectiveIds = ['Bataria']
     campaign.coalitions.opponent.airdromeNames = ['Sukhumi-Babushara']
     campaign.coalitions.player.structures.push({
       id: 'depot-1',
       type: 'Depot',
-      objectiveId: 'Maharadze',
-      position: { x: -316272.09249774, y: 644623.93189239 },
+      objectiveId: source.name,
+      position: { ...source.position },
       name: 'Depot',
       resources: 1_000,
       buildings: [{ offset: { x: 0, y: 0 }, type: 'Tech hangar A', alive: true }]
@@ -242,15 +243,15 @@ describe('ground group spawning airport targets', () => {
 
   test('targets a vulnerable airport when it is closer than valid objectives', () => {
     const campaign = createCampaign()
-    const airdrome = caucasus.airdromeDetails['Sukhumi-Babushara']!
+    const source = caucasus.objectives.find((entry) => entry.name === 'Ochamchira')!
     giveObjectiveMajority(campaign, caucasus, 'player', 'Sukhumi-Babushara')
     campaign.coalitions.opponent.objectiveIds = ['Nalchik']
     campaign.coalitions.opponent.airdromeNames = ['Sukhumi-Babushara']
     campaign.coalitions.player.structures.push({
       id: 'depot-1',
       type: 'Depot',
-      objectiveId: 'Forward Depot',
-      position: { x: airdrome.x + 1_000, y: airdrome.y },
+      objectiveId: source.name,
+      position: { ...source.position },
       name: 'Depot',
       resources: 1_000,
       buildings: [{ offset: { x: 0, y: 0 }, type: 'Tech hangar A', alive: true }]
@@ -264,14 +265,14 @@ describe('ground group spawning airport targets', () => {
 
   test('ignores non-vulnerable airports', () => {
     const campaign = createCampaign()
-    const airdrome = caucasus.airdromeDetails['Sukhumi-Babushara']!
+    const source = caucasus.objectives.find((entry) => entry.name === 'Ochamchira')!
     campaign.coalitions.opponent.objectiveIds = []
     campaign.coalitions.opponent.airdromeNames = ['Sukhumi-Babushara']
     campaign.coalitions.player.structures.push({
       id: 'depot-1',
       type: 'Depot',
-      objectiveId: 'Forward Depot',
-      position: { x: airdrome.x + 1_000, y: airdrome.y },
+      objectiveId: source.name,
+      position: { ...source.position },
       name: 'Depot',
       resources: 1_000,
       buildings: [{ offset: { x: 0, y: 0 }, type: 'Tech hangar A', alive: true }]

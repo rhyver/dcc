@@ -22,6 +22,7 @@
     "clean": "rm -rf .turbo dist node_modules"
   },
   "dependencies": {
+    "@dcc/campaign": "workspace:*",
     "@dcc/contracts": "workspace:*",
     "@dcc/data": "workspace:*",
     "@kilcekru/dcs-coordinates": "^2.0.0",

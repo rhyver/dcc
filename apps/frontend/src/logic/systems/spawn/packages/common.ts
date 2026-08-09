@@ -74,6 +74,15 @@ export function getCoalitionAirdromes(
     })
   }
 
+  for (const carrier of draft.coalitions[coalition].navalGroups ?? []) {
+    if (carrier.role !== 'carrier' || carrier.state === 'sunk' || carrier.damage >= 0.75) continue
+    homeBases.push({
+      name: carrier.id,
+      position: { ...carrier.position },
+      runwayAngle: carrier.heading
+    })
+  }
+
   return homeBases
 }
 

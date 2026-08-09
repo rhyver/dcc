@@ -3,6 +3,7 @@ import { describe, expect, test, vi } from 'vitest'
 import * as z from 'zod'
 
 import { addFlightGroups } from './add-flight-groups'
+import { addNavalGroups } from './add-naval-groups'
 
 type Campaign = z.infer<typeof schemas.campaign.campaign>
 type CampaignCoalition = Campaign['coalitions']['player']
@@ -235,6 +236,84 @@ function getMissionUnitIds(entries: unknown): number[] {
     return entry.missionUnitId as number
   })
 }
+
+describe('addFlightGroups carrier compatibility', () => {
+  test.each([
+    ['FA-18C_hornet', 'CVN_71'],
+    ['AV8BNA', 'hms_invincible']
+  ] as const)(
+    'links %s to a compatible ship in a mixed carrier group',
+    (aircraftType, shipType) => {
+      const startTime = new Date('2026-01-01T00:00:00Z')
+      const mission = createMission()
+      const campaign = createCampaign(startTime)
+      const flightGroup = createFlightGroup('carrier-flight', 'Ford-1', startTime)
+      flightGroup.homeBase = 'uk-carrier-group'
+      flightGroup.aircrafts.forEach((aircraft) => {
+        aircraft.aircraftName = aircraftType
+      })
+      campaign.coalitions.player.flightGroups = [flightGroup]
+      campaign.coalitions.opponent.flightGroups = []
+      campaign.coalitions.player.navalGroups = [
+        {
+          id: 'uk-carrier-group',
+          name: 'UK Carrier Group',
+          role: 'carrier',
+          unitTypes: ['hms_invincible', 'CVN_71'],
+          units: [
+            {
+              id: 'invincible',
+              type: 'hms_invincible',
+              damage: 0,
+              ammunition: 1,
+              fuel: 1,
+              state: 'operational'
+            },
+            {
+              id: 'supercarrier',
+              type: 'CVN_71',
+              damage: 0,
+              ammunition: 1,
+              fuel: 1,
+              state: 'operational'
+            }
+          ],
+          position: { x: 1_000, y: 1_000 },
+          heading: 0,
+          damage: 0,
+          fuel: 1,
+          ammunition: 1,
+          cargo: 0,
+          state: 'operational'
+        }
+      ]
+
+      const navalResult = addNavalGroups(mission, campaign)
+      expect(navalResult.isOk()).toBe(true)
+      if (navalResult.isErr()) throw navalResult.error
+
+      const carrierMissionGroup = mission.coalition.blue.country?.[0]?.ship?.group[0]
+      const expectedCarrier = carrierMissionGroup?.units.find((unit) => unit.type === shipType)
+      expect(expectedCarrier).toBeDefined()
+
+      const flightResult = addFlightGroups(mission, campaign, theatre)
+      expect(flightResult.isOk()).toBe(true)
+      if (flightResult.isErr()) throw flightResult.error
+
+      const emittedFlight = mission.coalition.blue.country?.[0]?.plane?.group[0]
+      expect(emittedFlight?.route?.points[0]?.helipadId).toBe(expectedCarrier?.unitId)
+      expect(emittedFlight?.route?.points.at(-1)).toMatchObject({
+        helipadId: expectedCarrier?.unitId,
+        x: expectedCarrier?.x,
+        y: expectedCarrier?.y
+      })
+      expect(emittedFlight?.units[0]).toMatchObject({
+        x: expectedCarrier?.x,
+        y: expectedCarrier?.y
+      })
+    }
+  )
+})
 
 describe('addFlightGroups Link-16 output', () => {
   test('assigns unique friendly F-16 STNs and shares friendly flights through team members and donors', () => {

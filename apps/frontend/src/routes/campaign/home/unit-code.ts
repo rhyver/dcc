@@ -22,6 +22,8 @@ const sidcUnitCode = {
   transport: 'IT----',
   radar: 'ESR---',
   carrier: 'CLCV--',
+  surfaceCombatant: 'CL----',
+  amphibious: 'CLLL--',
   downedPilot: 'USS6--',
   hospital: 'IXH---',
   prison: 'UULC--',
@@ -94,6 +96,17 @@ function getUnitCode(item: z.infer<typeof schemas.MapItem>): SidcUnitCodeKey {
       return 'downedPilot'
     case 'SAM':
       return 'airDefenceMissle'
+    case 'Naval Group':
+      switch (item.role) {
+        case 'carrier':
+          return 'carrier'
+        case 'transport':
+          return 'amphibious'
+        case 'escort':
+        case 'surface-combatant':
+          return 'surfaceCombatant'
+      }
+      return 'surfaceCombatant'
     default:
       return 'waypoint'
   }
@@ -109,6 +122,8 @@ function getDomain(item: z.infer<typeof schemas.MapItem>): 'air' | 'ground' | 's
       return 'ground'
     case 'Flight Group':
       return 'air'
+    case 'Naval Group':
+      return 'sea'
     default:
       return 'sea'
   }

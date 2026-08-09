@@ -1,5 +1,6 @@
 import { describe, expect, test, vi, afterEach } from 'vitest'
-import { schemas } from '@dcc/contracts'
+import { config, schemas } from '@dcc/contracts'
+import { scenarios, theatres } from '@dcc/data'
 import type * as z from 'zod'
 
 import {
@@ -160,6 +161,37 @@ function plannerPolicy(overrides: Partial<AtoPlannerPolicy> = {}): AtoPlannerPol
 }
 
 describe('ATO package planner', () => {
+  test('keeps the Falklands carrier clear of land while preserving Harrier mission reach', () => {
+    const scenario = scenarios.find((entry) => entry.id === 'falklands-1982')
+    const theatre = theatres.find((entry) => entry.name === scenario?.theatreName)
+    const carrier = scenario?.navalGroups?.player.find((group) => group.role === 'carrier')
+    const escort = scenario?.navalGroups?.player.find((group) => group.role === 'escort')
+    const argentineSurfaceGroup = scenario?.navalGroups?.opponent.find(
+      (group) => group.role === 'surface-combatant'
+    )
+    const stanley = theatre?.objectives.find((objective) => objective.name === 'Stanley Airport')
+    const foxBay = theatre?.objectives.find((objective) => objective.name === 'Fox Bay')
+    const distance = (left: { x: number; y: number }, right: { x: number; y: number }) =>
+      Math.hypot(left.x - right.x, left.y - right.y)
+
+    expect(carrier).toBeDefined()
+    expect(escort).toBeDefined()
+    expect(argentineSurfaceGroup).toBeDefined()
+    expect(stanley).toBeDefined()
+    expect(foxBay).toBeDefined()
+
+    expect(distance(carrier!.position, stanley!.position)).toBeGreaterThan(
+      config.packages.CAP.engagementRange
+    )
+    expect(distance(carrier!.position, foxBay!.position)).toBeLessThanOrEqual(
+      config.packages.CAS.maxDistance
+    )
+    expect(distance(carrier!.position, argentineSurfaceGroup!.position)).toBeLessThanOrEqual(
+      config.packages['Antiship Strike'].maxDistance
+    )
+    expect(distance(carrier!.position, escort!.position)).toBeLessThan(10_000)
+  })
+
   test('emits CAP for an uncovered reachable airbase lane', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0)
     const campaign = createCampaign({ playerAircraft: { CAP: ['F-16C_50'] } })
@@ -354,7 +386,7 @@ describe('ATO package planner', () => {
         objectiveId: 'Target Objective',
         position: { x: 50_000, y: 0 },
         state: 'idle',
-        units: [{ name: 'BMP-2', count: 3 }]
+        units: [{ name: 'BMP-2', count: 4 }]
       }
     ]
 
@@ -384,7 +416,7 @@ describe('ATO package planner', () => {
         objectiveId: 'Target Objective',
         position: { x: 50_000, y: 0 },
         state: 'idle',
-        units: [{ name: 'BMP-2', count: 3 }]
+        units: [{ name: 'BMP-2', count: 4 }]
       }
     ]
 
@@ -426,7 +458,7 @@ describe('ATO package planner', () => {
         objectiveId: 'Target Objective',
         position: { x: 50_000, y: 0 },
         state: 'idle',
-        units: [{ name: 'BMP-2', count: 3 }]
+        units: [{ name: 'BMP-2', count: 4 }]
       }
     ]
 

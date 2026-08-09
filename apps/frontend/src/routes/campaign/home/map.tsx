@@ -5,7 +5,6 @@ import { activeStore } from '@/stores/active'
 import { useQuery } from '@tanstack/react-query'
 import { orpc } from '@/lib/orpc'
 import { memo, useMemo, useState, useEffect, useRef, useCallback } from 'react'
-import { LOtoLL } from '@kilcekru/dcs-coordinates'
 import * as z from 'zod'
 import { schemas } from '@dcc/contracts'
 import MaplibreMap, {
@@ -26,6 +25,7 @@ import { type ObjectiveMarker as ObjectiveMarkerType, useMapItems } from './use-
 import { cn } from '@/lib/utils'
 import { DetailsCard } from './details-card'
 import { CAUCASUS_DETAIL_MAX_ZOOM, offlineCaucasusMapStyle } from './offline-map-style'
+import { tryDcsPositionToLngLat } from '@/logic/dcs-coordinates'
 
 const globalWithPmtiles = globalThis as typeof globalThis & {
   __dccPmtilesProtocol?: Protocol
@@ -51,8 +51,8 @@ const Marker = memo(function Marker({
     return symbol.asSVG()
   }, [item])
 
-  const isAirdrome = item.type === 'Airdrome'
-  const showTitleCard = isAirdrome || isSelected
+  const isPersistentCommandAsset = item.type === 'Airdrome' || item.type === 'Naval Group'
+  const showTitleCard = isPersistentCommandAsset || isSelected
   const coalitionColor = item.coalition === 'player' ? 'var(--synthwave-cyan)' : 'var(--enemy-red)'
 
   return (
@@ -245,16 +245,13 @@ const FlightPlanOverlay = memo(function FlightPlanOverlay({
     if (!map) return
 
     const updatePath = () => {
-      const points = flightplan.waypoints.map((wp) => {
-        const latLng = LOtoLL({
-          theatre: theatreName as 'Caucasus',
-          x: wp.position.x,
-          z: wp.position.y
-        })
+      const points = flightplan.waypoints.flatMap((wp) => {
+        const latLng = tryDcsPositionToLngLat(theatreName, wp.position.x, wp.position.y)
+        if (!latLng) return []
         const p = map.project([latLng.lng, latLng.lat])
-        return `${p.x},${p.y}`
+        return [`${p.x},${p.y}`]
       })
-      setPath(`M ${points.join(' L ')}`)
+      setPath(points.length > 1 ? `M ${points.join(' L ')}` : '')
     }
 
     updatePath()
@@ -294,14 +291,11 @@ const WaypointLabelMarker = memo(function WaypointLabelMarker({
   theatreName: string
 }) {
   const latLng = useMemo(
-    () =>
-      LOtoLL({
-        theatre: theatreName as 'Caucasus',
-        x: waypoint.position.x,
-        z: waypoint.position.y
-      }),
+    () => tryDcsPositionToLngLat(theatreName, waypoint.position.x, waypoint.position.y),
     [theatreName, waypoint.position.x, waypoint.position.y]
   )
+
+  if (!latLng) return null
 
   return (
     <MaplibreMarker
@@ -336,16 +330,12 @@ const GroundGroupPathOverlay = memo(function GroundGroupPathOverlay({
     if (!map) return
 
     const updatePath = () => {
-      const from = LOtoLL({
-        theatre: theatreName as 'Caucasus',
-        x: groupPosition.x,
-        z: groupPosition.y
-      })
-      const to = LOtoLL({
-        theatre: theatreName as 'Caucasus',
-        x: targetPosition.x,
-        z: targetPosition.y
-      })
+      const from = tryDcsPositionToLngLat(theatreName, groupPosition.x, groupPosition.y)
+      const to = tryDcsPositionToLngLat(theatreName, targetPosition.x, targetPosition.y)
+      if (!from || !to) {
+        setPath('')
+        return
+      }
       const p1 = map.project([from.lng, from.lat])
       const p2 = map.project([to.lng, to.lat])
       setPath(`M ${p1.x},${p1.y} L ${p2.x},${p2.y}`)
@@ -422,11 +412,12 @@ export function Map({
   )
   const initialViewState = useMemo(() => {
     if (theatreQuery.data == null) return null
-    const latLng = LOtoLL({
-      theatre: theatreQuery.data.name as 'Caucasus',
-      x: theatreQuery.data.info.center.x,
-      z: theatreQuery.data.info.center.y
-    })
+    const latLng = tryDcsPositionToLngLat(
+      theatreQuery.data.name,
+      theatreQuery.data.info.center.x,
+      theatreQuery.data.info.center.y
+    )
+    if (!latLng) return null
     return {
       longitude: latLng.lng,
       latitude: latLng.lat,
@@ -525,6 +516,64 @@ export function Map({
   }, [livePreviewItem, liveSelectedItem])
 
   const campaign = useSelector(activeStore, (state) => state.context)
+  const showDeploymentOverlay =
+    import.meta.env.DEV && new URLSearchParams(window.location.search).has('deployment-overlay')
+  const deploymentOverlay = useMemo(() => {
+    const theatre = theatreQuery.data
+    if (!showDeploymentOverlay || !theatre?.deploymentSites) return null
+    const occupied = new Set(
+      Object.values(campaign.coalitions).flatMap((coalition) =>
+        coalition.groundGroups.flatMap((group) =>
+          group.deployment ? [group.deployment.siteId] : []
+        )
+      )
+    )
+    const reserved = new Set(campaign.landingOperation?.reservedSiteIds ?? [])
+    const points: GeoJSON.Feature<GeoJSON.Point>[] = []
+    const approaches: GeoJSON.Feature<GeoJSON.LineString>[] = []
+    for (const site of theatre.deploymentSites) {
+      const center = tryDcsPositionToLngLat(theatre.name, site.position.x, site.position.y)
+      if (!center) continue
+      points.push(
+        turf.point([center.lng, center.lat], {
+          id: site.id,
+          kind: 'site',
+          status: site.validationStatus ?? 'approved',
+          occupied: occupied.has(site.id),
+          reserved: reserved.has(site.id)
+        })
+      )
+      for (const slot of site.slots) {
+        const position = tryDcsPositionToLngLat(theatre.name, slot.x, slot.y)
+        if (!position) continue
+        points.push(
+          turf.point([position.lng, position.lat], {
+            id: slot.id,
+            siteId: site.id,
+            kind: 'slot',
+            status: site.validationStatus ?? 'approved'
+          })
+        )
+      }
+      for (const [kind, route] of [
+        ['ingress', site.ingress],
+        ['egress', site.egress]
+      ] as const) {
+        if (!route || route.length === 0) continue
+        const coordinates = [site.position, ...route].flatMap((position) => {
+          const converted = tryDcsPositionToLngLat(theatre.name, position.x, position.y)
+          return converted ? ([[converted.lng, converted.lat]] as [number, number][]) : []
+        })
+        if (coordinates.length > 1) {
+          approaches.push(turf.lineString(coordinates, { siteId: site.id, kind }))
+        }
+      }
+    }
+    return {
+      points: turf.featureCollection(points),
+      approaches: turf.featureCollection(approaches)
+    }
+  }, [campaign, showDeploymentOverlay, theatreQuery.data])
   const groundGroupPath = useMemo(() => {
     if (!liveSelectedItem || !theatreQuery.data) return null
     const id = liveSelectedItem.id
@@ -559,11 +608,7 @@ export function Map({
     }
 
     if ('x' in position && 'y' in position) {
-      return LOtoLL({
-        theatre: theatreQuery.data.name as 'Caucasus',
-        x: position.x,
-        z: position.y
-      })
+      return tryDcsPositionToLngLat(theatreQuery.data.name, position.x, position.y) ?? null
     }
 
     return null
@@ -738,6 +783,63 @@ export function Map({
             />
           </Source>
         )}
+        {deploymentOverlay && (
+          <>
+            <Source id="deployment-sites-source" type="geojson" data={deploymentOverlay.points}>
+              <Layer
+                id="deployment-site-centers"
+                type="circle"
+                filter={['==', ['get', 'kind'], 'site']}
+                paint={{
+                  'circle-radius': 7,
+                  'circle-color': [
+                    'case',
+                    ['==', ['get', 'status'], 'candidate'],
+                    '#ffb020',
+                    ['==', ['get', 'occupied'], true],
+                    '#ff3b68',
+                    ['==', ['get', 'reserved'], true],
+                    '#00ddff',
+                    '#78ff9c'
+                  ],
+                  'circle-opacity': 0.85,
+                  'circle-stroke-width': 2,
+                  'circle-stroke-color': '#090512'
+                }}
+              />
+              <Layer
+                id="deployment-site-slots"
+                type="circle"
+                filter={['==', ['get', 'kind'], 'slot']}
+                paint={{
+                  'circle-radius': 2.5,
+                  'circle-color': [
+                    'case',
+                    ['==', ['get', 'status'], 'candidate'],
+                    '#ffb020',
+                    '#00ddff'
+                  ],
+                  'circle-opacity': 0.75
+                }}
+              />
+            </Source>
+            <Source
+              id="deployment-approaches-source"
+              type="geojson"
+              data={deploymentOverlay.approaches}
+            >
+              <Layer
+                id="deployment-approaches"
+                type="line"
+                paint={{
+                  'line-color': ['case', ['==', ['get', 'kind'], 'ingress'], '#78ff9c', '#ff3b68'],
+                  'line-width': 2,
+                  'line-dasharray': [2, 2]
+                }}
+              />
+            </Source>
+          </>
+        )}
         {measurePoints.length > 1 && (
           <Source id="measure-line-source" type="geojson" data={measureLineGeoJson}>
             <Layer
@@ -818,6 +920,11 @@ export function Map({
           if (marker) onSelect(marker)
         }}
       />
+      {deploymentOverlay && (
+        <div className="tactical-panel pointer-events-none absolute top-4 right-4 z-20 rounded px-2 py-1 text-[9px] uppercase tracking-[0.18em] text-amber-200">
+          Deployment overlay · candidate / approved / occupied / reserved
+        </div>
+      )}
       {measureMode && (
         <div
           className="tactical-panel pointer-events-auto absolute top-4 z-20 flex -translate-x-1/2 items-center gap-3 rounded-md px-3 py-2 text-synthwave-light backdrop-blur-md"

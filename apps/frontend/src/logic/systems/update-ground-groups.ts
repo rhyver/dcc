@@ -1,4 +1,14 @@
 import { schemas } from '@dcc/contracts'
+import {
+  assignDeploymentSite,
+  beginGroundGroupRetreat,
+  classifyGroundUnit,
+  dissolveGroundGroupIntoReplacementPool,
+  getGroundGroupCombatPower,
+  getGroundGroupUnitCount,
+  recordInfantryCasualties,
+  updateReplacementPools
+} from '@dcc/campaign'
 import { scenarios, theatres } from '@dcc/data'
 import * as z from 'zod'
 import { calculateDistance } from '@/logic/utils/calculate-distance'
@@ -38,18 +48,8 @@ function isInfantryGroup(units: { name: string; count: number }[]): boolean {
   return units.every((u) => /infantry|soldier/i.test(u.name))
 }
 
-function isInfantryUnit(name: string): boolean {
-  return /infantry|soldier|rifle|manpad/i.test(name)
-}
-
-function getUnitWeight(name: string): number {
-  if (isInfantryUnit(name)) return 1
-  if (/shorad|aaa|sam/i.test(name)) return 2
-  return 3
-}
-
 function getUnitCount(group: GroundGroup): number {
-  return group.units.reduce((sum, unit) => sum + unit.count, 0)
+  return getGroundGroupUnitCount(group)
 }
 
 function getTotalUnitCount(groups: GroundGroup[]): number {
@@ -57,7 +57,20 @@ function getTotalUnitCount(groups: GroundGroup[]): number {
 }
 
 function getGroupPower(group: GroundGroup): number {
-  return group.units.reduce((sum, unit) => sum + unit.count * getUnitWeight(unit.name), 0)
+  return getGroundGroupCombatPower(group)
+}
+
+function getInfantryCount(groups: GroundGroup[]): number {
+  return groups.reduce(
+    (sum, group) =>
+      sum +
+      group.units.reduce(
+        (groupSum, unit) =>
+          groupSum + (classifyGroundUnit(unit.name) === 'infantry' ? unit.count : 0),
+        0
+      ),
+    0
+  )
 }
 
 function getSupplyCombatMultiplier(status: SupplyStatus | undefined): number {
@@ -115,8 +128,55 @@ function moveGroupTowardsObjective(
   const dx = targetPosition.x - group.position.x
   const dy = targetPosition.y - group.position.y
 
-  group.position.x += dx * ratio
-  group.position.y += dy * ratio
+  const moveX = dx * ratio
+  const moveY = dy * ratio
+  group.position.x += moveX
+  group.position.y += moveY
+  for (const unit of group.units) {
+    if (!unit.position) continue
+    unit.position.x += moveX
+    unit.position.y += moveY
+  }
+}
+
+function recordBattleWounded(params: {
+  draft: Campaign
+  coalition: Coalition
+  groups: GroundGroup[]
+  infantryBefore: number
+  objectiveId: string
+  position: z.infer<typeof schemas.position>
+  seed: string
+}) {
+  const infantryLosses = Math.max(0, params.infantryBefore - getInfantryCount(params.groups))
+  if (infantryLosses <= 0) return
+  const siteId = params.groups.find((group) => group.deployment?.siteId)?.deployment?.siteId
+  recordInfantryCasualties({
+    campaign: params.draft,
+    coalition: params.coalition,
+    objectiveId: params.objectiveId,
+    siteId,
+    position: params.position,
+    count: infantryLosses,
+    seed: params.seed
+  })
+}
+
+function triggerDepletedRetreats(
+  draft: Campaign,
+  coalition: Coalition,
+  theatre: z.infer<typeof schemas.theatre>,
+  groups: GroundGroup[]
+) {
+  for (const group of groups) {
+    if (!draft.coalitions[coalition].groundGroups.some((entry) => entry.id === group.id)) continue
+    const state = beginGroundGroupRetreat({ campaign: draft, coalition, theatre, group })
+    if (!state) continue
+    logCombatAction(draft, coalition, `${group.id} is ${state.replace('-', ' ')}`, undefined, {
+      entityType: 'groundGroup',
+      entityId: group.id
+    })
+  }
 }
 
 function applyCasualties(
@@ -292,6 +352,8 @@ function resolveObjectiveBattle(
       Math.ceil(expectedAttackerLosses) >= getTotalUnitCount(attackers) &&
       Math.ceil(expectedDefenderLosses) >= getTotalUnitCount(defendersInRange)
 
+    const attackerInfantryBefore = getInfantryCount(attackers)
+    const defenderInfantryBefore = getInfantryCount(defendersInRange)
     const attackerCasualties = distributeCasualties(
       attackers,
       expectedAttackerLosses,
@@ -321,6 +383,26 @@ function resolveObjectiveBattle(
 
     cleanupDestroyedGroups(draft, coalition)
     cleanupDestroyedGroups(draft, enemyCoalition)
+    recordBattleWounded({
+      draft,
+      coalition,
+      groups: attackers,
+      infantryBefore: attackerInfantryBefore,
+      objectiveId: targetObjectiveId,
+      position: targetObjective.position,
+      seed: `${targetObjectiveId}:${draft.time.toISOString()}:${coalition}`
+    })
+    recordBattleWounded({
+      draft,
+      coalition: enemyCoalition,
+      groups: defendersInRange,
+      infantryBefore: defenderInfantryBefore,
+      objectiveId: targetObjectiveId,
+      position: targetObjective.position,
+      seed: `${targetObjectiveId}:${draft.time.toISOString()}:${enemyCoalition}`
+    })
+    triggerDepletedRetreats(draft, coalition, theatre, attackers)
+    triggerDepletedRetreats(draft, enemyCoalition, theatre, defendersInRange)
 
     return
   }
@@ -475,6 +557,8 @@ function resolveAirdromeBattle(
       Math.ceil(expectedAttackerLosses) >= getTotalUnitCount(attackers) &&
       Math.ceil(expectedDefenderLosses) >= getTotalUnitCount(defendersInRange)
 
+    const attackerInfantryBefore = getInfantryCount(attackers)
+    const defenderInfantryBefore = getInfantryCount(defendersInRange)
     const attackerCasualties = distributeCasualties(
       attackers,
       expectedAttackerLosses,
@@ -504,6 +588,26 @@ function resolveAirdromeBattle(
 
     cleanupDestroyedGroups(draft, coalition)
     cleanupDestroyedGroups(draft, enemyCoalition)
+    recordBattleWounded({
+      draft,
+      coalition,
+      groups: attackers,
+      infantryBefore: attackerInfantryBefore,
+      objectiveId: targetAirdromeName,
+      position: targetPosition,
+      seed: `${targetAirdromeName}:${draft.time.toISOString()}:${coalition}`
+    })
+    recordBattleWounded({
+      draft,
+      coalition: enemyCoalition,
+      groups: defendersInRange,
+      infantryBefore: defenderInfantryBefore,
+      objectiveId: targetAirdromeName,
+      position: targetPosition,
+      seed: `${targetAirdromeName}:${draft.time.toISOString()}:${enemyCoalition}`
+    })
+    triggerDepletedRetreats(draft, coalition, theatre, attackers)
+    triggerDepletedRetreats(draft, enemyCoalition, theatre, defendersInRange)
 
     return
   }
@@ -637,6 +741,7 @@ export function updateGroundGroups(
   const captureEnabled = options.capture ?? true
   const moveEnabled = options.move ?? true
   const enemyCoalition: Coalition = coalition === 'player' ? 'opponent' : 'player'
+  updateReplacementPools(draft, coalition)
   if (captureEnabled && !moveEnabled) {
     processObjectiveBattlesAndCaptures(draft, coalition, enemyCoalition, theatre, delta)
   }
@@ -644,8 +749,59 @@ export function updateGroundGroups(
   const groundGroups = draft.coalitions[coalition].groundGroups
   const enemyObjectiveIds = draft.coalitions[enemyCoalition].objectiveIds
   const enemyAirdromeNames = draft.coalitions[enemyCoalition].airdromeNames
+  const recoveredGroups: Array<{ group: GroundGroup; objectiveId: string }> = []
+  const surrenderedGroupIds = new Set<string>()
 
   for (const group of groundGroups) {
+    if (group.state === 'withdrawing') {
+      const waypoint = group.retreat?.route[0]
+      if (waypoint && moveEnabled) {
+        moveGroupTowardsObjective(group, waypoint, delta, draft.timeMultiplier)
+        if (calculateDistance(group.position, waypoint) < 1) {
+          group.retreat?.route.shift()
+        }
+      }
+      if (
+        group.retreat?.destinationObjectiveId &&
+        (group.retreat.route.length === 0 || !waypoint)
+      ) {
+        recoveredGroups.push({
+          group,
+          objectiveId: group.retreat.destinationObjectiveId
+        })
+      }
+      continue
+    }
+
+    if (group.state === 'awaiting-extraction' || group.state === 'trapped') {
+      const surrenderAt = group.retreat?.surrenderAt
+      if (surrenderAt && new Date(surrenderAt) <= draft.time) {
+        surrenderedGroupIds.add(group.id)
+        const captor = draft.coalitions[enemyCoalition]
+        captor.capturedEquipment ??= []
+        for (const unit of group.units) {
+          if (classifyGroundUnit(unit.name) === 'infantry') {
+            captor.capturedPersonnel = (captor.capturedPersonnel ?? 0) + unit.count
+          } else {
+            captor.capturedEquipment.push({
+              id: unit.id ?? `${group.id}-${unit.name}`,
+              name: unit.name,
+              condition: unit.condition ?? 'operational'
+            })
+          }
+        }
+        const request = draft.coalitions[coalition].extractionRequests?.find(
+          (entry) => entry.id === group.retreat?.extractionRequestId
+        )
+        if (request && request.status !== 'delivered') request.status = 'failed'
+        logCombatAction(draft, coalition, `${group.id} surrendered`, undefined, {
+          entityType: 'groundGroup',
+          entityId: group.id
+        })
+      }
+      continue
+    }
+
     if (group.state === 'idle') continue
     if (isGroundGroupLocked(draft, coalition, group.id)) continue
     if (group.targetObjectiveId && group.targetAirdromeName) {
@@ -690,5 +846,34 @@ export function updateGroundGroups(
     if (moveEnabled) {
       moveGroupTowardsObjective(group, targetPosition, delta, draft.timeMultiplier)
     }
+  }
+
+  for (const recovered of recoveredGroups) {
+    assignDeploymentSite({
+      campaign: draft,
+      coalition,
+      theatre,
+      group: recovered.group,
+      objectiveId: recovered.objectiveId,
+      roles: ['recovery', 'reserve'],
+      reason: 'retreat'
+    })
+    dissolveGroundGroupIntoReplacementPool({
+      campaign: draft,
+      coalition,
+      group: recovered.group,
+      objectiveId: recovered.objectiveId
+    })
+    logCombatAction(
+      draft,
+      coalition,
+      `${recovered.group.id} reached ${recovered.objectiveId} and entered the replacement pool`
+    )
+  }
+
+  if (surrenderedGroupIds.size > 0) {
+    draft.coalitions[coalition].groundGroups = draft.coalitions[coalition].groundGroups.filter(
+      (group) => !surrenderedGroupIds.has(group.id)
+    )
   }
 }

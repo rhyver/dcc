@@ -1,7 +1,15 @@
+import {
+  getDeploymentSites,
+  HMS_INVINCIBLE_UNIT_TYPE,
+  requiresSupercarrier,
+  SUPERCARRIER_UNIT_TYPES
+} from '@dcc/campaign'
 import { config, schemas } from '@dcc/contracts'
 import { aircrafts, callsigns } from '@dcc/data'
 import { err, ok, Result } from 'neverthrow'
 import * as z from 'zod'
+
+import { findCarrierMissionUnit } from './add-naval-groups'
 
 // Build lookup map once
 const aircraftMap = new Map<string, z.infer<typeof schemas.dcs.aircraft>>()
@@ -123,8 +131,26 @@ function resolveTargetPosition(
     const downedPilot = coalition.downedPilots?.find((pilot) => pilot.id === flightGroup.target?.id)
     if (downedPilot) return downedPilot.position
 
+    const casualtyPoint = coalition.casualtyPoints?.find(
+      (point) => point.id === flightGroup.target?.id
+    )
+    if (casualtyPoint) return casualtyPoint.position
+
+    const extractionRequest = coalition.extractionRequests?.find(
+      (request) => request.id === flightGroup.target?.id
+    )
+    if (extractionRequest) {
+      const site = getDeploymentSites(theatre).find(
+        (candidate) => candidate.id === extractionRequest.pickupSiteId
+      )
+      if (site) return site.position
+    }
+
     const groundGroup = coalition.groundGroups.find((group) => group.id === flightGroup.target?.id)
     if (groundGroup) return groundGroup.position
+
+    const navalGroup = coalition.navalGroups?.find((group) => group.id === flightGroup.target?.id)
+    if (navalGroup) return navalGroup.position
 
     const structure = coalition.structures.find(
       (candidate) => candidate.id === flightGroup.target?.id
@@ -256,6 +282,17 @@ export type CsarMissionConfig = {
   pickupRadius: number
 }
 
+export type RecoveryMissionConfig = {
+  kind: 'casevac' | 'troop-extraction'
+  targetId: string
+  groundGroupId?: string
+  targetGroupName?: string
+  woundedCount?: number
+  position: { x: number; y: number }
+  dropOffPosition: { x: number; y: number }
+  pickupRadius: number
+}
+
 export type MissionFlightConfig =
   | CasFlightConfig
   | {
@@ -266,6 +303,7 @@ export type MissionFlightConfig =
       isHelicopter?: boolean
       navigation?: MissionNavigationConfig
       csar?: CsarMissionConfig
+      recovery?: RecoveryMissionConfig
     }
 
 export type MissionNavigationConfig = {
@@ -1050,7 +1088,9 @@ export function addFlightGroups(
 
       const isHelicopter = aircraftDef.isHelicopter ?? false
       const taskName = fg.task
-      const dcsTaskName = fg.task === 'CSAR' ? 'Transport' : fg.task
+      const dcsTaskName = ['CSAR', 'CASEVAC', 'Troop Extraction'].includes(fg.task)
+        ? 'Transport'
+        : fg.task
 
       // Find loadout
       let selectedLoadout = aircraftDef.loadouts.find((l) => l.task === taskName)
@@ -1075,6 +1115,27 @@ export function addFlightGroups(
       // Get airdrome details if available
       const airdromeName = fg.homeBase
       const airdrome = theatre.airdromeDetails[airdromeName]
+      const carrierHome = value.navalGroups?.find(
+        (group) => group.id === fg.homeBase && group.role === 'carrier' && group.state !== 'sunk'
+      )
+      const needsSupercarrier =
+        carrierHome?.unitTypes.includes(HMS_INVINCIBLE_UNIT_TYPE) === true &&
+        requiresSupercarrier(aircraftDef)
+      const carrierUnit = carrierHome
+        ? findCarrierMissionUnit(
+            mission,
+            coalitionKey,
+            carrierHome.id,
+            needsSupercarrier ? SUPERCARRIER_UNIT_TYPES : undefined
+          )
+        : undefined
+      if (carrierHome && (!carrierUnit || !aircraftDef.carrierCapable)) {
+        // eslint-disable-next-line no-console -- invalid carrier assignments must be visible during mission generation
+        console.warn(
+          `Cannot place ${fg.callsign} at carrier base ${carrierHome.name}: ${!carrierUnit ? (needsSupercarrier ? 'compatible Supercarrier missing' : 'mission ship missing') : 'aircraft is not carrier capable'}`
+        )
+        return
+      }
 
       // Initialize used slots for this airdrome if not exists
       if (airdrome && !usedParkingSlots.has(airdromeName)) {
@@ -1143,6 +1204,12 @@ export function addFlightGroups(
           heading = inFlightState.heading
           speed = fg.flightplan.waypoints[1]?.speed ?? 250 // Use cruise speed
           // No parking for airborne aircraft
+        } else if (carrierHome && carrierUnit) {
+          parking = (index + 1).toString()
+          parking_id = parking
+          x = carrierUnit.x
+          y = carrierUnit.y
+          heading = carrierUnit.heading
         } else if (farpHome && farpParkingSlotStart !== undefined) {
           parking = (farpParkingSlotStart + index + 1).toString()
           parking_id = parking
@@ -1372,7 +1439,10 @@ export function addFlightGroups(
         if (wp.type === 'TakeOff') {
           // If already in flight, use Turning Point instead of a ground start
           if (!isInFlight) {
-            if (isHelicopter && !airdrome) {
+            if (carrierHome && carrierUnit) {
+              action = hotStart ? 'From Parking Area Hot' : 'From Parking Area'
+              type = hotStart ? 'TakeOffParkingHot' : 'TakeOffParking'
+            } else if (isHelicopter && !airdrome) {
               if (farpParkingSlotStart !== undefined && farpHelipadId !== undefined) {
                 action = hotStart ? 'From Parking Area Hot' : 'From Parking Area'
                 type = hotStart ? 'TakeOffParkingHot' : 'TakeOffParking'
@@ -1393,7 +1463,10 @@ export function addFlightGroups(
         let x = wp.position.x
         let y = wp.position.y
 
-        if (
+        if (type === 'Land' && carrierUnit && !isInFlight) {
+          x = carrierUnit.x
+          y = carrierUnit.y
+        } else if (
           (type === 'TakeOffParking' ||
             type === 'TakeOffParkingHot' ||
             type === 'TakeOffGround' ||
@@ -1562,6 +1635,15 @@ export function addFlightGroups(
         }
 
         if (
+          (type === 'TakeOffParking' || type === 'TakeOffParkingHot' || type === 'Land') &&
+          carrierUnit &&
+          !isInFlight
+        ) {
+          routePoint.helipadId = carrierUnit.unitId
+          routePoint.linkUnit = carrierUnit.unitId
+        }
+
+        if (
           type === 'Land' &&
           farpHome !== undefined &&
           farpHelipadId !== undefined &&
@@ -1611,6 +1693,19 @@ export function addFlightGroups(
       if (fg.aircrafts.some((ac) => ac.client)) {
         const targetPosition = resolveTargetPosition(campaign, theatre, fg)
         const downedPilot = value.downedPilots?.find((pilot) => pilot.id === fg.target?.id)
+        const casualtyPoint = value.casualtyPoints?.find((point) => point.id === fg.target?.id)
+        const extractionRequest = value.extractionRequests?.find(
+          (request) => request.id === fg.target?.id
+        )
+        const extractionGroup = extractionRequest
+          ? value.groundGroups.find((group) => group.id === extractionRequest.groundGroupId)
+          : undefined
+        const recoveryPosition =
+          casualtyPoint?.position ??
+          (extractionRequest
+            ? getDeploymentSites(theatre).find((site) => site.id === extractionRequest.pickupSiteId)
+                ?.position
+            : undefined)
         const dropOffPosition =
           fg.flightplan.waypoints.find((waypoint) => waypoint.name === 'Drop Off')?.position ??
           fg.flightplan.waypoints.find((waypoint) => waypoint.type === 'Landing')?.position ??
@@ -1689,6 +1784,32 @@ export function addFlightGroups(
                   position: downedPilot.position,
                   dropOffPosition,
                   pickupRadius: config.packages.CSAR.pickupRadius
+                }
+              }
+            : {}),
+          ...((fg.task === 'CASEVAC' || fg.task === 'Troop Extraction') &&
+          fg.target &&
+          recoveryPosition
+            ? {
+                recovery: {
+                  kind:
+                    fg.task === 'CASEVAC' ? ('casevac' as const) : ('troop-extraction' as const),
+                  targetId: fg.target.id,
+                  groundGroupId: extractionRequest?.groundGroupId,
+                  targetGroupName: extractionGroup
+                    ? (findMissionGroundGroupName(
+                        mission,
+                        missionCoalitionKey,
+                        extractionGroup.id
+                      ) ?? undefined)
+                    : undefined,
+                  woundedCount: casualtyPoint?.woundedCount,
+                  position: recoveryPosition,
+                  dropOffPosition,
+                  pickupRadius:
+                    fg.task === 'CASEVAC'
+                      ? config.packages.CASEVAC.pickupRadius
+                      : config.packages['Troop Extraction'].pickupRadius
                 }
               }
             : {}),

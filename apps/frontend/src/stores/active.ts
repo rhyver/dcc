@@ -1,4 +1,5 @@
 import { schemas } from '@dcc/contracts'
+import { ensureSupercarrierForAircraft, migrateLegacyFalklandsNavalStarts } from '@dcc/campaign'
 import { aircrafts as aircraftDefinitions } from '@dcc/data'
 import { createStore } from '@xstate/store'
 import { produce } from 'immer'
@@ -327,6 +328,12 @@ export function removeEmptyGroundGroups(campaign: Campaign): Campaign {
   })
 }
 
+function migrateLoadedCampaign(campaign: Campaign): Campaign {
+  return produce(campaign, (draft) => {
+    migrateLegacyFalklandsNavalStarts(draft)
+  })
+}
+
 export function resetFlightGroupClientSelections(campaign: Campaign) {
   return produce(campaign, (draft) => {
     const coalitions = [draft.coalitions.player, draft.coalitions.opponent]
@@ -353,7 +360,7 @@ export const activeStore = createStore({
   context: initialState,
   on: {
     loadCampaign: (_, { campaign }: { campaign: Campaign }) =>
-      repairMissingDeadAircraftTypes(removeEmptyGroundGroups(campaign)),
+      migrateLoadedCampaign(repairMissingDeadAircraftTypes(removeEmptyGroundGroups(campaign))),
 
     updateTime: (context, { time }: { time: Date }) =>
       produce(context, (draft) => {
@@ -511,6 +518,13 @@ export const activeStore = createStore({
           group.aircrafts.forEach((aircraft) => {
             aircraft.aircraftName = parsedAircraftType.data
           })
+
+          const aircraftDefinition = Object.values(aircraftDefinitions).find(
+            (aircraft) => aircraft.name === parsedAircraftType.data
+          )
+          if (coalition.key === 'player' && aircraftDefinition) {
+            ensureSupercarrierForAircraft(draft, coalition.key, aircraftDefinition)
+          }
 
           break
         }

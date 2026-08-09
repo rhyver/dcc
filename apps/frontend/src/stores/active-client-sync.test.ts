@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { schemas } from '@dcc/contracts'
-import { theatres } from '@dcc/data'
+import { scenarios, theatres } from '@dcc/data'
 import type * as z from 'zod'
 
 import { activeStore } from './active'
@@ -111,6 +111,30 @@ function createFlightGroup(params: {
 }
 
 describe('active store client flight timing sync', () => {
+  test('relocates a legacy Falklands carrier before the campaign map renders', () => {
+    const campaign = createCampaign()
+    const scenario = scenarios.find((candidate) => candidate.id === 'falklands-1982')
+    expect(scenario).toBeDefined()
+
+    campaign.scenarioId = 'falklands-1982'
+    campaign.coalitions.player.navalGroups = structuredClone(scenario?.navalGroups?.player ?? [])
+    const carrier = campaign.coalitions.player.navalGroups.find(
+      (group) => group.id === 'uk-carrier-group'
+    )
+    expect(carrier).toBeDefined()
+    carrier!.position = { x: 87_402, y: 206_382 }
+
+    activeStore.send({ type: 'loadCampaign', campaign })
+
+    expect(
+      activeStore
+        .getSnapshot()
+        .context.coalitions.player.navalGroups?.find(
+          (group) => group.id === 'uk-carrier-group'
+        )?.position
+    ).toEqual({ x: 87_610, y: 184_267 })
+  })
+
   test('repairs saved campaigns that have compatible aircraft but no DEAD task list', () => {
     const campaign = createCampaign()
     campaign.coalitions.player.id = 'usa-1977'
@@ -199,6 +223,42 @@ describe('active store client flight timing sync', () => {
 })
 
 describe('active store aircraft overrides', () => {
+  test('adds one Supercarrier when a player selects a conventional carrier aircraft', () => {
+    const campaign = createCampaign()
+    const scenario = scenarios.find((candidate) => candidate.id === 'falklands-1982')
+    expect(scenario).toBeDefined()
+
+    campaign.scenarioId = 'falklands-1982'
+    campaign.coalitions.player.navalGroups = structuredClone(scenario?.navalGroups?.player ?? [])
+    campaign.coalitions.player.flightGroups = [
+      createFlightGroup({
+        id: 'carrier-cap',
+        callsign: 'Ford-1',
+        task: 'CAP',
+        startTime: '2026-01-01T12:10:00.000Z',
+        tot: '2026-01-01T12:40:00.000Z'
+      })
+    ]
+
+    activeStore.send({ type: 'loadCampaign', campaign })
+    activeStore.send({
+      type: 'setFlightGroupAircraftType',
+      flightGroupId: 'carrier-cap',
+      aircraftType: 'FA-18C_hornet'
+    })
+    activeStore.send({
+      type: 'setFlightGroupAircraftType',
+      flightGroupId: 'carrier-cap',
+      aircraftType: 'FA-18C_hornet'
+    })
+
+    const carrierGroup = activeStore
+      .getSnapshot()
+      .context.coalitions.player.navalGroups?.find((group) => group.id === 'uk-carrier-group')
+    expect(carrierGroup?.unitTypes.filter((unitType) => unitType === 'CVN_71')).toHaveLength(1)
+    expect(carrierGroup?.units?.filter((unit) => unit.type === 'CVN_71')).toHaveLength(1)
+  })
+
   test('keeps CAS at the airport when it is closer than a FARP after changing to a helicopter', () => {
     const campaign = createCampaign()
     const caucasus = theatres.find((theatre) => theatre.name === 'Caucasus')!

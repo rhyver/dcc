@@ -3,6 +3,7 @@ import * as z from 'zod'
 import { coalition } from './coalition'
 import { flightplan } from './flightplan'
 import { groundUnitType } from './ground-unit-type'
+import { navalGroup } from './naval-group'
 import { structureType } from './structure-type'
 import { task } from './task'
 
@@ -52,11 +53,26 @@ export const SamMapItem = mapItem.extend({
   active: z.boolean()
 })
 
+export const NavalGroupMapItem = mapItem.extend({
+  type: z.literal('Naval Group'),
+  role: navalGroup.shape.role,
+  state: navalGroup.shape.state,
+  heading: z.number(),
+  damage: z.number().min(0).max(1),
+  fuel: z.number().min(0).max(1),
+  ammunition: z.number().min(0).max(1),
+  cargo: z.number().nonnegative(),
+  unitTypes: z.array(z.string()),
+  unitCount: z.number().int().nonnegative(),
+  operationalUnitCount: z.number().int().nonnegative()
+})
+
 export const MapItem = z.discriminatedUnion('type', [
   AirdromeMapItem,
   FlightGroupMapItem,
   StructureMapItem,
   GroundGroupMapItem,
   DownedPilotMapItem,
-  SamMapItem
+  SamMapItem,
+  NavalGroupMapItem
 ])

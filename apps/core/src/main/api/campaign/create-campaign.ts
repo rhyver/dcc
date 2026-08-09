@@ -1,4 +1,5 @@
 import { getFactions } from '../data/get-factions'
+import { assignDeploymentSite, expandGroundGroupUnits, isInfantryGroundGroup } from '@dcc/campaign'
 import { getScenarios } from '../data/get-scenarios'
 import { getTemplates } from '../data/get-templates'
 import { pub } from '../orpc'
@@ -12,7 +13,6 @@ import { assignSams } from './assign-sams'
 import { assignStructures } from '@dcc/frontend/mission-generator'
 import { assignGroundGroups } from './assign-ground-groups'
 import { campaignsDir, stateFile } from '../../app-data'
-import { randomDateForEra } from './campaign-date'
 
 type Coalition = z.infer<typeof schemas.coalition>
 type Campaign = z.infer<typeof schemas.campaign.campaign>
@@ -175,30 +175,43 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
       .map((coalitionStart) => coalitionStart.carrierObjectiveId)
       .filter((objectiveId): objectiveId is string => objectiveId != null)
   )
+  const deferredObjectiveIds = new Set(scenario.deferredObjectiveIds ?? [])
+  const excludedObjectiveIds = new Set([...carrierObjectiveIds, ...deferredObjectiveIds])
+
+  for (const objectiveId of deferredObjectiveIds) {
+    if (!theatre.objectives.some((objective) => objective.name === objectiveId)) {
+      throw errors.NOT_FOUND({
+        data: {
+          message: `Deferred objective ${objectiveId} not found in theatre ${theatre.name}`,
+          path: 'scenario.deferredObjectiveIds'
+        }
+      })
+    }
+  }
 
   const objectives = theatre.objectives.filter(
-    (objective) => !carrierObjectiveIds.has(objective.name)
+    (objective) => !excludedObjectiveIds.has(objective.name)
   )
   const objectiveMap = new Map(objectives.map((o) => [o.name, o]))
 
-  const startWithoutCarrierObjectives: z.infer<typeof schemas.scenario>['start'] = {
+  const strategicStart: z.infer<typeof schemas.scenario>['start'] = {
     player: {
       ...scenario.start.player,
       objectiveIds: scenario.start.player.objectiveIds.filter(
-        (objectiveId) => !carrierObjectiveIds.has(objectiveId)
+        (objectiveId) => !excludedObjectiveIds.has(objectiveId)
       )
     },
     opponent: {
       ...scenario.start.opponent,
       objectiveIds: scenario.start.opponent.objectiveIds.filter(
-        (objectiveId) => !carrierObjectiveIds.has(objectiveId)
+        (objectiveId) => !excludedObjectiveIds.has(objectiveId)
       )
     }
   }
 
   const objectiveAssignments = assignObjectivesToCoalitions({
     objectives,
-    start: startWithoutCarrierObjectives,
+    start: strategicStart,
     onMissingObjective: ({ coalition, objectiveId }) => {
       throw errors.NOT_FOUND({
         data: {
@@ -210,9 +223,10 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
   })
   const operationProfile = rollOperationProfile()
   const protectedObjectiveIds = new Set([
-    ...startWithoutCarrierObjectives.player.objectiveIds,
-    ...startWithoutCarrierObjectives.opponent.objectiveIds,
+    ...strategicStart.player.objectiveIds,
+    ...strategicStart.opponent.objectiveIds,
     ...carrierObjectiveIds,
+    ...deferredObjectiveIds,
     ...(scenario.goal?.objectiveIds ?? [])
   ])
   applyFrontlineVariation({
@@ -244,7 +258,9 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
       .map((name) => theatre.airdromeDetails[name])
       .filter((details) => details != null)
       .map((details) => ({ x: details.x, y: details.y }))
-    const assignments = assignStructures(coalitionObjectives, airbasePositions)
+    const assignments = assignStructures(coalitionObjectives, airbasePositions, {
+      ensureEveryObjective: scenario.id === 'falklands-1982'
+    })
 
     return assignments.map((assignment) => {
       return {
@@ -276,10 +292,7 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
     throw errors.NOT_FOUND({
       data: {
         message: 'Faction not found',
-        path:
-          playerFaction == null
-            ? input.playerFactionId
-            : input.opponentFactionId
+        path: playerFaction == null ? input.playerFactionId : input.opponentFactionId
       }
     })
   }
@@ -324,14 +337,32 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
       })
     : []
 
-  // Opponent SAMs: cover all opponent objectives, but must NOT reach player objectives
-  const opponentSamAssignments = opponentSamType
-    ? assignSams({
-        coalitionObjectives: opponentObjectiveInfos,
-        samType: opponentSamType,
-        forbiddenObjectives: playerObjectiveInfos
-      })
-    : []
+  const falklandsSamAssignments: Array<{
+    objectiveId: string
+    type: z.infer<typeof schemas.samType>
+  }> = [
+    { objectiveId: 'Goose Green', type: 'Roland' },
+    { objectiveId: 'Stanley Airport', type: 'Hawk' },
+    { objectiveId: 'Evelyn Station Farm', type: 'Hawk' },
+    { objectiveId: 'Fox Bay', type: 'Hawk' }
+  ]
+
+  // Opponent SAMs: the Falklands scenario has a deterministic reviewed network. Other scenarios
+  // retain the randomized coverage allocator and its player-objective exclusion rule.
+  const opponentSamAssignments =
+    scenario.id === 'falklands-1982'
+      ? falklandsSamAssignments.filter((assignment) =>
+          opponentObjectiveInfos.some(
+            (objective) => objective.id === assignment.objectiveId && objective.hasSamTarget
+          )
+        )
+      : opponentSamType
+        ? assignSams({
+            coalitionObjectives: opponentObjectiveInfos,
+            samType: opponentSamType,
+            forbiddenObjectives: playerObjectiveInfos
+          })
+        : []
 
   const playerSamGroups = playerSamAssignments.map((assignment) => ({
     id: crypto.randomUUID(),
@@ -340,7 +371,10 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
   }))
 
   const opponentSamGroups = opponentSamAssignments.map((assignment) => ({
-    id: crypto.randomUUID(),
+    id:
+      scenario.id === 'falklands-1982'
+        ? `arg-${assignment.objectiveId.toLowerCase().replaceAll(' ', '-')}-${assignment.type.toLowerCase()}`
+        : crypto.randomUUID(),
     type: assignment.type,
     objectiveId: assignment.objectiveId
   }))
@@ -354,16 +388,19 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
   const opponentGroundAssignments = assignGroundGroups({
     coalitionObjectives: opponentObjectiveInfos,
     enemyObjectives: playerObjectiveInfos,
-    template: opponentTemplate
+    template: opponentTemplate,
+    defendAllObjectives: scenario.id === 'falklands-1982'
   })
 
-  const playerGroundGroups = playerGroundAssignments.map((assignment) => ({
-    id: crypto.randomUUID(),
-    objectiveId: assignment.objectiveId,
-    units: assignment.units,
-    position: assignment.position,
-    state: 'idle' as const
-  }))
+  const playerGroundGroups = (scenario.id === 'falklands-1982' ? [] : playerGroundAssignments).map(
+    (assignment) => ({
+      id: crypto.randomUUID(),
+      objectiveId: assignment.objectiveId,
+      units: assignment.units,
+      position: assignment.position,
+      state: 'idle' as const
+    })
+  )
 
   const opponentGroundGroups = opponentGroundAssignments.map((assignment) => ({
     id: crypto.randomUUID(),
@@ -430,7 +467,9 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
     coalition: Coalition
   ) => {
     const objectiveIds = objectiveAssignments[coalition] ?? []
-    const pressuredObjectiveId = objectiveIds.find((objectiveId) => !protectedObjectiveIds.has(objectiveId))
+    const pressuredObjectiveId = objectiveIds.find(
+      (objectiveId) => !protectedObjectiveIds.has(objectiveId)
+    )
     if (!pressuredObjectiveId) return
 
     const node = supplyNodes[pressuredObjectiveId]
@@ -453,14 +492,14 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
   applyProfileSupplyPressure(opponentSupplyNodes, 'opponent')
 
   const now = new Date()
-  const campaignTime = randomDateForEra(input.era)
+  const campaignTime = new Date(scenario.date)
   const opponentStrategicStrikeCooldownUntil = createInitialStrategicStrikeCooldown(
     campaignTime,
     opponentFaction
   )
 
   const defaultState: z.infer<typeof schemas.campaign.campaign> = {
-    version: '0.0.1',
+    version: '0.2.0',
     createdAt: now,
     updatedAt: now,
     id: crypto.randomUUID(),
@@ -476,12 +515,13 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
       exactTarget: true,
       casJtac: true,
       navigationVectors: true,
-      navigationTargetTacan: false,
+      navigationTargetTacan: false
     },
     status: 'active',
     goal: scenario.goal,
     operationProfile,
     groundBattleLocks: [],
+    campaignPhase: scenario.id === 'falklands-1982' ? 'sea-control' : undefined,
     logs: [],
     scenarioId: scenario.id,
     coalitions: {
@@ -496,7 +536,16 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
         groundGroups: playerGroundGroups,
         flightGroups: [],
         packages: [],
-        supplyNodes: playerSupplyNodes
+        supplyNodes: playerSupplyNodes,
+        replacementPools: Object.fromEntries(
+          Object.keys(playerSupplyNodes).map((nodeId) => [
+            nodeId,
+            { readyPersonnel: 0, recoveringPersonnel: [], equipment: [] }
+          ])
+        ),
+        casualtyPoints: [],
+        extractionRequests: [],
+        navalGroups: structuredClone(scenario.navalGroups?.player ?? [])
       },
       opponent: {
         id: opponentFaction.id,
@@ -510,8 +559,34 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
         flightGroups: [],
         packages: [],
         strategicStrikeCooldownUntil: opponentStrategicStrikeCooldownUntil,
-        supplyNodes: opponentSupplyNodes
+        supplyNodes: opponentSupplyNodes,
+        replacementPools: Object.fromEntries(
+          Object.keys(opponentSupplyNodes).map((nodeId) => [
+            nodeId,
+            { readyPersonnel: 0, recoveringPersonnel: [], equipment: [] }
+          ])
+        ),
+        casualtyPoints: [],
+        extractionRequests: [],
+        navalGroups: structuredClone(scenario.navalGroups?.opponent ?? [])
       }
+    }
+  }
+
+  for (const coalition of ['player', 'opponent'] as const) {
+    for (const group of defaultState.coalitions[coalition].groundGroups) {
+      expandGroundGroupUnits(group)
+      if (!group.objectiveId) continue
+      assignDeploymentSite({
+        campaign: defaultState,
+        coalition,
+        theatre,
+        group,
+        objectiveId: group.objectiveId,
+        roles: isInfantryGroundGroup(group) ? ['infantry', 'defensive'] : ['vehicle', 'defensive'],
+        reason: 'creation',
+        now: campaignTime
+      })
     }
   }
 

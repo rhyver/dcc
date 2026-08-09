@@ -33,6 +33,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@dcc/campaign": "workspace:*",
     "@dcc/contracts": "workspace:*",
     "@dcc/data": "workspace:*",
     "@dcc/frontend": "workspace:*",

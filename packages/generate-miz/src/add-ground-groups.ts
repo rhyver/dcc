@@ -1,6 +1,6 @@
 import { schemas } from '@dcc/contracts'
 import { getSamDeadUnitIndexes, isSamFullyDestroyed, samTemplates } from '@dcc/data'
-import { ok, Result } from 'neverthrow'
+import { err, ok, Result } from 'neverthrow'
 import * as z from 'zod'
 
 import { isAirDefenseUnit, type MissionCullingPlan } from './mission-culling'
@@ -173,12 +173,14 @@ export function addGroundGroups(
 
         // Expand units: each entry has a name (DCS type) and count
         let shouldUseObjectiveTargets = false
-        let target = findTargetPlacement(theatre, {
-          objectiveName: gg.objectiveId,
-          type: 'Vehicle',
-          nameIncludes: '|Vehicle|',
-          position: gg.position
-        })
+        let target = gg.deployment
+          ? undefined
+          : findTargetPlacement(theatre, {
+              objectiveName: gg.objectiveId,
+              type: 'Vehicle',
+              nameIncludes: '|Vehicle|',
+              position: gg.position
+            })
         if (target && gg.state === 'idle' && gg.objectiveId) {
           shouldUseObjectiveTargets = true
         }
@@ -202,7 +204,13 @@ export function addGroundGroups(
               nameIncludes: '|AAA|'
             })
           : undefined
-        const expandedUnits: { type: string; x: number; y: number; heading: number }[] = []
+        const expandedUnits: {
+          id: string
+          type: string
+          x: number
+          y: number
+          heading: number
+        }[] = []
         let unitIndex = 0
         let vehicleUnitIndex = 0
         let airDefenseUnitIndex = 0
@@ -220,11 +228,25 @@ export function addGroundGroups(
             const targetPosition = useAaaTarget
               ? aaaTarget.unitPositions[airDefenseUnitIndex++]
               : target?.unitPositions[vehicleUnitIndex++]
+            if (gg.deployment && !unitEntry.position) {
+              return err(
+                new Error(
+                  `Ground group ${gg.id} is assigned to ${gg.deployment.siteId} but unit ${unitEntry.id ?? unitIndex} has no persisted position`
+                )
+              )
+            }
             expandedUnits.push({
+              id: unitEntry.id ?? `legacy-${unitIndex + 1}`,
               type: unitEntry.name,
-              x: targetPosition?.x ?? fallbackCenter.x + (placementIndex % 5) * 30,
-              y: targetPosition?.y ?? fallbackCenter.y + Math.floor(placementIndex / 5) * 30,
-              heading: targetPosition?.heading ?? 0
+              x:
+                unitEntry.position?.x ??
+                targetPosition?.x ??
+                fallbackCenter.x + (placementIndex % 5) * 30,
+              y:
+                unitEntry.position?.y ??
+                targetPosition?.y ??
+                fallbackCenter.y + Math.floor(placementIndex / 5) * 30,
+              heading: unitEntry.heading ?? targetPosition?.heading ?? 0
             })
             unitIndex++
           }
@@ -232,9 +254,9 @@ export function addGroundGroups(
 
         if (expandedUnits.length === 0) continue
 
-        const units = expandedUnits.map((eu, idx) => ({
+        const units = expandedUnits.map((eu) => ({
           unitId: nextId(),
-          name: `${groupName}-${idx + 1}`,
+          name: `GroundUnit-${gg.id}-${eu.id}`,
           x: eu.x,
           y: eu.y,
           type: eu.type,
@@ -263,24 +285,59 @@ export function addGroundGroups(
           }
         ]
 
-        // Add attack waypoint for groups with a target objective
-        if (gg.targetObjectiveId) {
-          const targetObj = theatre.objectives.find((o) => o.name === gg.targetObjectiveId)
-          if (targetObj) {
-            const speed = isInfantry ? 4 : 12
+        if (gg.state === 'withdrawing' && gg.retreat?.route.length) {
+          const speed = isInfantry ? 4 : 12
+          for (const waypoint of gg.retreat.route) {
             routePoints.push({
               alt: 0,
               alt_type: 'BARO',
               type: 'Turning Point',
-              y: targetObj.position.y,
-              x: targetObj.position.x,
+              y: waypoint.y,
+              x: waypoint.x,
               speed,
-              action: 'Off Road',
+              action: isInfantry ? 'Off Road' : 'On Road',
               ETA: 0,
               ETA_locked: false,
               speed_locked: true,
               formation_template: ''
             })
+          }
+        } else if (gg.targetObjectiveId) {
+          const targetObj = theatre.objectives.find((o) => o.name === gg.targetObjectiveId)
+          if (targetObj) {
+            const speed = isInfantry ? 4 : 12
+            const connection = (theatre.connections ?? []).find(
+              (entry) =>
+                (entry.from === gg.objectiveId && entry.to === gg.targetObjectiveId) ||
+                (entry.bidirectional &&
+                  entry.to === gg.objectiveId &&
+                  entry.from === gg.targetObjectiveId)
+            )
+            const connectionWaypoints = connection
+              ? connection.from === gg.objectiveId
+                ? connection.waypoints
+                : [...connection.waypoints].reverse()
+              : []
+            const mayUseLegacyDirectRoute = (theatre.connections?.length ?? 0) === 0
+            const waypoints = [
+              ...connectionWaypoints,
+              ...(connection || mayUseLegacyDirectRoute ? [targetObj.position] : [])
+            ]
+            for (const waypoint of waypoints) {
+              routePoints.push({
+                alt: 0,
+                alt_type: 'BARO',
+                type: 'Turning Point',
+                y: waypoint.y,
+                x: waypoint.x,
+                speed,
+                action: connection?.mode === 'road' && !isInfantry ? 'On Road' : 'Off Road',
+                ETA: 0,
+                ETA_locked: false,
+                speed_locked: true,
+                formation_template: ''
+              })
+            }
           }
         }
 

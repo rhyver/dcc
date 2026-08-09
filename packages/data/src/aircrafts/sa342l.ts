@@ -9,7 +9,14 @@ const aircraftDefinition: z.infer<typeof schemas.dcs.aircraft> = {
   max_height: 6000,
   max_speed: 240,
   name: 'SA342L',
-  availableTasks: ['CSAR', 'Ground Attack', 'Transport', 'Air Assault'],
+  availableTasks: [
+    'CSAR',
+    'CASEVAC',
+    'Troop Extraction',
+    'Ground Attack',
+    'Transport',
+    'Air Assault'
+  ],
   controllable: true,
   isHelicopter: true,
   cruiseAltitude: 150,

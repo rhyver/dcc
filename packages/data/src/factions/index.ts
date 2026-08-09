@@ -1,16 +1,19 @@
+import { Argentina1982A4 } from './argentina-1982-a4'
+import { Argentina1982Official } from './argentina-1982-official'
 import { France1982 } from './france-1982'
 import { Israel1967 } from './israel-1967'
-import { RUSSIA1996 } from './russia-1996'
-import { RUSSIA1984 } from './russia-1984'
-import { RUSSIA1971 } from './russia-1971'
 import { RUSSIA1955 } from './russia-1955'
+import { RUSSIA1971 } from './russia-1971'
+import { RUSSIA1984 } from './russia-1984'
+import { RUSSIA1996 } from './russia-1996'
 import { RussiaVietnam } from './russia-vietnam'
 import { Sweden1970 } from './sweden-1970'
+import { Uk1982 } from './uk-1982'
 import { UsNavy1964 } from './us-navy-1964'
 import { UsNavy1987 } from './us-navy-1987'
-import { USA2004 } from './usa-2004'
-import { USA1977 } from './usa-1977'
 import { USA1952 } from './usa-1952'
+import { USA1977 } from './usa-1977'
+import { USA2004 } from './usa-2004'
 import { USAVietnam } from './usa-vietnam'
 
 export const factions = [
@@ -24,6 +27,9 @@ export const factions = [
   RUSSIA1971,
   USA1977,
   France1982,
+  Uk1982,
+  Argentina1982Official,
+  Argentina1982A4,
   RUSSIA1984,
   UsNavy1987,
   RUSSIA1996,

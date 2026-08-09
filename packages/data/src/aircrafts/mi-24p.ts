@@ -10,7 +10,7 @@ const aircraftDefinition: z.infer<typeof schemas.dcs.aircraft> = {
   max_speed: 330,
   name: 'Mi-24P',
   max_height: 0,
-  availableTasks: ['CAS', 'CSAR', 'Air Assault'],
+  availableTasks: ['CAS', 'CSAR', 'CASEVAC', 'Troop Extraction', 'Air Assault'],
   controllable: true,
   cruiseAltitude: 1000,
   cruiseSpeed: 46.25,

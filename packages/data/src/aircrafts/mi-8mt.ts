@@ -10,7 +10,7 @@ const aircraftDefinition: z.infer<typeof schemas.dcs.aircraft> = {
   max_height: 5000,
   max_speed: 250,
   name: 'Mi-8MT',
-  availableTasks: ['CSAR', 'Transport', 'Air Assault'],
+  availableTasks: ['CSAR', 'CASEVAC', 'Troop Extraction', 'Transport', 'Air Assault'],
   controllable: true,
   cruiseAltitude: 1000,
   cruiseSpeed: 46.25,

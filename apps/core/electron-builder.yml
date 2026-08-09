@@ -34,6 +34,8 @@ extraResources:
     to: maps/persian-gulf/persian-gulf.pmtiles
   - from: apps/frontend/public/maps/syria/syria.pmtiles
     to: maps/syria/syria.pmtiles
+  - from: apps/frontend/public/maps/south-atlantic/south-atlantic.pmtiles
+    to: maps/south-atlantic/south-atlantic.pmtiles
 win:
   executableName: dcc
   target:

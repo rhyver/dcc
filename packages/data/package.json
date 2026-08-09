@@ -16,6 +16,8 @@
     "tsc": "tsc --noEmit",
     "lint": "eslint ./src",
     "lint:fix": "eslint ./src --fix",
+    "validate:deployment": "bun scripts/validate-deployment-sites.ts",
+    "validate:deployment:release": "bun scripts/validate-deployment-sites.ts --require-approved",
     "clean": "rm -rf .turbo node_modules"
   },
   "dependencies": {

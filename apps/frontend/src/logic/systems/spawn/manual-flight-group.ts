@@ -1,4 +1,5 @@
 import { config, schemas } from '@dcc/contracts'
+import { evaluateCombatViability } from '@dcc/campaign'
 import { aircrafts, isSamFullyDestroyed, isSamOperational } from '@dcc/data'
 import * as z from 'zod'
 
@@ -328,13 +329,14 @@ function createManualSpawnPlan(
     const targets = draft.coalitions[enemyCoalition].groundGroups
       .filter(
         (group) =>
+          evaluateCombatViability(group).casEligible &&
           group.state === 'idle' &&
           group.objectiveId != null &&
           !targetedGroundGroupIds.has(group.id)
       )
       .map((group) => {
         const objectiveId = group.objectiveId
-        const position = objectiveId ? getObjectivePosition(theatre, objectiveId) : null
+        const position = objectiveId ? group.position : null
         return objectiveId && position
           ? {
               target: {

@@ -1,4 +1,5 @@
 import { schemas } from '@dcc/contracts'
+import { scenarios, theatres } from '@dcc/data'
 import AdmZip from 'adm-zip'
 import { mkdtemp, rm } from 'fs/promises'
 import { tmpdir } from 'os'
@@ -11,9 +12,9 @@ import {
   buildKneeboardMissionDescription,
   buildKneeboardWaypointRows,
   createKneeboardFilename,
+  getClientFlightGroups,
   getKneeboardLandingTacanSummary,
   getKneeboardTargetTacanSummary,
-  getClientFlightGroups,
   renderKneeboardSvg,
   sanitizeKneeboardFilenamePart
 } from './kneeboard'
@@ -164,17 +165,9 @@ describe('kneeboard geographic map', () => {
     if (!resolveCaucasusPmtilesPath()) return
 
     const lngLatPoints = [
-      dcsPositionToLngLat(
-        CAUCASUS_TEST_ROUTE.takeoff.x,
-        CAUCASUS_TEST_ROUTE.takeoff.y,
-        'Caucasus'
-      ),
+      dcsPositionToLngLat(CAUCASUS_TEST_ROUTE.takeoff.x, CAUCASUS_TEST_ROUTE.takeoff.y, 'Caucasus'),
       dcsPositionToLngLat(CAUCASUS_TEST_ROUTE.task.x, CAUCASUS_TEST_ROUTE.task.y, 'Caucasus'),
-      dcsPositionToLngLat(
-        CAUCASUS_TEST_ROUTE.landing.x,
-        CAUCASUS_TEST_ROUTE.landing.y,
-        'Caucasus'
-      )
+      dcsPositionToLngLat(CAUCASUS_TEST_ROUTE.landing.x, CAUCASUS_TEST_ROUTE.landing.y, 'Caucasus')
     ].filter((point): point is NonNullable<typeof point> => point != null)
 
     const viewport = createRouteMapViewport({
@@ -197,7 +190,9 @@ describe('kneeboard geographic map', () => {
 describe('kneeboard waypoint rows', () => {
   test('formats route timing, distance, bearing, altitude, and speed', () => {
     const startTime = new Date('2026-01-01T12:00:00Z')
-    const rows = buildKneeboardWaypointRows(createFlightGroup('blue-client', 'Enfield-1', startTime))
+    const rows = buildKneeboardWaypointRows(
+      createFlightGroup('blue-client', 'Enfield-1', startTime)
+    )
 
     expect(rows).toMatchObject([
       {
@@ -399,6 +394,75 @@ describe('kneeboard TACAN summaries', () => {
 })
 
 describe('generateMizFromCampaign kneeboards', () => {
+  test('smoke-generates a South Atlantic mission with persistent naval groups', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'dcc-south-atlantic-'))
+    const mizPath = path.join(dir, 'mission.miz')
+
+    try {
+      const scenario = scenarios.find((candidate) => candidate.id === 'falklands-1982')
+      const southAtlantic = theatres.find((candidate) => candidate.name === 'SouthAtlantic')
+      if (!scenario || !southAtlantic) throw new Error('South Atlantic test data is missing')
+
+      const campaign = createCampaign(scenario.date)
+      campaign.scenarioId = scenario.id
+      campaign.coalitions.player.id = 'uk-1982'
+      campaign.coalitions.opponent.id = 'argentina-1982-official'
+      campaign.coalitions.player.navalGroups = structuredClone(scenario.navalGroups?.player ?? [])
+      campaign.coalitions.opponent.navalGroups = structuredClone(
+        scenario.navalGroups?.opponent ?? []
+      )
+      const carrier = campaign.coalitions.player.navalGroups.find(
+        (group) => group.role === 'carrier'
+      )
+      if (!carrier?.units) throw new Error('South Atlantic carrier group is missing')
+      carrier.state = 'sunk'
+      carrier.damage = 1
+      for (const unit of carrier.units) {
+        unit.state = 'sunk'
+        unit.damage = 1
+      }
+
+      const result = await generateMizFromCampaign(campaign, southAtlantic, mizPath)
+
+      expect(result.isOk()).toBe(true)
+      if (result.isErr()) throw result.error
+
+      const zip = new AdmZip(mizPath)
+      const missionText = zip.getEntry('mission')?.getData().toString('utf-8') ?? ''
+      expect(zip.getEntry('l10n/')?.isDirectory).toBe(true)
+      expect(zip.getEntry('l10n/DEFAULT/')?.isDirectory).toBe(true)
+      expect(zip.getEntry('theatre')?.getData().toString('utf-8')).toBe('Falklands')
+      expect(missionText).toContain('["theatre"] = "Falklands"')
+      expect(missionText).toContain('["Year"] = 1982')
+      const surfaceWindStart = missionText.indexOf('["atGround"]')
+      const surfaceWindEnd = missionText.indexOf('}', surfaceWindStart)
+      const surfaceWind = missionText.slice(surfaceWindStart, surfaceWindEnd)
+      expect(surfaceWindStart).toBeGreaterThanOrEqual(0)
+      expect(surfaceWind).toContain('["speed"] = 9')
+      expect(surfaceWind).toContain('["dir"] = 170')
+      expect(missionText).toContain('NavalGroup-uk-carrier-group')
+      expect(missionText).toContain('NavalUnit-uk-carrier-group-uk-carrier-group-ship-1')
+      expect(missionText).toContain('["type"] = "hms_invincible"')
+      const carrierGroupStart = missionText.indexOf('NavalGroup-uk-carrier-group')
+      const escortGroupStart = missionText.indexOf('NavalGroup-uk-escort-group')
+      expect(carrierGroupStart).toBeGreaterThanOrEqual(0)
+      expect(escortGroupStart).toBeGreaterThan(carrierGroupStart)
+      expect(missionText.slice(carrierGroupStart, escortGroupStart)).toContain(
+        '["id"] = "SetImmortal"'
+      )
+      expect(missionText).toContain('carrierOps')
+      expect(missionText).toContain('recoveryDuration')
+      const stateScript = zip.getEntry('l10n/DEFAULT/state.lua')?.getData().toString('utf-8') ?? ''
+      expect(stateScript).toContain("addSubMenuForCoalition(side, 'Carrier Operations')")
+      expect(stateScript).toContain("id = 'SwitchWaypoint'")
+      expect(stateScript).toContain('timer.getTime() + duration')
+      expect(missionText).toContain('NavalGroup-arg-surface-group')
+      expect(missionText).toContain('["type"] = "ara_vdm"')
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
   test('writes the selected theatre into mission files', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'dcc-theatre-'))
     const mizPath = path.join(dir, 'mission.miz')
@@ -454,7 +518,9 @@ describe('generateMizFromCampaign kneeboards', () => {
 
       const zip = new AdmZip(mizPath)
       const entries = zip.getEntries().map((entry) => entry.entryName)
-      const kneeboardEntries = entries.filter((entry) => entry.startsWith('KNEEBOARD/IMAGES/'))
+      const kneeboardEntries = entries.filter(
+        (entry) => entry.startsWith('KNEEBOARD/IMAGES/') && !entry.endsWith('/')
+      )
 
       expect(kneeboardEntries).toEqual(['KNEEBOARD/IMAGES/DCC_001_Enfield-1_CAP.png'])
       const kneeboardEntry = zip.getEntry('KNEEBOARD/IMAGES/DCC_001_Enfield-1_CAP.png')

@@ -46,8 +46,20 @@ type StructureAssignment = {
   buildings: z.infer<typeof schemas.structureBuilding>[]
 }
 
+type AssignStructuresOptions = {
+  ensureEveryObjective?: boolean
+}
+
 const requiredSpawnStructureTypes = ['Barrack', 'Depot'] as const satisfies readonly StructureType[]
 const requiredSpawnStructureTypeSet = new Set<StructureType>(requiredSpawnStructureTypes)
+const fallbackStructureTypes = [
+  'Barrack',
+  'Depot',
+  'Logistics Hub',
+  'Ammo Depot',
+  'Fuel Storage',
+  'Command Center'
+] as const satisfies readonly StructureType[]
 
 function createStructureAssignment(
   objective: ObjectiveInfo,
@@ -119,9 +131,31 @@ export function ensureRequiredSpawnStructures(
   return ensuredAssignments
 }
 
+function ensureStructureAtEveryObjective(
+  assignments: StructureAssignment[],
+  objectives: ObjectiveInfo[]
+) {
+  const completedAssignments = [...assignments]
+  const occupiedObjectives = new Set(assignments.map((assignment) => assignment.objectiveId))
+
+  objectives.forEach((objective, index) => {
+    if (occupiedObjectives.has(objective.id)) return
+
+    const type = fallbackStructureTypes[index % fallbackStructureTypes.length]!
+    const assignment = createStructureAssignment(objective, type)
+    if (!assignment) return
+
+    completedAssignments.push(assignment)
+    occupiedObjectives.add(objective.id)
+  })
+
+  return completedAssignments
+}
+
 export function assignStructures(
   objectives: ObjectiveInfo[],
-  airbasePositions: Position[] = []
+  airbasePositions: Position[] = [],
+  options: AssignStructuresOptions = {}
 ): StructureAssignment[] {
   const structureObjectives = objectives.filter((objective) =>
     objective.targets.some(
@@ -254,7 +288,7 @@ export function assignStructures(
   )
 
   // Convert assignments map to array
-  return ensureRequiredSpawnStructures(
+  const completedAssignments = ensureRequiredSpawnStructures(
     Array.from(assignments.entries()).map(([objectiveId, info]) => ({
       objectiveId,
       type: info.type,
@@ -265,4 +299,8 @@ export function assignStructures(
     })),
     objectives
   )
+
+  return options.ensureEveryObjective
+    ? ensureStructureAtEveryObjective(completedAssignments, objectives)
+    : completedAssignments
 }

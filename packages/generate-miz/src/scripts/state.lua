@@ -96,17 +96,21 @@ local missionState = {
     missionEnded = false,
     ejectedPilots = {},
     rescuedPilots = {},
+    troopExtractions = {},
+    casevacPickups = {},
     lostUnits = {},
     landedUnits = {},
     cargoDeliveries = {},
     groupPositions = {
         blue = {
             aircraft = {},
-            ground = {}
+            ground = {},
+            ships = {}
         },
         red = {
             aircraft = {},
-            ground = {}
+            ground = {},
+            ships = {}
         }
     },
 }
@@ -117,6 +121,7 @@ local lostUnitIndexesByName = {}
 local landedUnitIndexesByName = {}
 local getInitiatorGroup
 local handleCsarLanding
+local handleRecoveryLanding
 local pendingSaveReasons = {}
 local saveScheduled = false
 local pendingSaveReasonCount = 0
@@ -603,8 +608,8 @@ local function getAircraftGroupPositions(coalition)
     return groups
 end
 
--- Get positions and unit info for ground groups (GROUND and SHIP)
-local function getGroundGroupPositions(coalition)
+-- Get positions and unit info for one persistent group category.
+local function getPersistentGroupPositions(coalition, wantedCategory)
     local list = mist.getGroupsByAttribute({coalition = coalition}, 0)
     local groups = {}
 
@@ -616,7 +621,7 @@ local function getGroundGroupPositions(coalition)
             if group and group.getCategory then
                 local category = group:getCategory()
 
-                if category == Group.Category.GROUND or category == Group.Category.SHIP then
+                if category == wantedCategory then
                     local units = group:getUnits()
                     local unitData = {}
                     local hasAliveUnits = false
@@ -699,13 +704,23 @@ local function writeState()
     )
     missionState.groupPositions.blue.ground = collectPositions(
         'blue ground positions',
-        function() return getGroundGroupPositions("blue") end,
+        function() return getPersistentGroupPositions("blue", Group.Category.GROUND) end,
         missionState.groupPositions.blue.ground
     )
     missionState.groupPositions.red.ground = collectPositions(
         'red ground positions',
-        function() return getGroundGroupPositions("red") end,
+        function() return getPersistentGroupPositions("red", Group.Category.GROUND) end,
         missionState.groupPositions.red.ground
+    )
+    missionState.groupPositions.blue.ships = collectPositions(
+        'blue ship positions',
+        function() return getPersistentGroupPositions("blue", Group.Category.SHIP) end,
+        missionState.groupPositions.blue.ships
+    )
+    missionState.groupPositions.red.ships = collectPositions(
+        'red ship positions',
+        function() return getPersistentGroupPositions("red", Group.Category.SHIP) end,
+        missionState.groupPositions.red.ships
     )
     
     missionState.time = timer.getAbsTime()
@@ -879,6 +894,9 @@ local function handleEvent(event)
 
         if handleCsarLanding then
             handleCsarLanding(groupName, position)
+        end
+        if handleRecoveryLanding then
+            handleRecoveryLanding(groupName, position)
         end
 
         if recordedLanding or recordedCargoDelivery then
@@ -1103,6 +1121,397 @@ local function setupCsarMenus()
     end
 end
 
+local recoveryGroups = {}
+local pickedUpRecoveryIds = {}
+local deliveredRecoveryIds = {}
+
+local function recoveryMessage(groupConfig, message, duration)
+    trigger.action.outTextForGroup(groupConfig.groupId, message, duration or 15, false)
+end
+
+local function recoveryLabel(recovery)
+    if recovery.kind == 'casevac' then
+        return tostring(recovery.woundedCount or 0)..' wounded personnel'
+    end
+    return 'withdrawing troops'
+end
+
+local function recoveryStatus(groupConfig)
+    local unit = csarGroupUnit(groupConfig)
+    local recovery = groupConfig.recovery
+    if not unit or not recovery then
+        recoveryMessage(groupConfig, 'Recovery location unavailable.')
+        return
+    end
+    if deliveredRecoveryIds[recovery.targetId] then
+        recoveryMessage(groupConfig, recoveryLabel(recovery)..' delivered.')
+        return
+    end
+    if pickedUpRecoveryIds[recovery.targetId] then
+        recoveryMessage(groupConfig, recoveryLabel(recovery)..' aboard. Return to the drop-off point.')
+        return
+    end
+    local point = unit:getPoint()
+    local dx = recovery.position.x - point.x
+    local dz = recovery.position.y - point.z
+    local distance = math.sqrt(dx * dx + dz * dz)
+    local bearing = math.deg(math.atan2(dx, dz))
+    if bearing < 0 then bearing = bearing + 360 end
+    recoveryMessage(
+        groupConfig,
+        string.format('%s: bearing %03d, %.1f km.', recoveryLabel(recovery), math.floor(bearing + 0.5), distance / 1000)
+    )
+end
+
+local function recoverySmoke(groupConfig)
+    local recovery = groupConfig.recovery
+    if not recovery or pickedUpRecoveryIds[recovery.targetId] or deliveredRecoveryIds[recovery.targetId] then
+        recoveryMessage(groupConfig, 'No recovery target awaiting pickup.')
+        return
+    end
+    local point = {
+        x = recovery.position.x,
+        y = land.getHeight({ x = recovery.position.x, y = recovery.position.y }),
+        z = recovery.position.y
+    }
+    trigger.action.smoke(point, trigger.smokeColor.Orange)
+    recoveryMessage(groupConfig, 'Orange smoke deployed at the pickup zone.')
+end
+
+local function recoveryPickup(groupConfig)
+    local unit = csarGroupUnit(groupConfig)
+    local recovery = groupConfig.recovery
+    if not unit or not recovery then
+        recoveryMessage(groupConfig, 'Recovery pickup unavailable.')
+        return
+    end
+    if deliveredRecoveryIds[recovery.targetId] or pickedUpRecoveryIds[recovery.targetId] then
+        recoveryMessage(groupConfig, recoveryLabel(recovery)..' already recovered.')
+        return
+    end
+    local point = unit:getPoint()
+    local dx = recovery.position.x - point.x
+    local dz = recovery.position.y - point.z
+    local distance = math.sqrt(dx * dx + dz * dz)
+    if distance > (recovery.pickupRadius or 150) then
+        recoveryMessage(groupConfig, string.format('Move closer to the pickup zone (%.0f m).', distance))
+        return
+    end
+    if unit:inAir() then
+        recoveryMessage(groupConfig, 'Land before loading personnel.')
+        return
+    end
+
+    pickedUpRecoveryIds[recovery.targetId] = true
+    if recovery.kind == 'troop-extraction' then
+        missionState.troopExtractions[#missionState.troopExtractions + 1] = {
+            requestId = tostring(recovery.targetId),
+            groupId = tostring(recovery.groundGroupId),
+            flightGroupName = groupConfig.name,
+            status = 'embarked',
+            time = timer.getAbsTime()
+        }
+        local groundGroup = recovery.targetGroupName and Group.getByName(recovery.targetGroupName) or nil
+        if groundGroup and groundGroup:isExist() then
+            groundGroup:destroy()
+        end
+    end
+    requestSave('recovery pickup')
+    recoveryMessage(groupConfig, recoveryLabel(recovery)..' aboard. Return to the drop-off point.', 25)
+end
+
+handleRecoveryLanding = function(groupName, position)
+    local groupConfig = groupName and recoveryGroups[groupName] or nil
+    local recovery = groupConfig and groupConfig.recovery or nil
+    if not recovery or not pickedUpRecoveryIds[recovery.targetId] or deliveredRecoveryIds[recovery.targetId] then
+        return false
+    end
+    local dropOff = recovery.dropOffPosition
+    if not dropOff or not position then return false end
+    local dx = dropOff.x - position.x
+    local dz = dropOff.y - position.z
+    local distance = math.sqrt(dx * dx + dz * dz)
+    if distance > (recovery.pickupRadius or 150) then
+        recoveryMessage(groupConfig, recoveryLabel(recovery)..' remain aboard. Land at the designated drop-off point.')
+        return false
+    end
+
+    deliveredRecoveryIds[recovery.targetId] = true
+    pickedUpRecoveryIds[recovery.targetId] = nil
+    if recovery.kind == 'casevac' then
+        missionState.casevacPickups[#missionState.casevacPickups + 1] = {
+            casualtyPointId = tostring(recovery.targetId),
+            flightGroupName = groupConfig.name,
+            woundedCount = recovery.woundedCount or 1,
+            delivered = true,
+            time = timer.getAbsTime()
+        }
+    else
+        missionState.troopExtractions[#missionState.troopExtractions + 1] = {
+            requestId = tostring(recovery.targetId),
+            groupId = tostring(recovery.groundGroupId),
+            flightGroupName = groupConfig.name,
+            status = 'delivered',
+            time = timer.getAbsTime()
+        }
+    end
+    requestSave('recovery delivery')
+    recoveryMessage(groupConfig, recoveryLabel(recovery)..' unloaded safely.', 25)
+    return true
+end
+
+local function setupRecoveryMenus()
+    if not config or not config.flightGroups then return end
+    for _, groupConfig in ipairs(config.flightGroups) do
+        if groupConfig.recovery and groupConfig.groupId then
+            recoveryGroups[groupConfig.name] = groupConfig
+            local menu = missionCommands.addSubMenuForGroup(groupConfig.groupId, 'Recovery')
+            missionCommands.addCommandForGroup(groupConfig.groupId, 'Recovery Status', menu, recoveryStatus, groupConfig)
+            missionCommands.addCommandForGroup(groupConfig.groupId, 'Request Orange Smoke', menu, recoverySmoke, groupConfig)
+            missionCommands.addCommandForGroup(groupConfig.groupId, 'Load Personnel', menu, recoveryPickup, groupConfig)
+        end
+    end
+end
+
+local carrierOpsState = {}
+
+local function carrierEmptyTask()
+    return {
+        id = 'ComboTask',
+        params = { tasks = {} }
+    }
+end
+
+local function carrierImmortalTask()
+    return {
+        id = 'ComboTask',
+        params = {
+            tasks = {
+                [1] = {
+                    enabled = true,
+                    auto = false,
+                    id = 'WrappedAction',
+                    number = 1,
+                    params = {
+                        action = {
+                            id = 'SetImmortal',
+                            params = { value = true }
+                        }
+                    }
+                }
+            }
+        }
+    }
+end
+
+local function carrierSwitchWaypointTask(fromIndex, toIndex)
+    return {
+        id = 'ComboTask',
+        params = {
+            tasks = {
+                [1] = {
+                    enabled = true,
+                    auto = false,
+                    id = 'WrappedAction',
+                    number = 1,
+                    params = {
+                        action = {
+                            id = 'SwitchWaypoint',
+                            params = {
+                                fromWaypointIndex = fromIndex,
+                                goToWaypointIndex = toIndex
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+end
+
+local function carrierWaypoint(x, y, speed, task)
+    return {
+        alt = 0,
+        alt_type = 'BARO',
+        action = 'Turning Point',
+        type = 'Turning Point',
+        x = x,
+        y = y,
+        speed = speed,
+        speed_locked = true,
+        ETA = 0,
+        ETA_locked = false,
+        formation_template = '',
+        task = task or carrierEmptyTask()
+    }
+end
+
+local function applyCarrierRoute(group, points)
+    if mist and mist.goRoute then
+        return mist.goRoute(group, points)
+    end
+    local controller = group and group:getController() or nil
+    if not controller then return false end
+    controller:setTask({
+        id = 'Mission',
+        params = { route = { points = points } }
+    })
+    return true
+end
+
+local function carrierLead(groupName)
+    local group = Group.getByName(groupName)
+    if not group or not group:isExist() then return nil, nil end
+    local units = group:getUnits()
+    local unit = units and units[1] or nil
+    if not unit or not unit:isExist() then return nil, nil end
+    return group, unit
+end
+
+local function carrierDirection(unit)
+    local orientation = unit:getPosition()
+    local forward = orientation and orientation.x or nil
+    local fx = forward and forward.x or 1
+    local fz = forward and forward.z or 0
+    local length = math.sqrt(fx * fx + fz * fz)
+    if length < 0.001 then return 1, 0 end
+    return fx / length, fz / length
+end
+
+local function carrierIntoWindDirection(unit, point)
+    if atmosphere and atmosphere.getWind then
+        local ok, wind = pcall(atmosphere.getWind, {
+            x = point.x,
+            y = (point.y or 0) + 20,
+            z = point.z
+        })
+        if ok and wind then
+            local windSpeed = math.sqrt((wind.x or 0) * (wind.x or 0) + (wind.z or 0) * (wind.z or 0))
+            if windSpeed >= 0.5 then
+                return -(wind.x or 0) / windSpeed, -(wind.z or 0) / windSpeed, windSpeed
+            end
+        end
+    end
+    local fx, fz = carrierDirection(unit)
+    return fx, fz, 0
+end
+
+local function carrierHeadingDegrees(x, z)
+    local heading
+    if math.atan2 then
+        heading = math.atan2(z, x)
+    elseif x > 0 then
+        heading = math.atan(z / x)
+    elseif x < 0 and z >= 0 then
+        heading = math.atan(z / x) + math.pi
+    elseif x < 0 then
+        heading = math.atan(z / x) - math.pi
+    elseif z > 0 then
+        heading = math.pi / 2
+    else
+        heading = -math.pi / 2
+    end
+    return math.floor(((heading * 180 / math.pi) + 360) % 360 + 0.5)
+end
+
+local function carrierMessage(ops, message, duration)
+    if not trigger or not trigger.action then return end
+    local side = ops.coalition == 'red' and coalition.side.RED or coalition.side.BLUE
+    trigger.action.outTextForCoalition(side, message, duration or 20, false)
+end
+
+local function startCarrierHoldingPattern(ops, generation)
+    local state = carrierOpsState[ops.groupName]
+    if not state or state.generation ~= generation then return nil end
+    local group, unit = carrierLead(ops.groupName)
+    if not group or not unit then return nil end
+
+    local point = unit:getPoint()
+    local fx, fz = carrierDirection(unit)
+    local rightX, rightZ = fz, -fx
+    local radius = ops.holdingRadius or 6000
+    local centerX = point.x + rightX * radius
+    local centerZ = point.z + rightZ * radius
+    local radialX, radialZ = -rightX, -rightZ
+    local points = {}
+    local segments = 8
+    for index = 0, segments do
+        local angle = index * 2 * math.pi / segments
+        local x = centerX + radialX * radius * math.cos(angle) + fx * radius * math.sin(angle)
+        local z = centerZ + radialZ * radius * math.cos(angle) + fz * radius * math.sin(angle)
+        points[#points + 1] = carrierWaypoint(x, z, ops.speed or 12)
+    end
+    points[1].task = carrierImmortalTask()
+    points[#points].task = carrierSwitchWaypointTask(#points, 2)
+    applyCarrierRoute(group, points)
+    state.mode = 'holding'
+    carrierMessage(ops, string.format('%s recovery window complete; entering holding circle.', ops.displayName))
+    return nil
+end
+
+local function startCarrierRecoveryWindow(ops, announce)
+    local group, unit = carrierLead(ops.groupName)
+    if not group or not unit then
+        if announce then carrierMessage(ops, string.format('%s is unavailable.', ops.displayName)) end
+        return false
+    end
+
+    local state = carrierOpsState[ops.groupName] or { generation = 0 }
+    state.generation = state.generation + 1
+    state.mode = 'recovery'
+    carrierOpsState[ops.groupName] = state
+
+    local point = unit:getPoint()
+    local dx, dz, windSpeed = carrierIntoWindDirection(unit, point)
+    local duration = ops.recoveryDuration or 1200
+    local speed = ops.speed or 12
+    local distance = speed * duration
+    local points = {
+        carrierWaypoint(point.x, point.z, speed, carrierImmortalTask()),
+        carrierWaypoint(point.x + dx * distance, point.z + dz * distance, speed)
+    }
+    applyCarrierRoute(group, points)
+
+    local heading = carrierHeadingDegrees(dx, dz)
+    local windText = windSpeed >= 0.5 and string.format(' into %.1f m/s wind', windSpeed) or ''
+    carrierMessage(
+        ops,
+        string.format('%s turning to course %03d%s for a 20-minute recovery window.', ops.displayName, heading, windText),
+        25
+    )
+
+    timer.scheduleFunction(function(args)
+        return startCarrierHoldingPattern(args.ops, args.generation)
+    end, { ops = ops, generation = state.generation }, timer.getTime() + duration)
+    return true
+end
+
+local function carrierRecoveryCommand(args)
+    startCarrierRecoveryWindow(args.ops, true)
+end
+
+local function setupCarrierOps()
+    if not config or not config.carrierOps or not missionCommands then return end
+    local coalitionMenus = {}
+    for _, ops in ipairs(config.carrierOps) do
+        local side = ops.coalition == 'red' and coalition.side.RED or coalition.side.BLUE
+        if not coalitionMenus[side] then
+            coalitionMenus[side] = missionCommands.addSubMenuForCoalition(side, 'Carrier Operations')
+        end
+        missionCommands.addCommandForCoalition(
+            side,
+            string.format('Turn %s into wind (20 min)', ops.displayName),
+            coalitionMenus[side],
+            carrierRecoveryCommand,
+            { ops = ops }
+        )
+        timer.scheduleFunction(function(carrierOps)
+            startCarrierRecoveryWindow(carrierOps, false)
+            return nil
+        end, ops, timer.getTime() + 3)
+    end
+end
+
 local ev = {}
 function ev:onEvent(event)
     local ok, error = pcall(handleEvent, event)
@@ -1113,6 +1522,8 @@ end
 
 world.addEventHandler(ev)
 setupCsarMenus()
+setupRecoveryMenus()
+setupCarrierOps()
 saveState('startup')
 scheduleAutosave()
 

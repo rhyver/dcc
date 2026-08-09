@@ -91,6 +91,11 @@ const theatreDetailMaps: TheatreDetailMap[] = [
     source: 'protomaps-syria',
     path: './maps/syria/syria.pmtiles',
     bounds: [31.667351, 31.871518, 40.806337, 37.861136]
+  },
+  {
+    source: 'protomaps-south-atlantic',
+    path: './maps/south-atlantic/south-atlantic.pmtiles',
+    bounds: [-75, -56, -56, -45]
   }
 ]
 const caucasusDetailMap = theatreDetailMaps[0]!

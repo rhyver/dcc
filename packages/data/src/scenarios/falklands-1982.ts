@@ -112,8 +112,8 @@ export const Falklands1982: z.infer<typeof schemas.scenario> = {
         'uk-carrier-group',
         'UK Carrier Group',
         'carrier',
-        // South Atlantic Assets has no separate Hermes model; use a second Invincible as its proxy.
-        ['hms_invincible', 'hms_invincible'],
+        // Tarawa's larger flight deck gives DCS AI enough room for reliable Harrier operations.
+        ['LHA_Tarawa'],
         // The historical carrier area was farther east, beyond the terrain boundary. This is near
         // the eastern edge while retaining the margin required by DCS coordinate conversion.
         { x: 87_610, y: 184_267 },

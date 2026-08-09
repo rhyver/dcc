@@ -1,6 +1,6 @@
 import {
   getDeploymentSites,
-  HMS_INVINCIBLE_UNIT_TYPE,
+  HARRIER_CARRIER_UNIT_TYPES,
   requiresSupercarrier,
   SUPERCARRIER_UNIT_TYPES
 } from '@dcc/campaign'
@@ -1119,8 +1119,8 @@ export function addFlightGroups(
         (group) => group.id === fg.homeBase && group.role === 'carrier' && group.state !== 'sunk'
       )
       const needsSupercarrier =
-        carrierHome?.unitTypes.includes(HMS_INVINCIBLE_UNIT_TYPE) === true &&
-        requiresSupercarrier(aircraftDef)
+        carrierHome?.unitTypes.some((unitType) => HARRIER_CARRIER_UNIT_TYPES.has(unitType)) ===
+          true && requiresSupercarrier(aircraftDef)
       const carrierUnit = carrierHome
         ? findCarrierMissionUnit(
             mission,

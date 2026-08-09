@@ -20,7 +20,7 @@ export const USA1977: z.infer<typeof schemas.faction> = {
     'Troop Extraction': ['UH-1H'],
     'Air Assault': ['UH-1H'],
     SEAD: ['F-4E-45MC'],
-    'Antiship Strike': [],
+    'Antiship Strike': ['F-4E-45MC', 'F-5E-3'],
     'Fighter Sweep': ['F-5E-3', 'F-14A-135-GR'],
     'Ground Attack': ['A-10A', 'F-4E-45MC'],
     'Runway Attack': ['F-4E-45MC'],

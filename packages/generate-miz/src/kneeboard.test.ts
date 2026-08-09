@@ -442,7 +442,7 @@ describe('generateMizFromCampaign kneeboards', () => {
       expect(surfaceWind).toContain('["dir"] = 170')
       expect(missionText).toContain('NavalGroup-uk-carrier-group')
       expect(missionText).toContain('NavalUnit-uk-carrier-group-uk-carrier-group-ship-1')
-      expect(missionText).toContain('["type"] = "hms_invincible"')
+      expect(missionText).toContain('["type"] = "LHA_Tarawa"')
       const carrierGroupStart = missionText.indexOf('NavalGroup-uk-carrier-group')
       const escortGroupStart = missionText.indexOf('NavalGroup-uk-escort-group')
       expect(carrierGroupStart).toBeGreaterThanOrEqual(0)

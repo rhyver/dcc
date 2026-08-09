@@ -9,7 +9,7 @@ const aircraftDefinition: z.infer<typeof schemas.dcs.aircraft> = {
   max_height: 16154,
   max_speed: 1742.4,
   name: 'F-5E-3',
-  availableTasks: ['CAP', 'Escort', 'Intercept'],
+  availableTasks: ['CAP', 'Escort', 'Intercept', 'Antiship Strike'],
   controllable: true,
   isHelicopter: false,
   cruiseAltitude: 6096,
@@ -36,6 +36,20 @@ const aircraftDefinition: z.infer<typeof schemas.dcs.aircraft> = {
           num: 6
         },
         { CLSID: '{AIM-9B}', num: 7 }
+      ]
+    },
+    {
+      task: 'Antiship Strike',
+      name: 'Antiship Strike',
+      displayName: 'Antiship Strike',
+      pylons: [
+        { CLSID: '{AIM-9P5}', num: 1 },
+        { CLSID: '{BCE4E030-38E9-423E-98ED-24BE3DA87C32}', num: 2 },
+        { CLSID: '{BCE4E030-38E9-423E-98ED-24BE3DA87C32}', num: 3 },
+        { CLSID: '{PTB-150GAL}', num: 4 },
+        { CLSID: '{BCE4E030-38E9-423E-98ED-24BE3DA87C32}', num: 5 },
+        { CLSID: '{BCE4E030-38E9-423E-98ED-24BE3DA87C32}', num: 6 },
+        { CLSID: '{AIM-9P5}', num: 7 }
       ]
     }
   ]

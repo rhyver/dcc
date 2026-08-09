@@ -20,7 +20,7 @@ export const Sweden1970: z.infer<typeof schemas.faction> = {
     'Troop Extraction': ['SA342L'],
     'Air Assault': ['SA342L'],
     SEAD: ['AJS37'],
-    'Antiship Strike': [],
+    'Antiship Strike': ['AJS37'],
     'Fighter Sweep': ['AJS37'],
     'Ground Attack': ['AJS37', 'SK-60'],
     'Runway Attack': ['AJS37'],

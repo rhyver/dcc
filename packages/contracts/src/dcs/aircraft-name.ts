@@ -20,6 +20,7 @@ export const aircraftName = z.enum([
   // "MiG-25RBT",
   'Su-30',
   'Su-17M4',
+  'SU22',
   'MiG-31',
   'Tu-95MS',
   'Su-24M',

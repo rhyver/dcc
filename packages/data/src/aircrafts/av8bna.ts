@@ -96,6 +96,21 @@ const aircraftDefinition: z.infer<typeof schemas.dcs.aircraft> = {
         { CLSID: '{LAU_7_AGM_122_SIDEARM}', num: 7 },
         { CLSID: '{AGM_122_SIDEARM}', num: 8 }
       ]
+    },
+    {
+      task: 'Antiship Strike',
+      name: 'Antiship Strike',
+      displayName: 'Antiship Strike',
+      pylons: [
+        { CLSID: '{6CEB49FC-DED8-4DED-B053-E1F033FF72D3}', num: 1 },
+        { CLSID: '{0D33DDAE-524F-4A4E-B5B8-621754FE3ADE}', num: 2 },
+        { CLSID: '{DB769D48-67D7-42ED-A2BE-108D566C8B1E}', num: 3 },
+        { CLSID: '{GAU_12_Equalizer}', num: 4 },
+        { CLSID: '{ALQ_164_RF_Jammer}', num: 5 },
+        { CLSID: '{A111396E-D3E8-4b9c-8AC9-2432489304D5}', num: 6 },
+        { CLSID: '{0D33DDAE-524F-4A4E-B5B8-621754FE3ADE}', num: 7 },
+        { CLSID: '{AGM_122_SIDEARM}', num: 8 }
+      ]
     }
   ]
 }

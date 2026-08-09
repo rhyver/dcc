@@ -20,7 +20,7 @@ export const UsNavy1987: z.infer<typeof schemas.faction> = {
     'Troop Extraction': ['UH-1H'],
     'Air Assault': ['UH-1H'],
     SEAD: ['FA-18C_hornet'],
-    'Antiship Strike': [],
+    'Antiship Strike': ['AV8BNA', 'FA-18C_hornet'],
     'Fighter Sweep': ['F-14B', 'FA-18C_hornet'],
     'Ground Attack': ['AV8BNA', 'FA-18C_hornet'],
     'Runway Attack': ['FA-18C_hornet'],

@@ -101,7 +101,24 @@ const DCS_COUNTRY_IDS: Record<string, number> = {
   Argentina: 83
 }
 
-function configureMissionCountries(
+const JOINT_TASK_FORCE_COUNTRIES = {
+  player: { id: 80, name: 'CJTF Blue' },
+  opponent: { id: 81, name: 'CJTF Red' }
+} as const
+
+function hasCustomClientAircraft(
+  coalition: z.infer<typeof schemas.campaign.campaign>['coalitions']['player']
+) {
+  return coalition.flightGroups.some((flightGroup) => {
+    const factionAircraftTypes = coalition.aircraftTypes[flightGroup.task] ?? []
+
+    return flightGroup.aircrafts.some(
+      (aircraft) => aircraft.client && !factionAircraftTypes.includes(aircraft.aircraftName)
+    )
+  })
+}
+
+export function configureMissionCountries(
   mission: z.infer<typeof schemas.dcs.mission>,
   campaign: z.infer<typeof schemas.campaign.campaign>
 ) {
@@ -113,7 +130,13 @@ function configureMissionCountries(
       (candidate) => candidate.id === campaign.coalitions[coalitionKey].id
     )
     if (!faction) continue
-    const countryId = DCS_COUNTRY_IDS[faction.countryName]
+    const country = hasCustomClientAircraft(campaign.coalitions[coalitionKey])
+      ? JOINT_TASK_FORCE_COUNTRIES[coalitionKey]
+      : {
+          id: DCS_COUNTRY_IDS[faction.countryName],
+          name: faction.countryName
+        }
+    const countryId = country.id
     if (countryId == null) continue
 
     for (const side of ['neutrals', 'blue', 'red'] as const) {
@@ -123,7 +146,7 @@ function configureMissionCountries(
     mission.coalition[missionCoalitionKey].country = [
       {
         id: countryId,
-        name: faction.countryName,
+        name: country.name,
         plane: { group: [] },
         helicopter: { group: [] },
         ship: { group: [] },

@@ -111,7 +111,7 @@ function createFlightGroup(params: {
 }
 
 describe('active store client flight timing sync', () => {
-  test('relocates a legacy Falklands carrier before the campaign map renders', () => {
+  test('updates a legacy Falklands carrier before the campaign map renders', () => {
     const campaign = createCampaign()
     const scenario = scenarios.find((candidate) => candidate.id === 'falklands-1982')
     expect(scenario).toBeDefined()
@@ -123,16 +123,26 @@ describe('active store client flight timing sync', () => {
     )
     expect(carrier).toBeDefined()
     carrier!.position = { x: 87_402, y: 206_382 }
+    carrier!.unitTypes = ['hms_invincible', 'hms_invincible']
+    carrier!.units = carrier!.unitTypes.map((type, index) => ({
+      id: `uk-carrier-group-ship-${index + 1}`,
+      type,
+      damage: 0,
+      ammunition: 1,
+      fuel: 1,
+      state: 'operational'
+    }))
 
     activeStore.send({ type: 'loadCampaign', campaign })
 
-    expect(
-      activeStore
-        .getSnapshot()
-        .context.coalitions.player.navalGroups?.find(
-          (group) => group.id === 'uk-carrier-group'
-        )?.position
-    ).toEqual({ x: 87_610, y: 184_267 })
+    const migratedCarrier = activeStore
+      .getSnapshot()
+      .context.coalitions.player.navalGroups?.find((group) => group.id === 'uk-carrier-group')
+    expect(migratedCarrier?.position).toEqual({ x: 87_610, y: 184_267 })
+    expect(migratedCarrier?.unitTypes).toEqual(['LHA_Tarawa'])
+    expect(migratedCarrier?.units).toEqual([
+      expect.objectContaining({ id: 'uk-carrier-group-ship-1', type: 'LHA_Tarawa' })
+    ])
   })
 
   test('repairs saved campaigns that have compatible aircraft but no DEAD task list', () => {

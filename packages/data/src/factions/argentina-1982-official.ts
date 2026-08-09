@@ -14,7 +14,7 @@ const officialAircraft: z.infer<typeof schemas.faction>['aircraftTypes'] = {
   'Troop Extraction': ['UH-1H'],
   'Air Assault': ['UH-1H'],
   SEAD: ['AJS37'],
-  'Antiship Strike': ['AJS37'],
+  'Antiship Strike': ['AJS37', 'F-5E-3'],
   'Fighter Sweep': ['Mirage-F1CE', 'F-5E-3'],
   'Ground Attack': ['Mirage-F1EE', 'AJS37'],
   'Runway Attack': ['Mirage-F1EE', 'AJS37'],

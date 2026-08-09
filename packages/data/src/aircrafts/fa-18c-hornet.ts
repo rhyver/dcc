@@ -19,7 +19,8 @@ const aircraftDefinition: z.infer<typeof schemas.dcs.aircraft> = {
     'Ground Attack',
     'Intercept',
     'Pinpoint Strike',
-    'Runway Attack'
+    'Runway Attack',
+    'Antiship Strike'
   ],
   controllable: true,
   isHelicopter: false,
@@ -198,6 +199,22 @@ const aircraftDefinition: z.infer<typeof schemas.dcs.aircraft> = {
           CLSID: '{5CE2FF2A-645A-4197-B48D-8720AC69394F}',
           num: 9
         }
+      ]
+    },
+    {
+      task: 'Antiship Strike',
+      name: 'Antiship Strike',
+      displayName: 'Antiship Strike',
+      pylons: [
+        { CLSID: '{6CEB49FC-DED8-4DED-B053-E1F033FF72D3}', num: 1 },
+        { CLSID: '{AGM_84D}', num: 2 },
+        { CLSID: '{AGM_84D}', num: 3 },
+        { CLSID: '{AN_ASQ_228}', num: 4 },
+        { CLSID: '{FPU_8A_FUEL_TANK}', num: 5 },
+        { CLSID: '{40EF17B7-F508-45de-8566-6FFECC0C1AB8}', num: 6 },
+        { CLSID: '{AGM_84D}', num: 7 },
+        { CLSID: '{AGM_84D}', num: 8 },
+        { CLSID: '{6CEB49FC-DED8-4DED-B053-E1F033FF72D3}', num: 9 }
       ]
     }
   ]

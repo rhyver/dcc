@@ -233,6 +233,20 @@ const aircraftDefinition: z.infer<typeof schemas.dcs.aircraft> = {
           num: 7
         }
       ]
+    },
+    {
+      task: 'Antiship Strike',
+      name: 'Antiship Strike',
+      displayName: 'Antiship Strike',
+      pylons: [
+        { CLSID: 'DIS_PL-5EII', num: 1 },
+        { CLSID: 'DIS_C-701IR', num: 2 },
+        { CLSID: 'DIS_C-802AK', num: 3 },
+        { CLSID: 'DIS_TANK800', num: 4 },
+        { CLSID: 'DIS_C-802AK', num: 5 },
+        { CLSID: 'DIS_C-701IR', num: 6 },
+        { CLSID: 'DIS_PL-5EII', num: 7 }
+      ]
     }
   ]
 }

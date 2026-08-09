@@ -269,7 +269,7 @@ describe('addFlightGroups carrier compatibility', () => {
 
   test.each([
     ['FA-18C_hornet', 'CVN_71'],
-    ['AV8BNA', 'hms_invincible']
+    ['AV8BNA', 'LHA_Tarawa']
   ] as const)(
     'links %s to a compatible ship in a mixed carrier group',
     (aircraftType, shipType) => {
@@ -288,11 +288,11 @@ describe('addFlightGroups carrier compatibility', () => {
           id: 'uk-carrier-group',
           name: 'UK Carrier Group',
           role: 'carrier',
-          unitTypes: ['hms_invincible', 'CVN_71'],
+          unitTypes: ['LHA_Tarawa', 'CVN_71'],
           units: [
             {
-              id: 'invincible',
-              type: 'hms_invincible',
+              id: 'tarawa',
+              type: 'LHA_Tarawa',
               damage: 0,
               ammunition: 1,
               fuel: 1,

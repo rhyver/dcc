@@ -123,7 +123,8 @@ export function spawnDead(
   const selectedAssignment = selectHomeBaseAndTarget({
     homeBases,
     targets: availableTargets,
-    maxDistance: config.packages.DEAD.maxDistance
+    maxDistance: config.packages.DEAD.maxDistance,
+    preference: 'nearest'
   })
 
   // If no suitable pair found, return

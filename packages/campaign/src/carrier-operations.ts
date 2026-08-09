@@ -6,6 +6,8 @@ type Campaign = z.infer<typeof schemas.campaign.campaign>
 type Coalition = z.infer<typeof schemas.coalition>
 
 export const HMS_INVINCIBLE_UNIT_TYPE = 'hms_invincible'
+export const LHA_TARAWA_UNIT_TYPE = 'LHA_Tarawa'
+export const HARRIER_CARRIER_UNIT_TYPES = new Set([HMS_INVINCIBLE_UNIT_TYPE, LHA_TARAWA_UNIT_TYPE])
 export const DEFAULT_SUPERCARRIER_UNIT_TYPE = 'CVN_71'
 export const SUPERCARRIER_UNIT_TYPES = new Set(['CVN_71', 'CVN_72', 'CVN_73', 'CVN_75'])
 
@@ -22,25 +24,25 @@ export function ensureSupercarrierForAircraft(
 ) {
   if (!requiresSupercarrier(aircraft)) return false
 
-  const invincibleGroup = (campaign.coalitions[coalition].navalGroups ?? []).find(
+  const carrierGroup = (campaign.coalitions[coalition].navalGroups ?? []).find(
     (group) =>
       group.role === 'carrier' &&
       group.state !== 'sunk' &&
-      group.unitTypes.includes(HMS_INVINCIBLE_UNIT_TYPE)
+      group.unitTypes.some((unitType) => HARRIER_CARRIER_UNIT_TYPES.has(unitType))
   )
-  if (!invincibleGroup) return false
+  if (!carrierGroup) return false
 
   let changed = false
-  if (!invincibleGroup.unitTypes.some((unitType) => SUPERCARRIER_UNIT_TYPES.has(unitType))) {
-    invincibleGroup.unitTypes.push(DEFAULT_SUPERCARRIER_UNIT_TYPE)
+  if (!carrierGroup.unitTypes.some((unitType) => SUPERCARRIER_UNIT_TYPES.has(unitType))) {
+    carrierGroup.unitTypes.push(DEFAULT_SUPERCARRIER_UNIT_TYPE)
     changed = true
   }
   if (
-    invincibleGroup.units &&
-    !invincibleGroup.units.some((unit) => SUPERCARRIER_UNIT_TYPES.has(unit.type))
+    carrierGroup.units &&
+    !carrierGroup.units.some((unit) => SUPERCARRIER_UNIT_TYPES.has(unit.type))
   ) {
-    invincibleGroup.units.push({
-      id: `${invincibleGroup.id}-supercarrier`,
+    carrierGroup.units.push({
+      id: `${carrierGroup.id}-supercarrier`,
       type: DEFAULT_SUPERCARRIER_UNIT_TYPE,
       damage: 0,
       ammunition: 1,

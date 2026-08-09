@@ -6,6 +6,7 @@ import {
   expandGroundGroupUnits,
   getDeploymentSites
 } from './ground-deployment'
+import { HMS_INVINCIBLE_UNIT_TYPE, LHA_TARAWA_UNIT_TYPE } from './carrier-operations'
 
 type Campaign = z.infer<typeof schemas.campaign.campaign>
 type Theatre = z.infer<typeof schemas.theatre>
@@ -332,6 +333,39 @@ function removePrematureBeachhead(campaign: Campaign) {
 
 export function migrateLegacyFalklandsNavalStarts(campaign: Campaign) {
   if (campaign.scenarioId !== 'falklands-1982') return
+
+  const carrier = campaign.coalitions.player.navalGroups?.find(
+    (group) => group.id === 'uk-carrier-group'
+  )
+  if (carrier?.unitTypes.includes(HMS_INVINCIBLE_UNIT_TYPE)) {
+    carrier.unitTypes = [
+      LHA_TARAWA_UNIT_TYPE,
+      ...carrier.unitTypes.filter(
+        (unitType) => unitType !== HMS_INVINCIBLE_UNIT_TYPE && unitType !== LHA_TARAWA_UNIT_TYPE
+      )
+    ]
+
+    if (carrier.units) {
+      const legacyUnit = carrier.units
+        .filter((unit) => unit.type === HMS_INVINCIBLE_UNIT_TYPE)
+        .sort((left, right) => left.damage - right.damage)[0]
+      const existingTarawa = carrier.units.find((unit) => unit.type === LHA_TARAWA_UNIT_TYPE)
+      carrier.units = [
+        existingTarawa ?? {
+          id: `${carrier.id}-ship-1`,
+          type: LHA_TARAWA_UNIT_TYPE,
+          damage: legacyUnit?.damage ?? carrier.damage,
+          ammunition: legacyUnit?.ammunition ?? carrier.ammunition,
+          fuel: legacyUnit?.fuel ?? carrier.fuel,
+          state:
+            legacyUnit?.state ?? (carrier.state === 'unloading' ? 'operational' : carrier.state)
+        },
+        ...carrier.units.filter(
+          (unit) => unit.type !== HMS_INVINCIBLE_UNIT_TYPE && unit.type !== LHA_TARAWA_UNIT_TYPE
+        )
+      ]
+    }
+  }
 
   for (const placement of LEGACY_NAVAL_STARTS) {
     const group = campaign.coalitions[placement.coalition].navalGroups?.find(

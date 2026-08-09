@@ -238,6 +238,35 @@ function getMissionUnitIds(entries: unknown): number[] {
 }
 
 describe('addFlightGroups carrier compatibility', () => {
+  test('spawns carriers facing into the surface wind used by their startup route', () => {
+    const startTime = new Date('2026-01-01T00:00:00Z')
+    const mission = createMission()
+    const campaign = createCampaign(startTime)
+    mission.weather.wind.atGround = { speed: 9, dir: 170 }
+    campaign.coalitions.player.navalGroups = [
+      {
+        id: 'uk-carrier-group',
+        name: 'UK Carrier Group',
+        role: 'carrier',
+        unitTypes: ['hms_invincible'],
+        position: { x: 1_000, y: 1_000 },
+        heading: (270 * Math.PI) / 180,
+        damage: 0,
+        fuel: 1,
+        ammunition: 1,
+        cargo: 0,
+        state: 'operational'
+      }
+    ]
+
+    const result = addNavalGroups(mission, campaign)
+
+    expect(result.isOk()).toBe(true)
+    expect(mission.coalition.blue.country?.[0]?.ship?.group[0]?.units[0]?.heading).toBeCloseTo(
+      (350 * Math.PI) / 180
+    )
+  })
+
   test.each([
     ['FA-18C_hornet', 'CVN_71'],
     ['AV8BNA', 'hms_invincible']

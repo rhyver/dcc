@@ -4,6 +4,21 @@ import * as z from 'zod'
 
 type Coalition = z.infer<typeof schemas.coalition>
 
+const MIN_CARRIER_WIND_SPEED = 0.5
+
+function getSpawnHeading(
+  navalGroup: z.infer<typeof schemas.navalGroup>,
+  mission: z.infer<typeof schemas.dcs.mission>
+) {
+  const surfaceWind = mission.weather.wind.atGround
+  if (navalGroup.role !== 'carrier' || surfaceWind.speed < MIN_CARRIER_WIND_SPEED) {
+    return navalGroup.heading
+  }
+
+  const windToHeading = (surfaceWind.dir * Math.PI) / 180
+  return (windToHeading + Math.PI) % (2 * Math.PI)
+}
+
 export function addNavalGroups(
   mission: z.infer<typeof schemas.dcs.mission>,
   campaign: z.infer<typeof schemas.campaign.campaign>
@@ -39,16 +54,17 @@ export function addNavalGroups(
         if (liveUnits.length === 0) continue
 
         const groupName = `NavalGroup-${navalGroup.id}`
+        const spawnHeading = getSpawnHeading(navalGroup, mission)
         const units = liveUnits.map((unit, index) => {
           const spacing = 700
-          const formationBearing = navalGroup.heading + Math.PI / 2
+          const formationBearing = spawnHeading + Math.PI / 2
           return {
             unitId: nextId(),
             name: `NavalUnit-${navalGroup.id}-${unit.id}`,
             type: unit.type,
             x: navalGroup.position.x + Math.cos(formationBearing) * index * spacing,
             y: navalGroup.position.y + Math.sin(formationBearing) * index * spacing,
-            heading: navalGroup.heading,
+            heading: spawnHeading,
             skill: 'Excellent'
           }
         })

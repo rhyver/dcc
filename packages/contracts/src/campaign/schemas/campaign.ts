@@ -149,14 +149,25 @@ export const campaignSamGroup = z.object({
   destroyed: z.boolean().optional()
 })
 
+export const campaignEwrGroup = z.object({
+  id: z.string(),
+  type: z.string(),
+  objectiveId: z.string(),
+  position,
+  suppressed: z.boolean().optional(),
+  destroyed: z.boolean().optional()
+})
+
 const campaignCoalition = z.object({
   id: z.string(),
+  countryName: z.string().optional(),
   aircraftTypes: z.record(task, z.array(z.string())),
   groundUnitTypes: z.record(groundUnitType, z.array(z.string())),
   airdromeNames: z.array(z.string()),
   objectiveIds: z.array(z.string()),
   structures: z.array(campaignStructure),
   samGroups: z.array(campaignSamGroup),
+  ewrGroups: z.array(campaignEwrGroup).optional(),
   groundGroups: z.array(groundGroup),
   flightGroups: z.array(flightGroup),
   packages: z.array(missionPackage),
@@ -350,6 +361,7 @@ export const campaign = z.preprocess(
     campaignParams: z
       .object({
         hotStart: z.boolean().optional(),
+        aiWingmanSpawn: z.enum(['never', 'landOnly', 'always']).optional(),
         culling: z.boolean().optional(),
         ewr: z.boolean().optional(),
         iads: z.boolean().optional(),

@@ -305,6 +305,27 @@ describe('ATO package planner', () => {
     expect(result.admitted.some((plan) => plan.kind === 'dead')).toBe(true)
   })
 
+  test('emits standalone DEAD for an untargeted persistent EWR', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0)
+    const campaign = createCampaign({ playerAircraft: { DEAD: ['F-16C_50'] } })
+    campaign.coalitions.opponent.ewrGroups = [
+      {
+        id: 'ewr-1',
+        type: '55G6 EWR',
+        objectiveId: 'Target Objective',
+        position: { x: 50_000, y: 0 }
+      }
+    ]
+
+    const result = planAtoPackages(campaign, 'player', createContext(), plannerPolicy())
+    const dead = result.admitted.find((plan) => plan.kind === 'dead')
+
+    expect(dead).toMatchObject({
+      targetId: 'ewr-1',
+      targetType: '55G6 EWR'
+    })
+  })
+
   test('uses DEAD-capable aircraft from other task lists when saved DEAD list is empty', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0)
     const campaign = createCampaign({

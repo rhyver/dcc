@@ -88,6 +88,7 @@ export function DetailsCard({
     'type' in selectedItem &&
     (selectedItem.type === 'Structure' ||
       selectedItem.type === 'SAM' ||
+      selectedItem.type === 'EWR' ||
       selectedItem.type === 'Ground Group')
   const headerTitle = isObjectiveLinkedItem && objectiveName != null ? objectiveName : defaultTitle
   const headerSubtitle = isObjectiveLinkedItem
@@ -478,6 +479,14 @@ export function DetailsCard({
                   }
                 >
                   {(selectedItem as unknown as { active: boolean }).active ? 'Active' : 'Inactive'}
+                </div>
+              </>
+            )}
+            {'type' in selectedItem && selectedItem.type === 'EWR' && (
+              <>
+                <div className="text-secondary/70">Status</div>
+                <div className={selectedItem.active ? 'text-green-400' : 'text-red-400'}>
+                  {selectedItem.active ? 'Active' : 'Destroyed'}
                 </div>
               </>
             )}

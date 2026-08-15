@@ -126,15 +126,15 @@ export function configureMissionCountries(
     ['player', 'blue'],
     ['opponent', 'red']
   ] as const) {
-    const faction = factions.find(
-      (candidate) => candidate.id === campaign.coalitions[coalitionKey].id
-    )
-    if (!faction) continue
-    const country = hasCustomClientAircraft(campaign.coalitions[coalitionKey])
+    const campaignCoalition = campaign.coalitions[coalitionKey]
+    const faction = factions.find((candidate) => candidate.id === campaignCoalition.id)
+    const countryName = campaignCoalition.countryName ?? faction?.countryName
+    if (!countryName) continue
+    const country = hasCustomClientAircraft(campaignCoalition)
       ? JOINT_TASK_FORCE_COUNTRIES[coalitionKey]
       : {
-          id: DCS_COUNTRY_IDS[faction.countryName],
-          name: faction.countryName
+          id: DCS_COUNTRY_IDS[countryName],
+          name: countryName
         }
     const countryId = country.id
     if (countryId == null) continue
@@ -844,7 +844,7 @@ export async function generateMizFromCampaign(
     return err(groundGroupsResult.error)
   }
 
-  const iadsConfig = buildIadsConfig(mission, campaign, theatre)
+  const iadsConfig = buildIadsConfig(mission, campaign)
   if (iadsRequested && !iadsConfig) {
     delete (mission.trig as MissionTriggerTables).actions[8]
     delete (mission.trig as MissionTriggerTables).actions[9]

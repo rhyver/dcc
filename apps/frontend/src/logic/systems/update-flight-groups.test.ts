@@ -98,6 +98,21 @@ function createLandedStrategicStrike(): FlightGroup {
   }
 }
 
+function createLandedEmitterFlight(task: 'SEAD' | 'DEAD', targetId: string): FlightGroup {
+  return {
+    ...createLandedStrategicStrike(),
+    id: `${task.toLowerCase()}-1`,
+    task,
+    callsign: `${task}-1`,
+    target: {
+      id: targetId,
+      type: '55G6 EWR',
+      objectiveId: 'Gali'
+    },
+    tot: new Date('2026-01-01T11:30:00.000Z')
+  }
+}
+
 function createScheduledFlight(params: {
   id: string
   task: FlightGroup['task']
@@ -158,6 +173,45 @@ describe('updateFlightGroups', () => {
     expect(campaign.coalitions.opponent.strategicStrikeCooldownUntil).toEqual(
       new Date('2026-01-01T12:40:00.000Z')
     )
+  })
+
+  test('DEAD permanently destroys a targeted EWR', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0)
+    const campaign = createCampaign()
+    campaign.coalitions.opponent.ewrGroups = [
+      {
+        id: 'ewr-1',
+        type: '55G6 EWR',
+        objectiveId: 'Gali',
+        position: { x: 0, y: 0 }
+      }
+    ]
+    campaign.coalitions.player.flightGroups = [createLandedEmitterFlight('DEAD', 'ewr-1')]
+
+    updateFlightGroups(campaign, 'player')
+
+    expect(campaign.coalitions.opponent.ewrGroups[0]).toMatchObject({
+      destroyed: true,
+      suppressed: false
+    })
+  })
+
+  test('SEAD suppression is lifted from an EWR when the flight lands', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0)
+    const campaign = createCampaign()
+    campaign.coalitions.opponent.ewrGroups = [
+      {
+        id: 'ewr-1',
+        type: '55G6 EWR',
+        objectiveId: 'Gali',
+        position: { x: 0, y: 0 }
+      }
+    ]
+    campaign.coalitions.player.flightGroups = [createLandedEmitterFlight('SEAD', 'ewr-1')]
+
+    updateFlightGroups(campaign, 'player')
+
+    expect(campaign.coalitions.opponent.ewrGroups[0]?.suppressed).toBe(false)
   })
 
   test('does not let scheduled CAP engage before takeoff', () => {

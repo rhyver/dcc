@@ -168,10 +168,10 @@ export function updateFlightGroups(
       debugLog('Striking structure', group)
       group.strikeStructure(draft, coalition)
     } else if (isSeadFlightGroup(group) && theatre) {
-      debugLog('SEAD suppressing SAM', group)
+      debugLog('SEAD suppressing radar emitter', group)
       group.suppressSam(draft, coalition, theatre)
     } else if (isDeadFlightGroup(group) && theatre) {
-      debugLog('DEAD attacking SAM', group)
+      debugLog('DEAD attacking radar emitter', group)
       group.destroySam(draft, coalition, theatre)
     } else if (isCapFlightGroup(group)) {
       debugLog('CAP patrolling', group)
@@ -181,7 +181,7 @@ export function updateFlightGroups(
     }
   }
 
-  // Clear suppression for SAMs targeted by finished SEAD flights
+  // Clear suppression for radar emitters targeted by finished SEAD flights.
   if (finishedIds.size > 0) {
     const enemyCoalition = coalition === 'player' ? 'opponent' : 'player'
     const finishedSeadGroups = groups.filter((g) => finishedIds.has(g.id) && isSeadFlightGroup(g))
@@ -207,6 +207,25 @@ export function updateFlightGroups(
             draft,
             coalition,
             `SEAD completed, suppression lifted on ${samGroup.type} at ${samGroup.objectiveId}`,
+            seadGroup.callsign,
+            {
+              entityType: 'flightGroup',
+              entityId: seadGroup.id
+            }
+          )
+          continue
+        }
+
+        const ewrGroup = draft.coalitions[enemyCoalition].ewrGroups?.find(
+          (ewr) => ewr.id === seadGroup.target?.id
+        )
+        if (ewrGroup) {
+          ewrGroup.suppressed = false
+          debugLog(`EWR ${ewrGroup.type} no longer suppressed - SEAD landed`)
+          logCombatAction(
+            draft,
+            coalition,
+            `SEAD completed, suppression lifted on ${ewrGroup.type} at ${ewrGroup.objectiveId}`,
             seadGroup.callsign,
             {
               entityType: 'flightGroup',

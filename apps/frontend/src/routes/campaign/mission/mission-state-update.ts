@@ -233,8 +233,16 @@ function syncNavalGroupsFromMissionState(
 ) {
   const groupsByName = new Map((groups ?? []).map((group) => [group.name, group]))
   for (const navalGroup of draft.coalitions[coalition].navalGroups ?? []) {
-    const missionGroup = groupsByName.get(`NavalGroup-${navalGroup.id}`)
-    if (missionGroup) navalGroup.position = { x: missionGroup.x, y: missionGroup.y }
+    const missionGroupId = navalGroup.missionGroupId ?? navalGroup.id
+    const missionGroup = groupsByName.get(`NavalGroup-${missionGroupId}`)
+    if (missionGroup) {
+      const ownLeadUnit = missionGroup.units.find((unit) =>
+        unit.name.startsWith(`NavalUnit-${navalGroup.id}-`)
+      )
+      navalGroup.position = ownLeadUnit
+        ? { x: ownLeadUnit.x, y: ownLeadUnit.y }
+        : { x: missionGroup.x, y: missionGroup.y }
+    }
 
     navalGroup.units ??= navalGroup.unitTypes.map((type, index) => ({
       id: `${navalGroup.id}-ship-${index + 1}`,
@@ -267,6 +275,31 @@ function syncNavalGroupsFromMissionState(
     navalGroup.damage = navalGroup.units.length > 0 ? sunkCount / navalGroup.units.length : 1
     if (sunkCount === navalGroup.units.length) navalGroup.state = 'sunk'
     else if (sunkCount > 0 && navalGroup.state !== 'unloading') navalGroup.state = 'damaged'
+  }
+}
+
+function syncEwrGroupsFromMissionState(
+  draft: Campaign,
+  coalition: Coalition,
+  groups: MissionGroundGroup[] | undefined,
+  lostUnits: MissionState['lostUnits']
+) {
+  for (const ewr of draft.coalitions[coalition].ewrGroups ?? []) {
+    const groupPrefix = `IADS-EWR-${ewr.id}-`
+    const missionGroup = groups?.find((group) => group.name.startsWith(groupPrefix))
+    if (missionGroup) {
+      ewr.position = { x: missionGroup.x, y: missionGroup.y }
+    }
+
+    const unitName = `IADS-EWR-Unit-${ewr.id}`
+    if (
+      lostUnits.some(
+        (unit) => unit.name === unitName || (unit.groupName?.startsWith(groupPrefix) ?? false)
+      )
+    ) {
+      ewr.destroyed = true
+      ewr.suppressed = false
+    }
   }
 }
 
@@ -500,6 +533,8 @@ export function applyMissionStateUpdate(campaign: Campaign, missionState: Missio
       cullingManifest?.groundGroups.opponent,
       protectedGroundGroupIds
     )
+    syncEwrGroupsFromMissionState(draft, 'player', groupPositions?.blue?.ground, lostUnits)
+    syncEwrGroupsFromMissionState(draft, 'opponent', groupPositions?.red?.ground, lostUnits)
     syncNavalGroupsFromMissionState(draft, 'player', groupPositions?.blue?.ships, lostUnitNames)
     syncNavalGroupsFromMissionState(draft, 'opponent', groupPositions?.red?.ships, lostUnitNames)
 

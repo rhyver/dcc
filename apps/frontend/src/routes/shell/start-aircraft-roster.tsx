@@ -1,4 +1,4 @@
-import { BookOpen, Bot, Gamepad2, Plane } from 'lucide-react'
+import { BookOpen, Bot, Gamepad2, Pencil, Plane, Plus } from 'lucide-react'
 import { motion } from 'motion/react'
 
 import { Button } from '@/components/ui/button'
@@ -23,7 +23,10 @@ type AircraftRosterProps = {
   aircraft: FactionAircraft[]
   isCreatingCampaign: boolean
   factionsDiffer: boolean
+  selectedFaction: Faction | undefined
   onCustomizeFactions: () => void
+  onCustomizeSelectedFaction: () => void
+  onCreateSelectedFaction: () => void
   onCreateCampaign: () => void
 }
 
@@ -37,7 +40,10 @@ export function AircraftRoster({
   aircraft,
   isCreatingCampaign,
   factionsDiffer,
+  selectedFaction,
   onCustomizeFactions,
+  onCustomizeSelectedFaction,
+  onCreateSelectedFaction,
   onCreateCampaign
 }: AircraftRosterProps) {
   return (
@@ -160,6 +166,42 @@ export function AircraftRoster({
           >
             Customize Factions
           </Button>
+        ) : null}
+        {step === 'factions' ? (
+          <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-1.5 rounded-md border border-synthwave-purple/30 bg-synthwave-dark/55 p-1.5 pl-2.5">
+            <div className="min-w-0">
+              <div className="text-[0.55rem] uppercase tracking-[0.18em] text-synthwave-cyan/65">
+                Selected faction
+              </div>
+              <div className="mt-0.5 truncate text-[0.7rem] text-synthwave-light/65">
+                {selectedFaction ? formatFactionLabel(selectedFaction) : 'Not selected'}
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-label="Customize selected faction"
+              className="h-8 border-synthwave-purple/50 bg-transparent px-2 text-[0.6rem] uppercase tracking-wider text-synthwave-light/70 hover:border-synthwave-cyan hover:bg-synthwave-cyan/8 hover:text-synthwave-cyan"
+              onClick={onCustomizeSelectedFaction}
+              disabled={isCreatingCampaign || !selectedFaction}
+            >
+              <Pencil className="h-3 w-3" />
+              Customize
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-label="Create new faction from selected faction"
+              className="h-8 border-synthwave-pink/50 bg-synthwave-pink/8 px-2 text-[0.6rem] uppercase tracking-wider text-synthwave-pink hover:border-synthwave-pink hover:bg-synthwave-pink/15 hover:text-synthwave-pink"
+              onClick={onCreateSelectedFaction}
+              disabled={isCreatingCampaign || !selectedFaction}
+            >
+              <Plus className="h-3 w-3" />
+              New
+            </Button>
+          </div>
         ) : null}
         <Button
           type="button"

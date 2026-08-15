@@ -145,6 +145,27 @@ describe('active store client flight timing sync', () => {
     ])
   })
 
+  test('adds persistent EWR state when loading a legacy Falklands campaign', () => {
+    const campaign = createCampaign()
+    campaign.scenarioId = 'falklands-1982'
+    campaign.campaignParams = { iads: true }
+    campaign.coalitions.opponent.objectiveIds = ['Stanley Airport', 'Fox Bay']
+    campaign.coalitions.opponent.samGroups = [
+      { id: 'arg-stanley-hawk', type: 'Hawk', objectiveId: 'Stanley Airport' }
+    ]
+
+    activeStore.send({ type: 'loadCampaign', campaign })
+
+    expect(activeStore.getSnapshot().context.coalitions.opponent.ewrGroups).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: '55G6 EWR',
+          objectiveId: 'Stanley Airport'
+        })
+      ])
+    )
+  })
+
   test('repairs saved campaigns that have compatible aircraft but no DEAD task list', () => {
     const campaign = createCampaign()
     campaign.coalitions.player.id = 'usa-1977'

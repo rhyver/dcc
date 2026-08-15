@@ -1,6 +1,10 @@
 import { schemas } from '@dcc/contracts'
-import { ensureSupercarrierForAircraft, migrateLegacyFalklandsNavalStarts } from '@dcc/campaign'
-import { aircrafts as aircraftDefinitions } from '@dcc/data'
+import {
+  ensurePersistentIadsEwrs,
+  ensureSupercarrierForAircraft,
+  migrateLegacyFalklandsNavalStarts
+} from '@dcc/campaign'
+import { aircrafts as aircraftDefinitions, scenarios, theatres } from '@dcc/data'
 import { createStore } from '@xstate/store'
 import { produce } from 'immer'
 import * as z from 'zod'
@@ -23,6 +27,7 @@ const initialState: z.infer<typeof schemas.campaign.campaign> = {
   version: '0.0.1',
   campaignParams: {
     hotStart: false,
+    aiWingmanSpawn: 'landOnly',
     culling: true,
     ewr: true,
     iads: true,
@@ -331,6 +336,11 @@ export function removeEmptyGroundGroups(campaign: Campaign): Campaign {
 function migrateLoadedCampaign(campaign: Campaign): Campaign {
   return produce(campaign, (draft) => {
     migrateLegacyFalklandsNavalStarts(draft)
+    const scenario = scenarios.find((entry) => entry.id === draft.scenarioId)
+    const theatre = scenario
+      ? theatres.find((entry) => entry.name === scenario.theatreName)
+      : undefined
+    if (theatre) ensurePersistentIadsEwrs(draft, theatre)
   })
 }
 
@@ -380,6 +390,20 @@ export const activeStore = createStore({
           draft.campaignParams = {}
         }
         draft.campaignParams.hotStart = hotStart
+      }),
+    setAiWingmanSpawn: (
+      context,
+      {
+        aiWingmanSpawn
+      }: {
+        aiWingmanSpawn: NonNullable<NonNullable<Campaign['campaignParams']>['aiWingmanSpawn']>
+      }
+    ) =>
+      produce(context, (draft) => {
+        if (!draft.campaignParams) {
+          draft.campaignParams = {}
+        }
+        draft.campaignParams.aiWingmanSpawn = aiWingmanSpawn
       }),
     setCulling: (context, { culling }: { culling: boolean }) =>
       produce(context, (draft) => {

@@ -1,5 +1,5 @@
 import { Clock3, Plane } from 'lucide-react'
-import { factions } from '@dcc/data'
+import { useState } from 'react'
 
 import { cn } from '@/lib/utils'
 
@@ -9,6 +9,7 @@ import {
   factionIdsByEra,
   getFactionAircraft,
   type CampaignEra,
+  type Faction,
   type Scenario,
   type ScenarioStep
 } from './start-campaign-options'
@@ -17,12 +18,15 @@ type CampaignStepProps = {
   scenario: Scenario
   step: Exclude<ScenarioStep, 'scenario'>
   selectedEra: CampaignEra
+  factions: Faction[]
   selectedPlayerFactionId: string
   selectedOpponentFactionId: string
   isCreatingCampaign: boolean
   onSelectEra: (era: CampaignEra) => void
   onSelectPlayerFaction: (factionId: string) => void
   onSelectOpponentFaction: (factionId: string) => void
+  onCustomizeFaction: (role: 'player' | 'opponent') => void
+  onCreateFaction: (role: 'player' | 'opponent') => void
   onCustomizeFactions: () => void
   onCreateCampaign: () => void
 }
@@ -31,21 +35,27 @@ export function CampaignStep({
   scenario,
   step,
   selectedEra,
+  factions,
   selectedPlayerFactionId,
   selectedOpponentFactionId,
   isCreatingCampaign,
   onSelectEra,
   onSelectPlayerFaction,
   onSelectOpponentFaction,
+  onCustomizeFaction,
+  onCreateFaction,
   onCustomizeFactions,
   onCreateCampaign
 }: CampaignStepProps) {
+  const [activeFactionRole, setActiveFactionRole] = useState<'player' | 'opponent'>('player')
   const selectedEraOption = eraOptions.find((era) => era.id === selectedEra) ?? eraOptions[0]!
   const selectedPlayerFaction = factions.find((faction) => faction.id === selectedPlayerFactionId)
   const selectedOpponentFaction = factions.find(
     (faction) => faction.id === selectedOpponentFactionId
   )
-  const playerAircraft = getFactionAircraft(selectedPlayerFactionId)
+  const playerAircraft = getFactionAircraft(selectedPlayerFaction)
+  const activeFaction =
+    activeFactionRole === 'player' ? selectedPlayerFaction : selectedOpponentFaction
   const factionsDiffer = selectedPlayerFactionId !== selectedOpponentFactionId
 
   return (
@@ -132,6 +142,7 @@ export function CampaignStep({
                 <div className="grid gap-2">
                   {factions.map((faction) => {
                     const isSelected = faction.id === column.selectedId
+                    const isActive = isSelected && activeFactionRole === column.role
                     const isConflict =
                       column.role === 'opponent'
                         ? faction.id === selectedPlayerFactionId
@@ -145,11 +156,16 @@ export function CampaignStep({
                           'rounded-md border p-3 text-left transition-all',
                           'bg-synthwave-dark/78 backdrop-blur',
                           isSelected
-                            ? 'border-synthwave-pink text-white shadow-[0_0_24px_rgba(255,0,170,0.2)]'
+                            ? isActive
+                              ? 'border-synthwave-pink text-white shadow-[inset_3px_0_0_var(--synthwave-pink),0_0_24px_rgba(255,0,170,0.2)]'
+                              : 'border-synthwave-purple/75 text-white'
                             : 'border-synthwave-purple/45 text-synthwave-light hover:border-synthwave-cyan hover:bg-synthwave-purple/10',
                           isConflict && !isSelected && 'opacity-45'
                         )}
-                        onClick={() => column.onSelect(faction.id)}
+                        onClick={() => {
+                          setActiveFactionRole(column.role)
+                          column.onSelect(faction.id)
+                        }}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div>
@@ -169,6 +185,11 @@ export function CampaignStep({
                             {faction.color}
                           </span>
                         </div>
+                        {faction.id.startsWith('custom-') ? (
+                          <div className="mt-2 text-[0.58rem] uppercase tracking-[0.18em] text-synthwave-pink/75">
+                            Custom faction
+                          </div>
+                        ) : null}
                       </button>
                     )
                   })}
@@ -189,7 +210,10 @@ export function CampaignStep({
         aircraft={playerAircraft}
         isCreatingCampaign={isCreatingCampaign}
         factionsDiffer={factionsDiffer}
+        selectedFaction={activeFaction}
         onCustomizeFactions={onCustomizeFactions}
+        onCustomizeSelectedFaction={() => onCustomizeFaction(activeFactionRole)}
+        onCreateSelectedFaction={() => onCreateFaction(activeFactionRole)}
         onCreateCampaign={onCreateCampaign}
       />
     </div>

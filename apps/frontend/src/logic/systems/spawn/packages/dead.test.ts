@@ -1,4 +1,5 @@
 import { schemas } from '@dcc/contracts'
+import { scenarios, theatres } from '@dcc/data'
 import type * as z from 'zod'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 
@@ -80,5 +81,31 @@ describe('spawnDead', () => {
 
     expect(campaign.coalitions.player.flightGroups).toHaveLength(1)
     expect(campaign.coalitions.player.flightGroups[0]?.target?.id).toBe('near-sam')
+  })
+
+  test('targets a persistent EWR when no SAM remains', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0)
+    const campaign = createCampaign()
+    const scenario = scenarios.find((candidate) => candidate.id === campaign.scenarioId)
+    const theatre = theatres.find((candidate) => candidate.name === scenario?.theatreName)
+    const homeBase = theatre?.airdromeDetails.Kobuleti
+
+    expect(homeBase).toBeDefined()
+    campaign.coalitions.opponent.samGroups = []
+    campaign.coalitions.opponent.ewrGroups = [
+      {
+        id: 'ewr-1',
+        type: '55G6 EWR',
+        objectiveId: 'Gali',
+        position: { x: homeBase!.x + 30_000, y: homeBase!.y }
+      }
+    ]
+
+    spawnDead(campaign, 'player')
+
+    expect(campaign.coalitions.player.flightGroups[0]?.target).toMatchObject({
+      id: 'ewr-1',
+      type: '55G6 EWR'
+    })
   })
 })

@@ -96,6 +96,8 @@ function getUnitCode(item: z.infer<typeof schemas.MapItem>): SidcUnitCodeKey {
       return 'downedPilot'
     case 'SAM':
       return 'airDefenceMissle'
+    case 'EWR':
+      return 'radar'
     case 'Naval Group':
       switch (item.role) {
         case 'carrier':
@@ -117,6 +119,7 @@ function getDomain(item: z.infer<typeof schemas.MapItem>): 'air' | 'ground' | 's
     case 'Structure':
     case 'Airdrome':
     case 'SAM':
+    case 'EWR':
     case 'Downed Pilot':
     case 'Ground Group':
       return 'ground'

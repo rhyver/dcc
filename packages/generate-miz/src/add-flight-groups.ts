@@ -480,6 +480,22 @@ function findMissionGroundGroupName(
   return null
 }
 
+function findMissionEwrGroupId(
+  mission: z.infer<typeof schemas.dcs.mission>,
+  coalitionKey: 'blue' | 'red',
+  ewrId: string
+): number | null {
+  const countries = mission.coalition[coalitionKey].country ?? []
+  const namePrefix = `IADS-EWR-${ewrId}-`
+
+  for (const country of countries) {
+    const ewrGroup = country.vehicle?.group?.find((group) => group.name.startsWith(namePrefix))
+    if (ewrGroup) return ewrGroup.groupId ?? null
+  }
+
+  return null
+}
+
 function addJtacPredator(params: {
   country: MissionCountry
   nextId: () => number
@@ -936,6 +952,34 @@ function getAirborneSpawnAltitude(altitude: number, isHelicopter?: boolean) {
   return Math.max(altitude, minimumAltitude)
 }
 
+function getMissionAircrafts(
+  campaign: Campaign,
+  coalition: Campaign['coalitions']['player'],
+  flightGroup: FlightGroup
+) {
+  if (!flightGroup.aircrafts.some((aircraft) => aircraft.client)) {
+    return flightGroup.aircrafts
+  }
+
+  const aiWingmanSpawn = campaign.campaignParams?.aiWingmanSpawn ?? 'landOnly'
+  const isAirborne =
+    calculateInFlightPosition(
+      flightGroup.flightplan,
+      campaign.time,
+      flightGroup.task === 'CAP' ? config.packages.CAP.patrolDuration : undefined
+    ) !== null
+  const isCarrierStart =
+    coalition.navalGroups?.some(
+      (group) => group.id === flightGroup.homeBase && group.role === 'carrier'
+    ) ?? false
+  const includeAiWingmen =
+    aiWingmanSpawn === 'always' || (aiWingmanSpawn === 'landOnly' && !isAirborne && !isCarrierStart)
+
+  return includeAiWingmen
+    ? flightGroup.aircrafts
+    : flightGroup.aircrafts.filter((aircraft) => aircraft.client)
+}
+
 export function addFlightGroups(
   mission: z.infer<typeof schemas.dcs.mission>,
   campaign: z.infer<typeof schemas.campaign.campaign>,
@@ -962,6 +1006,7 @@ export function addFlightGroups(
   // Unit IDs are needed before rendering units so Link-16 networks can include other friendly flights.
   const flightGroupIdToGroupId = new Map<string, number>()
   const flightGroupIdToUnitIds = new Map<string, number[]>()
+  const missionAircraftByFlightGroupId = new Map<string, FlightGroup['aircrafts']>()
   const coalitionLink16UnitIds = new Map<string, number[]>()
   const link16StationNumberByUnitId = new Map<number, string>()
   const navigationFeatures = resolveNavigationFeatureFlags(campaign)
@@ -978,10 +1023,12 @@ export function addFlightGroups(
       const groupId = nextId()
       flightGroupIdToGroupId.set(fg.id, groupId)
 
-      const unitIds = fg.aircrafts.map(() => nextId())
+      const missionAircraft = getMissionAircrafts(campaign, value, fg)
+      missionAircraftByFlightGroupId.set(fg.id, missionAircraft)
+      const unitIds = missionAircraft.map(() => nextId())
       flightGroupIdToUnitIds.set(fg.id, unitIds)
 
-      const link16Units = fg.aircrafts
+      const link16Units = missionAircraft
         .map((aircraft, index) => ({
           aircraftDef: aircraftMap.get(aircraft.aircraftName),
           index,
@@ -1071,7 +1118,8 @@ export function addFlightGroups(
     const vehicleGroups = country.vehicle.group
 
     flightGroups.forEach((fg) => {
-      const firstAircraft = fg.aircrafts[0]
+      const missionAircraft = missionAircraftByFlightGroupId.get(fg.id) ?? fg.aircrafts
+      const firstAircraft = missionAircraft[0]
       if (!firstAircraft) return
 
       const aircraftDef = aircraftMap.get(firstAircraft.aircraftName)
@@ -1090,7 +1138,9 @@ export function addFlightGroups(
       const taskName = fg.task
       const dcsTaskName = ['CSAR', 'CASEVAC', 'Troop Extraction'].includes(fg.task)
         ? 'Transport'
-        : fg.task
+        : fg.task === 'DEAD'
+          ? 'SEAD'
+          : fg.task
 
       // Find loadout
       let selectedLoadout = aircraftDef.loadouts.find((l) => l.task === taskName)
@@ -1164,7 +1214,7 @@ export function addFlightGroups(
         farpHome != null &&
         farpHelipadId != null &&
         !isInFlight &&
-        usedNativeFarpSlots + fg.aircrafts.length <= FARP_NATIVE_PARKING_SLOTS
+        usedNativeFarpSlots + missionAircraft.length <= FARP_NATIVE_PARKING_SLOTS
       const farpParkingSlotStart = canUseNativeFarpParking ? usedNativeFarpSlots : undefined
       const farpOverflowSlotStart =
         farpHome && !isInFlight && !canUseNativeFarpParking
@@ -1172,9 +1222,9 @@ export function addFlightGroups(
           : undefined
 
       if (farpParkingSlotStart !== undefined) {
-        usedFarpParkingSlots.set(farpSpawnKey, farpParkingSlotStart + fg.aircrafts.length)
+        usedFarpParkingSlots.set(farpSpawnKey, farpParkingSlotStart + missionAircraft.length)
       } else if (farpOverflowSlotStart !== undefined) {
-        usedFarpOverflowSlots.set(farpSpawnKey, farpOverflowSlotStart + fg.aircrafts.length)
+        usedFarpOverflowSlots.set(farpSpawnKey, farpOverflowSlotStart + missionAircraft.length)
       }
 
       if (isInFlight) {
@@ -1183,9 +1233,9 @@ export function addFlightGroups(
       }
 
       // Add units
-      const unitIds = flightGroupIdToUnitIds.get(fg.id) ?? fg.aircrafts.map(() => nextId())
+      const unitIds = flightGroupIdToUnitIds.get(fg.id) ?? missionAircraft.map(() => nextId())
       const link16NetworkUnitIds = coalitionLink16UnitIds.get(key) ?? unitIds
-      const units: z.infer<typeof schemas.dcs.aircraftUnit>[] = fg.aircrafts.map((ac, index) => {
+      const units: z.infer<typeof schemas.dcs.aircraftUnit>[] = missionAircraft.map((ac, index) => {
         const unitId = unitIds[index] ?? nextId()
 
         let parking: string | undefined = undefined
@@ -1509,6 +1559,26 @@ export function addFlightGroups(
                 `Added SEAD Escort task to ${fg.callsign} escorting group ID ${primaryDcsGroupId}`
               )
             }
+          }
+        }
+
+        if (wp.type === 'Task' && fg.target && (fg.task === 'SEAD' || fg.task === 'DEAD')) {
+          const targetCoalitionKey = missionCoalitionKey === 'blue' ? 'red' : 'blue'
+          const targetEwrGroupId = findMissionEwrGroupId(mission, targetCoalitionKey, fg.target.id)
+          if (targetEwrGroupId != null) {
+            tasks.push({
+              enabled: true,
+              auto: false,
+              id: 'AttackGroup',
+              number: tasks.length + 1,
+              params: {
+                groupId: targetEwrGroupId,
+                attackQtyLimit: false,
+                expend: 'Auto',
+                groupAttack: false,
+                weaponType: 0
+              }
+            })
           }
         }
 

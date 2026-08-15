@@ -6,6 +6,7 @@ export const navalGroup = z.object({
   id: z.string(),
   name: z.string(),
   role: z.enum(['carrier', 'escort', 'transport', 'surface-combatant']),
+  missionGroupId: z.string().optional(),
   unitTypes: z.array(z.string()).min(1),
   units: z
     .array(

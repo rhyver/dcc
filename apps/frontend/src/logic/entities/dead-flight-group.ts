@@ -8,6 +8,7 @@ import { buildDeadMissionWaypoints, spawnPlannedFlightGroup } from './flight-gro
 import { logCombatAction } from '../simulation-log'
 import { maybeCreateDownedPilotFromAircraftLoss } from '../systems/downed-pilots'
 import { debugLog } from '@/lib/debug'
+import { EWR_ATTACK_RANGE_METERS } from '@/logic/iads-emitter-targets'
 
 export class DeadFlightGroup extends FlightGroup {
   static spawn(
@@ -72,10 +73,7 @@ export class DeadFlightGroup extends FlightGroup {
     return { flightGroupId, tot: tot ?? startTime }
   }
 
-  /**
-   * DEAD attack logic - destroys enemy SAM when aircraft reaches target
-   * Unlike SEAD which suppresses temporarily, DEAD destroys permanently
-   */
+  /** DEAD attack logic permanently destroys an enemy radar emitter. */
   destroySam(
     draft: z.infer<typeof schemas.campaign.campaign>,
     coalition: z.infer<typeof schemas.coalition>,
@@ -91,43 +89,53 @@ export class DeadFlightGroup extends FlightGroup {
     }
 
     const enemyCoalition = coalition === 'player' ? 'opponent' : 'player'
-    const samGroup = draft.coalitions[enemyCoalition].samGroups.find(
-      (s) => s.id === this._data.target?.id
-    )
+    const enemy = draft.coalitions[enemyCoalition]
+    const samGroup = enemy.samGroups.find((s) => s.id === this._data.target?.id)
+    const ewrGroup = enemy.ewrGroups?.find((ewr) => ewr.id === this._data.target?.id)
 
-    if (!samGroup) {
+    if (!samGroup && !ewrGroup) {
       return
     }
 
-    const samPosition = getObjectivePosition(theatre, samGroup.objectiveId)
-    if (!samPosition) {
+    const emitterPosition = samGroup
+      ? getObjectivePosition(theatre, samGroup.objectiveId)
+      : ewrGroup?.position
+    if (!emitterPosition) {
       return
     }
 
-    const samTemplate = samTemplates[samGroup.type]
-    if (!samTemplate) {
+    const samTemplate = samGroup ? samTemplates[samGroup.type] : undefined
+    if (samGroup && !samTemplate) {
       return
     }
 
-    const distanceToSam = calculateDistance(this._data.position, samPosition)
+    const emitterType = samGroup?.type ?? ewrGroup!.type
+    const emitterObjectiveId = samGroup?.objectiveId ?? ewrGroup!.objectiveId
+    const distanceToEmitter = calculateDistance(this._data.position, emitterPosition)
 
-    // DEAD attacks when within engagement range (1.2x SAM range for standoff weapons)
-    const attackRange = samTemplate.range * 1.2
-    const isInRange = distanceToSam <= attackRange
+    // DEAD attacks SAMs at standoff range and approaches dedicated EWR sites closely enough to
+    // identify and destroy the radar installation.
+    const attackRange = samTemplate ? samTemplate.range * 1.2 : EWR_ATTACK_RANGE_METERS
+    const isInRange = distanceToEmitter <= attackRange
 
     if (isInRange) {
-      // 50% chance per aircraft to destroy the SAM
+      // 50% chance per aircraft to destroy the emitter.
       // Each aircraft makes one attack attempt
       for (const aircraft of this._data.aircrafts) {
         if (Math.random() <= 0.5) {
           // Successful attack - mark every SAM component as destroyed.
-          samGroup.deadUnitIndexes = samTemplate.units.map((_, index) => index)
-          samGroup.destroyed = true
-          debugLog(`DEAD aircraft ${aircraft.unitName} destroyed ${samGroup.type}`)
+          if (samGroup && samTemplate) {
+            samGroup.deadUnitIndexes = samTemplate.units.map((_, index) => index)
+            samGroup.destroyed = true
+          } else if (ewrGroup) {
+            ewrGroup.destroyed = true
+            ewrGroup.suppressed = false
+          }
+          debugLog(`DEAD aircraft ${aircraft.unitName} destroyed ${emitterType}`)
           logCombatAction(
             draft,
             coalition,
-            `DEAD ${aircraft.unitName} destroyed ${samGroup.type} at ${samGroup.objectiveId}`,
+            `DEAD ${aircraft.unitName} destroyed ${emitterType} at ${emitterObjectiveId}`,
             this._data.callsign,
             {
               entityType: 'flightGroup',
@@ -137,11 +145,11 @@ export class DeadFlightGroup extends FlightGroup {
           this._data.targetDestroyed = true
           return
         } else {
-          debugLog(`DEAD aircraft ${aircraft.unitName} missed ${samGroup.type}`)
+          debugLog(`DEAD aircraft ${aircraft.unitName} missed ${emitterType}`)
           logCombatAction(
             draft,
             coalition,
-            `DEAD ${aircraft.unitName} missed ${samGroup.type} at ${samGroup.objectiveId}`,
+            `DEAD ${aircraft.unitName} missed ${emitterType} at ${emitterObjectiveId}`,
             this._data.callsign,
             {
               entityType: 'flightGroup',
@@ -151,13 +159,13 @@ export class DeadFlightGroup extends FlightGroup {
         }
       }
 
-      // If all attacks missed, SAM can shoot back
+      // If all attacks missed, an armed SAM can shoot back.
       // Higher chance than SEAD since DEAD aircraft need to get closer
-      const shootDownChance = 0.1
+      const shootDownChance = samGroup ? 0.1 : 0
       if (Math.random() < shootDownChance) {
         if (this._data.aircrafts.length > 0) {
           const removedAircraft = this._data.aircrafts.pop()
-          debugLog(`DEAD aircraft ${removedAircraft?.unitName} shot down by ${samGroup.type}`)
+          debugLog(`DEAD aircraft ${removedAircraft?.unitName} shot down by ${emitterType}`)
           if (removedAircraft) {
             maybeCreateDownedPilotFromAircraftLoss(draft, coalition, {
               name: removedAircraft.unitName,
@@ -166,7 +174,7 @@ export class DeadFlightGroup extends FlightGroup {
             logCombatAction(
               draft,
               coalition,
-              `DEAD ${removedAircraft.unitName} shot down by ${samGroup.type}`,
+              `DEAD ${removedAircraft.unitName} shot down by ${emitterType}`,
               this._data.callsign,
               {
                 entityType: 'flightGroup',

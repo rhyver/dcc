@@ -1,4 +1,5 @@
 import { schemas } from '@dcc/contracts'
+import { scenarios } from '@dcc/data'
 import { describe, expect, test, vi } from 'vitest'
 import * as z from 'zod'
 
@@ -265,6 +266,32 @@ describe('addFlightGroups carrier compatibility', () => {
     expect(mission.coalition.blue.country?.[0]?.ship?.group[0]?.units[0]?.heading).toBeCloseTo(
       (350 * Math.PI) / 180
     )
+  })
+
+  test('emits the Falklands escort screen in the carrier DCS group', () => {
+    const startTime = new Date('1982-05-01T09:00:00Z')
+    const mission = createMission()
+    const campaign = createCampaign(startTime)
+    const scenario = scenarios.find((candidate) => candidate.id === 'falklands-1982')
+    if (!scenario) throw new Error('Falklands scenario is missing')
+    campaign.scenarioId = scenario.id
+    campaign.coalitions.player.navalGroups = structuredClone(scenario.navalGroups?.player ?? [])
+    campaign.coalitions.opponent.navalGroups = []
+
+    const result = addNavalGroups(mission, campaign)
+
+    expect(result.isOk()).toBe(true)
+    const shipGroups = mission.coalition.blue.country?.[0]?.ship?.group ?? []
+    expect(shipGroups.map((group) => group.name)).toEqual([
+      'NavalGroup-uk-carrier-group',
+      'NavalGroup-uk-amphibious-group'
+    ])
+    expect(shipGroups[0]?.units.map((unit) => unit.type)).toEqual([
+      'LHA_Tarawa',
+      'leander-gun-achilles',
+      'leander-gun-andromeda',
+      'leander-gun-ariadne'
+    ])
   })
 
   test.each([
@@ -760,6 +787,124 @@ describe('addFlightGroups mission script config', () => {
     expect(units.map((unit) => unit.skill)).toEqual(['Client', 'High'])
   })
 
+  test('omits AI wingmen when their spawn setting is never', () => {
+    const startTime = new Date('2026-01-01T00:00:00Z')
+    const mission = createMission()
+    const campaign = createCampaign(startTime)
+    const clientGroup = createFlightGroup('blue-client', 'Enfield-1', startTime)
+    clientGroup.aircrafts[0]!.client = true
+    campaign.campaignParams = { aiWingmanSpawn: 'never' }
+    campaign.coalitions.player.flightGroups = [clientGroup]
+    campaign.coalitions.opponent.flightGroups = []
+
+    const result = addFlightGroups(mission, campaign, theatre)
+
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) throw result.error
+
+    const units = mission.coalition.blue.country?.[0]?.plane?.group?.[0]?.units ?? []
+    expect(units.map((unit) => unit.skill)).toEqual(['Client'])
+  })
+
+  test('omits AI wingmen from airborne client flights when set to land only', () => {
+    const startTime = new Date('2026-01-01T00:00:00Z')
+    const mission = createMission()
+    const campaign = createCampaign(startTime)
+    const clientGroup = createFlightGroup('blue-client', 'Enfield-1', startTime)
+    clientGroup.aircrafts[0]!.client = true
+    campaign.campaignParams = { aiWingmanSpawn: 'landOnly' }
+    campaign.time = new Date(startTime.getTime() + 10 * 60 * 1000)
+    campaign.coalitions.player.flightGroups = [clientGroup]
+    campaign.coalitions.opponent.flightGroups = []
+
+    const result = addFlightGroups(mission, campaign, theatre)
+
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) throw result.error
+
+    const units = mission.coalition.blue.country?.[0]?.plane?.group?.[0]?.units ?? []
+    expect(units.map((unit) => unit.skill)).toEqual(['Client'])
+  })
+
+  test('omits AI wingmen from carrier client flights when set to land only', () => {
+    const startTime = new Date('2026-01-01T00:00:00Z')
+    const mission = createMission()
+    const campaign = createCampaign(startTime)
+    const clientGroup = createFlightGroup('blue-client', 'Enfield-1', startTime)
+    clientGroup.homeBase = 'carrier-group'
+    clientGroup.aircrafts.forEach((aircraft) => {
+      aircraft.aircraftName = 'AV8BNA'
+    })
+    clientGroup.aircrafts[0]!.client = true
+    campaign.campaignParams = { aiWingmanSpawn: 'landOnly' }
+    campaign.coalitions.player.flightGroups = [clientGroup]
+    campaign.coalitions.player.navalGroups = [
+      {
+        id: 'carrier-group',
+        name: 'Carrier Group',
+        role: 'carrier',
+        unitTypes: ['LHA_Tarawa'],
+        position: { x: 1_000, y: 1_000 },
+        heading: 0,
+        damage: 0,
+        fuel: 1,
+        ammunition: 1,
+        cargo: 0,
+        state: 'operational'
+      }
+    ]
+    campaign.coalitions.opponent.flightGroups = []
+
+    const navalResult = addNavalGroups(mission, campaign)
+    expect(navalResult.isOk()).toBe(true)
+    if (navalResult.isErr()) throw navalResult.error
+
+    const result = addFlightGroups(mission, campaign, theatre)
+
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) throw result.error
+
+    const units = mission.coalition.blue.country?.[0]?.plane?.group?.[0]?.units ?? []
+    expect(units.map((unit) => unit.skill)).toEqual(['Client'])
+  })
+
+  test('keeps AI wingmen in airborne client flights when set to always', () => {
+    const startTime = new Date('2026-01-01T00:00:00Z')
+    const mission = createMission()
+    const campaign = createCampaign(startTime)
+    const clientGroup = createFlightGroup('blue-client', 'Enfield-1', startTime)
+    clientGroup.aircrafts[0]!.client = true
+    campaign.campaignParams = { aiWingmanSpawn: 'always' }
+    campaign.time = new Date(startTime.getTime() + 10 * 60 * 1000)
+    campaign.coalitions.player.flightGroups = [clientGroup]
+    campaign.coalitions.opponent.flightGroups = []
+
+    const result = addFlightGroups(mission, campaign, theatre)
+
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) throw result.error
+
+    const units = mission.coalition.blue.country?.[0]?.plane?.group?.[0]?.units ?? []
+    expect(units.map((unit) => unit.skill)).toEqual(['Client', 'High'])
+  })
+
+  test('does not remove autonomous AI flights when wingmen are disabled', () => {
+    const startTime = new Date('2026-01-01T00:00:00Z')
+    const mission = createMission()
+    const campaign = createCampaign(startTime)
+    campaign.campaignParams = { aiWingmanSpawn: 'never' }
+    campaign.coalitions.player.flightGroups = [createFlightGroup('blue-ai', 'Enfield-1', startTime)]
+    campaign.coalitions.opponent.flightGroups = []
+
+    const result = addFlightGroups(mission, campaign, theatre)
+
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) throw result.error
+
+    const units = mission.coalition.blue.country?.[0]?.plane?.group?.[0]?.units ?? []
+    expect(units.map((unit) => unit.skill)).toEqual(['High', 'High'])
+  })
+
   test('keeps multiple selected client aircraft as client skill', () => {
     const startTime = new Date('2026-01-01T00:00:00Z')
     const mission = createMission()
@@ -871,6 +1016,60 @@ describe('addFlightGroups mission script config', () => {
       7: { CLSID: '{LAU_7_AGM_122_SIDEARM}', num: 7 },
       8: { CLSID: '{AGM_122_SIDEARM}', num: 8 }
     })
+  })
+
+  test('assigns DEAD flights a DCS SEAD task and their persistent EWR target group', () => {
+    const startTime = new Date('2026-01-01T00:00:00Z')
+    const mission = createMission()
+    const campaign = createCampaign(startTime)
+    const group = createTaskFlightGroup('blue-ewr-dead', 'Enfield-1', startTime, 'DEAD')
+    group.target = {
+      id: 'ewr-1',
+      type: '55G6 EWR',
+      objectiveId: 'Target Objective'
+    }
+    campaign.coalitions.player.flightGroups = [group]
+    campaign.coalitions.opponent.flightGroups = []
+    mission.coalition.red.country![0]!.vehicle = {
+      group: [
+        {
+          groupId: 900,
+          name: 'IADS-EWR-ewr-1-900',
+          units: [
+            {
+              unitId: 901,
+              name: 'IADS-EWR-Unit-ewr-1',
+              x: 2000,
+              y: 2000,
+              type: '55G6 EWR',
+              heading: 0,
+              skill: 'High'
+            }
+          ],
+          x: 2000,
+          y: 2000,
+          hidden: false,
+          start_time: 0,
+          route: { points: [] }
+        }
+      ]
+    }
+
+    const result = addFlightGroups(mission, campaign, theatre)
+
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) throw result.error
+    const dcsGroup = mission.coalition.blue.country?.[0]?.plane?.group?.[0]
+    const taskWaypoint = dcsGroup?.route?.points.find((point) => point.name === 'DEAD')
+    const tasks = taskWaypoint?.task?.params?.tasks
+
+    expect(dcsGroup?.task).toBe('SEAD')
+    expect(tasks).toContainEqual(
+      expect.objectContaining({
+        id: 'AttackGroup',
+        params: expect.objectContaining({ groupId: 900 })
+      })
+    )
   })
 
   test('equips Harrier CAS flights with air-to-ground weapons and a targeting pod', () => {

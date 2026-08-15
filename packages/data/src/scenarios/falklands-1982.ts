@@ -8,11 +8,13 @@ const operationalGroup = (
   unitTypes: string[],
   position: { x: number; y: number },
   heading: number,
-  cargo = 0
+  cargo = 0,
+  missionGroupId?: string
 ) => ({
   id,
   name,
   role,
+  missionGroupId,
   unitTypes,
   units: unitTypes.map((type, index) => ({
     id: `${id}-ship-${index + 1}`,
@@ -37,7 +39,6 @@ export const Falklands1982: z.infer<typeof schemas.scenario> = {
   theatreName: 'SouthAtlantic',
   id: 'falklands-1982',
   name: 'Operation Corporate — Falklands 1982',
-  author: 'DCC',
   // Enabled after reviewed objectives, routes, deployment sites, airfields, and DCS mission smoke test.
   available: true,
   era: 'Late CW',
@@ -125,7 +126,9 @@ export const Falklands1982: z.infer<typeof schemas.scenario> = {
         'escort',
         ['leander-gun-achilles', 'leander-gun-andromeda', 'leander-gun-ariadne'],
         { x: 82_610, y: 190_267 },
-        radians(270)
+        radians(270),
+        0,
+        'uk-carrier-group'
       ),
       operationalGroup(
         'uk-amphibious-group',
@@ -143,9 +146,11 @@ export const Falklands1982: z.infer<typeof schemas.scenario> = {
     opponent: [
       operationalGroup(
         'arg-surface-group',
-        'Argentine Surface Group',
+        'Argentine Patrol Frigate',
         'surface-combatant',
-        ['ara_vdm', 'PERRY'],
+        // A single gun-armed Leander is a meaningful ship target, while its short-range defenses
+        // still let the AV-8B release laser-guided bombs safely from high altitude.
+        ['leander-gun-achilles'],
         // Roughly 20 NM south of Bull Point, the southern tip of East Falkland.
         { x: -22_010, y: -8_141 },
         radians(45)

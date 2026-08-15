@@ -53,6 +53,12 @@ export const SamMapItem = mapItem.extend({
   active: z.boolean()
 })
 
+export const EwrMapItem = mapItem.extend({
+  type: z.literal('EWR'),
+  objectiveId: z.string(),
+  active: z.boolean()
+})
+
 export const NavalGroupMapItem = mapItem.extend({
   type: z.literal('Naval Group'),
   role: navalGroup.shape.role,
@@ -74,5 +80,6 @@ export const MapItem = z.discriminatedUnion('type', [
   GroundGroupMapItem,
   DownedPilotMapItem,
   SamMapItem,
+  EwrMapItem,
   NavalGroupMapItem
 ])

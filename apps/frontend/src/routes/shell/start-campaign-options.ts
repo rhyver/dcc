@@ -1,9 +1,11 @@
-import { aircrafts as aircraftDefinitions, factions, scenarios } from '@dcc/data'
+import { aircrafts as aircraftDefinitions, scenarios } from '@dcc/data'
+import { schemas } from '@dcc/contracts'
+import * as z from 'zod'
 
 export type CampaignEra = 'Korea' | 'Vietnam' | 'Late CW' | 'Modern'
 export type ScenarioStep = 'scenario' | 'era' | 'factions'
 export type Scenario = (typeof scenarios)[number]
-export type Faction = (typeof factions)[number]
+export type Faction = z.infer<typeof schemas.faction>
 
 export const factionIdsByEra: Record<CampaignEra, { player: string; opponent: string }> = {
   Korea: { player: 'usa-1952', opponent: 'russia-1955' },
@@ -48,8 +50,11 @@ export function formatFactionLabel(faction: Faction) {
   return faction.year != null ? `${faction.name} // ${faction.year}` : faction.name
 }
 
-export function getFactionAircraft(factionId: string) {
-  const faction = factions.find((candidate) => candidate.id === factionId)
+export const aircraftCatalog = Object.values(aircraftDefinitions).sort((left, right) =>
+  left.display_name.localeCompare(right.display_name)
+)
+
+export function getFactionAircraft(faction: Faction | undefined) {
   if (!faction) return []
 
   const rolesByAircraft = new Map<string, string[]>()
@@ -61,9 +66,8 @@ export function getFactionAircraft(factionId: string) {
     }
   }
 
-  const definitions = Object.values(aircraftDefinitions)
   return Array.from(rolesByAircraft, ([name, roles]) => {
-    const definition = definitions.find((candidate) => candidate.name === name)
+    const definition = aircraftCatalog.find((candidate) => candidate.name === name)
     return {
       name,
       displayName: definition?.display_name ?? name,

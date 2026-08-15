@@ -53,6 +53,7 @@ const Marker = memo(function Marker({
 
   const isPersistentCommandAsset = item.type === 'Airdrome' || item.type === 'Naval Group'
   const showTitleCard = isPersistentCommandAsset || isSelected
+  const isInactive = 'active' in item && item.active === false
   const coalitionColor = item.coalition === 'player' ? 'var(--synthwave-cyan)' : 'var(--enemy-red)'
 
   return (
@@ -67,7 +68,7 @@ const Marker = memo(function Marker({
       }}
     >
       <div
-        className="pointer-events-auto"
+        className={cn('pointer-events-auto', isInactive && 'opacity-40 grayscale')}
         onPointerDown={(e) => {
           e.stopPropagation()
           onClick()

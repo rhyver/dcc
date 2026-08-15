@@ -10,6 +10,7 @@ import * as turf from '@turf/turf'
 import { tryDcsPositionToLngLat } from '@/logic/dcs-coordinates'
 import { hasFlightGroupTakenOff } from '@/logic/entities/flight-status'
 import { getGroundGroupSpawnCost } from '@/logic/systems/spawn/ground-group-costs'
+import { createEwrMapItems } from './ewr-map-items'
 import { createNavalGroupMapItems } from './naval-map-items'
 
 export type ObjectiveMarker = {
@@ -336,6 +337,10 @@ export function useMapItems(options: { showGoalMarkers?: boolean } = {}): {
     addGroundGroupMarkers(opponentCoalition.groundGroups ?? [], 'opponent')
     addSamMarkers(playerCoalition.samGroups ?? [], 'player')
     addSamMarkers(opponentCoalition.samGroups ?? [], 'opponent')
+    mapItems.push(
+      ...createEwrMapItems(playerCoalition.ewrGroups ?? [], 'player', theatre.name),
+      ...createEwrMapItems(opponentCoalition.ewrGroups ?? [], 'opponent', theatre.name)
+    )
     mapItems.push(
       ...createNavalGroupMapItems(playerCoalition.navalGroups ?? [], 'player', theatre.name),
       ...createNavalGroupMapItems(opponentCoalition.navalGroups ?? [], 'opponent', theatre.name)

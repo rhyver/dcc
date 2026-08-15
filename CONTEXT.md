@@ -13,4 +13,5 @@
 - **CASEVAC**: A theatre-independent helicopter operation for wounded personnel collected at a casualty point. It is separate from CSAR and Troop Extraction and never recovers destroyed equipment.
 - **Replacement Pool**: Personnel and equipment stored at one recovery node. Pools are local to the owned supply graph so reconstitution cannot teleport assets between disconnected objectives.
 - **Naval Campaign**: The Module that owns persistent surface-group position, exact ship continuity, damage, fuel, ammunition, cargo, operating state, and Falklands landing prerequisites.
+- **IADS Network**: The Module that owns persistent early-warning radar identity, position, and destroyed state. Mission generation consumes this state and must never recreate destroyed radar sites.
 - **South Atlantic Mission Adapter**: The Adapter that emits and imports South Atlantic countries, persistent ships, carrier bases, exact ground slots, withdrawals, extraction zones, and CASEVAC results without folding naval state into generic ground state.

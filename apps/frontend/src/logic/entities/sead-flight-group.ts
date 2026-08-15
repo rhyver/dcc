@@ -8,6 +8,7 @@ import { buildSeadMissionWaypoints, spawnPlannedFlightGroup } from './flight-gro
 import { logCombatAction } from '../simulation-log'
 import { maybeCreateDownedPilotFromAircraftLoss } from '../systems/downed-pilots'
 import { debugLog } from '@/lib/debug'
+import { EWR_ATTACK_RANGE_METERS } from '@/logic/iads-emitter-targets'
 
 export class SeadFlightGroup extends FlightGroup {
   static spawn(
@@ -79,44 +80,48 @@ export class SeadFlightGroup extends FlightGroup {
     }
 
     const enemyCoalition = coalition === 'player' ? 'opponent' : 'player'
-    const samGroup = draft.coalitions[enemyCoalition].samGroups.find(
-      (s) => s.id === this._data.target?.id
-    )
+    const enemy = draft.coalitions[enemyCoalition]
+    const samGroup = enemy.samGroups.find((s) => s.id === this._data.target?.id)
+    const ewrGroup = enemy.ewrGroups?.find((ewr) => ewr.id === this._data.target?.id)
 
-    if (!samGroup) {
+    if (!samGroup && !ewrGroup) {
       return
     }
 
-    const samPosition = getObjectivePosition(theatre, samGroup.objectiveId)
-    if (!samPosition) {
+    const emitterPosition = samGroup
+      ? getObjectivePosition(theatre, samGroup.objectiveId)
+      : ewrGroup?.position
+    if (!emitterPosition) {
       return
     }
 
-    const samTemplate = samTemplates[samGroup.type]
-    if (!samTemplate) {
+    const samTemplate = samGroup ? samTemplates[samGroup.type] : undefined
+    if (samGroup && !samTemplate) {
       return
     }
 
-    if (!isSamHardwareCapable(samGroup)) {
+    if (samGroup && !isSamHardwareCapable(samGroup)) {
       samGroup.suppressed = false
       return
     }
 
-    const distanceToSam = calculateDistance(this._data.position, samPosition)
+    const emitterType = samGroup?.type ?? ewrGroup!.type
+    const emitterObjectiveId = samGroup?.objectiveId ?? ewrGroup!.objectiveId
+    const distanceToEmitter = calculateDistance(this._data.position, emitterPosition)
 
-    // SEAD is suppressing when within SAM range
-    const isInRange = distanceToSam <= samTemplate.range
+    const suppressionRange = samTemplate?.range ?? EWR_ATTACK_RANGE_METERS
+    const isInRange = distanceToEmitter <= suppressionRange
 
     if (isInRange) {
-      const wasSuppressed = samGroup.suppressed
+      const wasSuppressed = samGroup?.suppressed ?? ewrGroup?.suppressed
 
-      // Mark SAM as suppressed
-      samGroup.suppressed = true
+      if (samGroup) samGroup.suppressed = true
+      if (ewrGroup) ewrGroup.suppressed = true
       if (!wasSuppressed) {
         logCombatAction(
           draft,
           coalition,
-          `SEAD established suppression on ${samGroup.type} at ${samGroup.objectiveId}`,
+          `SEAD established suppression on ${emitterType} at ${emitterObjectiveId}`,
           this._data.callsign,
           {
             entityType: 'flightGroup',
@@ -126,12 +131,12 @@ export class SeadFlightGroup extends FlightGroup {
       }
 
       // SAM has small chance to shoot down SEAD while in range (5-10% per tick)
-      const shootDownChance = 0.05
+      const shootDownChance = samGroup ? 0.05 : 0
       if (Math.random() < shootDownChance) {
         // Remove one aircraft from the flight
         if (this._data.aircrafts.length > 0) {
           const removedAircraft = this._data.aircrafts.pop()
-          debugLog(`SEAD aircraft ${removedAircraft?.unitName} shot down by ${samGroup.type}`)
+          debugLog(`SEAD aircraft ${removedAircraft?.unitName} shot down by ${emitterType}`)
           if (removedAircraft) {
             maybeCreateDownedPilotFromAircraftLoss(draft, coalition, {
               name: removedAircraft.unitName,
@@ -140,7 +145,7 @@ export class SeadFlightGroup extends FlightGroup {
             logCombatAction(
               draft,
               coalition,
-              `SEAD ${removedAircraft.unitName} shot down by ${samGroup.type}`,
+              `SEAD ${removedAircraft.unitName} shot down by ${emitterType}`,
               this._data.callsign,
               {
                 entityType: 'flightGroup',
@@ -151,14 +156,13 @@ export class SeadFlightGroup extends FlightGroup {
         }
       }
     } else {
-      // Check if this SEAD flight was previously suppressing this SAM
-      // If we're no longer in range, clear suppression
-      // (Note: In a more complex system, we'd track which SEAD is suppressing which SAM)
-      if (samGroup.suppressed) {
+      // If the flight is no longer in range, clear suppression. A more complex
+      // simulation could track overlapping coverage from multiple SEAD flights.
+      if (samGroup?.suppressed || ewrGroup?.suppressed) {
         logCombatAction(
           draft,
           coalition,
-          `SEAD lost suppression on ${samGroup.type} at ${samGroup.objectiveId}`,
+          `SEAD lost suppression on ${emitterType} at ${emitterObjectiveId}`,
           this._data.callsign,
           {
             entityType: 'flightGroup',
@@ -166,7 +170,8 @@ export class SeadFlightGroup extends FlightGroup {
           }
         )
       }
-      samGroup.suppressed = false
+      if (samGroup) samGroup.suppressed = false
+      if (ewrGroup) ewrGroup.suppressed = false
     }
   }
 }

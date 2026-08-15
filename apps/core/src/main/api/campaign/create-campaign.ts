@@ -1,5 +1,10 @@
 import { getFactions } from '../data/get-factions'
-import { assignDeploymentSite, expandGroundGroupUnits, isInfantryGroundGroup } from '@dcc/campaign'
+import {
+  assignDeploymentSite,
+  ensurePersistentIadsEwrs,
+  expandGroundGroupUnits,
+  isInfantryGroundGroup
+} from '@dcc/campaign'
 import { getScenarios } from '../data/get-scenarios'
 import { getTemplates } from '../data/get-templates'
 import { pub } from '../orpc'
@@ -275,24 +280,26 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
     })
   }
 
-  if (input.playerFactionId === input.opponentFactionId) {
-    throw errors.NOT_FOUND({
-      data: {
-        message: 'Player and opponent factions must be different',
-        path: input.playerFactionId
-      }
-    })
-  }
-
   const factions = getFactions()
-  const playerFaction = factions.find((faction) => faction.id === input.playerFactionId)
-  const opponentFaction = factions.find((faction) => faction.id === input.opponentFactionId)
+  const playerFaction =
+    input.playerFaction ?? factions.find((faction) => faction.id === input.playerFactionId)
+  const opponentFaction =
+    input.opponentFaction ?? factions.find((faction) => faction.id === input.opponentFactionId)
 
   if (playerFaction == null || opponentFaction == null) {
     throw errors.NOT_FOUND({
       data: {
         message: 'Faction not found',
         path: playerFaction == null ? input.playerFactionId : input.opponentFactionId
+      }
+    })
+  }
+
+  if (playerFaction.id === opponentFaction.id) {
+    throw errors.NOT_FOUND({
+      data: {
+        message: 'Player and opponent factions must be different',
+        path: playerFaction.id
       }
     })
   }
@@ -509,6 +516,7 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
     timeMultiplier: 0,
     campaignParams: {
       hotStart: false,
+      aiWingmanSpawn: 'landOnly',
       culling: true,
       ewr: true,
       iads: true,
@@ -527,6 +535,7 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
     coalitions: {
       player: {
         id: playerFaction.id,
+        countryName: playerFaction.countryName,
         aircraftTypes: playerFaction.aircraftTypes,
         groundUnitTypes: playerTemplate.groundUnitTypes,
         airdromeNames: scenario.start.player.airdromeNames,
@@ -549,6 +558,7 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
       },
       opponent: {
         id: opponentFaction.id,
+        countryName: opponentFaction.countryName,
         aircraftTypes: opponentFaction.aircraftTypes,
         groundUnitTypes: opponentTemplate.groundUnitTypes,
         airdromeNames: scenario.start.opponent.airdromeNames,
@@ -589,6 +599,8 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
       })
     }
   }
+
+  ensurePersistentIadsEwrs(defaultState, theatre)
 
   const result = schemas.campaign.campaign.safeParse(defaultState)
   if (!result.success) {

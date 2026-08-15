@@ -27,6 +27,8 @@ const LANDING_DURATION_MS = 30 * 60 * 1_000
 export const SAN_CARLOS_AMPHIBIOUS_ANCHORAGE = { x: 104_255, y: 4_299 } as const
 export const SAN_CARLOS_FARP_ID = 'uk-san-carlos-farp'
 const SAN_CARLOS_APPROACH_HEADING = Math.PI / 4
+const ARGENTINE_PATROL_FRIGATE_UNIT_TYPE = 'leander-gun-achilles'
+const LEGACY_ARGENTINE_SURFACE_UNIT_TYPES = new Set(['ara_vdm', 'PERRY', 'speedboat'])
 const BEACHHEAD_OBJECTIVES = new Set(['San Carlos', 'Port San Carlos'])
 const LEGACY_NAVAL_STARTS = [
   {
@@ -139,13 +141,18 @@ function remainingFalklandsSamBatteries(campaign: Campaign) {
 }
 
 function areLocalRadarsSuppressed(campaign: Campaign) {
-  return campaign.coalitions.opponent.structures
+  const localRadarStructuresSuppressed = campaign.coalitions.opponent.structures
     .filter(
       (structure) =>
         LOCAL_THREAT_OBJECTIVES.has(structure.objectiveId) &&
         /radar|early warning|communications|command/i.test(structure.type)
     )
     .every((structure) => structure.buildings.every((building) => !building.alive))
+  const localEwrsSuppressed = (campaign.coalitions.opponent.ewrGroups ?? [])
+    .filter((ewr) => LOCAL_THREAT_OBJECTIVES.has(ewr.objectiveId))
+    .every((ewr) => ewr.destroyed)
+
+  return localRadarStructuresSuppressed && localEwrsSuppressed
 }
 
 export function getSanCarlosLandingReadiness(
@@ -337,6 +344,11 @@ export function migrateLegacyFalklandsNavalStarts(campaign: Campaign) {
   const carrier = campaign.coalitions.player.navalGroups?.find(
     (group) => group.id === 'uk-carrier-group'
   )
+  const escort = campaign.coalitions.player.navalGroups?.find(
+    (group) => group.id === 'uk-escort-group'
+  )
+  if (escort) escort.missionGroupId = 'uk-carrier-group'
+
   if (carrier?.unitTypes.includes(HMS_INVINCIBLE_UNIT_TYPE)) {
     carrier.unitTypes = [
       LHA_TARAWA_UNIT_TYPE,
@@ -365,6 +377,32 @@ export function migrateLegacyFalklandsNavalStarts(campaign: Campaign) {
         )
       ]
     }
+  }
+
+  const argentineSurfaceGroup = campaign.coalitions.opponent.navalGroups?.find(
+    (group) => group.id === 'arg-surface-group'
+  )
+  if (
+    argentineSurfaceGroup?.unitTypes.some((unitType) =>
+      LEGACY_ARGENTINE_SURFACE_UNIT_TYPES.has(unitType)
+    )
+  ) {
+    const wasDefeated =
+      argentineSurfaceGroup.state === 'sunk' || argentineSurfaceGroup.damage >= 0.5
+    argentineSurfaceGroup.name = 'Argentine Patrol Frigate'
+    argentineSurfaceGroup.unitTypes = [ARGENTINE_PATROL_FRIGATE_UNIT_TYPE]
+    argentineSurfaceGroup.units = [
+      {
+        id: `${argentineSurfaceGroup.id}-ship-1`,
+        type: ARGENTINE_PATROL_FRIGATE_UNIT_TYPE,
+        damage: wasDefeated ? 1 : 0,
+        ammunition: argentineSurfaceGroup.ammunition,
+        fuel: argentineSurfaceGroup.fuel,
+        state: wasDefeated ? 'sunk' : 'operational'
+      }
+    ]
+    argentineSurfaceGroup.damage = wasDefeated ? 1 : 0
+    argentineSurfaceGroup.state = wasDefeated ? 'sunk' : 'operational'
   }
 
   for (const placement of LEGACY_NAVAL_STARTS) {

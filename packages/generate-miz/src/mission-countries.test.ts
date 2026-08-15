@@ -72,4 +72,15 @@ describe('configureMissionCountries', () => {
 
     expect(mission.coalition.blue.country?.[0]).toMatchObject({ id: 2, name: 'USA' })
   })
+
+  test('uses the country stored with a user-created faction', () => {
+    const mission = createMission()
+    const campaign = createCampaign('F-16C_50')
+    campaign.coalitions.player.id = 'custom-task-force'
+    campaign.coalitions.player.countryName = 'USA'
+
+    configureMissionCountries(mission, campaign)
+
+    expect(mission.coalition.blue.country?.[0]).toMatchObject({ id: 2, name: 'USA' })
+  })
 })

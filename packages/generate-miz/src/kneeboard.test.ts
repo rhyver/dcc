@@ -444,10 +444,14 @@ describe('generateMizFromCampaign kneeboards', () => {
       expect(missionText).toContain('NavalUnit-uk-carrier-group-uk-carrier-group-ship-1')
       expect(missionText).toContain('["type"] = "LHA_Tarawa"')
       const carrierGroupStart = missionText.indexOf('NavalGroup-uk-carrier-group')
-      const escortGroupStart = missionText.indexOf('NavalGroup-uk-escort-group')
+      const amphibiousGroupStart = missionText.indexOf('NavalGroup-uk-amphibious-group')
       expect(carrierGroupStart).toBeGreaterThanOrEqual(0)
-      expect(escortGroupStart).toBeGreaterThan(carrierGroupStart)
-      expect(missionText.slice(carrierGroupStart, escortGroupStart)).toContain(
+      expect(missionText).not.toContain('NavalGroup-uk-escort-group')
+      expect(amphibiousGroupStart).toBeGreaterThan(carrierGroupStart)
+      expect(missionText.slice(carrierGroupStart, amphibiousGroupStart)).toContain(
+        'NavalUnit-uk-escort-group-uk-escort-group-ship-1'
+      )
+      expect(missionText.slice(carrierGroupStart, amphibiousGroupStart)).toContain(
         '["id"] = "SetImmortal"'
       )
       expect(missionText).toContain('carrierOps')
@@ -457,7 +461,7 @@ describe('generateMizFromCampaign kneeboards', () => {
       expect(stateScript).toContain("id = 'SwitchWaypoint'")
       expect(stateScript).toContain('timer.getTime() + duration')
       expect(missionText).toContain('NavalGroup-arg-surface-group')
-      expect(missionText).toContain('["type"] = "ara_vdm"')
+      expect(missionText).toContain('["type"] = "leander-gun-achilles"')
     } finally {
       await rm(dir, { recursive: true, force: true })
     }

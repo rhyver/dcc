@@ -277,6 +277,26 @@ describe('Falklands campaign stages', () => {
     )
   })
 
+  test('requires persistent local EWR sites to be destroyed before the landing', () => {
+    const state = campaign()
+    state.coalitions.opponent.ewrGroups = [
+      {
+        id: 'iads-ewr-evelyn',
+        type: '55G6 EWR',
+        objectiveId: 'Evelyn Station Farm',
+        position: { x: 4_000, y: 2_000 }
+      }
+    ]
+
+    expect(getSanCarlosLandingReadiness(state, theatre)).toMatchObject({
+      ready: false,
+      reasons: expect.arrayContaining(['Local radar defenses are not suppressed'])
+    })
+
+    state.coalitions.opponent.ewrGroups[0]!.destroyed = true
+    expect(getSanCarlosLandingReadiness(state, theatre)).toMatchObject({ ready: true })
+  })
+
   test('adds the expanded SAM network to an existing pre-landing save', () => {
     const state = campaign()
     state.coalitions.opponent.samGroups = [state.coalitions.opponent.samGroups[0]!]
@@ -284,9 +304,7 @@ describe('Falklands campaign stages', () => {
     advanceFalklandsCampaign(state, theatre)
 
     expect(state.campaignPhase).toBe('sea-control')
-    expect(
-      state.coalitions.opponent.samGroups.map((sam) => [sam.objectiveId, sam.type])
-    ).toEqual(
+    expect(state.coalitions.opponent.samGroups.map((sam) => [sam.objectiveId, sam.type])).toEqual(
       expect.arrayContaining([
         ['Goose Green', 'Roland'],
         ['Stanley Airport', 'Hawk'],
@@ -352,7 +370,37 @@ describe('Falklands campaign stages', () => {
       { x: 82_610, y: 190_267 },
       { x: 332_376, y: 147_640 }
     ])
+    expect(state.coalitions.player.navalGroups[1]?.missionGroupId).toBe('uk-carrier-group')
     expect(state.coalitions.opponent.navalGroups[0]?.position).toEqual({ x: 331_295, y: 39_031 })
+  })
+
+  test.each([
+    ['capital ship group', ['ara_vdm', 'PERRY']],
+    ['speedboat group', ['speedboat']]
+  ])('replaces the legacy Argentine %s with a Harrier-solvable frigate', (_label, unitTypes) => {
+    const state = campaign()
+    state.coalitions.opponent.navalGroups = [naval('arg-surface-group', 'surface-combatant')]
+    const surfaceGroup = state.coalitions.opponent.navalGroups[0]!
+    surfaceGroup.name = 'Argentine Surface Group'
+    surfaceGroup.unitTypes = unitTypes
+    surfaceGroup.units = unitTypes.map((type, index) => ({
+      id: `arg-surface-group-ship-${index + 1}`,
+      type,
+      damage: 0,
+      ammunition: 1,
+      fuel: 1,
+      state: 'operational'
+    }))
+
+    advanceFalklandsCampaign(state, theatre)
+
+    expect(surfaceGroup).toMatchObject({
+      name: 'Argentine Patrol Frigate',
+      unitTypes: ['leander-gun-achilles'],
+      damage: 0,
+      state: 'operational',
+      units: [{ type: 'leander-gun-achilles', damage: 0, state: 'operational' }]
+    })
   })
 
   test('loses immediately when carrier capability is destroyed', () => {

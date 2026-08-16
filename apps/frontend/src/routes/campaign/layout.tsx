@@ -166,7 +166,7 @@ function WelcomeCampaignDialog({
     <Dialog open={open}>
       <DialogContent
         showCloseButton={false}
-        className="app-no-drag max-h-[min(90vh,760px)] overflow-hidden border-synthwave-cyan/35 bg-synthwave-dark/95 p-0 text-synthwave-light shadow-[0_0_55px_rgba(0,221,255,0.18)] backdrop-blur sm:max-w-2xl"
+        className="app-no-drag grid max-h-[min(90vh,760px)] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden border-synthwave-cyan/35 bg-synthwave-dark/95 p-0 text-synthwave-light shadow-[0_0_55px_rgba(0,221,255,0.18)] backdrop-blur sm:max-w-2xl"
       >
         <div className="relative border-b border-synthwave-pink/25 px-6 py-5">
           <div className="absolute inset-0 bg-linear-to-r from-synthwave-purple/18 via-synthwave-pink/10 to-synthwave-cyan/12" />
@@ -186,7 +186,7 @@ function WelcomeCampaignDialog({
           </DialogHeader>
         </div>
 
-        <div className="synthwave-scrollbar overflow-y-auto px-6 py-5">
+        <div className="synthwave-scrollbar min-h-0 overflow-y-auto px-6 py-5">
           <div className="space-y-5">
             {selectedAction && SelectedActionIcon ? (
               <section className="space-y-4">

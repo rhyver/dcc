@@ -325,6 +325,17 @@ describe('addFlightGroups carrier compatibility', () => {
     ])
     expect(points).toHaveLength(9)
     expect(points.every((point) => point.speed === 3)).toBe(true)
+    expect(points.map((point) => point.ETA_locked)).toEqual([
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ])
     expect(points[0]).toMatchObject({ x: -22_010, y: -8_141 })
     expect(points.at(-1)?.x).toBeCloseTo(points[0]!.x)
     expect(points.at(-1)?.y).toBeCloseTo(points[0]!.y)

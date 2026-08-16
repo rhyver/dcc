@@ -72,7 +72,8 @@ function circularPatrolWaypoints(
         radialY * patrol.radius * Math.cos(angle) +
         forwardY * patrol.radius * Math.sin(angle),
       patrol.speed,
-      index === 0 ? comboTask(initialTasks) : comboTask()
+      index === 0 ? comboTask(initialTasks) : comboTask(),
+      index === 0
     )
   })
   points[points.length - 1]!.task = comboTask([

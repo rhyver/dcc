@@ -1,8 +1,50 @@
 # Changelog
 
-## v0.5.0-2026080201 - 2026-08-02
+## v0.5.0-2026081601 - 2026-08-16
 
-Changes since `v0.5.0-2026062401` (released 2026-06-24).
+### New
+
+- Operation Corporate — Falklands 1982 on the South Atlantic map, with dedicated British and
+  Argentine factions, persistent naval task groups, anti-ship missions, and a campaign that
+  progresses from sea control through the San Carlos landing to the advance on Stanley.
+- CASEVAC and troop-extraction helicopter missions for wounded personnel and withdrawing infantry,
+  including persistent pickup requests, recovery destinations, and local replacement pools.
+- A campaign operations overview showing phase objectives, naval-group capability, and formations
+  that are withdrawing, awaiting extraction, trapped, or waiting for a valid deployment site.
+- Persistent early-warning radar networks that appear on the campaign map, retain their status
+  between missions, and can be suppressed by SEAD or permanently destroyed by DEAD flights.
+- Campaign setup tools for creating and editing factions, plus a GPS availability indicator and an
+  option to use a GPS-enabled mission date for historically earlier campaigns.
+
+### Improved
+
+- Ground formations now keep stable individual units and curated deployment slots, withdraw toward
+  reachable recovery nodes when depleted, and preserve losses and recoveries between missions.
+- Carrier groups now spawn facing into the surface wind, and generated missions include persistent
+  carrier, escort, transport, patrol, warehouse, AWACS, and recovery-window support where eligible.
+- Scenario-specific faction defaults, required structures, defensive garrisons, and deferred
+  objectives are now applied consistently during campaign creation.
+- Flight planning now handles nearest and furthest base/target preferences more reliably, and SEAD
+  and DEAD planning considers both SAM and EWR emitters.
+- Anti-ship tasking and mission loadouts are now available for eligible AJS 37, AV-8B, F-4E, F-5E,
+  F/A-18C, JF-17, and Su-22M4 aircraft.
+- The F-5E now has dedicated CAS and pinpoint-strike loadouts and is available for those roles in
+  eligible Argentine and US factions.
+- The AV-8B now has a dedicated pinpoint-strike loadout using GBU-54 laser JDAMs.
+
+### Fixed
+
+- CSAR missions now place a visible standing pilot at the reported location and remove the pilot
+  object after a successful pickup.
+- Campaign maps and mission debriefs now skip positions outside a theatre's supported coordinate
+  grid instead of crashing with an out-of-bounds conversion error, including affected Syria
+  campaigns.
+- User-created factions and custom client aircraft now receive valid DCS country assignments
+  without treating unrelated AI aircraft as custom selections.
+- Existing Falklands saves migrate to the current naval starts, San Carlos landing layout, ground
+  formation model, and persistent EWR network.
+
+## v0.5.0-2026080201 - 2026-08-02
 
 ### New
 
@@ -26,8 +68,6 @@ Changes since `v0.5.0-2026062401` (released 2026-06-24).
 - Corrected campaign date generation so Late Cold War covers 1979–1991 and Modern begins in 1992.
 
 ## v0.5.0-2026062401 - 2026-06-24
-
-Changes since `v0.5.0-2026061401` (released 2026-06-14).
 
 ### New
 

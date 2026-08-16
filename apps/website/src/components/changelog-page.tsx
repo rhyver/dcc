@@ -2,6 +2,57 @@ import { Footer, Nav } from './site-shell'
 
 const latestReleaseChanges = [
   {
+    title: 'Operation Corporate — Falklands 1982',
+    body: 'A new South Atlantic campaign follows the British task force from sea control through the San Carlos landing and the advance on Stanley, with dedicated British and Argentine factions, persistent naval groups, and anti-ship missions.'
+  },
+  {
+    title: 'CASEVAC and troop extraction',
+    body: 'Helicopter missions can recover wounded personnel and extract withdrawing infantry, with persistent pickup requests, recovery destinations, and local replacement pools.'
+  },
+  {
+    title: 'Campaign operations overview',
+    body: 'The campaign screen now tracks phase objectives, naval capability, and formations that are withdrawing, awaiting extraction, trapped, or waiting for a valid deployment site.'
+  },
+  {
+    title: 'Persistent EWR networks',
+    body: 'Early-warning radar sites now persist between missions, appear on the campaign map, and can be suppressed by SEAD or permanently destroyed by DEAD flights.'
+  },
+  {
+    title: 'Visible CSAR pilots',
+    body: 'CSAR missions now place a standing pilot at the reported location and remove the pilot object after a successful pickup.'
+  },
+  {
+    title: 'Out-of-bounds map protection',
+    body: "Campaign maps and mission debriefs now skip positions outside a theatre's supported coordinate grid instead of crashing, including affected Syria campaigns."
+  },
+  {
+    title: 'Custom factions and GPS controls',
+    body: 'Campaign setup can create or edit factions, shows whether GPS is available on the selected date, and can move historically earlier campaigns to a GPS-enabled date.'
+  },
+  {
+    title: 'Deeper ground and naval persistence',
+    body: 'Ground formations retain individual units and curated deployment slots, while carrier, escort, transport, patrol, warehouse, AWACS, and recovery-window state is represented in generated missions.'
+  },
+  {
+    title: 'Improved mission planning',
+    body: 'Flight planning handles base and target preferences more reliably, while SEAD and DEAD consider both SAM and EWR emitters.'
+  },
+  {
+    title: 'Expanded anti-ship aircraft support',
+    body: 'Anti-ship tasking and mission loadouts are now available for eligible AJS 37, AV-8B, F-4E, F-5E, F/A-18C, JF-17, and Su-22M4 aircraft.'
+  },
+  {
+    title: 'F-5E mission loadouts',
+    body: 'The F-5E now has dedicated CAS and pinpoint-strike loadouts and is available for those roles in eligible Argentine and US factions.'
+  },
+  {
+    title: 'AV-8B pinpoint-strike loadout',
+    body: 'The AV-8B now has a dedicated pinpoint-strike loadout using GBU-54 laser JDAMs.'
+  }
+]
+
+const august2ReleaseChanges = [
+  {
     title: 'Redesigned campaign setup',
     body: 'Campaign creation now guides players through scenario and era selection, player and opponent faction customization, and aircraft roster previews.'
   },
@@ -168,11 +219,27 @@ export function ChangelogPage() {
           <section className="release-block current">
             <div className="release-meta">
               <span>Current release</span>
+              <span>16 August 2026</span>
+            </div>
+            <h2>v0.5.0-2026081601</h2>
+            <div className="change-list">
+              {latestReleaseChanges.map((change) => (
+                <div className="change-item" key={change.title}>
+                  <h3>{change.title}</h3>
+                  <p>{change.body}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="release-block">
+            <div className="release-meta">
+              <span />
               <span>2 August 2026</span>
             </div>
             <h2>v0.5.0-2026080201</h2>
             <div className="change-list">
-              {latestReleaseChanges.map((change) => (
+              {august2ReleaseChanges.map((change) => (
                 <div className="change-item" key={change.title}>
                   <h3>{change.title}</h3>
                   <p>{change.body}</p>

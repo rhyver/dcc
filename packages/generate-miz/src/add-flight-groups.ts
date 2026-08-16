@@ -1,7 +1,21 @@
+import {
+  getDeploymentSites,
+  HARRIER_CARRIER_UNIT_TYPES,
+  requiresSupercarrier,
+  SUPERCARRIER_UNIT_TYPES
+} from '@dcc/campaign'
 import { config, schemas } from '@dcc/contracts'
 import { aircrafts, callsigns } from '@dcc/data'
 import { err, ok, Result } from 'neverthrow'
 import * as z from 'zod'
+
+import { findCarrierMissionUnit } from './add-naval-groups'
+import {
+  AWACS_FREQUENCY,
+  DEFAULT_ATC_FREQUENCY,
+  JTAC_FREQUENCY,
+  RADIO_CHANNELS
+} from './radio-plan'
 
 // Build lookup map once
 const aircraftMap = new Map<string, z.infer<typeof schemas.dcs.aircraft>>()
@@ -17,7 +31,6 @@ const MIN_AIRCRAFT_AIRBORNE_SPAWN_ALTITUDE = 10_000 * FEET_TO_METERS
 const MIN_HELICOPTER_AIRBORNE_SPAWN_ALTITUDE = 200 * FEET_TO_METERS
 const JTAC_ALTITUDE = 3048
 const JTAC_SPEED = 80
-const JTAC_FREQUENCY = 133
 const DEFAULT_FLIGHT_GROUP_FREQUENCY: FrequencyRange = [251, 399]
 const FREQUENCY_STEP = 0.05
 const FREQUENCY_PRECISION = 2
@@ -33,6 +46,16 @@ type Campaign = z.infer<typeof schemas.campaign.campaign>
 type CoalitionKey = z.infer<typeof schemas.coalition>
 type FlightGroup = Campaign['coalitions']['player']['flightGroups'][number]
 type FrequencyRange = [number, number]
+type FlightRadioPreset = {
+  radio: number
+  channel: number
+}
+export type FlightRadioChannel = {
+  purpose: 'FLIGHT' | 'AWACS' | 'ATC' | 'JTAC'
+  radio?: number
+  channel: number
+  frequency: number
+}
 type NavigationAid = NonNullable<NonNullable<Campaign['campaignParams']>['navigationAid']>
 type NavigationFeatureFlags = {
   vectors: boolean
@@ -40,6 +63,33 @@ type NavigationFeatureFlags = {
 }
 
 const DEFAULT_CALLSIGN = 'Enfield'
+
+// DCS radio preset tables are module-specific. These are the flyable modules whose
+// mission-editor preset layout uses the common Radio[radio].channels[channel] format.
+// The selected index is compatible with DCC's assigned frequency range (UHF by default).
+const FLIGHT_RADIO_PRESET_INDEX: Readonly<Record<string, number>> = {
+  'A-10C': 2,
+  'A-10C_2': 2,
+  'AH-64D_BLK_II': 2,
+  AV8BNA: 1,
+  'CH-47Fbl1': 2,
+  'F-14A-135-GR': 2,
+  'F-14B': 2,
+  'F-14BU': 2,
+  'F-15ESE': 1,
+  'F-16C_50': 1,
+  'F-4E-45MC': 1,
+  'F-5E-3': 1,
+  'F-86F Sabre': 1,
+  'FA-18C_hornet': 1,
+  'JF-17': 1,
+  'M-2000C': 2,
+  'Mi-24P': 1,
+  'Mi-8MT': 1,
+  'Mirage-F1CE': 2,
+  'Mirage-F1EE': 2,
+  'UH-1H': 1
+}
 
 function getFarpOverflowSpawnOffset(slotIndex: number) {
   return {
@@ -123,8 +173,26 @@ function resolveTargetPosition(
     const downedPilot = coalition.downedPilots?.find((pilot) => pilot.id === flightGroup.target?.id)
     if (downedPilot) return downedPilot.position
 
+    const casualtyPoint = coalition.casualtyPoints?.find(
+      (point) => point.id === flightGroup.target?.id
+    )
+    if (casualtyPoint) return casualtyPoint.position
+
+    const extractionRequest = coalition.extractionRequests?.find(
+      (request) => request.id === flightGroup.target?.id
+    )
+    if (extractionRequest) {
+      const site = getDeploymentSites(theatre).find(
+        (candidate) => candidate.id === extractionRequest.pickupSiteId
+      )
+      if (site) return site.position
+    }
+
     const groundGroup = coalition.groundGroups.find((group) => group.id === flightGroup.target?.id)
     if (groundGroup) return groundGroup.position
+
+    const navalGroup = coalition.navalGroups?.find((group) => group.id === flightGroup.target?.id)
+    if (navalGroup) return navalGroup.position
 
     const structure = coalition.structures.find(
       (candidate) => candidate.id === flightGroup.target?.id
@@ -236,11 +304,59 @@ function createTargetTacanGroup(params: {
   }
 }
 
+function createDownedPilotStaticGroup(params: {
+  groupId: number
+  unitId: number
+  name: string
+  position: z.infer<typeof schemas.position>
+}) {
+  const { x, y } = params.position
+
+  return {
+    groupId: params.groupId,
+    name: params.name,
+    heading: 0,
+    dead: false,
+    x,
+    y,
+    units: [
+      {
+        unitId: params.unitId,
+        name: `${params.name}-1`,
+        type: 'Pilot standing',
+        category: 'Fortifications',
+        shape_name: 'pilot_parashut',
+        rate: 100,
+        heading: 0,
+        x,
+        y
+      }
+    ],
+    route: {
+      points: [
+        {
+          alt: 0,
+          action: '',
+          type: '',
+          name: `${params.name}-1`,
+          speed: 0,
+          formation_template: '',
+          x,
+          y
+        }
+      ]
+    }
+  }
+}
+
 export type CasFlightConfig = {
   groupId: number
   name: string
   task: 'CAS'
   unitNames: string[]
+  frequency: number
+  radioPreset?: FlightRadioPreset
+  radioChannels?: FlightRadioChannel[]
   isHelicopter?: boolean
   navigation?: MissionNavigationConfig
   jtacName: string
@@ -251,6 +367,18 @@ export type CasFlightConfig = {
 export type CsarMissionConfig = {
   pilotId: string
   pilotName: string
+  pilotObjectName: string
+  position: { x: number; y: number }
+  dropOffPosition: { x: number; y: number }
+  pickupRadius: number
+}
+
+export type RecoveryMissionConfig = {
+  kind: 'casevac' | 'troop-extraction'
+  targetId: string
+  groundGroupId?: string
+  targetGroupName?: string
+  woundedCount?: number
   position: { x: number; y: number }
   dropOffPosition: { x: number; y: number }
   pickupRadius: number
@@ -263,9 +391,13 @@ export type MissionFlightConfig =
       name: string
       task: z.infer<typeof schemas.task>
       unitNames: string[]
+      frequency: number
+      radioPreset?: FlightRadioPreset
+      radioChannels?: FlightRadioChannel[]
       isHelicopter?: boolean
       navigation?: MissionNavigationConfig
       csar?: CsarMissionConfig
+      recovery?: RecoveryMissionConfig
     }
 
 export type MissionNavigationConfig = {
@@ -317,8 +449,12 @@ function roundFrequency(frequency: number) {
   return Number(frequency.toFixed(FREQUENCY_PRECISION))
 }
 
-function createFlightGroupFrequencyAllocator() {
-  const assignedFrequencies = new Set<number>([JTAC_FREQUENCY])
+function createFlightGroupFrequencyAllocator(reservedFrequencies: Iterable<number> = []) {
+  const assignedFrequencies = new Set<number>([
+    AWACS_FREQUENCY,
+    JTAC_FREQUENCY,
+    ...reservedFrequencies
+  ])
   const nextFrequencyByRange = new Map<string, number>()
 
   return (aircraftDef: z.infer<typeof schemas.dcs.aircraft>) => {
@@ -342,6 +478,76 @@ function createFlightGroupFrequencyAllocator() {
     throw new Error(
       `no available radio frequency for ${aircraftDef.name} in range ${minFrequency}-${maxFrequency} MHz`
     )
+  }
+}
+
+function getAtcFrequency(airdrome: z.infer<typeof schemas.airdromeDetails> | undefined): number {
+  const frequencies = [airdrome?.frequency, ...(airdrome?.frequencyList ?? [])]
+  return (
+    frequencies.find(
+      (frequency): frequency is number =>
+        frequency != null && frequency >= 225 && frequency <= 399.975
+    ) ?? DEFAULT_ATC_FREQUENCY
+  )
+}
+
+function createFlightRadioChannels(
+  radio: number | undefined,
+  flightFrequency: number,
+  atcFrequency: number
+): FlightRadioChannel[] {
+  return [
+    {
+      purpose: 'FLIGHT',
+      radio,
+      channel: RADIO_CHANNELS.flight,
+      frequency: flightFrequency
+    },
+    {
+      purpose: 'AWACS',
+      radio,
+      channel: RADIO_CHANNELS.awacs,
+      frequency: AWACS_FREQUENCY
+    },
+    {
+      purpose: 'ATC',
+      radio,
+      channel: RADIO_CHANNELS.atc,
+      frequency: atcFrequency
+    },
+    {
+      purpose: 'JTAC',
+      radio,
+      channel: RADIO_CHANNELS.jtac,
+      frequency: JTAC_FREQUENCY
+    }
+  ]
+}
+
+function createFlightRadioConfig(
+  aircraftName: string,
+  channels: FlightRadioChannel[]
+):
+  | {
+      preset: FlightRadioPreset
+      radios: NonNullable<z.infer<typeof schemas.dcs.aircraftUnit>['Radio']>
+    }
+  | undefined {
+  const radio = FLIGHT_RADIO_PRESET_INDEX[aircraftName]
+  if (radio == null) return undefined
+
+  const channel = RADIO_CHANNELS.flight
+  const radios: NonNullable<z.infer<typeof schemas.dcs.aircraftUnit>['Radio']> = Array.from(
+    { length: radio },
+    () => ({ channels: {} })
+  )
+  radios[radio - 1] = {
+    channels: Object.fromEntries(channels.map((preset) => [preset.channel, preset.frequency]))
+  }
+
+  return {
+    preset: { radio, channel },
+    radios
   }
 }
 
@@ -437,6 +643,22 @@ function findMissionGroundGroupName(
         return group.name
       }
     }
+  }
+
+  return null
+}
+
+function findMissionEwrGroupId(
+  mission: z.infer<typeof schemas.dcs.mission>,
+  coalitionKey: 'blue' | 'red',
+  ewrId: string
+): number | null {
+  const countries = mission.coalition[coalitionKey].country ?? []
+  const namePrefix = `IADS-EWR-${ewrId}-`
+
+  for (const country of countries) {
+    const ewrGroup = country.vehicle?.group?.find((group) => group.name.startsWith(namePrefix))
+    if (ewrGroup) return ewrGroup.groupId ?? null
   }
 
   return null
@@ -898,6 +1120,34 @@ function getAirborneSpawnAltitude(altitude: number, isHelicopter?: boolean) {
   return Math.max(altitude, minimumAltitude)
 }
 
+function getMissionAircrafts(
+  campaign: Campaign,
+  coalition: Campaign['coalitions']['player'],
+  flightGroup: FlightGroup
+) {
+  if (!flightGroup.aircrafts.some((aircraft) => aircraft.client)) {
+    return flightGroup.aircrafts
+  }
+
+  const aiWingmanSpawn = campaign.campaignParams?.aiWingmanSpawn ?? 'landOnly'
+  const isAirborne =
+    calculateInFlightPosition(
+      flightGroup.flightplan,
+      campaign.time,
+      flightGroup.task === 'CAP' ? config.packages.CAP.patrolDuration : undefined
+    ) !== null
+  const isCarrierStart =
+    coalition.navalGroups?.some(
+      (group) => group.id === flightGroup.homeBase && group.role === 'carrier'
+    ) ?? false
+  const includeAiWingmen =
+    aiWingmanSpawn === 'always' || (aiWingmanSpawn === 'landOnly' && !isAirborne && !isCarrierStart)
+
+  return includeAiWingmen
+    ? flightGroup.aircrafts
+    : flightGroup.aircrafts.filter((aircraft) => aircraft.client)
+}
+
 export function addFlightGroups(
   mission: z.infer<typeof schemas.dcs.mission>,
   campaign: z.infer<typeof schemas.campaign.campaign>,
@@ -924,6 +1174,7 @@ export function addFlightGroups(
   // Unit IDs are needed before rendering units so Link-16 networks can include other friendly flights.
   const flightGroupIdToGroupId = new Map<string, number>()
   const flightGroupIdToUnitIds = new Map<string, number[]>()
+  const missionAircraftByFlightGroupId = new Map<string, FlightGroup['aircrafts']>()
   const coalitionLink16UnitIds = new Map<string, number[]>()
   const link16StationNumberByUnitId = new Map<number, string>()
   const navigationFeatures = resolveNavigationFeatureFlags(campaign)
@@ -940,10 +1191,12 @@ export function addFlightGroups(
       const groupId = nextId()
       flightGroupIdToGroupId.set(fg.id, groupId)
 
-      const unitIds = fg.aircrafts.map(() => nextId())
+      const missionAircraft = getMissionAircrafts(campaign, value, fg)
+      missionAircraftByFlightGroupId.set(fg.id, missionAircraft)
+      const unitIds = missionAircraft.map(() => nextId())
       flightGroupIdToUnitIds.set(fg.id, unitIds)
 
-      const link16Units = fg.aircrafts
+      const link16Units = missionAircraft
         .map((aircraft, index) => ({
           aircraftDef: aircraftMap.get(aircraft.aircraftName),
           index,
@@ -994,7 +1247,11 @@ export function addFlightGroups(
   const usedFarpParkingSlots = new Map<string, number>() // Coalition/FARP -> used native pads
   const usedFarpOverflowSlots = new Map<string, number>() // Coalition/FARP -> next fallback slot
   const flightConfigs: MissionFlightConfig[] = []
-  const assignFlightGroupFrequency = createFlightGroupFrequencyAllocator()
+  const downedPilotObjectNameById = new Map<string, string>()
+  const assignFlightGroupFrequency = createFlightGroupFrequencyAllocator([
+    DEFAULT_ATC_FREQUENCY,
+    ...Object.values(theatre.airdromeDetails).map((airdrome) => getAtcFrequency(airdrome))
+  ])
   const hotStart = campaign.campaignParams?.hotStart === true
   const casJtac = campaign.campaignParams?.casJtac ?? true
   const throttleEnemyNonCapFlights = !hasPlayerClientCap(campaign)
@@ -1033,7 +1290,8 @@ export function addFlightGroups(
     const vehicleGroups = country.vehicle.group
 
     flightGroups.forEach((fg) => {
-      const firstAircraft = fg.aircrafts[0]
+      const missionAircraft = missionAircraftByFlightGroupId.get(fg.id) ?? fg.aircrafts
+      const firstAircraft = missionAircraft[0]
       if (!firstAircraft) return
 
       const aircraftDef = aircraftMap.get(firstAircraft.aircraftName)
@@ -1044,13 +1302,42 @@ export function addFlightGroups(
         return
       }
 
+      const frequency = assignFlightGroupFrequency(aircraftDef)
+
       // Use the pre-assigned group ID
       const groupId = flightGroupIdToGroupId.get(fg.id) ?? nextId()
       const groupName = fg.callsign // Or some unique name?
 
+      const downedPilot = value.downedPilots?.find((pilot) => pilot.id === fg.target?.id)
+      let downedPilotObjectName = downedPilot
+        ? downedPilotObjectNameById.get(downedPilot.id)
+        : undefined
+      if (fg.task === 'CSAR' && downedPilot && !downedPilotObjectName) {
+        const pilotGroupId = nextId()
+        const pilotGroupName = `Downed Pilot-${pilotGroupId}`
+        const pilotUnitId = nextId()
+        downedPilotObjectName = `${pilotGroupName}-1`
+        if (!country.static) {
+          country.static = { group: [] }
+        }
+        country.static.group.push(
+          createDownedPilotStaticGroup({
+            groupId: pilotGroupId,
+            unitId: pilotUnitId,
+            name: pilotGroupName,
+            position: downedPilot.position
+          })
+        )
+        downedPilotObjectNameById.set(downedPilot.id, downedPilotObjectName)
+      }
+
       const isHelicopter = aircraftDef.isHelicopter ?? false
       const taskName = fg.task
-      const dcsTaskName = fg.task === 'CSAR' ? 'Transport' : fg.task
+      const dcsTaskName = ['CSAR', 'CASEVAC', 'Troop Extraction'].includes(fg.task)
+        ? 'Transport'
+        : fg.task === 'DEAD'
+          ? 'SEAD'
+          : fg.task
 
       // Find loadout
       let selectedLoadout = aircraftDef.loadouts.find((l) => l.task === taskName)
@@ -1075,6 +1362,34 @@ export function addFlightGroups(
       // Get airdrome details if available
       const airdromeName = fg.homeBase
       const airdrome = theatre.airdromeDetails[airdromeName]
+      const carrierHome = value.navalGroups?.find(
+        (group) => group.id === fg.homeBase && group.role === 'carrier' && group.state !== 'sunk'
+      )
+      const needsSupercarrier =
+        carrierHome?.unitTypes.some((unitType) => HARRIER_CARRIER_UNIT_TYPES.has(unitType)) ===
+          true && requiresSupercarrier(aircraftDef)
+      const carrierUnit = carrierHome
+        ? findCarrierMissionUnit(
+            mission,
+            coalitionKey,
+            carrierHome.id,
+            needsSupercarrier ? SUPERCARRIER_UNIT_TYPES : undefined
+          )
+        : undefined
+      const carrierPersistentUnit = carrierHome?.units?.find(
+        (unit) => carrierUnit?.name === `NavalUnit-${carrierHome.id}-${unit.id}`
+      )
+      if (carrierHome && (!carrierUnit || !aircraftDef.carrierCapable)) {
+        // eslint-disable-next-line no-console -- invalid carrier assignments must be visible during mission generation
+        console.warn(
+          `Cannot place ${fg.callsign} at carrier base ${carrierHome.name}: ${!carrierUnit ? (needsSupercarrier ? 'compatible Supercarrier missing' : 'mission ship missing') : 'aircraft is not carrier capable'}`
+        )
+        return
+      }
+      const atcFrequency = getAtcFrequency(airdrome)
+      const flightRadioIndex = FLIGHT_RADIO_PRESET_INDEX[aircraftDef.name]
+      const radioChannels = createFlightRadioChannels(flightRadioIndex, frequency, atcFrequency)
+      const flightRadioConfig = createFlightRadioConfig(aircraftDef.name, radioChannels)
 
       // Initialize used slots for this airdrome if not exists
       if (airdrome && !usedParkingSlots.has(airdromeName)) {
@@ -1103,7 +1418,7 @@ export function addFlightGroups(
         farpHome != null &&
         farpHelipadId != null &&
         !isInFlight &&
-        usedNativeFarpSlots + fg.aircrafts.length <= FARP_NATIVE_PARKING_SLOTS
+        usedNativeFarpSlots + missionAircraft.length <= FARP_NATIVE_PARKING_SLOTS
       const farpParkingSlotStart = canUseNativeFarpParking ? usedNativeFarpSlots : undefined
       const farpOverflowSlotStart =
         farpHome && !isInFlight && !canUseNativeFarpParking
@@ -1111,9 +1426,9 @@ export function addFlightGroups(
           : undefined
 
       if (farpParkingSlotStart !== undefined) {
-        usedFarpParkingSlots.set(farpSpawnKey, farpParkingSlotStart + fg.aircrafts.length)
+        usedFarpParkingSlots.set(farpSpawnKey, farpParkingSlotStart + missionAircraft.length)
       } else if (farpOverflowSlotStart !== undefined) {
-        usedFarpOverflowSlots.set(farpSpawnKey, farpOverflowSlotStart + fg.aircrafts.length)
+        usedFarpOverflowSlots.set(farpSpawnKey, farpOverflowSlotStart + missionAircraft.length)
       }
 
       if (isInFlight) {
@@ -1122,9 +1437,9 @@ export function addFlightGroups(
       }
 
       // Add units
-      const unitIds = flightGroupIdToUnitIds.get(fg.id) ?? fg.aircrafts.map(() => nextId())
+      const unitIds = flightGroupIdToUnitIds.get(fg.id) ?? missionAircraft.map(() => nextId())
       const link16NetworkUnitIds = coalitionLink16UnitIds.get(key) ?? unitIds
-      const units: z.infer<typeof schemas.dcs.aircraftUnit>[] = fg.aircrafts.map((ac, index) => {
+      const units: z.infer<typeof schemas.dcs.aircraftUnit>[] = missionAircraft.map((ac, index) => {
         const unitId = unitIds[index] ?? nextId()
 
         let parking: string | undefined = undefined
@@ -1143,6 +1458,12 @@ export function addFlightGroups(
           heading = inFlightState.heading
           speed = fg.flightplan.waypoints[1]?.speed ?? 250 // Use cruise speed
           // No parking for airborne aircraft
+        } else if (carrierHome && carrierUnit) {
+          parking = (index + 1).toString()
+          parking_id = parking
+          x = carrierUnit.x
+          y = carrierUnit.y
+          heading = carrierUnit.heading
         } else if (farpHome && farpParkingSlotStart !== undefined) {
           parking = (farpParkingSlotStart + index + 1).toString()
           parking_id = parking
@@ -1207,6 +1528,7 @@ export function addFlightGroups(
             link16StationNumberByUnitId.get(unitId)
           ),
           datalinks: createDatalinks(aircraftDef, index, unitIds, link16NetworkUnitIds),
+          ...(ac.client && flightRadioConfig ? { Radio: flightRadioConfig.radios } : {}),
           livery_id: 'default',
           skill: ac.client ? 'Client' : 'High',
           speed: speed,
@@ -1372,7 +1694,10 @@ export function addFlightGroups(
         if (wp.type === 'TakeOff') {
           // If already in flight, use Turning Point instead of a ground start
           if (!isInFlight) {
-            if (isHelicopter && !airdrome) {
+            if (carrierHome && carrierUnit) {
+              action = hotStart ? 'From Parking Area Hot' : 'From Parking Area'
+              type = hotStart ? 'TakeOffParkingHot' : 'TakeOffParking'
+            } else if (isHelicopter && !airdrome) {
               if (farpParkingSlotStart !== undefined && farpHelipadId !== undefined) {
                 action = hotStart ? 'From Parking Area Hot' : 'From Parking Area'
                 type = hotStart ? 'TakeOffParkingHot' : 'TakeOffParking'
@@ -1393,7 +1718,10 @@ export function addFlightGroups(
         let x = wp.position.x
         let y = wp.position.y
 
-        if (
+        if (type === 'Land' && carrierUnit && !isInFlight) {
+          x = carrierUnit.x
+          y = carrierUnit.y
+        } else if (
           (type === 'TakeOffParking' ||
             type === 'TakeOffParkingHot' ||
             type === 'TakeOffGround' ||
@@ -1436,6 +1764,26 @@ export function addFlightGroups(
                 `Added SEAD Escort task to ${fg.callsign} escorting group ID ${primaryDcsGroupId}`
               )
             }
+          }
+        }
+
+        if (wp.type === 'Task' && fg.target && (fg.task === 'SEAD' || fg.task === 'DEAD')) {
+          const targetCoalitionKey = missionCoalitionKey === 'blue' ? 'red' : 'blue'
+          const targetEwrGroupId = findMissionEwrGroupId(mission, targetCoalitionKey, fg.target.id)
+          if (targetEwrGroupId != null) {
+            tasks.push({
+              enabled: true,
+              auto: false,
+              id: 'AttackGroup',
+              number: tasks.length + 1,
+              params: {
+                groupId: targetEwrGroupId,
+                attackQtyLimit: false,
+                expend: 'Auto',
+                groupAttack: false,
+                weaponType: 0
+              }
+            })
           }
         }
 
@@ -1562,6 +1910,15 @@ export function addFlightGroups(
         }
 
         if (
+          (type === 'TakeOffParking' || type === 'TakeOffParkingHot' || type === 'Land') &&
+          carrierUnit &&
+          !isInFlight
+        ) {
+          routePoint.helipadId = carrierUnit.unitId
+          routePoint.linkUnit = carrierUnit.unitId
+        }
+
+        if (
           type === 'Land' &&
           farpHome !== undefined &&
           farpHelipadId !== undefined &&
@@ -1589,7 +1946,7 @@ export function addFlightGroups(
         taskSelected: true,
         hiddenOnMFD: false,
         hiddenOnPlanner: false,
-        radioSet: false,
+        radioSet: true,
         units: units,
         x: units[0]?.x ?? fg.position.x,
         y: units[0]?.y ?? fg.position.y,
@@ -1599,7 +1956,7 @@ export function addFlightGroups(
         modulation: 0,
         hidden: false,
         communication: true,
-        frequency: assignFlightGroupFrequency(aircraftDef)
+        frequency
       }
 
       if (isHelicopter) {
@@ -1610,24 +1967,42 @@ export function addFlightGroups(
 
       if (fg.aircrafts.some((ac) => ac.client)) {
         const targetPosition = resolveTargetPosition(campaign, theatre, fg)
-        const downedPilot = value.downedPilots?.find((pilot) => pilot.id === fg.target?.id)
+        const casualtyPoint = value.casualtyPoints?.find((point) => point.id === fg.target?.id)
+        const extractionRequest = value.extractionRequests?.find(
+          (request) => request.id === fg.target?.id
+        )
+        const extractionGroup = extractionRequest
+          ? value.groundGroups.find((group) => group.id === extractionRequest.groundGroupId)
+          : undefined
+        const recoveryPosition =
+          casualtyPoint?.position ??
+          (extractionRequest
+            ? getDeploymentSites(theatre).find((site) => site.id === extractionRequest.pickupSiteId)
+                ?.position
+            : undefined)
         const dropOffPosition =
           fg.flightplan.waypoints.find((waypoint) => waypoint.name === 'Drop Off')?.position ??
           fg.flightplan.waypoints.find((waypoint) => waypoint.type === 'Landing')?.position ??
           fg.position
         const landingAirdrome = theatre.airdromeDetails[fg.homeBase]
+        const landingTacan =
+          landingAirdrome?.tacan ?? carrierPersistentUnit?.tacan ?? carrierHome?.tacan
         let navigation: MissionNavigationConfig | undefined
 
-        if (navigationFeatures.vectors && landingAirdrome) {
+        if (landingTacan) {
+          navigation = { ...navigation, landingTacan }
+        }
+
+        if (navigationFeatures.vectors && (landingAirdrome || carrierHome)) {
+          const landingBase = landingAirdrome ?? carrierHome!
           navigation = {
             ...navigation,
             mode: 'landingAirport',
-            landingLabel: landingAirdrome.name,
+            landingLabel: landingBase.name,
             landingPoint: {
-              x: landingAirdrome.x,
-              z: landingAirdrome.y
-            },
-            ...(landingAirdrome.tacan ? { landingTacan: landingAirdrome.tacan } : {})
+              x: landingAirdrome?.x ?? carrierHome!.position.x,
+              z: landingAirdrome?.y ?? carrierHome!.position.y
+            }
           }
         }
 
@@ -1680,15 +2055,45 @@ export function addFlightGroups(
           name: groupName,
           task: fg.task,
           unitNames: units.map((unit) => unit.name),
+          frequency,
+          ...(flightRadioConfig ? { radioPreset: flightRadioConfig.preset } : {}),
+          ...(flightRadioIndex != null ? { radioChannels } : {}),
           ...(isHelicopter ? { isHelicopter } : {}),
-          ...(fg.task === 'CSAR' && downedPilot
+          ...(fg.task === 'CSAR' && downedPilot && downedPilotObjectName
             ? {
                 csar: {
                   pilotId: downedPilot.id,
                   pilotName: downedPilot.name,
+                  pilotObjectName: downedPilotObjectName,
                   position: downedPilot.position,
                   dropOffPosition,
                   pickupRadius: config.packages.CSAR.pickupRadius
+                }
+              }
+            : {}),
+          ...((fg.task === 'CASEVAC' || fg.task === 'Troop Extraction') &&
+          fg.target &&
+          recoveryPosition
+            ? {
+                recovery: {
+                  kind:
+                    fg.task === 'CASEVAC' ? ('casevac' as const) : ('troop-extraction' as const),
+                  targetId: fg.target.id,
+                  groundGroupId: extractionRequest?.groundGroupId,
+                  targetGroupName: extractionGroup
+                    ? (findMissionGroundGroupName(
+                        mission,
+                        missionCoalitionKey,
+                        extractionGroup.id
+                      ) ?? undefined)
+                    : undefined,
+                  woundedCount: casualtyPoint?.woundedCount,
+                  position: recoveryPosition,
+                  dropOffPosition,
+                  pickupRadius:
+                    fg.task === 'CASEVAC'
+                      ? config.packages.CASEVAC.pickupRadius
+                      : config.packages['Troop Extraction'].pickupRadius
                 }
               }
             : {}),

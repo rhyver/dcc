@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { schemas } from '@dcc/contracts'
-import { theatres } from '@dcc/data'
+import { scenarios, theatres } from '@dcc/data'
 import type * as z from 'zod'
 
 import { activeStore } from './active'
@@ -111,6 +111,120 @@ function createFlightGroup(params: {
 }
 
 describe('active store client flight timing sync', () => {
+  test('updates a legacy Falklands carrier before the campaign map renders', () => {
+    const campaign = createCampaign()
+    const scenario = scenarios.find((candidate) => candidate.id === 'falklands-1982')
+    expect(scenario).toBeDefined()
+
+    campaign.scenarioId = 'falklands-1982'
+    campaign.coalitions.player.navalGroups = structuredClone(scenario?.navalGroups?.player ?? [])
+    const carrier = campaign.coalitions.player.navalGroups.find(
+      (group) => group.id === 'uk-carrier-group'
+    )
+    expect(carrier).toBeDefined()
+    carrier!.position = { x: 87_402, y: 206_382 }
+    carrier!.unitTypes = ['hms_invincible', 'hms_invincible']
+    carrier!.units = carrier!.unitTypes.map((type, index) => ({
+      id: `uk-carrier-group-ship-${index + 1}`,
+      type,
+      damage: 0,
+      ammunition: 1,
+      fuel: 1,
+      state: 'operational'
+    }))
+
+    activeStore.send({ type: 'loadCampaign', campaign })
+
+    const migratedCarrier = activeStore
+      .getSnapshot()
+      .context.coalitions.player.navalGroups?.find((group) => group.id === 'uk-carrier-group')
+    expect(migratedCarrier?.position).toEqual({ x: 87_610, y: 184_267 })
+    expect(migratedCarrier?.unitTypes).toEqual(['LHA_Tarawa'])
+    expect(migratedCarrier?.units).toEqual([
+      expect.objectContaining({ id: 'uk-carrier-group-ship-1', type: 'LHA_Tarawa' })
+    ])
+  })
+
+  test('adds persistent EWR state when loading a legacy Falklands campaign', () => {
+    const campaign = createCampaign()
+    campaign.scenarioId = 'falklands-1982'
+    campaign.campaignParams = { iads: true }
+    campaign.coalitions.opponent.objectiveIds = ['Stanley Airport', 'Fox Bay']
+    campaign.coalitions.opponent.samGroups = [
+      { id: 'arg-stanley-hawk', type: 'Hawk', objectiveId: 'Stanley Airport' }
+    ]
+
+    activeStore.send({ type: 'loadCampaign', campaign })
+
+    expect(activeStore.getSnapshot().context.coalitions.opponent.ewrGroups).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: '55G6 EWR',
+          objectiveId: 'Stanley Airport'
+        })
+      ])
+    )
+  })
+
+  test('moves a saved San Carlos FARP inland when loading the campaign', () => {
+    const campaign = createCampaign()
+    campaign.scenarioId = 'falklands-1982'
+    campaign.campaignPhase = 'land-campaign'
+    campaign.landingOperation = {
+      startedAt: campaignTime,
+      completesAt: campaignTime,
+      completed: true,
+      reservedSiteIds: ['recovery-San Carlos-reserve']
+    }
+    campaign.coalitions.player.structures = [
+      {
+        id: 'uk-san-carlos-farp',
+        type: 'Farp',
+        objectiveId: 'San Carlos',
+        position: { x: 99_695, y: 6_383 },
+        name: 'San Carlos FARP',
+        resources: 0,
+        buildings: [{ offset: { x: 0, y: 0 }, type: 'FARP', alive: true }]
+      }
+    ]
+    const flightGroup = createFlightGroup({
+      id: 'san-carlos-cas',
+      callsign: 'Uzi-1',
+      startTime: campaignTime.toISOString(),
+      tot: campaignTime.toISOString(),
+      task: 'CAS'
+    })
+    flightGroup.homeBase = 'uk-san-carlos-farp'
+    flightGroup.position = { x: 99_695, y: 6_383 }
+    flightGroup.flightplan.waypoints = [
+      {
+        name: 'Take Off',
+        position: { x: 99_695, y: 6_383 },
+        altitude: 0,
+        speed: 0,
+        type: 'TakeOff'
+      },
+      {
+        name: 'Landing',
+        position: { x: 99_695, y: 6_383 },
+        altitude: 0,
+        speed: 0,
+        type: 'Landing'
+      }
+    ]
+    campaign.coalitions.player.flightGroups = [flightGroup]
+
+    activeStore.send({ type: 'loadCampaign', campaign })
+
+    const loaded = activeStore.getSnapshot().context
+    expect(loaded.coalitions.player.structures[0]?.position).toEqual({ x: 99_695, y: 7_883 })
+    expect(loaded.coalitions.player.flightGroups[0]?.position).toEqual({ x: 99_695, y: 7_883 })
+    expect(loaded.coalitions.player.flightGroups[0]?.flightplan.waypoints).toMatchObject([
+      { type: 'TakeOff', position: { x: 99_695, y: 7_883 } },
+      { type: 'Landing', position: { x: 99_695, y: 7_883 } }
+    ])
+  })
+
   test('repairs saved campaigns that have compatible aircraft but no DEAD task list', () => {
     const campaign = createCampaign()
     campaign.coalitions.player.id = 'usa-1977'
@@ -199,6 +313,42 @@ describe('active store client flight timing sync', () => {
 })
 
 describe('active store aircraft overrides', () => {
+  test('adds one Supercarrier when a player selects a conventional carrier aircraft', () => {
+    const campaign = createCampaign()
+    const scenario = scenarios.find((candidate) => candidate.id === 'falklands-1982')
+    expect(scenario).toBeDefined()
+
+    campaign.scenarioId = 'falklands-1982'
+    campaign.coalitions.player.navalGroups = structuredClone(scenario?.navalGroups?.player ?? [])
+    campaign.coalitions.player.flightGroups = [
+      createFlightGroup({
+        id: 'carrier-cap',
+        callsign: 'Ford-1',
+        task: 'CAP',
+        startTime: '2026-01-01T12:10:00.000Z',
+        tot: '2026-01-01T12:40:00.000Z'
+      })
+    ]
+
+    activeStore.send({ type: 'loadCampaign', campaign })
+    activeStore.send({
+      type: 'setFlightGroupAircraftType',
+      flightGroupId: 'carrier-cap',
+      aircraftType: 'FA-18C_hornet'
+    })
+    activeStore.send({
+      type: 'setFlightGroupAircraftType',
+      flightGroupId: 'carrier-cap',
+      aircraftType: 'FA-18C_hornet'
+    })
+
+    const carrierGroup = activeStore
+      .getSnapshot()
+      .context.coalitions.player.navalGroups?.find((group) => group.id === 'uk-carrier-group')
+    expect(carrierGroup?.unitTypes.filter((unitType) => unitType === 'CVN_71')).toHaveLength(1)
+    expect(carrierGroup?.units?.filter((unit) => unit.type === 'CVN_71')).toHaveLength(1)
+  })
+
   test('keeps CAS at the airport when it is closer than a FARP after changing to a helicopter', () => {
     const campaign = createCampaign()
     const caucasus = theatres.find((theatre) => theatre.name === 'Caucasus')!

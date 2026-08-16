@@ -81,6 +81,9 @@ function resolveTargetPosition(
 
     const sam = coalition.samGroups.find((entry) => entry.id === target.id)
     if (sam) return findObjectivePosition(theatre, sam.objectiveId)
+
+    const ewr = coalition.ewrGroups?.find((entry) => entry.id === target.id)
+    if (ewr) return ewr.position
   }
 
   return findObjectivePosition(theatre, target.objectiveId)

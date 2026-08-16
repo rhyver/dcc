@@ -88,6 +88,7 @@ export function DetailsCard({
     'type' in selectedItem &&
     (selectedItem.type === 'Structure' ||
       selectedItem.type === 'SAM' ||
+      selectedItem.type === 'EWR' ||
       selectedItem.type === 'Ground Group')
   const headerTitle = isObjectiveLinkedItem && objectiveName != null ? objectiveName : defaultTitle
   const headerSubtitle = isObjectiveLinkedItem
@@ -126,6 +127,12 @@ export function DetailsCard({
       : null
   const selectedStructureCoalition =
     'type' in selectedItem && selectedItem.type === 'Structure' ? selectedItem.coalition : null
+  const selectedNavalGroup =
+    'type' in selectedItem && selectedItem.type === 'Naval Group'
+      ? (campaign.coalitions[selectedItem.coalition].navalGroups?.find(
+          (group) => group.id === selectedItem.id
+        ) ?? null)
+      : null
   const selectedCoalition = 'coalition' in selectedItem ? selectedItem.coalition : 'player'
   const isSelectedAirdrome = 'type' in selectedItem && selectedItem.type === 'Airdrome'
   const selectedNodeName = isSelectedAirdrome ? selectedItem.name : null
@@ -285,6 +292,80 @@ export function DetailsCard({
                 </div>
               </>
             )}
+            {selectedNavalGroup && (
+              <>
+                <div className="text-secondary/70">Role</div>
+                <div className="capitalize">{selectedNavalGroup.role.replaceAll('-', ' ')}</div>
+                <div className="text-secondary/70">Status</div>
+                <div
+                  className={cn(
+                    'capitalize',
+                    selectedNavalGroup.state === 'operational'
+                      ? 'text-cyan-300'
+                      : selectedNavalGroup.state === 'sunk'
+                        ? 'text-red-300'
+                        : 'text-amber-300'
+                  )}
+                >
+                  {selectedNavalGroup.state}
+                </div>
+                <div className="text-secondary/70">Capability</div>
+                <div>{formatPercent(1 - selectedNavalGroup.damage, 1)}</div>
+                <div className="text-secondary/70">Course</div>
+                <div>
+                  {Math.round(((((selectedNavalGroup.heading * 180) / Math.PI) % 360) + 360) % 360)}
+                  °
+                </div>
+                <div className="text-secondary/70">Fuel</div>
+                <div>{formatPercent(selectedNavalGroup.fuel, 1)}</div>
+                <div className="text-secondary/70">Ammunition</div>
+                <div>{formatPercent(selectedNavalGroup.ammunition, 1)}</div>
+                {selectedNavalGroup.role === 'transport' && (
+                  <>
+                    <div className="text-secondary/70">Cargo</div>
+                    <div>{Math.round(selectedNavalGroup.cargo)}</div>
+                  </>
+                )}
+                <div className="col-span-2 mt-2 border-t border-synthwave-pink/10 pt-2">
+                  <div className="mb-1 text-[10px] uppercase tracking-wide text-secondary/70">
+                    Vessels (
+                    {selectedNavalGroup.units
+                      ? selectedNavalGroup.units.filter((unit) => unit.state !== 'sunk').length
+                      : selectedNavalGroup.unitTypes.length}
+                    /{selectedNavalGroup.units?.length ?? selectedNavalGroup.unitTypes.length})
+                  </div>
+                  <div className="space-y-1">
+                    {(
+                      selectedNavalGroup.units ??
+                      selectedNavalGroup.unitTypes.map((type, index) => ({
+                        id: `${selectedNavalGroup.id}-${index}`,
+                        type,
+                        state: 'operational' as const
+                      }))
+                    ).map((unit) => (
+                      <div
+                        key={unit.id}
+                        className="flex items-center justify-between gap-2 text-xs"
+                      >
+                        <span className="min-w-0 truncate">{unit.type}</span>
+                        <span
+                          className={cn(
+                            'shrink-0 capitalize',
+                            unit.state === 'operational'
+                              ? 'text-cyan-300/80'
+                              : unit.state === 'sunk'
+                                ? 'text-red-300'
+                                : 'text-amber-300'
+                          )}
+                        >
+                          {unit.state}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
             {'flightplan' in selectedItem && (
               <>
                 <div className="text-secondary/70">Task</div>
@@ -398,6 +479,14 @@ export function DetailsCard({
                   }
                 >
                   {(selectedItem as unknown as { active: boolean }).active ? 'Active' : 'Inactive'}
+                </div>
+              </>
+            )}
+            {'type' in selectedItem && selectedItem.type === 'EWR' && (
+              <>
+                <div className="text-secondary/70">Status</div>
+                <div className={selectedItem.active ? 'text-green-400' : 'text-red-400'}>
+                  {selectedItem.active ? 'Active' : 'Destroyed'}
                 </div>
               </>
             )}

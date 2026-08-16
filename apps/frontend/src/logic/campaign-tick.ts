@@ -1,7 +1,10 @@
 import { schemas } from '@dcc/contracts'
+import { advanceFalklandsCampaign } from '@dcc/campaign'
+import { theatres } from '@dcc/data'
 import * as z from 'zod'
 
 import { debugLog } from '@/lib/debug'
+import { logCampaignAction } from '@/logic/simulation-log'
 
 import { updateCampaignGoal } from './systems/campaign-goal'
 import { removeDestroyedStructures } from './systems/remove-destroyed-structures'
@@ -28,6 +31,14 @@ function isCampaignActive(draft: Campaign) {
   return (draft.status ?? 'active') === 'active'
 }
 
+function updateFalklandsCampaign(draft: Campaign) {
+  const theatre = theatres.find((candidate) => candidate.name === 'SouthAtlantic')
+  if (!theatre) return
+  for (const event of advanceFalklandsCampaign(draft, theatre)) {
+    logCampaignAction(draft, event.kind === 'defeat' ? 'opponent' : 'player', event.message)
+  }
+}
+
 export function applyFastTick(draft: Campaign, delta: number) {
   if (!isCampaignActive(draft)) return
 
@@ -40,6 +51,7 @@ export function applyFastTick(draft: Campaign, delta: number) {
   forEachActiveCoalition((coalition) =>
     updateGroundGroups(draft, coalition, delta, { capture: false })
   )
+  updateFalklandsCampaign(draft)
   updateCampaignGoal(draft)
 }
 
@@ -52,5 +64,6 @@ export function applyLogicTick(draft: Campaign, delta: number) {
     updateGroundGroups(draft, coalition, delta, { move: false })
   )
   forEachActiveCoalition((coalition) => spawn(draft, coalition))
+  updateFalklandsCampaign(draft)
   updateCampaignGoal(draft)
 }

@@ -3,6 +3,8 @@ import { aircrafts } from '@dcc/data'
 import { ok, Result } from 'neverthrow'
 import * as z from 'zod'
 
+import { AWACS_FREQUENCY } from './radio-plan'
+
 // Build lookup map once
 const aircraftMap = new Map<string, z.infer<typeof schemas.dcs.aircraft>>()
 Object.values(aircrafts).forEach((def) => {
@@ -18,7 +20,6 @@ const DEFAULT_AWACS: Record<string, string> = {
 
 const RACETRACK_LEG_KM = 120
 const OFFSET_KM = 120
-const AWACS_FREQUENCY = 251.0
 const AWACS_ALTITUDE = 9144
 
 /**
@@ -44,6 +45,36 @@ function airdromeCentroid(
   if (count === 0) return null
 
   return { x: sumX / count, y: sumY / count }
+}
+
+/**
+ * Returns an airborne-support anchor for a coalition without land bases.
+ *
+ * Carrier groups are preferred because they are the coalition's effective airbase. If there is
+ * no carrier, use the centroid of the remaining active naval groups.
+ */
+function navalAnchor(
+  navalGroups: NonNullable<
+    z.infer<typeof schemas.campaign.campaign>['coalitions']['player']['navalGroups']
+  >
+): { x: number; y: number } | null {
+  const activeGroups = navalGroups.filter((group) => group.state !== 'sunk')
+  const carrier = activeGroups.find((group) => group.role === 'carrier')
+  if (carrier) return carrier.position
+  if (activeGroups.length === 0) return null
+
+  const positionTotal = activeGroups.reduce(
+    (total, group) => ({
+      x: total.x + group.position.x,
+      y: total.y + group.position.y
+    }),
+    { x: 0, y: 0 }
+  )
+
+  return {
+    x: positionTotal.x / activeGroups.length,
+    y: positionTotal.y / activeGroups.length
+  }
 }
 
 /**
@@ -76,10 +107,11 @@ export function addAwacsGroups(
     const missionCoalitionKey = key === 'player' ? 'blue' : key === 'opponent' ? 'red' : null
     if (!missionCoalitionKey) continue
 
-    const centroid = airdromeCentroid(value.airdromeNames, theatre)
+    const centroid =
+      airdromeCentroid(value.airdromeNames, theatre) ?? navalAnchor(value.navalGroups ?? [])
     if (!centroid) {
       // eslint-disable-next-line no-console
-      console.warn(`No airdromes found for coalition ${key}, skipping AWACS`)
+      console.warn(`No airdromes or active naval groups found for coalition ${key}, skipping AWACS`)
       continue
     }
 

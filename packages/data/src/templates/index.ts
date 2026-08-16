@@ -1,14 +1,18 @@
+import { ArgentinaFalklands } from './argentina-falklands'
 import { FranceModern } from './france-modern'
-import { RussiaModern } from './russia-modern'
 import { RussiaColdWar } from './russia-cold-war'
 import { RussiaKoreaWar } from './russia-korea-war'
+import { RussiaModern } from './russia-modern'
 import { RussiaVietnamTemplate } from './russia-vietnam'
+import { UkFalklands } from './uk-falklands'
 import { UsaColdWar } from './usa-cold-war'
 import { UsaKoreaWar } from './usa-korea-war'
 import { UsaModern } from './usa-modern'
 import { UsaVietnam } from './usa-vietnam'
 
 export const templates = [
+  UkFalklands,
+  ArgentinaFalklands,
   UsaKoreaWar,
   RussiaKoreaWar,
   UsaVietnam,

@@ -1,4 +1,5 @@
 import { config, schemas } from '@dcc/contracts'
+import { factions } from '@dcc/data'
 import * as luaTable from '@dcc/lua-table'
 import AdmZip from 'adm-zip'
 import { err, ok, Result } from 'neverthrow'
@@ -7,6 +8,7 @@ import * as z from 'zod'
 import { addAwacsGroups } from './add-awacs-groups'
 import { addFlightGroups, type MissionFlightConfig } from './add-flight-groups'
 import { addGroundGroups } from './add-ground-groups'
+import { addNavalGroups } from './add-naval-groups'
 import { addStructures } from './add-structures'
 import { getFrontlineSegments } from './frontline'
 import { buildIadsConfig, type MissionIadsConfig } from './iads'
@@ -70,14 +72,89 @@ type MissionTriggerRules = Record<number, MissionTriggerRule>
 type MissionScriptConfig = {
   missionId: string
   flightGroups: MissionFlightConfig[]
+  carrierOps?: CarrierOpsConfig[]
   crashPilotSurvivalChance: number
   welcomeMessage?: MissionWelcomeMessage
   cullingManifest?: MissionCullingManifest
 }
 
+type CarrierOpsConfig = {
+  groupName: string
+  displayName: string
+  coalition: 'blue' | 'red'
+  recoveryDuration: number
+  speed: number
+  holdingRadius: number
+}
+
 type MissionWelcomeMessage = {
   text: string
   duration: number
+}
+
+const DCS_COUNTRY_IDS: Record<string, number> = {
+  Russia: 0,
+  USA: 2,
+  UK: 4,
+  France: 5,
+  Israel: 15,
+  Argentina: 83
+}
+
+const JOINT_TASK_FORCE_COUNTRIES = {
+  player: { id: 80, name: 'CJTF Blue' },
+  opponent: { id: 81, name: 'CJTF Red' }
+} as const
+
+function hasCustomClientAircraft(
+  coalition: z.infer<typeof schemas.campaign.campaign>['coalitions']['player']
+) {
+  return coalition.flightGroups.some((flightGroup) => {
+    const factionAircraftTypes = coalition.aircraftTypes[flightGroup.task] ?? []
+
+    return flightGroup.aircrafts.some(
+      (aircraft) => aircraft.client && !factionAircraftTypes.includes(aircraft.aircraftName)
+    )
+  })
+}
+
+export function configureMissionCountries(
+  mission: z.infer<typeof schemas.dcs.mission>,
+  campaign: z.infer<typeof schemas.campaign.campaign>
+) {
+  for (const [coalitionKey, missionCoalitionKey] of [
+    ['player', 'blue'],
+    ['opponent', 'red']
+  ] as const) {
+    const campaignCoalition = campaign.coalitions[coalitionKey]
+    const faction = factions.find((candidate) => candidate.id === campaignCoalition.id)
+    const countryName = campaignCoalition.countryName ?? faction?.countryName
+    if (!countryName) continue
+    const country = hasCustomClientAircraft(campaignCoalition)
+      ? JOINT_TASK_FORCE_COUNTRIES[coalitionKey]
+      : {
+          id: DCS_COUNTRY_IDS[countryName],
+          name: countryName
+        }
+    const countryId = country.id
+    if (countryId == null) continue
+
+    for (const side of ['neutrals', 'blue', 'red'] as const) {
+      mission.coalitions[side] = mission.coalitions[side].filter((id) => id !== countryId)
+    }
+    mission.coalitions[missionCoalitionKey].push(countryId)
+    mission.coalition[missionCoalitionKey].country = [
+      {
+        id: countryId,
+        name: country.name,
+        plane: { group: [] },
+        helicopter: { group: [] },
+        ship: { group: [] },
+        static: { group: [] },
+        vehicle: { group: [] }
+      }
+    ]
+  }
 }
 
 function getStartupTriggerIndexes(ewrEnabled: boolean, iadsEnabled: boolean) {
@@ -106,7 +183,7 @@ function createMissionMapConfig(theatre: z.infer<typeof schemas.theatre>) {
 
 function createWelcomeMessage(
   flightGroups: MissionFlightConfig[],
-  options: { ewrEnabled: boolean }
+  options: { ewrEnabled: boolean; carrierOpsEnabled: boolean }
 ): MissionWelcomeMessage | undefined {
   const features = new Set<string>()
 
@@ -134,6 +211,10 @@ function createWelcomeMessage(
     features.add('EWR picture calls')
   }
 
+  if (options.carrierOpsEnabled) {
+    features.add('carrier recovery-window control')
+  }
+
   if (flightGroups.some((flightGroup) => flightGroup.isHelicopter)) {
     features.add('CTLD cargo commands')
   }
@@ -151,6 +232,24 @@ function createWelcomeMessage(
     ].join('\n'),
     duration: 25
   }
+}
+
+function createCarrierOpsConfig(
+  campaign: z.infer<typeof schemas.campaign.campaign>
+): CarrierOpsConfig[] {
+  return (['player', 'opponent'] as const).flatMap((campaignCoalition) => {
+    const missionCoalition = campaignCoalition === 'player' ? 'blue' : 'red'
+    return (campaign.coalitions[campaignCoalition].navalGroups ?? [])
+      .filter((group) => group.role === 'carrier')
+      .map((group) => ({
+        groupName: `NavalGroup-${group.id}`,
+        displayName: group.name,
+        coalition: missionCoalition,
+        recoveryDuration: 20 * 60,
+        speed: 12,
+        holdingRadius: 6_000
+      }))
+  })
 }
 
 function createWelcomeMessageScript() {
@@ -351,10 +450,54 @@ function addTransportCargoTriggers(
   })
 }
 
+type ObjectiveSurveyOptions = {
+  objectiveIds?: string[]
+  radius?: number
+}
+
+function addObjectiveSurveyZones(
+  mission: z.infer<typeof schemas.dcs.mission>,
+  theatre: z.infer<typeof schemas.theatre>,
+  options: ObjectiveSurveyOptions
+): void {
+  const selectedObjectiveIds = options.objectiveIds
+    ? new Set(options.objectiveIds)
+    : new Set(theatre.objectives.map((objective) => objective.name))
+  const zones = mission.triggers?.zones ?? []
+  if (!mission.triggers) {
+    mission.triggers = { zones }
+  } else {
+    mission.triggers.zones = zones
+  }
+
+  for (const objective of theatre.objectives) {
+    if (!selectedObjectiveIds.has(objective.name)) continue
+
+    mission.currentKey += 1
+    zones.push({
+      radius: options.radius ?? 1_500,
+      zoneId: mission.currentKey,
+      color: { 1: 1, 2: 0.75, 3: 0, 4: 0.18 },
+      properties: {},
+      hidden: false,
+      y: objective.position.y,
+      x: objective.position.x,
+      name: `DCC_SURVEY_${objective.name}`,
+      heading: 0,
+      type: 0
+    })
+  }
+}
+
+type GenerateMizOptions = {
+  objectiveSurvey?: ObjectiveSurveyOptions
+}
+
 export async function generateMizFromCampaign(
   campaign: z.infer<typeof schemas.campaign.campaign>,
   theatre: z.infer<typeof schemas.theatre>,
-  path: string
+  path: string,
+  generationOptions: GenerateMizOptions = {}
 ): Promise<Result<void, Error>> {
   // eslint-disable-next-line no-console
   console.log('generating miz file')
@@ -364,7 +507,7 @@ export async function generateMizFromCampaign(
 
   const mission: z.infer<typeof schemas.dcs.mission> = {
     version: 23,
-    theatre: theatre.name,
+    theatre: theatre.dcsName ?? theatre.name,
     descriptionText: 'DictKey_descriptionText_1',
     descriptionRedTask: 'DictKey_descriptionRedTask_2',
     descriptionBlueTask: 'DictKey_descriptionBlueTask_3',
@@ -387,9 +530,18 @@ export async function generateMizFromCampaign(
       name: 'Winter, clean sky',
       atmosphere_type: 0,
       wind: {
-        at8000: { speed: 0, dir: 0 },
-        atGround: { speed: 0, dir: 0 },
-        at2000: { speed: 0, dir: 0 }
+        at8000: {
+          speed: theatre.info.weather.wind.speed,
+          dir: theatre.info.weather.wind.direction
+        },
+        atGround: {
+          speed: theatre.info.weather.wind.speed,
+          dir: theatre.info.weather.wind.direction
+        },
+        at2000: {
+          speed: theatre.info.weather.wind.speed,
+          dir: theatre.info.weather.wind.direction
+        }
       },
       enable_dust: false,
       dust_density: 0,
@@ -671,6 +823,17 @@ export async function generateMizFromCampaign(
 
   const cullingPlan = buildMissionCullingPlan(campaign, theatre)
 
+  if (generationOptions.objectiveSurvey) {
+    addObjectiveSurveyZones(mission, theatre, generationOptions.objectiveSurvey)
+  }
+
+  configureMissionCountries(mission, campaign)
+
+  const navalGroupsResult = addNavalGroups(mission, campaign)
+  if (navalGroupsResult.isErr()) {
+    return err(navalGroupsResult.error)
+  }
+
   const structuresResult = addStructures(mission, campaign, theatre, cullingPlan)
   if (structuresResult.isErr()) {
     return err(structuresResult.error)
@@ -681,7 +844,7 @@ export async function generateMizFromCampaign(
     return err(groundGroupsResult.error)
   }
 
-  const iadsConfig = buildIadsConfig(mission, campaign, theatre)
+  const iadsConfig = buildIadsConfig(mission, campaign)
   if (iadsRequested && !iadsConfig) {
     delete (mission.trig as MissionTriggerTables).actions[8]
     delete (mission.trig as MissionTriggerTables).actions[9]
@@ -699,10 +862,15 @@ export async function generateMizFromCampaign(
   if (flightGroupsResult.isErr()) {
     return err(flightGroupsResult.error)
   }
-  const welcomeMessage = createWelcomeMessage(flightGroupsResult.value, { ewrEnabled })
+  const carrierOps = createCarrierOpsConfig(campaign)
+  const welcomeMessage = createWelcomeMessage(flightGroupsResult.value, {
+    ewrEnabled,
+    carrierOpsEnabled: carrierOps.length > 0
+  })
   const scriptConfig: MissionScriptConfig = {
     missionId: campaign.id,
     flightGroups: flightGroupsResult.value,
+    ...(carrierOps.length > 0 ? { carrierOps } : {}),
     crashPilotSurvivalChance: config.packages.CSAR.pilotSurvivalChance,
     ...(welcomeMessage ? { welcomeMessage } : {}),
     ...(cullingPlan.enabled ? { cullingManifest: cullingPlan.manifest } : {})
@@ -806,9 +974,17 @@ export async function generateMizFromCampaign(
   }
 
   const zip = new AdmZip()
+  // DCS expects explicit directory entries in addition to the files below them.
+  // Some ZIP readers infer these folders, but the Mission Editor does not do so reliably.
+  zip.addFile('l10n/', Buffer.alloc(0))
+  zip.addFile('l10n/DEFAULT/', Buffer.alloc(0))
+  if (kneeboardImages.length > 0) {
+    zip.addFile('KNEEBOARD/', Buffer.alloc(0))
+    zip.addFile('KNEEBOARD/IMAGES/', Buffer.alloc(0))
+  }
   zip.addFile('mission', Buffer.from('mission = ' + missionLua, 'utf-8'))
   zip.addFile('options', Buffer.from('options = ' + optionsLua, 'utf-8'))
-  zip.addFile('theatre', Buffer.from(theatre.name, 'utf-8'))
+  zip.addFile('theatre', Buffer.from(theatre.dcsName ?? theatre.name, 'utf-8'))
   zip.addFile('warehouses', Buffer.from('warehouses = ' + warehousesLua, 'utf-8'))
   zip.addFile('l10n/DEFAULT/dictionary', Buffer.from('dictionary = ' + dictionaryLua, 'utf-8'))
   zip.addFile('l10n/DEFAULT/mapResource', Buffer.from('mapResource = ' + mapResourceLua, 'utf-8'))

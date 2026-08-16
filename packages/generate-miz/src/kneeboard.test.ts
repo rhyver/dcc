@@ -1,4 +1,5 @@
 import { schemas } from '@dcc/contracts'
+import { scenarios, theatres } from '@dcc/data'
 import AdmZip from 'adm-zip'
 import { mkdtemp, rm } from 'fs/promises'
 import { tmpdir } from 'os'
@@ -11,9 +12,11 @@ import {
   buildKneeboardMissionDescription,
   buildKneeboardWaypointRows,
   createKneeboardFilename,
-  getKneeboardLandingTacanSummary,
-  getKneeboardTargetTacanSummary,
   getClientFlightGroups,
+  getKneeboardFlightFrequencySummary,
+  getKneeboardLandingTacanSummary,
+  getKneeboardRadioChannelSummary,
+  getKneeboardTargetTacanSummary,
   renderKneeboardSvg,
   sanitizeKneeboardFilenamePart
 } from './kneeboard'
@@ -164,17 +167,9 @@ describe('kneeboard geographic map', () => {
     if (!resolveCaucasusPmtilesPath()) return
 
     const lngLatPoints = [
-      dcsPositionToLngLat(
-        CAUCASUS_TEST_ROUTE.takeoff.x,
-        CAUCASUS_TEST_ROUTE.takeoff.y,
-        'Caucasus'
-      ),
+      dcsPositionToLngLat(CAUCASUS_TEST_ROUTE.takeoff.x, CAUCASUS_TEST_ROUTE.takeoff.y, 'Caucasus'),
       dcsPositionToLngLat(CAUCASUS_TEST_ROUTE.task.x, CAUCASUS_TEST_ROUTE.task.y, 'Caucasus'),
-      dcsPositionToLngLat(
-        CAUCASUS_TEST_ROUTE.landing.x,
-        CAUCASUS_TEST_ROUTE.landing.y,
-        'Caucasus'
-      )
+      dcsPositionToLngLat(CAUCASUS_TEST_ROUTE.landing.x, CAUCASUS_TEST_ROUTE.landing.y, 'Caucasus')
     ].filter((point): point is NonNullable<typeof point> => point != null)
 
     const viewport = createRouteMapViewport({
@@ -197,7 +192,9 @@ describe('kneeboard geographic map', () => {
 describe('kneeboard waypoint rows', () => {
   test('formats route timing, distance, bearing, altitude, and speed', () => {
     const startTime = new Date('2026-01-01T12:00:00Z')
-    const rows = buildKneeboardWaypointRows(createFlightGroup('blue-client', 'Enfield-1', startTime))
+    const rows = buildKneeboardWaypointRows(
+      createFlightGroup('blue-client', 'Enfield-1', startTime)
+    )
 
     expect(rows).toMatchObject([
       {
@@ -362,6 +359,7 @@ describe('kneeboard TACAN summaries', () => {
         name: 'Enfield-1',
         task: 'CAP',
         unitNames: ['Enfield-1-1'],
+        frequency: 251.05,
         navigation: {
           mode: 'targetTacan',
           targetLabel: 'Target',
@@ -396,9 +394,153 @@ describe('kneeboard TACAN summaries', () => {
     expect(getKneeboardTargetTacanSummary(undefined)).toBe('---')
     expect(getKneeboardLandingTacanSummary(flightGroup, theatre)).toBe('---')
   })
+
+  test('formats the assigned flight radio frequency', () => {
+    const missionConfig = {
+      groupId: 101,
+      name: 'Enfield-1',
+      task: 'CAP' as const,
+      unitNames: ['Enfield-1-1'],
+      frequency: 251.05,
+      radioPreset: { radio: 1, channel: 1 },
+      radioChannels: [
+        { purpose: 'FLIGHT' as const, radio: 1, channel: 1, frequency: 251.05 },
+        { purpose: 'AWACS' as const, radio: 1, channel: 2, frequency: 251 },
+        { purpose: 'ATC' as const, radio: 1, channel: 3, frequency: 250 },
+        { purpose: 'JTAC' as const, radio: 1, channel: 4, frequency: 305 }
+      ]
+    }
+
+    expect(getKneeboardFlightFrequencySummary(missionConfig)).toBe('251.050 MHz R1 CH1')
+    expect(getKneeboardRadioChannelSummary(missionConfig, 'AWACS')).toBe('R1 251.000 MHz')
+    expect(getKneeboardRadioChannelSummary(missionConfig, 'ATC')).toBe('R1 250.000 MHz')
+    expect(getKneeboardRadioChannelSummary(missionConfig, 'JTAC')).toBe('R1 305.000 MHz')
+    expect(getKneeboardFlightFrequencySummary(undefined)).toBe('---')
+  })
+
+  test('renders flight radio and carrier landing TACAN on the kneeboard', async () => {
+    const startTime = new Date('2026-01-01T12:00:00Z')
+    const campaign = createCampaign(startTime)
+    const flightGroup = createFlightGroup('carrier-client', 'Enfield-1', startTime)
+    flightGroup.aircrafts[0]!.client = true
+    flightGroup.homeBase = 'uk-carrier-group'
+    campaign.coalitions.player.flightGroups = [flightGroup]
+
+    const svg = await renderKneeboardSvg({
+      campaign,
+      theatre,
+      coalition: 'player',
+      flightGroup,
+      missionFlightConfigs: [
+        {
+          groupId: 101,
+          name: 'Enfield-1',
+          task: 'CAP',
+          unitNames: ['Enfield-1-1'],
+          frequency: 251.05,
+          radioPreset: { radio: 1, channel: 1 },
+          radioChannels: [
+            { purpose: 'FLIGHT', radio: 1, channel: 1, frequency: 251.05 },
+            { purpose: 'AWACS', radio: 1, channel: 2, frequency: 251 },
+            { purpose: 'ATC', radio: 1, channel: 3, frequency: 250 },
+            { purpose: 'JTAC', radio: 1, channel: 4, frequency: 305 }
+          ],
+          navigation: {
+            landingTacan: { channel: 11, band: 'X', callsign: 'HMS' }
+          }
+        }
+      ]
+    })
+
+    expect(svg).toContain('CH1 FLIGHT')
+    expect(svg).toContain('R1 251.050 MHz')
+    expect(svg).toContain('CH2 AWACS')
+    expect(svg).toContain('R1 251.000 MHz')
+    expect(svg).toContain('CH3 ATC')
+    expect(svg).toContain('R1 250.000 MHz')
+    expect(svg).toContain('CH4 JTAC')
+    expect(svg).toContain('R1 305.000 MHz')
+    expect(svg).toContain('LANDING TACAN')
+    expect(svg).toContain('11X HMS')
+  })
 })
 
 describe('generateMizFromCampaign kneeboards', () => {
+  test('smoke-generates a South Atlantic mission with persistent naval groups', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'dcc-south-atlantic-'))
+    const mizPath = path.join(dir, 'mission.miz')
+
+    try {
+      const scenario = scenarios.find((candidate) => candidate.id === 'falklands-1982')
+      const southAtlantic = theatres.find((candidate) => candidate.name === 'SouthAtlantic')
+      if (!scenario || !southAtlantic) throw new Error('South Atlantic test data is missing')
+
+      const campaign = createCampaign(scenario.date)
+      campaign.scenarioId = scenario.id
+      campaign.coalitions.player.id = 'uk-1982'
+      campaign.coalitions.opponent.id = 'argentina-1982-official'
+      campaign.coalitions.player.navalGroups = structuredClone(scenario.navalGroups?.player ?? [])
+      campaign.coalitions.opponent.navalGroups = structuredClone(
+        scenario.navalGroups?.opponent ?? []
+      )
+      const carrier = campaign.coalitions.player.navalGroups.find(
+        (group) => group.role === 'carrier'
+      )
+      if (!carrier?.units) throw new Error('South Atlantic carrier group is missing')
+      carrier.state = 'sunk'
+      carrier.damage = 1
+      for (const unit of carrier.units) {
+        unit.state = 'sunk'
+        unit.damage = 1
+      }
+
+      const result = await generateMizFromCampaign(campaign, southAtlantic, mizPath)
+
+      expect(result.isOk()).toBe(true)
+      if (result.isErr()) throw result.error
+
+      const zip = new AdmZip(mizPath)
+      const missionText = zip.getEntry('mission')?.getData().toString('utf-8') ?? ''
+      expect(zip.getEntry('l10n/')?.isDirectory).toBe(true)
+      expect(zip.getEntry('l10n/DEFAULT/')?.isDirectory).toBe(true)
+      expect(zip.getEntry('theatre')?.getData().toString('utf-8')).toBe('Falklands')
+      expect(missionText).toContain('["theatre"] = "Falklands"')
+      expect(missionText).toContain('["Year"] = 1982')
+      const surfaceWindStart = missionText.indexOf('["atGround"]')
+      const surfaceWindEnd = missionText.indexOf('}', surfaceWindStart)
+      const surfaceWind = missionText.slice(surfaceWindStart, surfaceWindEnd)
+      expect(surfaceWindStart).toBeGreaterThanOrEqual(0)
+      expect(surfaceWind).toContain('["speed"] = 9')
+      expect(surfaceWind).toContain('["dir"] = 170')
+      expect(missionText).toContain('NavalGroup-uk-carrier-group')
+      expect(missionText).toContain('NavalUnit-uk-carrier-group-uk-carrier-group-ship-1')
+      expect(missionText).toContain('["type"] = "LHA_Tarawa"')
+      const carrierGroupStart = missionText.indexOf('NavalGroup-uk-carrier-group')
+      const amphibiousGroupStart = missionText.indexOf('NavalGroup-uk-amphibious-group')
+      expect(carrierGroupStart).toBeGreaterThanOrEqual(0)
+      expect(missionText).not.toContain('NavalGroup-uk-escort-group')
+      expect(amphibiousGroupStart).toBeGreaterThan(carrierGroupStart)
+      expect(missionText.slice(carrierGroupStart, amphibiousGroupStart)).toContain(
+        'NavalUnit-uk-escort-group-uk-escort-group-ship-1'
+      )
+      expect(missionText.slice(carrierGroupStart, amphibiousGroupStart)).toContain(
+        '["id"] = "SetImmortal"'
+      )
+      expect(missionText).toContain('carrierOps')
+      expect(missionText).toContain('recoveryDuration')
+      const stateScript = zip.getEntry('l10n/DEFAULT/state.lua')?.getData().toString('utf-8') ?? ''
+      expect(stateScript).toContain("addSubMenuForCoalition(side, 'Carrier Operations')")
+      expect(stateScript).toContain("id = 'SwitchWaypoint'")
+      expect(stateScript).toContain('timer.getTime() + duration')
+      expect(missionText).toContain('NavalGroup-arg-surface-group')
+      expect(missionText).toContain('["type"] = "leander-gun-achilles"')
+      expect(missionText).toContain('["type"] = "leander-gun-andromeda"')
+      expect(missionText).toContain('["type"] = "leander-gun-ariadne"')
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
   test('writes the selected theatre into mission files', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'dcc-theatre-'))
     const mizPath = path.join(dir, 'mission.miz')
@@ -454,7 +596,9 @@ describe('generateMizFromCampaign kneeboards', () => {
 
       const zip = new AdmZip(mizPath)
       const entries = zip.getEntries().map((entry) => entry.entryName)
-      const kneeboardEntries = entries.filter((entry) => entry.startsWith('KNEEBOARD/IMAGES/'))
+      const kneeboardEntries = entries.filter(
+        (entry) => entry.startsWith('KNEEBOARD/IMAGES/') && !entry.endsWith('/')
+      )
 
       expect(kneeboardEntries).toEqual(['KNEEBOARD/IMAGES/DCC_001_Enfield-1_CAP.png'])
       const kneeboardEntry = zip.getEntry('KNEEBOARD/IMAGES/DCC_001_Enfield-1_CAP.png')

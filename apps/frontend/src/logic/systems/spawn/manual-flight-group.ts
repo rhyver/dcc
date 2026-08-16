@@ -1,5 +1,6 @@
 import { config, schemas } from '@dcc/contracts'
-import { aircrafts, isSamFullyDestroyed, isSamOperational } from '@dcc/data'
+import { evaluateCombatViability } from '@dcc/campaign'
+import { aircrafts } from '@dcc/data'
 import * as z from 'zod'
 
 import {
@@ -14,6 +15,7 @@ import {
 } from '../../entities/flight-group-spawn'
 import { getObjectivePosition } from '@/logic/utils/get-objective-position'
 import { calculateDistance } from '@/logic/utils/calculate-distance'
+import { getIadsEmitterTargets } from '@/logic/iads-emitter-targets'
 import {
   getCoalitionAirdromes,
   getCoalitionCasHomeBases,
@@ -269,32 +271,15 @@ function createManualSpawnPlan(
     const aircraftType = pickRandomAircraftType(aircraftTypes)
     if (!aircraftType) return null
 
-    const targetedSamIds = new Set(
+    const targetedEmitterIds = new Set(
       flightGroups
         .filter((g) => g.task === task)
         .map((g) => g.target?.id)
         .filter((id): id is string => id != null)
     )
-    const targets = draft.coalitions[enemyCoalition].samGroups
-      .filter((samGroup) => {
-        const isValidTarget =
-          task === 'DEAD' ? !isSamFullyDestroyed(samGroup) : isSamOperational(samGroup)
-        return isValidTarget && !targetedSamIds.has(samGroup.id)
-      })
-      .map((samGroup) => {
-        const position = getObjectivePosition(theatre, samGroup.objectiveId)
-        return position
-          ? {
-              target: {
-                id: samGroup.id,
-                type: samGroup.type,
-                objectiveId: samGroup.objectiveId
-              },
-              position
-            }
-          : null
-      })
-      .filter((target): target is NonNullable<typeof target> => target != null)
+    const targets = getIadsEmitterTargets(draft, enemyCoalition, theatre, task).filter(
+      (emitter) => !targetedEmitterIds.has(emitter.target.id)
+    )
 
     const assignment = selectHomeBaseAndTarget({
       homeBases,
@@ -328,13 +313,14 @@ function createManualSpawnPlan(
     const targets = draft.coalitions[enemyCoalition].groundGroups
       .filter(
         (group) =>
+          evaluateCombatViability(group).casEligible &&
           group.state === 'idle' &&
           group.objectiveId != null &&
           !targetedGroundGroupIds.has(group.id)
       )
       .map((group) => {
         const objectiveId = group.objectiveId
-        const position = objectiveId ? getObjectivePosition(theatre, objectiveId) : null
+        const position = objectiveId ? group.position : null
         return objectiveId && position
           ? {
               target: {

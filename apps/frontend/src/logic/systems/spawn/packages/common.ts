@@ -74,6 +74,15 @@ export function getCoalitionAirdromes(
     })
   }
 
+  for (const carrier of draft.coalitions[coalition].navalGroups ?? []) {
+    if (carrier.role !== 'carrier' || carrier.state === 'sunk' || carrier.damage >= 0.75) continue
+    homeBases.push({
+      name: carrier.id,
+      position: { ...carrier.position },
+      runwayAngle: carrier.heading
+    })
+  }
+
   return homeBases
 }
 
@@ -114,7 +123,7 @@ export function selectHomeBaseAndTarget<T>({
   maxDistance: number
   preference?: 'nearest' | 'farthest' | 'random'
 }): { homeBase: AirdromeSelection; target: T; targetPosition: Position } | null {
-  let furthestAssignment: {
+  let preferredAssignment: {
     homeBase: AirdromeSelection
     target: T
     targetPosition: Position
@@ -131,9 +140,14 @@ export function selectHomeBaseAndTarget<T>({
     for (const locatedTarget of targets) {
       const distance = calculateDistance(homeBase.position, locatedTarget.position)
       if (distance <= maxDistance) {
-        if (preference === 'farthest') {
-          if (!furthestAssignment || distance > furthestAssignment.distance) {
-            furthestAssignment = {
+        if (preference !== 'random') {
+          const isPreferred =
+            !preferredAssignment ||
+            (preference === 'nearest'
+              ? distance < preferredAssignment.distance
+              : distance > preferredAssignment.distance)
+          if (isPreferred) {
+            preferredAssignment = {
               homeBase,
               target: locatedTarget.target,
               targetPosition: locatedTarget.position,
@@ -150,12 +164,6 @@ export function selectHomeBaseAndTarget<T>({
           })
           continue
         }
-
-        return {
-          homeBase,
-          target: locatedTarget.target,
-          targetPosition: locatedTarget.position
-        }
       }
     }
 
@@ -164,11 +172,11 @@ export function selectHomeBaseAndTarget<T>({
     }
   }
 
-  if (furthestAssignment) {
+  if (preferredAssignment) {
     return {
-      homeBase: furthestAssignment.homeBase,
-      target: furthestAssignment.target,
-      targetPosition: furthestAssignment.targetPosition
+      homeBase: preferredAssignment.homeBase,
+      target: preferredAssignment.target,
+      targetPosition: preferredAssignment.targetPosition
     }
   }
 

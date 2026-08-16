@@ -1,4 +1,5 @@
 import { config, schemas } from '@dcc/contracts'
+import { evaluateCombatViability } from '@dcc/campaign'
 import * as z from 'zod'
 import {
   buildCasMissionWaypoints,
@@ -62,7 +63,10 @@ export function spawnCas(
 
   const candidateGroundGroups = draft.coalitions[enemyCoalition].groundGroups.filter(
     (group) =>
-      group.state === 'idle' && group.objectiveId != null && !targetedGroundGroupIds.has(group.id)
+      evaluateCombatViability(group).casEligible &&
+      group.state === 'idle' &&
+      group.objectiveId != null &&
+      !targetedGroundGroupIds.has(group.id)
   )
 
   if (candidateGroundGroups.length === 0) {

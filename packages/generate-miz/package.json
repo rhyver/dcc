@@ -10,9 +10,12 @@
     "lint:fix": "eslint ./src --fix",
     "test": "vitest run --exclude \"dist/**\"",
     "clean": "rm -rf .turbo node_modules dist",
-    "build": "tsc"
+    "build": "tsc",
+    "review:south-atlantic": "bun tools/generate-south-atlantic-review.ts",
+    "import:south-atlantic-review": "bun tools/analyze-south-atlantic-review.ts"
   },
   "dependencies": {
+    "@dcc/campaign": "workspace:*",
     "@dcc/contracts": "workspace:*",
     "@dcc/data": "workspace:*",
     "@dcc/lua-table": "workspace:*",

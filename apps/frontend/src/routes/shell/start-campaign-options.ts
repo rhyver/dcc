@@ -1,15 +1,32 @@
-import { aircrafts as aircraftDefinitions, factions, scenarios } from '@dcc/data'
+import { aircrafts as aircraftDefinitions, scenarios } from '@dcc/data'
+import { schemas } from '@dcc/contracts'
+import * as z from 'zod'
 
 export type CampaignEra = 'Korea' | 'Vietnam' | 'Late CW' | 'Modern'
 export type ScenarioStep = 'scenario' | 'era' | 'factions'
 export type Scenario = (typeof scenarios)[number]
-export type Faction = (typeof factions)[number]
+export type Faction = z.infer<typeof schemas.faction>
 
 export const factionIdsByEra: Record<CampaignEra, { player: string; opponent: string }> = {
   Korea: { player: 'usa-1952', opponent: 'russia-1955' },
   Vietnam: { player: 'usa-vietnam', opponent: 'russia-vietnam' },
   'Late CW': { player: 'usa-1977', opponent: 'russia-1971' },
   Modern: { player: 'usa-2004', opponent: 'russia-1996' }
+}
+
+export function getScenarioCampaignDefaults(scenario: Scenario | undefined): {
+  era: CampaignEra
+  playerFactionId: string
+  opponentFactionId: string
+} {
+  const era = scenario?.era != null && scenario.era !== 'WW2' ? scenario.era : 'Modern'
+  const eraDefaults = factionIdsByEra[era]
+
+  return {
+    era,
+    playerFactionId: scenario?.defaultFactionIds?.player ?? eraDefaults.player,
+    opponentFactionId: scenario?.defaultFactionIds?.opponent ?? eraDefaults.opponent
+  }
 }
 
 export const eraOptions: Array<{
@@ -48,8 +65,24 @@ export function formatFactionLabel(faction: Faction) {
   return faction.year != null ? `${faction.name} // ${faction.year}` : faction.name
 }
 
-export function getFactionAircraft(factionId: string) {
-  const faction = factions.find((candidate) => candidate.id === factionId)
+export function getCampaignYearForFactions(
+  factions: Faction[],
+  playerFactionId: string,
+  opponentFactionId: string,
+  fallbackYear: number
+) {
+  const factionYears = [playerFactionId, opponentFactionId]
+    .map((factionId) => factions.find((faction) => faction.id === factionId)?.year)
+    .filter((year): year is number => year != null)
+
+  return factionYears.length > 0 ? Math.max(...factionYears) : fallbackYear
+}
+
+export const aircraftCatalog = Object.values(aircraftDefinitions).sort((left, right) =>
+  left.display_name.localeCompare(right.display_name)
+)
+
+export function getFactionAircraft(faction: Faction | undefined) {
   if (!faction) return []
 
   const rolesByAircraft = new Map<string, string[]>()
@@ -61,9 +94,8 @@ export function getFactionAircraft(factionId: string) {
     }
   }
 
-  const definitions = Object.values(aircraftDefinitions)
   return Array.from(rolesByAircraft, ([name, roles]) => {
-    const definition = definitions.find((candidate) => candidate.name === name)
+    const definition = aircraftCatalog.find((candidate) => candidate.name === name)
     return {
       name,
       displayName: definition?.display_name ?? name,

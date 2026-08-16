@@ -1,6 +1,13 @@
 import { produce } from 'immer'
+import {
+  beginGroundGroupRetreat,
+  classifyGroundUnit,
+  dissolveGroundGroupIntoReplacementPool,
+  recordInfantryCasualties,
+  recoverCasualtyPoint
+} from '@dcc/campaign'
 import { schemas } from '@dcc/contracts'
-import { samTemplates } from '@dcc/data'
+import { samTemplates, scenarios, theatres } from '@dcc/data'
 import * as z from 'zod'
 
 import { FlightGroup } from '@/logic/entities/flight-group'
@@ -12,6 +19,8 @@ type MissionState = z.infer<typeof schemas.missionState>
 type Coalition = 'player' | 'opponent'
 type MissionAircraftGroup = NonNullable<MissionState['groupPositions']>['blue']['aircraft'][number]
 type MissionAircraftUnit = MissionAircraftGroup['units'][number]
+type MissionGroundGroup = NonNullable<MissionState['groupPositions']>['blue']['ground'][number]
+type MissionShipGroup = NonNullable<MissionState['groupPositions']>['blue']['ships'][number]
 type GroundCullingGroups = NonNullable<MissionState['cullingManifest']>['groundGroups'][Coalition]
 
 function campaignDateFromMissionTime(campaignTime: Date, missionTimeSeconds?: number): Date | null {
@@ -101,8 +110,26 @@ function countMissionGroundUnits(group?: { units: Array<{ type: string }> }) {
 function syncAntiAirOnlyGroundGroup(
   groundGroup: Campaign['coalitions']['player']['groundGroups'][number],
   coalitionData: Campaign['coalitions']['player'],
-  missionGroup?: { units: Array<{ type: string }> }
+  missionGroup?: MissionGroundGroup
 ) {
+  const stablePrefix = `GroundUnit-${groundGroup.id}-`
+  const exactMissionUnits = new Map(
+    (missionGroup?.units ?? [])
+      .filter((unit) => unit.name.startsWith(stablePrefix))
+      .map((unit) => [unit.name.slice(stablePrefix.length), unit])
+  )
+  if (exactMissionUnits.size > 0) {
+    groundGroup.units = groundGroup.units.filter((unit) => {
+      if (!isAirDefenseUnit(unit.name, coalitionData)) return true
+      const missionUnit = unit.id ? exactMissionUnits.get(unit.id) : undefined
+      if (!missionUnit) return false
+      unit.position = { x: missionUnit.x, y: missionUnit.y }
+      unit.heading = missionUnit.heading ?? unit.heading
+      return true
+    })
+    return
+  }
+
   const missionCountsByType = countMissionGroundUnits(missionGroup)
   const nextUnits: typeof groundGroup.units = []
   const seenAirDefenseTypes = new Set<string>()
@@ -132,8 +159,9 @@ function syncAntiAirOnlyGroundGroup(
 function syncGroundGroupsFromMissionState(
   draft: Campaign,
   coalition: Coalition,
-  groups?: Array<{ name: string; x: number; y: number; units: Array<{ type: string }> }>,
-  cullingGroups?: GroundCullingGroups
+  groups?: MissionGroundGroup[],
+  cullingGroups?: GroundCullingGroups,
+  protectedGroundGroupIds: ReadonlySet<string> = new Set()
 ) {
   if (!groups) {
     return
@@ -160,12 +188,31 @@ function syncGroundGroupsFromMissionState(
     }
 
     if (!missionGroup) {
+      if (protectedGroundGroupIds.has(groundGroup.id)) continue
       groundGroup.units = []
       continue
     }
 
     groundGroup.position.x = missionGroup.x
     groundGroup.position.y = missionGroup.y
+
+    const stablePrefix = `GroundUnit-${groundGroup.id}-`
+    const exactMissionUnits = new Map(
+      missionGroup.units
+        .filter((unit) => unit.name.startsWith(stablePrefix))
+        .map((unit) => [unit.name.slice(stablePrefix.length), unit])
+    )
+    if (exactMissionUnits.size > 0) {
+      groundGroup.units = groundGroup.units.filter((unit) => {
+        const missionUnit = unit.id ? exactMissionUnits.get(unit.id) : undefined
+        if (!missionUnit) return false
+        unit.position = { x: missionUnit.x, y: missionUnit.y }
+        unit.heading = missionUnit.heading ?? unit.heading
+        unit.count = 1
+        return true
+      })
+      continue
+    }
 
     groundGroup.units = Array.from(countMissionGroundUnits(missionGroup), ([name, count]) => ({
       name,
@@ -176,6 +223,84 @@ function syncGroundGroupsFromMissionState(
   draft.coalitions[coalition].groundGroups = draft.coalitions[coalition].groundGroups.filter(
     (groundGroup) => groundGroup.units.reduce((sum, unit) => sum + Math.max(0, unit.count), 0) > 0
   )
+}
+
+function syncNavalGroupsFromMissionState(
+  draft: Campaign,
+  coalition: Coalition,
+  groups: MissionShipGroup[] | undefined,
+  lostUnitNames: ReadonlySet<string>
+) {
+  const groupsByName = new Map((groups ?? []).map((group) => [group.name, group]))
+  for (const navalGroup of draft.coalitions[coalition].navalGroups ?? []) {
+    const missionGroupId = navalGroup.missionGroupId ?? navalGroup.id
+    const missionGroup = groupsByName.get(`NavalGroup-${missionGroupId}`)
+    if (navalGroup.persistPosition !== false && missionGroup) {
+      const ownLeadUnit = missionGroup.units.find((unit) =>
+        unit.name.startsWith(`NavalUnit-${navalGroup.id}-`)
+      )
+      navalGroup.position = ownLeadUnit
+        ? { x: ownLeadUnit.x, y: ownLeadUnit.y }
+        : { x: missionGroup.x, y: missionGroup.y }
+    }
+
+    navalGroup.units ??= navalGroup.unitTypes.map((type, index) => ({
+      id: `${navalGroup.id}-ship-${index + 1}`,
+      type,
+      damage: 0,
+      ammunition: navalGroup.ammunition,
+      fuel: navalGroup.fuel,
+      state: 'operational' as const
+    }))
+    if (navalGroup.role === 'carrier') {
+      for (const unit of navalGroup.units) {
+        unit.damage = 0
+        unit.state = 'operational'
+      }
+      navalGroup.damage = 0
+      navalGroup.state = 'operational'
+      continue
+    }
+    const liveMissionUnitNames = new Set(missionGroup?.units.map((unit) => unit.name) ?? [])
+    for (const unit of navalGroup.units) {
+      const missionName = `NavalUnit-${navalGroup.id}-${unit.id}`
+      if (lostUnitNames.has(missionName)) {
+        unit.damage = 1
+        unit.state = 'sunk'
+      } else if (liveMissionUnitNames.has(missionName)) {
+        unit.state = unit.damage > 0 ? 'damaged' : 'operational'
+      }
+    }
+    const sunkCount = navalGroup.units.filter((unit) => unit.state === 'sunk').length
+    navalGroup.damage = navalGroup.units.length > 0 ? sunkCount / navalGroup.units.length : 1
+    if (sunkCount === navalGroup.units.length) navalGroup.state = 'sunk'
+    else if (sunkCount > 0 && navalGroup.state !== 'unloading') navalGroup.state = 'damaged'
+  }
+}
+
+function syncEwrGroupsFromMissionState(
+  draft: Campaign,
+  coalition: Coalition,
+  groups: MissionGroundGroup[] | undefined,
+  lostUnits: MissionState['lostUnits']
+) {
+  for (const ewr of draft.coalitions[coalition].ewrGroups ?? []) {
+    const groupPrefix = `IADS-EWR-${ewr.id}-`
+    const missionGroup = groups?.find((group) => group.name.startsWith(groupPrefix))
+    if (missionGroup) {
+      ewr.position = { x: missionGroup.x, y: missionGroup.y }
+    }
+
+    const unitName = `IADS-EWR-Unit-${ewr.id}`
+    if (
+      lostUnits.some(
+        (unit) => unit.name === unitName || (unit.groupName?.startsWith(groupPrefix) ?? false)
+      )
+    ) {
+      ewr.destroyed = true
+      ewr.suppressed = false
+    }
+  }
 }
 
 function getAircraftStateNames(
@@ -353,8 +478,23 @@ export function applyMissionStateUpdate(campaign: Campaign, missionState: Missio
   const groupPositions = missionState.groupPositions
   const cargoDeliveries = missionState.cargoDeliveries ?? {}
   const cullingManifest = missionState.cullingManifest
+  const troopExtractions = missionState.troopExtractions ?? []
+  const casevacPickups = missionState.casevacPickups ?? []
+  const protectedGroundGroupIds = new Set(troopExtractions.map((event) => event.groupId))
 
   return produce(campaign, (draft) => {
+    const infantryBefore = new Map<string, number>()
+    for (const coalition of ['player', 'opponent'] as const) {
+      for (const group of draft.coalitions[coalition].groundGroups) {
+        infantryBefore.set(
+          `${coalition}:${group.id}`,
+          group.units.reduce(
+            (sum, unit) => sum + (classifyGroundUnit(unit.name) === 'infantry' ? unit.count : 0),
+            0
+          )
+        )
+      }
+    }
     const missionDate = campaignDateFromMissionTime(draft.time, missionState.time)
     if (missionDate) {
       draft.time = missionDate
@@ -383,14 +523,85 @@ export function applyMissionStateUpdate(campaign: Campaign, missionState: Missio
       draft,
       'player',
       groupPositions?.blue?.ground,
-      cullingManifest?.groundGroups.player
+      cullingManifest?.groundGroups.player,
+      protectedGroundGroupIds
     )
     syncGroundGroupsFromMissionState(
       draft,
       'opponent',
       groupPositions?.red?.ground,
-      cullingManifest?.groundGroups.opponent
+      cullingManifest?.groundGroups.opponent,
+      protectedGroundGroupIds
     )
+    syncEwrGroupsFromMissionState(draft, 'player', groupPositions?.blue?.ground, lostUnits)
+    syncEwrGroupsFromMissionState(draft, 'opponent', groupPositions?.red?.ground, lostUnits)
+    syncNavalGroupsFromMissionState(draft, 'player', groupPositions?.blue?.ships, lostUnitNames)
+    syncNavalGroupsFromMissionState(draft, 'opponent', groupPositions?.red?.ships, lostUnitNames)
+
+    const scenario = scenarios.find((entry) => entry.id === draft.scenarioId)
+    const theatre = scenario
+      ? theatres.find((entry) => entry.name === scenario.theatreName)
+      : undefined
+    for (const coalition of ['player', 'opponent'] as const) {
+      for (const group of [...draft.coalitions[coalition].groundGroups]) {
+        const previousInfantry = infantryBefore.get(`${coalition}:${group.id}`) ?? 0
+        const currentInfantry = group.units.reduce(
+          (sum, unit) => sum + (classifyGroundUnit(unit.name) === 'infantry' ? unit.count : 0),
+          0
+        )
+        const infantryLosses = Math.max(0, previousInfantry - currentInfantry)
+        if (infantryLosses > 0 && group.objectiveId) {
+          recordInfantryCasualties({
+            campaign: draft,
+            coalition,
+            objectiveId: group.objectiveId,
+            siteId: group.deployment?.siteId,
+            position: group.position,
+            count: infantryLosses,
+            seed: `${missionState.missionId}:${group.id}`
+          })
+        }
+        if (theatre) {
+          beginGroundGroupRetreat({ campaign: draft, coalition, theatre, group })
+        }
+      }
+
+      for (const event of troopExtractions) {
+        const request = draft.coalitions[coalition].extractionRequests?.find(
+          (entry) => entry.id === event.requestId && entry.groundGroupId === event.groupId
+        )
+        if (!request) continue
+        const group = draft.coalitions[coalition].groundGroups.find(
+          (entry) => entry.id === request.groundGroupId
+        )
+        request.status = event.status
+        if (event.status === 'delivered' && group) {
+          dissolveGroundGroupIntoReplacementPool({
+            campaign: draft,
+            coalition,
+            group,
+            objectiveId: request.destinationObjectiveId
+          })
+        }
+      }
+
+      for (const event of casevacPickups) {
+        if (!event.delivered) continue
+        const point = draft.coalitions[coalition].casualtyPoints?.find(
+          (entry) => entry.id === event.casualtyPointId
+        )
+        if (!point) continue
+        const flight = draft.coalitions[coalition].flightGroups.find(
+          (entry) => entry.callsign === event.flightGroupName
+        )
+        recoverCasualtyPoint({
+          campaign: draft,
+          coalition,
+          casualtyPointId: point.id,
+          destinationObjectiveId: flight?.destinationNode ?? point.objectiveId
+        })
+      }
+    }
 
     if (lostUnitNames.size > 0) {
       for (const coalition of ['player', 'opponent'] as const) {

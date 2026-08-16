@@ -6,6 +6,7 @@ import { buildCapMissionWaypoints, spawnPlannedFlightGroup } from './flight-grou
 import { logCombatAction } from '../simulation-log'
 import { maybeCreateDownedPilotFromAircraftLoss } from '../systems/downed-pilots'
 import { debugLog } from '@/lib/debug'
+import { hasFlightGroupTakenOff } from './flight-status'
 
 export class CapFlightGroup extends FlightGroup {
   static spawn(
@@ -58,6 +59,10 @@ export class CapFlightGroup extends FlightGroup {
     draft: z.infer<typeof schemas.campaign.campaign>,
     coalition: z.infer<typeof schemas.coalition>
   ): boolean {
+    if (!hasFlightGroupTakenOff(this._data, draft.time)) {
+      return false
+    }
+
     const enemyCoalition = coalition === 'player' ? 'opponent' : 'player'
     const enemyFlightGroups = draft.coalitions[enemyCoalition].flightGroups
 
@@ -67,6 +72,10 @@ export class CapFlightGroup extends FlightGroup {
     let engaged = false
 
     for (const enemyFg of enemyFlightGroups) {
+      if (!hasFlightGroupTakenOff(enemyFg, draft.time)) {
+        continue
+      }
+
       const distance = calculateDistance(this._data.position, enemyFg.position)
 
       if (distance <= engagementRange) {

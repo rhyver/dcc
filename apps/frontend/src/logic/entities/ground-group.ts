@@ -1,4 +1,5 @@
 import { schemas } from '@dcc/contracts'
+import { expandGroundGroupUnits } from '@dcc/campaign'
 import * as z from 'zod'
 
 export type GroundGroupData = z.infer<typeof schemas.groundGroup>
@@ -26,6 +27,8 @@ export class GroundGroup {
       units: params.units,
       state: params.state ?? 'idle'
     }
+
+    expandGroundGroupUnits(newGroup)
 
     draft.coalitions[coalition].groundGroups.push(newGroup)
     return id

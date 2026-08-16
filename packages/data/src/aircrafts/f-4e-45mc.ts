@@ -18,7 +18,8 @@ const aircraftDefinition: z.infer<typeof schemas.dcs.aircraft> = {
     'Ground Attack',
     'Pinpoint Strike',
     'SEAD',
-    'DEAD'
+    'DEAD',
+    'Antiship Strike'
   ],
   controllable: true,
   cruiseAltitude: 6096,
@@ -362,6 +363,27 @@ const aircraftDefinition: z.infer<typeof schemas.dcs.aircraft> = {
           CLSID: '{HB_ALE_40_30_60}',
           num: 14
         }
+      ]
+    },
+    {
+      task: 'Antiship Strike',
+      name: 'Antiship Strike',
+      displayName: 'Antiship Strike',
+      pylons: [
+        { CLSID: '{51F9AAE5-964F-4D21-83FB-502E3BFE5F8A}', num: 1 },
+        { CLSID: '<CLEAN>', num: 2 },
+        { CLSID: '{AGM_62_I}', num: 3 },
+        { CLSID: '<CLEAN>', num: 4 },
+        { CLSID: '{HB_F4E_AIM-7E-2}', num: 5 },
+        { CLSID: '{HB_PAVE_SPIKE_FAST_ON_ADAPTER_IN_AERO7}', num: 6 },
+        { CLSID: '{F4_SARGENT_TANK_600_GAL}', num: 7 },
+        { CLSID: '{HB_F4E_AIM-7E-2}', num: 8 },
+        { CLSID: '{HB_F4E_AIM-7E-2}', num: 9 },
+        { CLSID: '<CLEAN>', num: 10 },
+        { CLSID: '{AGM_62_I}', num: 11 },
+        { CLSID: '<CLEAN>', num: 12 },
+        { CLSID: '{51F9AAE5-964F-4D21-83FB-502E3BFE5F8A}', num: 13 },
+        { CLSID: '{HB_ALE_40_30_60}', num: 14 }
       ]
     }
   ]

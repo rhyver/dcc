@@ -133,6 +133,7 @@ export function CampaignLayout() {
       <WelcomeCampaignDialog
         open={showWelcomeDialog}
         onStart={closeWelcomeDialog}
+        scenarioId={scenarioId}
         briefing={scenarioBriefing}
         goalObjectiveIds={scenarioGoal?.objectiveIds}
       />
@@ -143,11 +144,13 @@ export function CampaignLayout() {
 function WelcomeCampaignDialog({
   open,
   onStart,
+  scenarioId,
   briefing,
   goalObjectiveIds
 }: {
   open: boolean
   onStart: () => void
+  scenarioId?: string
   briefing?: string
   goalObjectiveIds?: string[]
 }) {
@@ -224,6 +227,44 @@ function WelcomeCampaignDialog({
                   </section>
                 ) : null}
 
+                {scenarioId === 'falklands-1982' ? (
+                  <section>
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <h3 className="retro-font text-xs uppercase tracking-wide text-synthwave-cyan">
+                        Campaign Phases
+                      </h3>
+                      <span className="text-xs text-synthwave-light/55">
+                        {falklandsCampaignPhases.length} Phases
+                      </span>
+                    </div>
+                    <ol className="space-y-2">
+                      {falklandsCampaignPhases.map((phase, index) => (
+                        <li
+                          key={phase.title}
+                          className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 rounded-md border border-synthwave-cyan/15 bg-synthwave-cyan/[0.045] p-3"
+                        >
+                          <div className="flex h-8 w-8 items-center justify-center rounded border border-synthwave-cyan/35 bg-synthwave-cyan/10 font-mono text-xs text-synthwave-cyan">
+                            {String(index + 1).padStart(2, '0')}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h4 className="text-sm font-semibold text-white">{phase.title}</h4>
+                              {index === 0 ? (
+                                <span className="rounded border border-synthwave-pink/35 bg-synthwave-pink/8 px-1.5 py-0.5 text-[0.55rem] uppercase tracking-wider text-synthwave-pink">
+                                  Start
+                                </span>
+                              ) : null}
+                            </div>
+                            <p className="mt-1 text-xs leading-5 text-synthwave-light/68">
+                              {phase.description}
+                            </p>
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
+                  </section>
+                ) : null}
+
                 {goalObjectiveIds && goalObjectiveIds.length > 0 ? (
                   <section>
                     <div className="mb-3 flex items-center justify-between gap-3">
@@ -281,6 +322,24 @@ function WelcomeCampaignDialog({
     </Dialog>
   )
 }
+
+const falklandsCampaignPhases = [
+  {
+    title: 'Sea Control & Landing Preparation',
+    description:
+      'Protect the carrier, escort, and amphibious group. Eliminate hostile ships, the island SAM network, and local radar defenses to clear San Carlos.'
+  },
+  {
+    title: 'San Carlos Landing',
+    description:
+      'Hold the task force together while the amphibious group unloads at San Carlos. The landing takes 30 campaign minutes.'
+  },
+  {
+    title: 'Land Campaign',
+    description:
+      'Use the San Carlos beachhead, FARP, and landed formations to advance east and capture Port Stanley and Stanley Airport.'
+  }
+] as const
 
 const welcomeActions: {
   id: string

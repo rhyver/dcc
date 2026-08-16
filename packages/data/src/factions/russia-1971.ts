@@ -16,6 +16,8 @@ export const RUSSIA1971: z.infer<typeof schemas.faction> = {
     'Strategic Strike': ['Tu-95MS'],
     CAS: ['Mi-24P'],
     CSAR: ['Mi-8MT', 'Mi-24P'],
+    CASEVAC: ['Mi-8MT'],
+    'Troop Extraction': ['Mi-8MT'],
     'Air Assault': ['Mi-8MT', 'Mi-24P'],
     SEAD: ['Su-17M4'],
     'Antiship Strike': [],

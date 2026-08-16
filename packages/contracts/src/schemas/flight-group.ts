@@ -8,7 +8,10 @@ import { task } from './task'
 const structureTarget = z.object({
   id: z.string(),
   type: z.string(),
-  objectiveId: z.string()
+  objectiveId: z.string(),
+  kind: z
+    .enum(['structure', 'ground-group', 'naval-group', 'troop-extraction', 'casevac'])
+    .optional()
 })
 
 export const flightGroup = z.object({

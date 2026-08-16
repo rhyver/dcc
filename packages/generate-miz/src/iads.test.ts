@@ -6,7 +6,6 @@ import { buildIadsConfig } from './iads'
 
 type Campaign = z.infer<typeof schemas.campaign.campaign>
 type Mission = z.infer<typeof schemas.dcs.mission>
-type Theatre = z.infer<typeof schemas.theatre>
 
 function createMission(): Mission {
   return {
@@ -141,6 +140,14 @@ function createCampaign(): Campaign {
       opponent: {
         ...createCoalition('opponent'),
         samGroups: [{ id: 'sam-1', type: 'SA-6', objectiveId: 'Alpha' }],
+        ewrGroups: [
+          {
+            id: 'ewr-alpha-1',
+            type: '55G6 EWR',
+            objectiveId: 'Alpha',
+            position: { x: 1000, y: 2000 }
+          }
+        ],
         structures: [
           {
             id: 'command',
@@ -175,37 +182,33 @@ function createCampaign(): Campaign {
   }
 }
 
-const theatre: Theatre = {
-  name: 'Caucasus',
-  objectives: [{ name: 'Alpha', type: 'primary', position: { x: 1000, y: 2000 } }],
-  targets: {},
-  airdromeDetails: {},
-  info: {
-    center: { x: 0, y: 0 },
-    weather: {
-      temperature: { amplitude: 0, mean: 20 },
-      cloudCover: { baseCloudCover: 0, seasonEffect: 0 },
-      wind: { speed: 0, direction: 0 }
-    },
-    night: { startHour: 20, endHour: 6 }
-  }
-}
-
 describe('buildIadsConfig', () => {
   test('generates opponent IADS config and EWR groups', () => {
     const mission = createMission()
-    const config = buildIadsConfig(mission, createCampaign(), theatre)
+    const config = buildIadsConfig(mission, createCampaign())
 
     expect(config).toEqual({
       name: 'DCC-campaign-1-red',
       samPrefix: 'SAM-',
       ewrPrefix: 'IADS-EWR-',
+      alwaysOnSamTypes: [],
       commandCenters: ['Static-command-Command Center-101-1'],
       powerSources: ['Static-power-Power Plant-102-1'],
       connectionNodes: ['Static-link-Logistics Hub-103-1']
     })
     expect(mission.coalition.red.country?.[0]?.vehicle?.group).toHaveLength(1)
-    expect(mission.coalition.red.country?.[0]?.vehicle?.group[0]?.name).toMatch(/^IADS-EWR-Alpha-/)
+    expect(mission.coalition.red.country?.[0]?.vehicle?.group[0]).toMatchObject({
+      name: expect.stringMatching(/^IADS-EWR-ewr-alpha-1-/),
+      units: [{ name: 'IADS-EWR-Unit-ewr-alpha-1', type: '55G6 EWR', x: 1000, y: 2000 }]
+    })
+  })
+
+  test('keeps Falklands Hawk sites emitting so they can acquire fast fighters', () => {
+    const campaign = createCampaign()
+    campaign.scenarioId = 'falklands-1982'
+    campaign.coalitions.opponent.samGroups = [{ id: 'hawk-1', type: 'Hawk', objectiveId: 'Alpha' }]
+
+    expect(buildIadsConfig(createMission(), campaign)?.alwaysOnSamTypes).toEqual(['Hawk'])
   })
 
   test('does not emit IADS when disabled', () => {
@@ -213,16 +216,35 @@ describe('buildIadsConfig', () => {
     const campaign = createCampaign()
     campaign.campaignParams = { iads: false }
 
-    expect(buildIadsConfig(mission, campaign, theatre)).toBeNull()
+    expect(buildIadsConfig(mission, campaign)).toBeNull()
     expect(mission.coalition.red.country?.[0]?.vehicle?.group).toHaveLength(0)
   })
 
-  test('does not emit IADS without opponent SAMs', () => {
+  test('keeps persistent EWRs active after all opponent SAMs are gone', () => {
     const mission = createMission()
     const campaign = createCampaign()
     campaign.coalitions.opponent.samGroups = []
 
-    expect(buildIadsConfig(mission, campaign, theatre)).toBeNull()
+    expect(buildIadsConfig(mission, campaign)).not.toBeNull()
+    expect(mission.coalition.red.country?.[0]?.vehicle?.group).toHaveLength(1)
+  })
+
+  test('does not respawn a destroyed persistent EWR', () => {
+    const mission = createMission()
+    const campaign = createCampaign()
+    campaign.coalitions.opponent.ewrGroups![0]!.destroyed = true
+
+    expect(buildIadsConfig(mission, campaign)).not.toBeNull()
+    expect(mission.coalition.red.country?.[0]?.vehicle?.group).toHaveLength(0)
+  })
+
+  test('does not emit IADS when every opponent emitter is destroyed', () => {
+    const mission = createMission()
+    const campaign = createCampaign()
+    campaign.coalitions.opponent.samGroups = []
+    campaign.coalitions.opponent.ewrGroups![0]!.destroyed = true
+
+    expect(buildIadsConfig(mission, campaign)).toBeNull()
     expect(mission.coalition.red.country?.[0]?.vehicle?.group).toHaveLength(0)
   })
 })

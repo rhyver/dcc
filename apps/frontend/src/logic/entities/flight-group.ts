@@ -307,6 +307,14 @@ export class FlightGroup {
     return this._data.packageId
   }
 
+  get targetDestroyed() {
+    return this._data.targetDestroyed
+  }
+
+  set targetDestroyed(targetDestroyed: boolean | undefined) {
+    this._data.targetDestroyed = targetDestroyed
+  }
+
   // Setters mutate the wrapped data object (works with Immer drafts)
   setPosition(newPosition: z.infer<typeof schemas.position>) {
     this._data.position = newPosition

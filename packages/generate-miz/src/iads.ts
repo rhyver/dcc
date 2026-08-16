@@ -3,23 +3,20 @@ import * as z from 'zod'
 
 type Campaign = z.infer<typeof schemas.campaign.campaign>
 type Mission = z.infer<typeof schemas.dcs.mission>
-type Theatre = z.infer<typeof schemas.theatre>
 type Coalition = z.infer<typeof schemas.coalition>
-type Position = z.infer<typeof schemas.position>
 type MissionCountry = NonNullable<Mission['coalition']['red']['country']>[number]
 
 export type MissionIadsConfig = {
   name: string
   samPrefix: string
   ewrPrefix: string
+  alwaysOnSamTypes: string[]
   commandCenters: string[]
   powerSources: string[]
   connectionNodes: string[]
 }
 
 const IADS_EWR_PREFIX = 'IADS-EWR-'
-const IADS_EWR_TYPE = '55G6 EWR'
-const IADS_EWR_COUNT = 3
 const INFRASTRUCTURE_TYPES = {
   commandCenters: 'Command Center',
   powerSources: 'Power Plant',
@@ -30,16 +27,8 @@ function missionCoalitionKey(coalition: Coalition) {
   return coalition === 'player' ? 'blue' : coalition === 'opponent' ? 'red' : 'neutrals'
 }
 
-function getDistance(a: Position, b: Position) {
-  return Math.hypot(a.x - b.x, a.y - b.y)
-}
-
 function getOpponentCountry(mission: Mission): MissionCountry | null {
   return mission.coalition.red.country?.[0] ?? null
-}
-
-function getObjectivePosition(theatre: Theatre, objectiveId: string) {
-  return theatre.objectives.find((objective) => objective.name === objectiveId)?.position
 }
 
 function nextMissionKey(mission: Mission) {
@@ -47,44 +36,7 @@ function nextMissionKey(mission: Mission) {
   return mission.currentKey
 }
 
-function createEwrPositions(campaign: Campaign, theatre: Theatre) {
-  const opponent = campaign.coalitions.opponent
-  const samObjectiveIds = opponent.samGroups.map((sam) => sam.objectiveId)
-  const structureObjectiveIds = opponent.structures
-    .filter((structure) =>
-      Object.values(INFRASTRUCTURE_TYPES).includes(
-        structure.type as (typeof INFRASTRUCTURE_TYPES)[keyof typeof INFRASTRUCTURE_TYPES]
-      )
-    )
-    .map((structure) => structure.objectiveId)
-
-  const candidateIds = [
-    ...new Set([...structureObjectiveIds, ...samObjectiveIds, ...opponent.objectiveIds])
-  ]
-  const candidates = candidateIds
-    .map((objectiveId) => ({
-      objectiveId,
-      position: getObjectivePosition(theatre, objectiveId)
-    }))
-    .filter((candidate): candidate is { objectiveId: string; position: Position } =>
-      Boolean(candidate.position)
-    )
-
-  const selected: typeof candidates = []
-  for (const candidate of candidates) {
-    if (selected.length >= IADS_EWR_COUNT) break
-    if (
-      selected.length === 0 ||
-      selected.every((entry) => getDistance(entry.position, candidate.position) > 45_000)
-    ) {
-      selected.push(candidate)
-    }
-  }
-
-  return selected.length > 0 ? selected : candidates.slice(0, IADS_EWR_COUNT)
-}
-
-function addOpponentEwrGroups(mission: Mission, campaign: Campaign, theatre: Theatre) {
+function addOpponentEwrGroups(mission: Mission, campaign: Campaign) {
   const country = getOpponentCountry(mission)
   if (!country) return
 
@@ -92,10 +44,12 @@ function addOpponentEwrGroups(mission: Mission, campaign: Campaign, theatre: The
     country.vehicle = { group: [] }
   }
 
-  createEwrPositions(campaign, theatre).forEach(({ objectiveId, position }, index) => {
+  for (const ewr of campaign.coalitions.opponent.ewrGroups ?? []) {
+    if (ewr.destroyed) continue
+
     const groupId = nextMissionKey(mission)
     const unitId = nextMissionKey(mission)
-    const groupName = `${IADS_EWR_PREFIX}${objectiveId}-${index + 1}-${groupId}`
+    const groupName = `${IADS_EWR_PREFIX}${ewr.id}-${groupId}`
 
     country.vehicle?.group.push({
       groupId,
@@ -103,16 +57,16 @@ function addOpponentEwrGroups(mission: Mission, campaign: Campaign, theatre: The
       units: [
         {
           unitId,
-          name: `${groupName}-1`,
-          x: position.x,
-          y: position.y,
-          type: IADS_EWR_TYPE,
+          name: `${IADS_EWR_PREFIX}Unit-${ewr.id}`,
+          x: ewr.position.x,
+          y: ewr.position.y,
+          type: ewr.type,
           heading: 0,
           skill: 'High'
         }
       ],
-      x: position.x,
-      y: position.y,
+      x: ewr.position.x,
+      y: ewr.position.y,
       hidden: false,
       start_time: 0,
       route: {
@@ -121,8 +75,8 @@ function addOpponentEwrGroups(mission: Mission, campaign: Campaign, theatre: The
             alt: 0,
             alt_type: 'BARO',
             type: 'Turning Point',
-            y: position.y,
-            x: position.x,
+            y: ewr.position.y,
+            x: ewr.position.x,
             speed: 0,
             action: 'Off Road',
             ETA: 0,
@@ -133,7 +87,7 @@ function addOpponentEwrGroups(mission: Mission, campaign: Campaign, theatre: The
         ]
       }
     })
-  })
+  }
 }
 
 function collectAliveStructureUnitNames(
@@ -165,20 +119,21 @@ function collectAliveStructureUnitNames(
   return names
 }
 
-export function buildIadsConfig(
-  mission: Mission,
-  campaign: Campaign,
-  theatre: Theatre
-): MissionIadsConfig | null {
+export function buildIadsConfig(mission: Mission, campaign: Campaign): MissionIadsConfig | null {
   if (campaign.campaignParams?.iads === false) return null
-  if (campaign.coalitions.opponent.samGroups.length === 0) return null
+  const hasLivingEwr =
+    campaign.coalitions.opponent.ewrGroups?.some((ewr) => !ewr.destroyed) ?? false
+  if (campaign.coalitions.opponent.samGroups.length === 0 && !hasLivingEwr) return null
 
-  addOpponentEwrGroups(mission, campaign, theatre)
+  addOpponentEwrGroups(mission, campaign)
 
   return {
     name: `DCC-${campaign.id}-red`,
     samPrefix: 'SAM-',
     ewrPrefix: IADS_EWR_PREFIX,
+    // HAWK needs time to acquire and track fast, low-level Harriers. Skynet's default kill-zone
+    // wake-up leaves the radar dark until those aircraft are already at the edge of weapon range.
+    alwaysOnSamTypes: campaign.scenarioId === 'falklands-1982' ? ['Hawk'] : [],
     commandCenters: collectAliveStructureUnitNames(
       mission,
       campaign,

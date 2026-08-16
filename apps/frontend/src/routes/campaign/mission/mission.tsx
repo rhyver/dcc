@@ -13,6 +13,7 @@ import { coreClient, orpc } from '@/lib/orpc'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Switch } from '@/components/ui/switch'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { cn } from '@/lib/utils'
 
 import { FlightGroupCard } from '../components/flight-group-card'
@@ -24,6 +25,7 @@ type FlightTask = z.infer<typeof schemas.flightGroup>['task']
 type Campaign = z.infer<typeof schemas.campaign.campaign>
 type FlightGroup = Campaign['coalitions']['player']['flightGroups'][number]
 type MissionState = z.infer<typeof schemas.missionState>
+type AiWingmanSpawn = NonNullable<NonNullable<Campaign['campaignParams']>['aiWingmanSpawn']>
 
 const eraLabels: Partial<Record<z.infer<typeof schemas.era>, string>> = {
   'Late CW': 'Late Cold War'
@@ -70,7 +72,9 @@ function getStructureTargetProgress(campaign: Campaign, targetId: string) {
 
 function getSamTargetProgress(campaign: Campaign, targetId: string) {
   for (const coalition of ['player', 'opponent'] as const) {
-    const sam = campaign.coalitions[coalition].samGroups.find((candidate) => candidate.id === targetId)
+    const sam = campaign.coalitions[coalition].samGroups.find(
+      (candidate) => candidate.id === targetId
+    )
     if (!sam) continue
 
     const total = samTemplates[sam.type]?.units.length ?? sam.deadUnitIndexes?.length ?? 1
@@ -78,6 +82,17 @@ function getSamTargetProgress(campaign: Campaign, targetId: string) {
       destroyed: sam.destroyed ? total : (sam.deadUnitIndexes?.length ?? 0),
       total
     }
+  }
+
+  return null
+}
+
+function getEwrTargetProgress(campaign: Campaign, targetId: string) {
+  for (const coalition of ['player', 'opponent'] as const) {
+    const ewr = campaign.coalitions[coalition].ewrGroups?.find(
+      (candidate) => candidate.id === targetId
+    )
+    if (ewr) return { destroyed: ewr.destroyed ? 1 : 0, total: 1 }
   }
 
   return null
@@ -130,6 +145,7 @@ function buildTargetOutcomes(
     const progress =
       getStructureTargetProgress(updatedCampaign, group.target.id) ??
       getSamTargetProgress(updatedCampaign, group.target.id) ??
+      getEwrTargetProgress(updatedCampaign, group.target.id) ??
       getGroundGroupTargetProgress(currentCampaign, missionState, group.target.id)
 
     if (progress) {
@@ -288,6 +304,10 @@ export function Mission() {
   const campaignTime = useSelector(activeStore, (state) => state.context.time)
   const timeMultiplier = useSelector(activeStore, (state) => state.context.timeMultiplier)
   const hotStart = useSelector(activeStore, (state) => state.context.campaignParams?.hotStart)
+  const aiWingmanSpawn = useSelector(
+    activeStore,
+    (state) => state.context.campaignParams?.aiWingmanSpawn ?? 'landOnly'
+  )
   const culling = useSelector(activeStore, (state) => state.context.campaignParams?.culling ?? true)
   const ewr = useSelector(activeStore, (state) => state.context.campaignParams?.ewr ?? true)
   const iads = useSelector(activeStore, (state) => state.context.campaignParams?.iads ?? true)
@@ -535,239 +555,283 @@ export function Mission() {
 
               <ScrollArea className="min-h-0 flex-1">
                 <div className="space-y-5 pr-4">
-                {/* Step 1: Generate */}
-                <div className={cn('space-y-2', isGenerated && 'opacity-50')}>
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={cn(
-                        'h-7 w-7 rounded-full border-2 text-xs flex items-center justify-center font-bold',
-                        isGenerated
-                          ? 'border-green-500/60 text-green-400'
-                          : 'border-[#ff00aa]/60 text-[#ff00aa]'
-                      )}
-                    >
-                      {isGenerated ? '\u2713' : '1'}
-                    </div>
-                    <span className="text-sm font-medium text-white">Generate Mission File</span>
-                  </div>
-                  <p className="text-sm text-white/50 ml-10">
-                    Creates a .miz file from your campaign state. Open it in DCS to fly the mission.
-                  </p>
-                  {!isGenerated && (
-                    <div className="ml-10 space-y-3">
-                      <div className="border border-[#ff00aa]/20 rounded-lg bg-[#ff00aa]/5 p-3 flex items-center justify-between">
-                        <div>
-                          <div className="text-sm font-medium text-white">Hot Start</div>
-                          <div className="text-sm text-white/40">
-                            Skip startup — begin with engines running on the runway
-                          </div>
-                        </div>
-                        <Switch
-                          checked={!!hotStart}
-                          onCheckedChange={(checked) =>
-                            activeStore.send({ type: 'setHotStart', hotStart: checked })
-                          }
-                        />
-                      </div>
-                      <div className="overflow-hidden rounded-lg border border-[#ff00aa]/20 bg-[#ff00aa]/5">
-                        <button
-                          type="button"
-                          onClick={() => setMissionOptionsOpen((open) => !open)}
-                          aria-expanded={missionOptionsOpen}
-                          className="flex w-full items-center justify-between gap-3 p-3 text-left transition-colors hover:bg-[#ff00aa]/10"
-                        >
-                          <div>
-                            <div className="text-sm font-medium text-white">
-                              Advanced Mission Options
-                            </div>
-                            <div className="text-sm text-white/40">
-                              Culling, EWR, strike targeting, and JTAC support
-                            </div>
-                          </div>
-                          <ChevronDown
-                            className={cn(
-                              'h-4 w-4 shrink-0 text-[#ff00aa] transition-transform',
-                              missionOptionsOpen && 'rotate-180'
-                            )}
-                          />
-                        </button>
-                        {missionOptionsOpen && (
-                          <div className="space-y-3 border-t border-[#ff00aa]/15 p-3">
-                            <div className="flex items-center justify-between gap-3">
-                              <div>
-                                <div className="text-sm font-medium text-white">Culling</div>
-                                <div className="text-sm text-white/40">
-                                  Remove distant units to improve performance
-                                </div>
-                              </div>
-                              <Switch
-                                checked={!!culling}
-                                onCheckedChange={(checked) =>
-                                  activeStore.send({ type: 'setCulling', culling: checked })
-                                }
-                              />
-                            </div>
-                            <div className="flex items-center justify-between gap-3">
-                              <div>
-                                <div className="text-sm font-medium text-white">EWR</div>
-                                <div className="text-sm text-white/40">
-                                  Add player radio-menu bogey callouts during the mission
-                                </div>
-                              </div>
-                              <Switch
-                                checked={!!ewr}
-                                onCheckedChange={(checked) =>
-                                  activeStore.send({ type: 'setEwr', ewr: checked })
-                                }
-                              />
-                            </div>
-                            <div className="flex items-center justify-between gap-3">
-                              <div>
-                                <div className="text-sm font-medium text-white">IADS</div>
-                                <div className="text-sm text-white/40">
-                                  Add Skynet-controlled enemy SAM and radar behavior
-                                </div>
-                              </div>
-                              <Switch
-                                checked={!!iads}
-                                onCheckedChange={(checked) =>
-                                  activeStore.send({ type: 'setIads', iads: checked })
-                                }
-                              />
-                            </div>
-                            <div className="flex items-center justify-between gap-3">
-                              <div>
-                                <div className="text-sm font-medium text-white">
-                                  Exact Strike Target
-                                </div>
-                                <div className="text-sm text-white/40">
-                                  Use precise target steerpoints for Strike missions
-                                </div>
-                              </div>
-                              <Switch
-                                checked={!!exactTarget}
-                                onCheckedChange={(checked) =>
-                                  activeStore.send({
-                                    type: 'setExactTarget',
-                                    exactTarget: checked
-                                  })
-                                }
-                              />
-                            </div>
-                            <div className="flex items-center justify-between gap-3">
-                              <div>
-                                <div className="text-sm font-medium text-white">CAS JTAC</div>
-                                <div className="text-sm text-white/40">
-                                  Add JTAC support for player CAS tasking
-                                </div>
-                              </div>
-                              <Switch
-                                checked={!!casJtac}
-                                onCheckedChange={(checked) =>
-                                  activeStore.send({ type: 'setCasJtac', casJtac: checked })
-                                }
-                              />
-                            </div>
-                            <div className="flex items-center justify-between gap-3">
-                              <div>
-                                <div className="text-sm font-medium text-white">
-                                  F10 Vectors
-                                </div>
-                                <div className="text-sm text-white/40">
-                                  Add radio-menu requests for target and landing vectors
-                                </div>
-                              </div>
-                              <Switch
-                                checked={navigationVectors}
-                                onCheckedChange={(enabled) =>
-                                  activeStore.send({ type: 'setNavigationVectors', enabled })
-                                }
-                              />
-                            </div>
-                            <div className="flex items-center justify-between gap-3">
-                              <div>
-                                <div className="text-sm font-medium text-white">Target TACAN</div>
-                                <div className="text-sm text-white/40">
-                                  Add a generated target TACAN beacon for client flights
-                                </div>
-                              </div>
-                              <Switch
-                                checked={navigationTargetTacan}
-                                onCheckedChange={(enabled) =>
-                                  activeStore.send({ type: 'setNavigationTargetTacan', enabled })
-                                }
-                              />
-                            </div>
-                          </div>
+                  {/* Step 1: Generate */}
+                  <div className={cn('space-y-2', isGenerated && 'opacity-50')}>
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={cn(
+                          'h-7 w-7 rounded-full border-2 text-xs flex items-center justify-center font-bold',
+                          isGenerated
+                            ? 'border-green-500/60 text-green-400'
+                            : 'border-[#ff00aa]/60 text-[#ff00aa]'
                         )}
+                      >
+                        {isGenerated ? '\u2713' : '1'}
                       </div>
-                      <button
-                        onClick={handleGenerate}
-                        disabled={isGenerating}
-                        className="h-9 px-5 text-sm font-medium bg-[#ff00aa] text-white rounded hover:bg-[#ff00aa]/80 disabled:opacity-50 transition-colors shadow-[0_0_15px_rgba(255,0,170,0.5)]"
-                      >
-                        {isGenerating ? 'Generating...' : 'Generate'}
-                      </button>
+                      <span className="text-sm font-medium text-white">Generate Mission File</span>
                     </div>
-                  )}
-                </div>
-
-                {/* Step 2: Fly in DCS */}
-                <div className={cn('space-y-2', (!isGenerated || isSubmitting) && 'opacity-50')}>
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={cn(
-                        'h-7 w-7 rounded-full border-2 text-xs flex items-center justify-center font-bold',
-                        isMissionStateReady
-                          ? 'border-green-500/60 text-green-400'
-                          : 'border-[#00ddff]/60 text-[#00ddff]'
-                      )}
-                    >
-                      {isMissionStateReady ? '\u2713' : '2'}
-                    </div>
-                    <span className="text-sm font-medium text-white">Fly the Mission in DCS</span>
+                    <p className="text-sm text-white/50 ml-10">
+                      Creates a .miz file from your campaign state. Open it in DCS to fly the
+                      mission.
+                    </p>
+                    {!isGenerated && (
+                      <div className="ml-10 space-y-3">
+                        <div className="border border-[#ff00aa]/20 rounded-lg bg-[#ff00aa]/5 p-3 flex items-center justify-between">
+                          <div>
+                            <div className="text-sm font-medium text-white">Hot Start</div>
+                            <div className="text-sm text-white/40">
+                              Skip startup — begin with engines running on the runway
+                            </div>
+                          </div>
+                          <Switch
+                            checked={!!hotStart}
+                            onCheckedChange={(checked) =>
+                              activeStore.send({ type: 'setHotStart', hotStart: checked })
+                            }
+                          />
+                        </div>
+                        <div className="overflow-hidden rounded-lg border border-[#ff00aa]/20 bg-[#ff00aa]/5">
+                          <button
+                            type="button"
+                            onClick={() => setMissionOptionsOpen((open) => !open)}
+                            aria-expanded={missionOptionsOpen}
+                            className="flex w-full items-center justify-between gap-3 p-3 text-left transition-colors hover:bg-[#ff00aa]/10"
+                          >
+                            <div>
+                              <div className="text-sm font-medium text-white">
+                                Advanced Mission Options
+                              </div>
+                              <div className="text-sm text-white/40">
+                                AI wingmen, performance, navigation, and mission support
+                              </div>
+                            </div>
+                            <ChevronDown
+                              className={cn(
+                                'h-4 w-4 shrink-0 text-[#ff00aa] transition-transform',
+                                missionOptionsOpen && 'rotate-180'
+                              )}
+                            />
+                          </button>
+                          {missionOptionsOpen && (
+                            <div className="space-y-3 border-t border-[#ff00aa]/15 p-3">
+                              <div className="flex items-center justify-between gap-3">
+                                <div>
+                                  <div className="text-sm font-medium text-white">AI Wingman</div>
+                                  <div className="text-sm text-white/40">
+                                    Choose when AI wingmen are added to client flights
+                                  </div>
+                                </div>
+                                <ToggleGroup
+                                  type="single"
+                                  value={aiWingmanSpawn}
+                                  variant="outline"
+                                  size="sm"
+                                  aria-label="AI wingman spawn behavior"
+                                  onValueChange={(value) => {
+                                    if (!value) return
+                                    activeStore.send({
+                                      type: 'setAiWingmanSpawn',
+                                      aiWingmanSpawn: value as AiWingmanSpawn
+                                    })
+                                  }}
+                                  className="shrink-0"
+                                >
+                                  <ToggleGroupItem
+                                    value="never"
+                                    aria-label="Never spawn AI wingmen"
+                                    className="border-[#ff00aa]/25 bg-transparent text-white/55 hover:bg-[#ff00aa]/10 hover:text-white data-[state=on]:bg-[#ff00aa]/20 data-[state=on]:text-[#ff66cc]"
+                                  >
+                                    Never
+                                  </ToggleGroupItem>
+                                  <ToggleGroupItem
+                                    value="landOnly"
+                                    aria-label="Spawn AI wingmen at land bases only, not on carriers or airborne"
+                                    className="border-[#ff00aa]/25 bg-transparent text-white/55 hover:bg-[#ff00aa]/10 hover:text-white data-[state=on]:bg-[#ff00aa]/20 data-[state=on]:text-[#ff66cc]"
+                                  >
+                                    Land only
+                                  </ToggleGroupItem>
+                                  <ToggleGroupItem
+                                    value="always"
+                                    aria-label="Always spawn AI wingmen"
+                                    className="border-[#ff00aa]/25 bg-transparent text-white/55 hover:bg-[#ff00aa]/10 hover:text-white data-[state=on]:bg-[#ff00aa]/20 data-[state=on]:text-[#ff66cc]"
+                                  >
+                                    Always
+                                  </ToggleGroupItem>
+                                </ToggleGroup>
+                              </div>
+                              <div className="flex items-center justify-between gap-3">
+                                <div>
+                                  <div className="text-sm font-medium text-white">Culling</div>
+                                  <div className="text-sm text-white/40">
+                                    Remove distant units to improve performance
+                                  </div>
+                                </div>
+                                <Switch
+                                  checked={!!culling}
+                                  onCheckedChange={(checked) =>
+                                    activeStore.send({ type: 'setCulling', culling: checked })
+                                  }
+                                />
+                              </div>
+                              <div className="flex items-center justify-between gap-3">
+                                <div>
+                                  <div className="text-sm font-medium text-white">EWR</div>
+                                  <div className="text-sm text-white/40">
+                                    Add player radio-menu bogey callouts during the mission
+                                  </div>
+                                </div>
+                                <Switch
+                                  checked={!!ewr}
+                                  onCheckedChange={(checked) =>
+                                    activeStore.send({ type: 'setEwr', ewr: checked })
+                                  }
+                                />
+                              </div>
+                              <div className="flex items-center justify-between gap-3">
+                                <div>
+                                  <div className="text-sm font-medium text-white">IADS</div>
+                                  <div className="text-sm text-white/40">
+                                    Add Skynet-controlled enemy SAM and radar behavior
+                                  </div>
+                                </div>
+                                <Switch
+                                  checked={!!iads}
+                                  onCheckedChange={(checked) =>
+                                    activeStore.send({ type: 'setIads', iads: checked })
+                                  }
+                                />
+                              </div>
+                              <div className="flex items-center justify-between gap-3">
+                                <div>
+                                  <div className="text-sm font-medium text-white">
+                                    Exact Strike Target
+                                  </div>
+                                  <div className="text-sm text-white/40">
+                                    Use precise target steerpoints for Strike missions
+                                  </div>
+                                </div>
+                                <Switch
+                                  checked={!!exactTarget}
+                                  onCheckedChange={(checked) =>
+                                    activeStore.send({
+                                      type: 'setExactTarget',
+                                      exactTarget: checked
+                                    })
+                                  }
+                                />
+                              </div>
+                              <div className="flex items-center justify-between gap-3">
+                                <div>
+                                  <div className="text-sm font-medium text-white">CAS JTAC</div>
+                                  <div className="text-sm text-white/40">
+                                    Add JTAC support for player CAS tasking
+                                  </div>
+                                </div>
+                                <Switch
+                                  checked={!!casJtac}
+                                  onCheckedChange={(checked) =>
+                                    activeStore.send({ type: 'setCasJtac', casJtac: checked })
+                                  }
+                                />
+                              </div>
+                              <div className="flex items-center justify-between gap-3">
+                                <div>
+                                  <div className="text-sm font-medium text-white">F10 Vectors</div>
+                                  <div className="text-sm text-white/40">
+                                    Add radio-menu requests for target and landing vectors
+                                  </div>
+                                </div>
+                                <Switch
+                                  checked={navigationVectors}
+                                  onCheckedChange={(enabled) =>
+                                    activeStore.send({ type: 'setNavigationVectors', enabled })
+                                  }
+                                />
+                              </div>
+                              <div className="flex items-center justify-between gap-3">
+                                <div>
+                                  <div className="text-sm font-medium text-white">Target TACAN</div>
+                                  <div className="text-sm text-white/40">
+                                    Add a generated target TACAN beacon for client flights
+                                  </div>
+                                </div>
+                                <Switch
+                                  checked={navigationTargetTacan}
+                                  onCheckedChange={(enabled) =>
+                                    activeStore.send({ type: 'setNavigationTargetTacan', enabled })
+                                  }
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          onClick={handleGenerate}
+                          disabled={isGenerating}
+                          className="h-9 px-5 text-sm font-medium bg-[#ff00aa] text-white rounded hover:bg-[#ff00aa]/80 disabled:opacity-50 transition-colors shadow-[0_0_15px_rgba(255,0,170,0.5)]"
+                        >
+                          {isGenerating ? 'Generating...' : 'Generate'}
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <p className="text-sm text-white/50 ml-10">
-                    {isGenerated && !isMissionStateReady
-                      ? 'Waiting for DCS to write a fresh mission state for this campaign.'
-                      : 'Load the generated mission in DCS World and complete your objectives.'}
-                  </p>
-                  {isGenerated && (
-                    <button
-                      type="button"
-                      onClick={handleSelectMissionStateFile}
-                      disabled={isSubmitting}
-                      className="ml-10 text-sm font-medium text-[#00ddff]/80 underline-offset-4 transition-colors hover:text-[#00ddff] hover:underline disabled:pointer-events-none disabled:opacity-50"
-                    >
-                      Optional: select a mission state file manually
-                    </button>
-                  )}
-                </div>
 
-                {/* Step 3: Submit results */}
-                <div className={cn('space-y-2', !isMissionStateReady && 'opacity-50')}>
-                  <div className="flex items-center gap-3">
-                    <div className="h-7 w-7 rounded-full border-2 border-[#9900ff]/60 text-xs flex items-center justify-center font-bold text-[#9900ff]">
-                      3
-                    </div>
-                    <span className="text-sm font-medium text-white">Submit Results</span>
-                  </div>
-                  <p className="text-sm text-white/50 ml-10">
-                    After flying, submit the mission results to advance the campaign. Losses and
-                    objectives will be updated.
-                  </p>
-                  {isMissionStateReady && (
-                    <div className="ml-10">
-                      <button
-                        onClick={handleSubmitMissionState}
-                        disabled={isSubmitting || !isMissionStateReady}
-                        className="h-9 px-5 text-sm font-medium bg-[#9900ff] text-white rounded hover:bg-[#9900ff]/80 disabled:opacity-50 transition-colors shadow-[0_0_15px_rgba(153,0,255,0.5)]"
+                  {/* Step 2: Fly in DCS */}
+                  <div className={cn('space-y-2', (!isGenerated || isSubmitting) && 'opacity-50')}>
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={cn(
+                          'h-7 w-7 rounded-full border-2 text-xs flex items-center justify-center font-bold',
+                          isMissionStateReady
+                            ? 'border-green-500/60 text-green-400'
+                            : 'border-[#00ddff]/60 text-[#00ddff]'
+                        )}
                       >
-                        {isSubmitting ? 'Submitting...' : 'Submit Mission State'}
-                      </button>
+                        {isMissionStateReady ? '\u2713' : '2'}
+                      </div>
+                      <span className="text-sm font-medium text-white">Fly the Mission in DCS</span>
                     </div>
-                  )}
-                </div>
+                    <p className="text-sm text-white/50 ml-10">
+                      {isGenerated && !isMissionStateReady
+                        ? 'Waiting for DCS to write a fresh mission state for this campaign.'
+                        : 'Load the generated mission in DCS World and complete your objectives.'}
+                    </p>
+                    {isGenerated && (
+                      <button
+                        type="button"
+                        onClick={handleSelectMissionStateFile}
+                        disabled={isSubmitting}
+                        className="ml-10 text-sm font-medium text-[#00ddff]/80 underline-offset-4 transition-colors hover:text-[#00ddff] hover:underline disabled:pointer-events-none disabled:opacity-50"
+                      >
+                        Optional: select a mission state file manually
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Step 3: Submit results */}
+                  <div className={cn('space-y-2', !isMissionStateReady && 'opacity-50')}>
+                    <div className="flex items-center gap-3">
+                      <div className="h-7 w-7 rounded-full border-2 border-[#9900ff]/60 text-xs flex items-center justify-center font-bold text-[#9900ff]">
+                        3
+                      </div>
+                      <span className="text-sm font-medium text-white">Submit Results</span>
+                    </div>
+                    <p className="text-sm text-white/50 ml-10">
+                      After flying, submit the mission results to advance the campaign. Losses and
+                      objectives will be updated.
+                    </p>
+                    {isMissionStateReady && (
+                      <div className="ml-10">
+                        <button
+                          onClick={handleSubmitMissionState}
+                          disabled={isSubmitting || !isMissionStateReady}
+                          className="h-9 px-5 text-sm font-medium bg-[#9900ff] text-white rounded hover:bg-[#9900ff]/80 disabled:opacity-50 transition-colors shadow-[0_0_15px_rgba(153,0,255,0.5)]"
+                        >
+                          {isSubmitting ? 'Submitting...' : 'Submit Mission State'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </ScrollArea>
             </div>
@@ -810,78 +874,79 @@ export function Mission() {
           {/* Right Column - Time & Weather */}
           <ScrollArea className="min-h-0">
             <div className="flex min-h-full flex-col gap-4 pr-4">
-            {/* Time */}
-            <div className="border border-[#00ddff]/30 bg-[#00ddff]/5 rounded-lg p-4 backdrop-blur-sm">
-              <div className="flex items-center gap-2 mb-2">
-                <Clock className="h-5 w-5 text-[#00ddff]" />
-                <span className="text-sm font-semibold text-white">Mission Time</span>
-              </div>
-              <div className="text-4xl font-bold text-[#00ddff] tabular-nums">
-                {campaignTime ? formatTime(campaignTime) : '--:--'}
-              </div>
-              <div className="flex justify-between mt-2 text-sm text-white/50">
-                <span>UTC</span>
-                <span className={timeMultiplier === 0 ? 'text-[#ff00aa]' : ''}>
-                  x{timeMultiplier}
-                </span>
-              </div>
-            </div>
-
-            {/* Weather */}
-            <div className="flex-1 border border-[#9900ff]/30 bg-[#9900ff]/5 rounded-lg p-4 backdrop-blur-sm">
-              <div className="flex items-center gap-2 mb-3">
-                <CloudSun className="h-5 w-5 text-[#9900ff]" />
-                <span className="text-sm font-semibold text-white">Weather</span>
-              </div>
-              {weather ? (
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="flex items-center gap-2 text-sm text-white/50">
-                      <Sun className="h-4 w-4" /> Temp
-                    </span>
-                    <span className="text-sm text-white">
-                      {weather.temperature.mean.toFixed(0)}°C
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="flex items-center gap-2 text-sm text-white/50">
-                      <Wind className="h-4 w-4" /> Wind
-                    </span>
-                    <span className="text-sm text-white">
-                      {(weather.wind.speed * KNOTS_PER_MS).toFixed(0)} kt
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-white/50">Direction</span>
-                    <span className="text-sm text-white">
-                      {formatWindDirection(weather.wind.direction)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-white/50">Clouds</span>
-                    <span className="text-sm text-white">
-                      {Math.round(
-                        (weather.cloudCover.baseCloudCover + weather.cloudCover.seasonEffect) * 100
-                      )}
-                      %
-                    </span>
-                  </div>
+              {/* Time */}
+              <div className="border border-[#00ddff]/30 bg-[#00ddff]/5 rounded-lg p-4 backdrop-blur-sm">
+                <div className="flex items-center gap-2 mb-2">
+                  <Clock className="h-5 w-5 text-[#00ddff]" />
+                  <span className="text-sm font-semibold text-white">Mission Time</span>
                 </div>
-              ) : (
-                <div className="text-sm text-white/40">Loading...</div>
-              )}
-            </div>
-
-            {/* Theatre Info */}
-            <div className="border border-[#ff00aa]/20 rounded-lg p-4 bg-black/30">
-              <div className="text-sm font-bold text-white">
-                {scenario?.name ?? 'Active Mission'}
+                <div className="text-4xl font-bold text-[#00ddff] tabular-nums">
+                  {campaignTime ? formatTime(campaignTime) : '--:--'}
+                </div>
+                <div className="flex justify-between mt-2 text-sm text-white/50">
+                  <span>UTC</span>
+                  <span className={timeMultiplier === 0 ? 'text-[#ff00aa]' : ''}>
+                    x{timeMultiplier}
+                  </span>
+                </div>
               </div>
-              <div className="text-sm text-white/40 mt-1">{scenario?.theatreName ?? '—'}</div>
-              {displayedEraLabel && (
-                <div className="text-sm text-[#ff00aa]/60 mt-1">{displayedEraLabel}</div>
-              )}
-            </div>
+
+              {/* Weather */}
+              <div className="flex-1 border border-[#9900ff]/30 bg-[#9900ff]/5 rounded-lg p-4 backdrop-blur-sm">
+                <div className="flex items-center gap-2 mb-3">
+                  <CloudSun className="h-5 w-5 text-[#9900ff]" />
+                  <span className="text-sm font-semibold text-white">Weather</span>
+                </div>
+                {weather ? (
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="flex items-center gap-2 text-sm text-white/50">
+                        <Sun className="h-4 w-4" /> Temp
+                      </span>
+                      <span className="text-sm text-white">
+                        {weather.temperature.mean.toFixed(0)}°C
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="flex items-center gap-2 text-sm text-white/50">
+                        <Wind className="h-4 w-4" /> Wind
+                      </span>
+                      <span className="text-sm text-white">
+                        {(weather.wind.speed * KNOTS_PER_MS).toFixed(0)} kt
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-white/50">Direction</span>
+                      <span className="text-sm text-white">
+                        {formatWindDirection(weather.wind.direction)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-white/50">Clouds</span>
+                      <span className="text-sm text-white">
+                        {Math.round(
+                          (weather.cloudCover.baseCloudCover + weather.cloudCover.seasonEffect) *
+                            100
+                        )}
+                        %
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-sm text-white/40">Loading...</div>
+                )}
+              </div>
+
+              {/* Theatre Info */}
+              <div className="border border-[#ff00aa]/20 rounded-lg p-4 bg-black/30">
+                <div className="text-sm font-bold text-white">
+                  {scenario?.name ?? 'Active Mission'}
+                </div>
+                <div className="text-sm text-white/40 mt-1">{scenario?.theatreName ?? '—'}</div>
+                {displayedEraLabel && (
+                  <div className="text-sm text-[#ff00aa]/60 mt-1">{displayedEraLabel}</div>
+                )}
+              </div>
             </div>
           </ScrollArea>
         </div>

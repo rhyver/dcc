@@ -50,7 +50,16 @@ local function addConnectionNodes(element, connectionNodes)
     end
 end
 
-local function configureRadarElements(elements, powerSources, connectionNodes)
+local function listContains(values, value)
+    for _, candidate in ipairs(values or {}) do
+        if candidate == value then
+            return true
+        end
+    end
+    return false
+end
+
+local function configureRadarElements(elements, powerSources, connectionNodes, alwaysOnSamTypes)
     for i = 1, #elements do
         local element = elements[i]
         addPowerSources(element, powerSources)
@@ -61,6 +70,14 @@ local function configureRadarElements(elements, powerSources, connectionNodes)
         end
         if element.setCanEngageHARM then
             element:setCanEngageHARM(true)
+        end
+        local isAlwaysOn = element.getNatoName
+            and element.setActAsEW
+            and listContains(alwaysOnSamTypes, element:getNatoName())
+        if isAlwaysOn then
+            -- Acting as EW keeps the organic search radar live. The site remains weapons-free and
+            -- can therefore acquire fast aircraft before they cross the edge of its kill zone.
+            element:setActAsEW(true)
         end
     end
 end
@@ -90,7 +107,7 @@ local function setupIads(config)
     local samSites = iads:addSAMSitesByPrefix(config.samPrefix or 'SAM-')
     local ewRadars = iads:addEarlyWarningRadarsByPrefix(config.ewrPrefix or 'IADS-EWR-')
 
-    configureRadarElements(samSites, powerSources, connectionNodes)
+    configureRadarElements(samSites, powerSources, connectionNodes, config.alwaysOnSamTypes)
     configureRadarElements(ewRadars, powerSources, connectionNodes)
 
     iads:activate()

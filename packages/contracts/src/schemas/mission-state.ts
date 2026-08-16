@@ -47,14 +47,15 @@ const missionStateGroup = z.object({
 const coalitionPositions = z
   .object({
     aircraft: z.array(missionStateGroup).default([]),
-    ground: z.array(missionStateGroup).default([])
+    ground: z.array(missionStateGroup).default([]),
+    ships: z.array(missionStateGroup).default([])
   })
-  .default({ aircraft: [], ground: [] })
+  .default({ aircraft: [], ground: [], ships: [] })
 
 // Lua JSON encoders may encode empty tables as [] instead of {}.
 // Use a preprocess step to normalize arrays to the expected object shape.
 const coalitionPositionsLenient = z.preprocess(
-  (val) => (Array.isArray(val) ? { aircraft: [], ground: [] } : val),
+  (val) => (Array.isArray(val) ? { aircraft: [], ground: [], ships: [] } : val),
   coalitionPositions
 )
 
@@ -128,6 +129,28 @@ export const missionState = z
         })
       )
       .optional(),
+    troopExtractions: z
+      .array(
+        z.object({
+          requestId: z.string(),
+          groupId: z.string(),
+          flightGroupName: z.string().optional(),
+          status: z.enum(['embarked', 'delivered']),
+          time: z.number().optional()
+        })
+      )
+      .default([]),
+    casevacPickups: z
+      .array(
+        z.object({
+          casualtyPointId: z.string(),
+          flightGroupName: z.string().optional(),
+          woundedCount: z.number().int().positive(),
+          delivered: z.boolean(),
+          time: z.number().optional()
+        })
+      )
+      .default([]),
     lostUnits: z.array(missionStateTrackedUnit).default([]),
     landedUnits: z.array(missionStateTrackedUnit).default([]),
     cargoDeliveries: cargoDeliveries.default({}),

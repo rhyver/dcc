@@ -41,6 +41,7 @@ import { Clock } from './clock'
 import { ActiveFlightGroups } from './active-flight-groups'
 import { AtoPackageBoard } from './ato-package-board'
 import { LogisticsOverview } from './logistics-overview'
+import { CampaignOperationsOverview } from './campaign-operations-overview'
 import { TakeoffButton } from './takeoff-button'
 import { CAUCASUS_DETAIL_MAX_ZOOM } from './offline-map-style'
 
@@ -465,6 +466,8 @@ export function Home() {
           onSelect={setSelectedItem}
           onPreview={setPreviewItem}
         />
+
+        <CampaignOperationsOverview />
 
         {showAtoPackages ? <AtoPackageBoard /> : null}
         {showLogistics ? <LogisticsOverview /> : null}

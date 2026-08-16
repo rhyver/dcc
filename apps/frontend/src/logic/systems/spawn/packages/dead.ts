@@ -1,9 +1,9 @@
 import { schemas, config } from '@dcc/contracts'
-import { aircrafts, isSamFullyDestroyed } from '@dcc/data'
+import { aircrafts } from '@dcc/data'
 import * as z from 'zod'
 import { DeadFlightGroup } from '../../../entities/dead-flight-group'
 import { FlightGroupFactory } from '../../../entities/flight-group-factory'
-import { getObjectivePosition } from '@/logic/utils/get-objective-position'
+import { getIadsEmitterTargets } from '@/logic/iads-emitter-targets'
 import {
   getCoalitionAirdromes,
   pickRandomAircraftType,
@@ -72,7 +72,7 @@ export function spawnDead(
   }
 
   // Get targeted SAM IDs to avoid double-targeting
-  const targetedSamIds = new Set(
+  const targetedEmitterIds = new Set(
     deadGroups.map((g) => g.target?.id).filter((id): id is string => !!id)
   )
 
@@ -89,46 +89,27 @@ export function spawnDead(
     return
   }
 
-  // Find enemy SAM groups that are not destroyed and not already targeted
-  const enemySamGroups = draft.coalitions[enemyCoalition].samGroups.filter(
-    (sam) => !isSamFullyDestroyed(sam) && !targetedSamIds.has(sam.id)
+  // Find enemy radar emitters that are not destroyed and not already targeted.
+  const emitterTargets = getIadsEmitterTargets(draft, enemyCoalition, theatre, 'DEAD').filter(
+    (emitter) => !targetedEmitterIds.has(emitter.target.id)
   )
 
-  if (enemySamGroups.length === 0) {
-    debugLog('No valid SAM targets for DEAD')
+  if (emitterTargets.length === 0) {
+    debugLog('No valid emitter targets for DEAD')
     return
   }
 
   const homeBases = getCoalitionAirdromes(draft, theatre, coalition)
-  const availableTargets: Array<{
-    target: { id: string; type: z.infer<typeof schemas.samType>; objectiveId: string }
-    position: z.infer<typeof schemas.position>
-  }> = []
-
-  for (const samGroup of enemySamGroups) {
-    const samPosition = getObjectivePosition(theatre, samGroup.objectiveId)
-    if (!samPosition) {
-      continue
-    }
-    availableTargets.push({
-      target: {
-        id: samGroup.id,
-        type: samGroup.type,
-        objectiveId: samGroup.objectiveId
-      },
-      position: samPosition
-    })
-  }
-
   const selectedAssignment = selectHomeBaseAndTarget({
     homeBases,
-    targets: availableTargets,
-    maxDistance: config.packages.DEAD.maxDistance
+    targets: emitterTargets,
+    maxDistance: config.packages.DEAD.maxDistance,
+    preference: 'nearest'
   })
 
   // If no suitable pair found, return
   if (!selectedAssignment) {
-    debugLog('No suitable home base and SAM target pair found within range')
+    debugLog('No suitable home base and emitter target pair found within range')
     return
   }
 

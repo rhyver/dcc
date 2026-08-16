@@ -56,7 +56,11 @@ const createCampaign = base
       scenarioId: z.string(),
       era: campaignCreationEra,
       playerFactionId: z.string(),
-      opponentFactionId: z.string()
+      opponentFactionId: z.string(),
+      playerFaction: schemas.faction.optional(),
+      opponentFaction: schemas.faction.optional(),
+      campaignYear: z.number().int().optional(),
+      forceGpsEnabledDate: z.boolean().optional()
     })
   )
   .errors({

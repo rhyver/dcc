@@ -98,6 +98,69 @@ function createLandedStrategicStrike(): FlightGroup {
   }
 }
 
+function createLandedEmitterFlight(task: 'SEAD' | 'DEAD', targetId: string): FlightGroup {
+  return {
+    ...createLandedStrategicStrike(),
+    id: `${task.toLowerCase()}-1`,
+    task,
+    callsign: `${task}-1`,
+    target: {
+      id: targetId,
+      type: '55G6 EWR',
+      objectiveId: 'Gali'
+    },
+    tot: new Date('2026-01-01T11:30:00.000Z')
+  }
+}
+
+function createScheduledFlight(params: {
+  id: string
+  task: FlightGroup['task']
+  startTime: Date
+  position?: { x: number; y: number }
+}): FlightGroup {
+  const position = params.position ?? { x: 0, y: 0 }
+  return {
+    id: params.id,
+    aircrafts: [1, 2].map((unitNumber) => ({
+      id: `${params.id}-aircraft-${unitNumber}`,
+      unitName: `${params.id}-${unitNumber}`,
+      aircraftName: 'F-16C_50'
+    })),
+    task: params.task,
+    position,
+    homeBase: 'Home',
+    callsign: params.id,
+    flightplan: {
+      id: `${params.id}-plan`,
+      startTime: params.startTime,
+      waypoints: [
+        {
+          name: 'TakeOff',
+          position,
+          altitude: 0,
+          speed: 150,
+          type: 'TakeOff'
+        },
+        {
+          name: 'Patrol',
+          position: { x: position.x + 100_000, y: position.y },
+          altitude: 6000,
+          speed: 200,
+          type: 'Task'
+        },
+        {
+          name: 'Landing',
+          position,
+          altitude: 0,
+          speed: 150,
+          type: 'Landing'
+        }
+      ]
+    }
+  }
+}
+
 describe('updateFlightGroups', () => {
   test('starts a 40-90 minute cooldown when a strategic strike lands', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0)
@@ -110,5 +173,202 @@ describe('updateFlightGroups', () => {
     expect(campaign.coalitions.opponent.strategicStrikeCooldownUntil).toEqual(
       new Date('2026-01-01T12:40:00.000Z')
     )
+  })
+
+  test('DEAD permanently destroys a targeted EWR', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0)
+    const campaign = createCampaign()
+    campaign.coalitions.opponent.ewrGroups = [
+      {
+        id: 'ewr-1',
+        type: '55G6 EWR',
+        objectiveId: 'Gali',
+        position: { x: 0, y: 0 }
+      }
+    ]
+    campaign.coalitions.player.flightGroups = [createLandedEmitterFlight('DEAD', 'ewr-1')]
+
+    updateFlightGroups(campaign, 'player')
+
+    expect(campaign.coalitions.opponent.ewrGroups[0]).toMatchObject({
+      destroyed: true,
+      suppressed: false
+    })
+  })
+
+  test('SEAD suppression is lifted from an EWR when the flight lands', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0)
+    const campaign = createCampaign()
+    campaign.coalitions.opponent.ewrGroups = [
+      {
+        id: 'ewr-1',
+        type: '55G6 EWR',
+        objectiveId: 'Gali',
+        position: { x: 0, y: 0 }
+      }
+    ]
+    campaign.coalitions.player.flightGroups = [createLandedEmitterFlight('SEAD', 'ewr-1')]
+
+    updateFlightGroups(campaign, 'player')
+
+    expect(campaign.coalitions.opponent.ewrGroups[0]?.suppressed).toBe(false)
+  })
+
+  test('does not let scheduled CAP engage before takeoff', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0)
+    const campaign = createCampaign()
+    campaign.coalitions.player.flightGroups = [
+      createScheduledFlight({
+        id: 'carrier-cap',
+        task: 'CAP',
+        startTime: new Date('2026-01-01T12:30:00.000Z')
+      })
+    ]
+    campaign.coalitions.opponent.flightGroups = [
+      createScheduledFlight({
+        id: 'nearby-strike',
+        task: 'Pinpoint Strike',
+        startTime: new Date('2026-01-01T12:30:00.000Z'),
+        position: { x: 40_000, y: 0 }
+      })
+    ]
+
+    updateFlightGroups(campaign, 'player')
+
+    expect(campaign.coalitions.player.flightGroups[0]?.aircrafts).toHaveLength(2)
+    expect(campaign.coalitions.opponent.flightGroups[0]?.aircrafts).toHaveLength(2)
+  })
+
+  test('does not let airborne CAP engage aircraft that have not taken off', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0)
+    const campaign = createCampaign()
+    campaign.coalitions.player.flightGroups = [
+      createScheduledFlight({
+        id: 'airborne-cap',
+        task: 'CAP',
+        startTime: new Date('2026-01-01T11:45:00.000Z')
+      })
+    ]
+    campaign.coalitions.opponent.flightGroups = [
+      createScheduledFlight({
+        id: 'parked-strike',
+        task: 'Pinpoint Strike',
+        startTime: new Date('2026-01-01T12:30:00.000Z'),
+        position: { x: 40_000, y: 0 }
+      })
+    ]
+
+    updateFlightGroups(campaign, 'player')
+
+    expect(campaign.coalitions.player.flightGroups[0]?.aircrafts).toHaveLength(2)
+    expect(campaign.coalitions.opponent.flightGroups[0]?.aircrafts).toHaveLength(2)
+  })
+
+  test('applies an antiship strike against a surface group only once across simulation ticks', () => {
+    const campaign = createCampaign()
+    campaign.coalitions.player.navalGroups = [
+      {
+        id: 'carrier-group',
+        name: 'Carrier Group',
+        role: 'surface-combatant',
+        unitTypes: ['carrier', 'carrier'],
+        units: [
+          {
+            id: 'carrier-1',
+            type: 'carrier',
+            damage: 0,
+            ammunition: 1,
+            fuel: 1,
+            state: 'operational'
+          },
+          {
+            id: 'carrier-2',
+            type: 'carrier',
+            damage: 0,
+            ammunition: 1,
+            fuel: 1,
+            state: 'operational'
+          }
+        ],
+        position: { x: 100_000, y: 0 },
+        heading: 0,
+        damage: 0,
+        fuel: 1,
+        ammunition: 1,
+        cargo: 0,
+        state: 'operational'
+      }
+    ]
+
+    const strike = createScheduledFlight({
+      id: 'antiship-strike',
+      task: 'Antiship Strike',
+      startTime: new Date('2026-01-01T11:45:00.000Z')
+    })
+    strike.target = {
+      id: 'carrier-group',
+      type: 'carrier',
+      objectiveId: 'Carrier Group',
+      kind: 'naval-group'
+    }
+    strike.tot = new Date('2026-01-01T11:59:00.000Z')
+    campaign.coalitions.opponent.flightGroups = [strike]
+
+    updateFlightGroups(campaign, 'opponent')
+    updateFlightGroups(campaign, 'opponent')
+
+    expect(campaign.coalitions.player.navalGroups[0]?.units?.[0]?.state).toBe('sunk')
+    expect(campaign.coalitions.player.navalGroups[0]?.units?.[1]?.state).toBe('operational')
+    expect(campaign.coalitions.player.navalGroups[0]?.damage).toBe(0.5)
+    expect(campaign.coalitions.opponent.flightGroups[0]?.targetDestroyed).toBe(true)
+  })
+
+  test('does not damage a carrier targeted by a legacy antiship flight', () => {
+    const campaign = createCampaign()
+    campaign.coalitions.player.navalGroups = [
+      {
+        id: 'carrier-group',
+        name: 'Carrier Group',
+        role: 'carrier',
+        unitTypes: ['carrier'],
+        units: [
+          {
+            id: 'carrier-1',
+            type: 'carrier',
+            damage: 0,
+            ammunition: 1,
+            fuel: 1,
+            state: 'operational'
+          }
+        ],
+        position: { x: 100_000, y: 0 },
+        heading: 0,
+        damage: 0,
+        fuel: 1,
+        ammunition: 1,
+        cargo: 0,
+        state: 'operational'
+      }
+    ]
+
+    const strike = createScheduledFlight({
+      id: 'legacy-carrier-strike',
+      task: 'Antiship Strike',
+      startTime: new Date('2026-01-01T11:45:00.000Z')
+    })
+    strike.target = {
+      id: 'carrier-group',
+      type: 'carrier',
+      objectiveId: 'Carrier Group',
+      kind: 'naval-group'
+    }
+    strike.tot = new Date('2026-01-01T11:59:00.000Z')
+    campaign.coalitions.opponent.flightGroups = [strike]
+
+    updateFlightGroups(campaign, 'opponent')
+
+    expect(campaign.coalitions.player.navalGroups[0]?.units?.[0]?.state).toBe('operational')
+    expect(campaign.coalitions.player.navalGroups[0]?.damage).toBe(0)
+    expect(campaign.coalitions.opponent.flightGroups[0]?.targetDestroyed).toBe(true)
   })
 })

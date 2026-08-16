@@ -1,9 +1,10 @@
-import { VectorTile } from '@mapbox/vector-tile'
-import { LOtoLL } from '@kilcekru/dcs-coordinates'
 import { existsSync } from 'node:fs'
 import { open } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import { LOtoLL } from '@kilcekru/dcs-coordinates'
+import { VectorTile } from '@mapbox/vector-tile'
 import Pbf from 'pbf'
 import { PMTiles, type RangeResponse, type Source } from 'pmtiles'
 
@@ -38,11 +39,15 @@ const THEATRE_PMTILES = [
     envVar: 'DCC_SYRIA_PMTILES',
     mapDirectory: 'syria',
     fileName: 'syria.pmtiles'
+  },
+  {
+    theatreName: 'SouthAtlantic',
+    envVar: 'DCC_SOUTH_ATLANTIC_PMTILES',
+    mapDirectory: 'south-atlantic',
+    fileName: 'south-atlantic.pmtiles'
   }
 ] as const
-export const SUPPORTED_THEATRE_MAP_TILE_NAMES = THEATRE_PMTILES.map(
-  (config) => config.theatreName
-)
+export const SUPPORTED_THEATRE_MAP_TILE_NAMES = THEATRE_PMTILES.map((config) => config.theatreName)
 const CAUCASUS_MAX_ZOOM = 12
 /** Keep the small kneeboard panel readable by drawing only the most prominent rivers. */
 const MIN_MAJOR_RIVER_PIXEL_LENGTH = 85
@@ -95,14 +100,7 @@ function findTheatrePmtilesConfig(theatreName: string) {
 }
 
 function getFrontendPmtilesRelativePath(config: (typeof THEATRE_PMTILES)[number]) {
-  return join(
-    'apps',
-    'frontend',
-    'public',
-    'maps',
-    config.mapDirectory,
-    config.fileName
-  )
+  return join('apps', 'frontend', 'public', 'maps', config.mapDirectory, config.fileName)
 }
 
 function getPackagedPmtilesRelativePath(config: (typeof THEATRE_PMTILES)[number]) {
@@ -180,11 +178,7 @@ function mercatorToLngLat(x: number, y: number): LngLat {
   return { lng, lat }
 }
 
-export function dcsPositionToLngLat(
-  x: number,
-  z: number,
-  theatreName: string
-): LngLat | undefined {
+export function dcsPositionToLngLat(x: number, z: number, theatreName: string): LngLat | undefined {
   try {
     return LOtoLL({ theatre: theatreName as DcsTheatre, x, z })
   } catch {

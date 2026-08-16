@@ -1,7 +1,9 @@
-import { BookOpen, Bot, Gamepad2, Plane } from 'lucide-react'
+import { BookOpen, Bot, Gamepad2, Pencil, Plane, Plus, Satellite } from 'lucide-react'
 import { motion } from 'motion/react'
+import { getCampaignDateForYear, getGpsEnabledCampaignDate, isGpsAvailable } from '@dcc/campaign'
 
 import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
 
 import type {
@@ -20,10 +22,16 @@ type AircraftRosterProps = {
   playerFaction: Faction | undefined
   opponentFaction: Faction | undefined
   playerFactionId: string
+  campaignYear: number
   aircraft: FactionAircraft[]
   isCreatingCampaign: boolean
+  forceGpsEnabledDate: boolean
   factionsDiffer: boolean
+  selectedFaction: Faction | undefined
   onCustomizeFactions: () => void
+  onForceGpsEnabledDateChange: (force: boolean) => void
+  onCustomizeSelectedFaction: () => void
+  onCreateSelectedFaction: () => void
   onCreateCampaign: () => void
 }
 
@@ -34,12 +42,31 @@ export function AircraftRoster({
   playerFaction,
   opponentFaction,
   playerFactionId,
+  campaignYear,
   aircraft,
   isCreatingCampaign,
+  forceGpsEnabledDate,
   factionsDiffer,
+  selectedFaction,
   onCustomizeFactions,
+  onForceGpsEnabledDateChange,
+  onCustomizeSelectedFaction,
+  onCreateSelectedFaction,
   onCreateCampaign
 }: AircraftRosterProps) {
+  const campaignDate = getCampaignDateForYear(scenario.date, campaignYear)
+  const gpsNaturallyAvailable = isGpsAvailable(campaignDate)
+  const effectiveDate = forceGpsEnabledDate ? getGpsEnabledCampaignDate(campaignDate) : campaignDate
+  const gpsAvailable = isGpsAvailable(effectiveDate)
+  const formattedEffectiveDate = effectiveDate
+    .toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      timeZone: 'UTC'
+    })
+    .toUpperCase()
+
   return (
     <aside className="flex min-h-0 flex-col overflow-hidden rounded-md border border-synthwave-pink/35 bg-black/30 shadow-[0_0_44px_rgba(255,0,170,0.14)] backdrop-blur">
       <div className="border-b border-synthwave-purple/30 p-5">
@@ -57,9 +84,25 @@ export function AircraftRoster({
               {opponentFaction ? ` // vs ${formatFactionLabel(opponentFaction)}` : ''}
             </div>
           </div>
-          <span className="rounded border border-synthwave-cyan/35 px-2 py-1 text-[0.65rem] text-synthwave-cyan">
-            {aircraft.length} TYPES
-          </span>
+          <div className="flex shrink-0 flex-col items-end gap-2">
+            <span className="rounded border border-synthwave-cyan/35 px-2 py-1 text-[0.65rem] text-synthwave-cyan">
+              {aircraft.length} TYPES
+            </span>
+            {step === 'factions' ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                aria-label="Customize selected faction"
+                className="h-8 border-synthwave-purple/50 bg-transparent px-2.5 text-[0.6rem] uppercase tracking-wider text-synthwave-light/70 hover:border-synthwave-cyan hover:bg-synthwave-cyan/8 hover:text-synthwave-cyan"
+                onClick={onCustomizeSelectedFaction}
+                disabled={isCreatingCampaign || !selectedFaction}
+              >
+                <Pencil className="h-3 w-3" />
+                Customize
+              </Button>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -150,6 +193,54 @@ export function AircraftRoster({
           </span>
           <span className="shrink-0 text-synthwave-pink">{eraLabel}</span>
         </div>
+        <div
+          className={cn(
+            'mb-3 rounded-md border bg-synthwave-dark/60 p-3 transition-colors',
+            gpsAvailable ? 'border-synthwave-cyan/35' : 'border-synthwave-pink/40'
+          )}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 items-start gap-2.5">
+              <Satellite
+                className={cn(
+                  'mt-0.5 h-4 w-4 shrink-0',
+                  gpsAvailable ? 'text-synthwave-cyan' : 'text-synthwave-pink'
+                )}
+              />
+              <div className="min-w-0">
+                <div
+                  className={cn(
+                    'text-[0.6rem] uppercase tracking-[0.18em]',
+                    gpsAvailable ? 'text-synthwave-cyan' : 'text-synthwave-pink'
+                  )}
+                >
+                  GPS {gpsAvailable ? 'available' : 'unavailable'}
+                </div>
+                <div className="mt-1 text-[0.68rem] text-synthwave-light/55">
+                  Mission date · {formattedEffectiveDate}
+                  {forceGpsEnabledDate && !gpsNaturallyAvailable ? ' · OVERRIDDEN' : ''}
+                </div>
+              </div>
+            </div>
+            <Switch
+              id="force-gps-enabled-date"
+              aria-label="Force GPS-enabled mission date"
+              checked={forceGpsEnabledDate && !gpsNaturallyAvailable}
+              onCheckedChange={onForceGpsEnabledDateChange}
+              disabled={isCreatingCampaign || gpsNaturallyAvailable}
+              className="mt-0.5 data-[state=checked]:bg-synthwave-cyan data-[state=unchecked]:bg-synthwave-purple/45"
+            />
+          </div>
+          <label
+            htmlFor="force-gps-enabled-date"
+            className={cn(
+              'mt-2 block text-[0.62rem] leading-4 text-synthwave-light/45',
+              !gpsNaturallyAvailable && 'cursor-pointer'
+            )}
+          >
+            {gpsNaturallyAvailable ? 'GPS is already available.' : 'Enable GPS for this campaign.'}
+          </label>
+        </div>
         {step === 'era' ? (
           <Button
             type="button"
@@ -159,6 +250,19 @@ export function AircraftRoster({
             disabled={isCreatingCampaign}
           >
             Customize Factions
+          </Button>
+        ) : null}
+        {step === 'factions' ? (
+          <Button
+            type="button"
+            variant="outline"
+            aria-label="Create new faction from selected faction"
+            className="mb-2 h-10 w-full border-synthwave-purple bg-synthwave-dark/80 text-synthwave-cyan hover:border-synthwave-pink hover:bg-synthwave-purple/10 hover:text-white"
+            onClick={onCreateSelectedFaction}
+            disabled={isCreatingCampaign || !selectedFaction}
+          >
+            <Plus className="h-4 w-4" />
+            New Faction
           </Button>
         ) : null}
         <Button

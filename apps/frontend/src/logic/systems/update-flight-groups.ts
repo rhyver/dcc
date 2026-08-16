@@ -1,4 +1,5 @@
 import { config, schemas } from '@dcc/contracts'
+import { dissolveGroundGroupIntoReplacementPool, recoverCasualtyPoint } from '@dcc/campaign'
 import * as z from 'zod'
 import { scenarios, theatres } from '@dcc/data'
 import { isStrikeFlightGroup } from '../entities/strike-flight-group'
@@ -16,6 +17,114 @@ function createStrategicStrikeCooldown(currentTime: Date) {
   return new Date(currentTime.getTime() + cooldownMs)
 }
 
+function failRecoveryFlight(
+  draft: z.infer<typeof schemas.campaign.campaign>,
+  coalition: z.infer<typeof schemas.coalition>,
+  group: ReturnType<typeof FlightGroupFactory.getCoalitionFlightGroups>[number]
+) {
+  if (!group.target) return
+  if (group.task === 'CASEVAC') {
+    const point = draft.coalitions[coalition].casualtyPoints?.find(
+      (entry) => entry.id === group.target?.id && entry.status === 'assigned'
+    )
+    if (point) {
+      point.status = 'awaiting-pickup'
+      point.assignedFlightGroupId = undefined
+    }
+  } else if (group.task === 'Troop Extraction') {
+    const request = draft.coalitions[coalition].extractionRequests?.find(
+      (entry) => entry.id === group.target?.id && entry.status === 'assigned'
+    )
+    if (request) {
+      request.status = 'awaiting-aircraft'
+      request.assignedFlightGroupId = undefined
+      request.retryAfter = new Date(
+        draft.time.getTime() + config.packages['Troop Extraction'].retryCooldownMs
+      )
+    }
+  }
+}
+
+function completeRecoveryFlight(
+  draft: z.infer<typeof schemas.campaign.campaign>,
+  coalition: z.infer<typeof schemas.coalition>,
+  group: ReturnType<typeof FlightGroupFactory.getCoalitionFlightGroups>[number]
+) {
+  if (!group.target) return
+  const rawGroup = draft.coalitions[coalition].flightGroups.find((entry) => entry.id === group.id)
+  const destinationObjectiveId = rawGroup?.destinationNode ?? group.homeBase
+  if (group.task === 'CASEVAC') {
+    recoverCasualtyPoint({
+      campaign: draft,
+      coalition,
+      casualtyPointId: group.target.id,
+      destinationObjectiveId
+    })
+    return
+  }
+  if (group.task !== 'Troop Extraction') return
+  const request = draft.coalitions[coalition].extractionRequests?.find(
+    (entry) => entry.id === group.target?.id
+  )
+  if (!request) return
+  const groundGroup = draft.coalitions[coalition].groundGroups.find(
+    (entry) => entry.id === request.groundGroupId
+  )
+  if (!groundGroup) {
+    request.status = 'failed'
+    return
+  }
+  request.status = 'delivered'
+  dissolveGroundGroupIntoReplacementPool({
+    campaign: draft,
+    coalition,
+    group: groundGroup,
+    objectiveId: destinationObjectiveId
+  })
+}
+
+function resolveAntiShipStrike(
+  draft: z.infer<typeof schemas.campaign.campaign>,
+  coalition: z.infer<typeof schemas.coalition>,
+  group: ReturnType<typeof FlightGroupFactory.getCoalitionFlightGroups>[number]
+) {
+  if (group.task !== 'Antiship Strike' || !group.target || !group.tot || group.targetDestroyed)
+    return
+  if (draft.time < group.tot) return
+  const enemyCoalition = coalition === 'player' ? 'opponent' : 'player'
+  const navalGroup = draft.coalitions[enemyCoalition].navalGroups?.find(
+    (candidate) => candidate.id === group.target?.id
+  )
+  if (!navalGroup) {
+    group.targetDestroyed = true
+    return
+  }
+  if (navalGroup.role === 'carrier') {
+    group.targetDestroyed = true
+    return
+  }
+  const unit = navalGroup.units?.find((candidate) => candidate.state !== 'sunk')
+  if (unit) {
+    unit.damage = 1
+    unit.state = 'sunk'
+    navalGroup.damage =
+      (navalGroup.units?.filter((candidate) => candidate.state === 'sunk').length ?? 0) /
+      Math.max(1, navalGroup.units?.length ?? navalGroup.unitTypes.length)
+    navalGroup.state = navalGroup.damage >= 1 ? 'sunk' : 'damaged'
+    logCombatAction(
+      draft,
+      coalition,
+      `${group.callsign} struck ${navalGroup.name}`,
+      group.callsign,
+      {
+        entityType: 'flightGroup',
+        entityId: group.id
+      }
+    )
+  }
+  group.targetDestroyed = true
+}
+
 export function updateFlightGroups(
   draft: z.infer<typeof schemas.campaign.campaign>,
   coalition: z.infer<typeof schemas.coalition>
@@ -31,12 +140,15 @@ export function updateFlightGroups(
 
   for (const group of groups) {
     if (group.aircrafts.length === 0) {
+      failRecoveryFlight(draft, coalition, group)
       finishedIds.add(group.id)
       continue
     }
 
     group.move(draft.time)
+    resolveAntiShipStrike(draft, coalition, group)
     if (group.isLanded(draft.time)) {
+      completeRecoveryFlight(draft, coalition, group)
       finishedIds.add(group.id)
       if (
         group.task === 'CAP' ||
@@ -56,10 +168,10 @@ export function updateFlightGroups(
       debugLog('Striking structure', group)
       group.strikeStructure(draft, coalition)
     } else if (isSeadFlightGroup(group) && theatre) {
-      debugLog('SEAD suppressing SAM', group)
+      debugLog('SEAD suppressing radar emitter', group)
       group.suppressSam(draft, coalition, theatre)
     } else if (isDeadFlightGroup(group) && theatre) {
-      debugLog('DEAD attacking SAM', group)
+      debugLog('DEAD attacking radar emitter', group)
       group.destroySam(draft, coalition, theatre)
     } else if (isCapFlightGroup(group)) {
       debugLog('CAP patrolling', group)
@@ -69,7 +181,7 @@ export function updateFlightGroups(
     }
   }
 
-  // Clear suppression for SAMs targeted by finished SEAD flights
+  // Clear suppression for radar emitters targeted by finished SEAD flights.
   if (finishedIds.size > 0) {
     const enemyCoalition = coalition === 'player' ? 'opponent' : 'player'
     const finishedSeadGroups = groups.filter((g) => finishedIds.has(g.id) && isSeadFlightGroup(g))
@@ -95,6 +207,25 @@ export function updateFlightGroups(
             draft,
             coalition,
             `SEAD completed, suppression lifted on ${samGroup.type} at ${samGroup.objectiveId}`,
+            seadGroup.callsign,
+            {
+              entityType: 'flightGroup',
+              entityId: seadGroup.id
+            }
+          )
+          continue
+        }
+
+        const ewrGroup = draft.coalitions[enemyCoalition].ewrGroups?.find(
+          (ewr) => ewr.id === seadGroup.target?.id
+        )
+        if (ewrGroup) {
+          ewrGroup.suppressed = false
+          debugLog(`EWR ${ewrGroup.type} no longer suppressed - SEAD landed`)
+          logCombatAction(
+            draft,
+            coalition,
+            `SEAD completed, suppression lifted on ${ewrGroup.type} at ${ewrGroup.objectiveId}`,
             seadGroup.callsign,
             {
               entityType: 'flightGroup',

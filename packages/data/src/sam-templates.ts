@@ -116,6 +116,11 @@ export const samTemplates: Record<
     ],
     fireInterval: 60,
     range: 47_400
+  },
+  Roland: {
+    units: ['Roland Radar', 'Roland ADS', 'Roland ADS', 'Roland ADS'],
+    fireInterval: 10,
+    range: 8_000
   }
 }
 
@@ -150,6 +155,7 @@ function getSamComponentRoles(unitName: string): Set<SamComponentRole> {
 
   if (
     normalized.includes('launcher') ||
+    normalized.includes('roland ads') ||
     normalized.includes('volhov') ||
     normalized.endsWith(' ln') ||
     normalized.includes(' ln ')
@@ -158,6 +164,7 @@ function getSamComponentRoles(unitName: string): Set<SamComponentRole> {
   }
 
   if (
+    normalized.includes('roland radar') ||
     normalized.includes(' str') ||
     normalized.includes(' tr') ||
     normalized.includes('snr') ||
@@ -169,6 +176,7 @@ function getSamComponentRoles(unitName: string): Set<SamComponentRole> {
   }
 
   if (
+    normalized.includes('roland radar') ||
     normalized.includes(' str') ||
     normalized.includes(' sr') ||
     normalized.includes('rls') ||

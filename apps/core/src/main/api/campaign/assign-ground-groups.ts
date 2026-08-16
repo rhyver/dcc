@@ -32,12 +32,14 @@ type AssignGroundGroupsParams = {
   coalitionObjectives: ObjectiveInfo[]
   enemyObjectives: ObjectiveInfo[]
   template: z.infer<typeof schemas.template>
+  defendAllObjectives?: boolean
 }
 
 export function assignGroundGroups({
   coalitionObjectives,
   enemyObjectives,
-  template
+  template,
+  defendAllObjectives = false
 }: AssignGroundGroupsParams): GroundGroupAssignment[] {
   const assignments: GroundGroupAssignment[] = []
 
@@ -58,7 +60,7 @@ export function assignGroundGroups({
       return dist < minDist ? dist : minDist
     }, Number.POSITIVE_INFINITY)
 
-    if (nearestEnemyDistance <= THRESHOLD_DISTANCE) {
+    if (defendAllObjectives || nearestEnemyDistance <= THRESHOLD_DISTANCE) {
       // Get Vehicle targets for positioning ground groups
       const vehicleTargets = objective.targets.filter((t) => t.type === 'Vehicle')
       const targetPosition = vehicleTargets[0]?.position ?? objective.position

@@ -1,5 +1,6 @@
 import { config, schemas } from '@dcc/contracts'
-import { aircrafts, isSamFullyDestroyed, isSamOperational } from '@dcc/data'
+import { evaluateCombatViability, getGroundGroupUnitCount } from '@dcc/campaign'
+import { aircrafts } from '@dcc/data'
 import * as z from 'zod'
 
 import { CapFlightGroup } from '../../../entities/cap-flight-group'
@@ -14,6 +15,7 @@ import {
 import { getObjectivePosition } from '@/logic/utils/get-objective-position'
 import { getClosestThreateningSam } from '@/logic/utils/threat-analyzer'
 import { calculateDistance } from '@/logic/utils/calculate-distance'
+import { getIadsEmitterTargets } from '@/logic/iads-emitter-targets'
 import {
   getCoalitionAirdromes,
   getCoalitionCasHomeBases,
@@ -206,7 +208,7 @@ function addMinutes(date: Date, minutes: number) {
 }
 
 function getGroundUnitCount(group: Campaign['coalitions']['player']['groundGroups'][number]) {
-  return group.units.reduce((sum, unit) => sum + Math.max(0, unit.count), 0)
+  return getGroundGroupUnitCount(group)
 }
 
 function getDefaultOperationProfile(draft: Campaign): OperationProfile {
@@ -614,23 +616,8 @@ function makeDeadPlan(
   }
 
   const existingTargets = collectExistingPackageTargetIds(draft, coalition)
-  const targets = draft.coalitions[context.enemyCoalition].samGroups
-    .filter((sam) => !isSamFullyDestroyed(sam) && !existingTargets.has(sam.id))
-    .map((sam) => {
-      const position = getObjectivePosition(context.theatre, sam.objectiveId)
-      return position
-        ? {
-            target: {
-              id: sam.id,
-              type: sam.type,
-              objectiveId: sam.objectiveId
-            },
-            position,
-            operational: isSamOperational(sam)
-          }
-        : null
-    })
-    .filter((target): target is NonNullable<typeof target> => target != null)
+  const targets = getIadsEmitterTargets(draft, context.enemyCoalition, context.theatre, 'DEAD')
+    .filter((emitter) => !existingTargets.has(emitter.target.id))
     .sort((a, b) => Number(b.operational) - Number(a.operational))
 
   if (targets.length === 0) {
@@ -648,7 +635,8 @@ function makeDeadPlan(
   const assignment = selectHomeBaseAndTarget({
     homeBases,
     targets,
-    maxDistance: config.packages.DEAD.maxDistance
+    maxDistance: config.packages.DEAD.maxDistance,
+    preference: 'nearest'
   })
   if (!assignment) {
     pushRejection(rejected, 'dead', 'out of range')
@@ -671,7 +659,7 @@ function makeDeadPlan(
     type: 'DEAD Package',
     coalition,
     priority: targets[0]?.operational ? 82 : 72,
-    reason: 'Untargeted SAM threat',
+    reason: 'Nearest untargeted radar emitter',
     targetId: assignment.target.id,
     targetObjectiveId: assignment.target.objectiveId,
     targetType: assignment.target.type,
@@ -720,7 +708,7 @@ function makeCasPlans(
   const friendlyObjectiveIds = new Set(draft.coalitions[coalition].objectiveIds)
   const friendlyAirdromeNames = new Set(draft.coalitions[coalition].airdromeNames)
   const enemyGroundGroups = draft.coalitions[context.enemyCoalition].groundGroups.filter(
-    (group) => getGroundUnitCount(group) > 0 && !existingTargets.has(group.id)
+    (group) => evaluateCombatViability(group).casEligible && !existingTargets.has(group.id)
   )
   const plans: AtoPackagePlan[] = []
 

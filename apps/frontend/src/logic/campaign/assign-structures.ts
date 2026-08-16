@@ -46,18 +46,38 @@ type StructureAssignment = {
   buildings: z.infer<typeof schemas.structureBuilding>[]
 }
 
+type AssignStructuresOptions = {
+  ensureEveryObjective?: boolean
+  requiredStructures?: Array<{
+    objectiveId: string
+    targetName?: string
+    type: StructureType
+  }>
+}
+
 const requiredSpawnStructureTypes = ['Barrack', 'Depot'] as const satisfies readonly StructureType[]
 const requiredSpawnStructureTypeSet = new Set<StructureType>(requiredSpawnStructureTypes)
+const fallbackStructureTypes = [
+  'Barrack',
+  'Depot',
+  'Logistics Hub',
+  'Ammo Depot',
+  'Fuel Storage',
+  'Command Center'
+] as const satisfies readonly StructureType[]
 
 function createStructureAssignment(
   objective: ObjectiveInfo,
   type: StructureType,
-  positionOffset: Position = { x: 0, y: 0 }
+  positionOffset: Position = { x: 0, y: 0 },
+  targetName?: string
 ): StructureAssignment | undefined {
   const structureTargets = objective.targets.filter(
     (target) => target.type === 'Structure' && target.name.includes('|Structure|')
   )
-  const target = structureTargets[0]
+  const target = targetName
+    ? structureTargets.find((candidate) => candidate.name === targetName)
+    : structureTargets[0]
   if (!target) return undefined
 
   const templates = structureTemplates[type]
@@ -78,6 +98,39 @@ function createStructureAssignment(
       alive: building.alive ?? true
     }))
   }
+}
+
+function ensureRequiredStructures(
+  assignments: StructureAssignment[],
+  objectives: ObjectiveInfo[],
+  requirements: NonNullable<AssignStructuresOptions['requiredStructures']>
+) {
+  const ensuredAssignments = [...assignments]
+
+  for (const requirement of requirements) {
+    const objective = objectives.find((candidate) => candidate.id === requirement.objectiveId)
+    if (!objective) continue
+
+    const assignment = createStructureAssignment(
+      objective,
+      requirement.type,
+      { x: 0, y: 0 },
+      requirement.targetName
+    )
+    if (!assignment) continue
+
+    const duplicateIndex = ensuredAssignments.findIndex(
+      (candidate) =>
+        candidate.objectiveId === requirement.objectiveId && candidate.type === requirement.type
+    )
+    if (duplicateIndex === -1) {
+      ensuredAssignments.push(assignment)
+    } else {
+      ensuredAssignments[duplicateIndex] = assignment
+    }
+  }
+
+  return ensuredAssignments
 }
 
 export function ensureRequiredSpawnStructures(
@@ -119,9 +172,31 @@ export function ensureRequiredSpawnStructures(
   return ensuredAssignments
 }
 
+function ensureStructureAtEveryObjective(
+  assignments: StructureAssignment[],
+  objectives: ObjectiveInfo[]
+) {
+  const completedAssignments = [...assignments]
+  const occupiedObjectives = new Set(assignments.map((assignment) => assignment.objectiveId))
+
+  objectives.forEach((objective, index) => {
+    if (occupiedObjectives.has(objective.id)) return
+
+    const type = fallbackStructureTypes[index % fallbackStructureTypes.length]!
+    const assignment = createStructureAssignment(objective, type)
+    if (!assignment) return
+
+    completedAssignments.push(assignment)
+    occupiedObjectives.add(objective.id)
+  })
+
+  return completedAssignments
+}
+
 export function assignStructures(
   objectives: ObjectiveInfo[],
-  airbasePositions: Position[] = []
+  airbasePositions: Position[] = [],
+  options: AssignStructuresOptions = {}
 ): StructureAssignment[] {
   const structureObjectives = objectives.filter((objective) =>
     objective.targets.some(
@@ -254,15 +329,23 @@ export function assignStructures(
   )
 
   // Convert assignments map to array
-  return ensureRequiredSpawnStructures(
-    Array.from(assignments.entries()).map(([objectiveId, info]) => ({
-      objectiveId,
-      type: info.type,
-      position: info.position,
-      name: info.name,
-      resources: info.resources,
-      buildings: info.buildings
-    })),
-    objectives
+  const completedAssignments = ensureRequiredStructures(
+    ensureRequiredSpawnStructures(
+      Array.from(assignments.entries()).map(([objectiveId, info]) => ({
+        objectiveId,
+        type: info.type,
+        position: info.position,
+        name: info.name,
+        resources: info.resources,
+        buildings: info.buildings
+      })),
+      objectives
+    ),
+    objectives,
+    options.requiredStructures ?? []
   )
+
+  return options.ensureEveryObjective
+    ? ensureStructureAtEveryObjective(completedAssignments, objectives)
+    : completedAssignments
 }

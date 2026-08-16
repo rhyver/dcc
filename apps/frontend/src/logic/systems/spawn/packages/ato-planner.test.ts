@@ -1,5 +1,6 @@
 import { describe, expect, test, vi, afterEach } from 'vitest'
-import { schemas } from '@dcc/contracts'
+import { config, schemas } from '@dcc/contracts'
+import { scenarios, theatres } from '@dcc/data'
 import type * as z from 'zod'
 
 import {
@@ -160,6 +161,37 @@ function plannerPolicy(overrides: Partial<AtoPlannerPolicy> = {}): AtoPlannerPol
 }
 
 describe('ATO package planner', () => {
+  test('keeps the Falklands carrier clear of land while preserving Harrier mission reach', () => {
+    const scenario = scenarios.find((entry) => entry.id === 'falklands-1982')
+    const theatre = theatres.find((entry) => entry.name === scenario?.theatreName)
+    const carrier = scenario?.navalGroups?.player.find((group) => group.role === 'carrier')
+    const escort = scenario?.navalGroups?.player.find((group) => group.role === 'escort')
+    const argentineSurfaceGroup = scenario?.navalGroups?.opponent.find(
+      (group) => group.role === 'surface-combatant'
+    )
+    const stanley = theatre?.objectives.find((objective) => objective.name === 'Stanley Airport')
+    const foxBay = theatre?.objectives.find((objective) => objective.name === 'Fox Bay')
+    const distance = (left: { x: number; y: number }, right: { x: number; y: number }) =>
+      Math.hypot(left.x - right.x, left.y - right.y)
+
+    expect(carrier).toBeDefined()
+    expect(escort).toBeDefined()
+    expect(argentineSurfaceGroup).toBeDefined()
+    expect(stanley).toBeDefined()
+    expect(foxBay).toBeDefined()
+
+    expect(distance(carrier!.position, stanley!.position)).toBeGreaterThan(
+      config.packages.CAP.engagementRange
+    )
+    expect(distance(carrier!.position, foxBay!.position)).toBeLessThanOrEqual(
+      config.packages.CAS.maxDistance
+    )
+    expect(distance(carrier!.position, argentineSurfaceGroup!.position)).toBeLessThanOrEqual(
+      config.packages['Antiship Strike'].maxDistance
+    )
+    expect(distance(carrier!.position, escort!.position)).toBeLessThan(10_000)
+  })
+
   test('emits CAP for an uncovered reachable airbase lane', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0)
     const campaign = createCampaign({ playerAircraft: { CAP: ['F-16C_50'] } })
@@ -273,6 +305,75 @@ describe('ATO package planner', () => {
     expect(result.admitted.some((plan) => plan.kind === 'dead')).toBe(true)
   })
 
+  test('emits standalone DEAD for an untargeted persistent EWR', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0)
+    const campaign = createCampaign({ playerAircraft: { DEAD: ['F-16C_50'] } })
+    campaign.coalitions.opponent.ewrGroups = [
+      {
+        id: 'ewr-1',
+        type: '55G6 EWR',
+        objectiveId: 'Target Objective',
+        position: { x: 50_000, y: 0 }
+      }
+    ]
+
+    const result = planAtoPackages(campaign, 'player', createContext(), plannerPolicy())
+    const dead = result.admitted.find((plan) => plan.kind === 'dead')
+
+    expect(dead).toMatchObject({
+      targetId: 'ewr-1',
+      targetType: '55G6 EWR'
+    })
+  })
+
+  test('clears the nearest SAM before a farther EWR from a carrier', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.99)
+    const campaign = createCampaign({ playerAircraft: { DEAD: ['F-16C_50'] } })
+    const context = createContext()
+    campaign.coalitions.player.airdromeNames = []
+    campaign.coalitions.player.navalGroups = [
+      {
+        id: 'carrier-1',
+        name: 'Carrier 1',
+        role: 'carrier',
+        unitTypes: ['CVN_71'],
+        position: { x: 0, y: 0 },
+        heading: 0,
+        damage: 0,
+        fuel: 1,
+        ammunition: 1,
+        cargo: 0,
+        state: 'operational'
+      }
+    ]
+    context.theatre.objectives.push({
+      name: 'Near SAM',
+      type: 'Frontline',
+      position: { x: 25_000, y: 0 }
+    })
+    campaign.coalitions.opponent.samGroups = [
+      { id: 'near-sam', type: 'SA-6', objectiveId: 'Near SAM' }
+    ]
+    campaign.coalitions.opponent.ewrGroups = [
+      {
+        id: 'far-ewr',
+        type: '55G6 EWR',
+        objectiveId: 'Far EWR',
+        position: { x: 200_000, y: 0 }
+      }
+    ]
+
+    const result = planAtoPackages(campaign, 'player', context, plannerPolicy())
+    const dead = result.admitted.find((plan) => plan.kind === 'dead')
+
+    expect(dead).toMatchObject({
+      targetId: 'near-sam',
+      targetType: 'SA-6',
+      reason: 'Nearest untargeted radar emitter'
+    })
+    expect(dead?.flights[0]?.homeBase.name).toBe('carrier-1')
+  })
+
   test('uses DEAD-capable aircraft from other task lists when saved DEAD list is empty', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0)
     const campaign = createCampaign({
@@ -354,7 +455,7 @@ describe('ATO package planner', () => {
         objectiveId: 'Target Objective',
         position: { x: 50_000, y: 0 },
         state: 'idle',
-        units: [{ name: 'BMP-2', count: 3 }]
+        units: [{ name: 'BMP-2', count: 4 }]
       }
     ]
 
@@ -384,7 +485,7 @@ describe('ATO package planner', () => {
         objectiveId: 'Target Objective',
         position: { x: 50_000, y: 0 },
         state: 'idle',
-        units: [{ name: 'BMP-2', count: 3 }]
+        units: [{ name: 'BMP-2', count: 4 }]
       }
     ]
 
@@ -426,7 +527,7 @@ describe('ATO package planner', () => {
         objectiveId: 'Target Objective',
         position: { x: 50_000, y: 0 },
         state: 'idle',
-        units: [{ name: 'BMP-2', count: 3 }]
+        units: [{ name: 'BMP-2', count: 4 }]
       }
     ]
 

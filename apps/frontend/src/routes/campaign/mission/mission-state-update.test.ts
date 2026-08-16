@@ -17,21 +17,26 @@ function secondsAfterMidnight(hour: number, minute = 0) {
 }
 
 function createCoalition(id: 'player' | 'opponent'): CoalitionData {
-  const groundUnitTypes = {} as CoalitionData['groundUnitTypes']
+  const aircraftTypes = Object.fromEntries(
+    schemas.task.options.map((task) => [task, [] as string[]])
+  ) as CoalitionData['aircraftTypes']
+  aircraftTypes.CAP = ['F-16C_50']
+  aircraftTypes['Pinpoint Strike'] = ['F-16C_50']
+  aircraftTypes['Strategic Strike'] = ['B-52H']
+  aircraftTypes.SEAD = ['F-16C_50']
+  aircraftTypes.DEAD = ['F-16C_50']
+  aircraftTypes.CAS = ['F-16C_50']
+  aircraftTypes.Transport = ['UH-60L']
+
+  const groundUnitTypes = Object.fromEntries(
+    schemas.groundUnitType.options.map((type) => [type, [] as string[]])
+  ) as CoalitionData['groundUnitTypes']
   groundUnitTypes.Vehicle = ['M-1 Abrams']
   groundUnitTypes['Shorad Infantry'] = ['Soldier stinger']
 
   return {
     id,
-    aircraftTypes: {
-      CAP: ['F-16C_50'],
-      'Pinpoint Strike': ['F-16C_50'],
-      'Strategic Strike': ['B-52H'],
-      SEAD: ['F-16C_50'],
-      DEAD: ['F-16C_50'],
-      CAS: ['F-16C_50'],
-      Transport: ['UH-60L']
-    } as CoalitionData['aircraftTypes'],
+    aircraftTypes,
     groundUnitTypes,
     airdromeNames: [],
     objectiveIds: [],
@@ -171,6 +176,33 @@ function groundPositionGroup(
         y: position.y + unitIndex
       }))
     )
+  }
+}
+
+function carrierGroup(state: 'operational' | 'sunk' = 'operational') {
+  const sunk = state === 'sunk'
+  return {
+    id: 'carrier-group',
+    name: 'Carrier Group',
+    role: 'carrier' as const,
+    unitTypes: ['hms_invincible'],
+    units: [
+      {
+        id: 'carrier-ship-1',
+        type: 'hms_invincible',
+        damage: sunk ? 1 : 0,
+        ammunition: 1,
+        fuel: 1,
+        state
+      }
+    ],
+    position: { x: 80_000, y: 185_000 },
+    heading: 0,
+    damage: sunk ? 1 : 0,
+    fuel: 1,
+    ammunition: 1,
+    cargo: 0,
+    state
   }
 }
 
@@ -564,5 +596,261 @@ describe('applyMissionStateUpdate culling manifest', () => {
 
     expect(updated.coalitions.opponent.structures[0]?.buildings[0]?.alive).toBe(true)
     expect(updated.coalitions.opponent.structures[1]?.buildings[0]?.alive).toBe(false)
+  })
+})
+
+describe('applyMissionStateUpdate EWR groups', () => {
+  test('persists EWR destruction and its last mission position', () => {
+    const campaign = createCampaign()
+    campaign.coalitions.opponent.ewrGroups = [
+      {
+        id: 'ewr-stanley-1',
+        type: '55G6 EWR',
+        objectiveId: 'Stanley Airport',
+        position: { x: 100, y: 200 }
+      }
+    ]
+
+    const updated = applyMissionStateUpdate(
+      campaign,
+      createMissionState({
+        lostUnits: [trackedUnit('IADS-EWR-Unit-ewr-stanley-1', 'IADS-EWR-ewr-stanley-1-201')],
+        groupPositions: {
+          blue: { aircraft: [], ground: [], ships: [] },
+          red: {
+            aircraft: [],
+            ships: [],
+            ground: [
+              {
+                name: 'IADS-EWR-ewr-stanley-1-201',
+                x: 125,
+                y: 225,
+                units: []
+              }
+            ]
+          }
+        }
+      })
+    )
+
+    expect(updated.coalitions.opponent.ewrGroups?.[0]).toMatchObject({
+      id: 'ewr-stanley-1',
+      position: { x: 125, y: 225 },
+      destroyed: true
+    })
+  })
+})
+
+describe('applyMissionStateUpdate naval groups', () => {
+  test('tracks an escort emitted inside its carrier mission group', () => {
+    const campaign = createCampaign()
+    campaign.coalitions.player.navalGroups = [
+      carrierGroup(),
+      {
+        id: 'escort-group',
+        name: 'Escort Group',
+        role: 'escort',
+        missionGroupId: 'carrier-group',
+        unitTypes: ['PERRY'],
+        units: [
+          {
+            id: 'escort-ship-1',
+            type: 'PERRY',
+            damage: 0,
+            ammunition: 1,
+            fuel: 1,
+            state: 'operational'
+          }
+        ],
+        position: { x: 79_000, y: 184_000 },
+        heading: 0,
+        damage: 0,
+        fuel: 1,
+        ammunition: 1,
+        cargo: 0,
+        state: 'operational'
+      }
+    ]
+
+    const updated = applyMissionStateUpdate(
+      campaign,
+      createMissionState({
+        groupPositions: {
+          blue: {
+            aircraft: [],
+            ground: [],
+            ships: [
+              {
+                name: 'NavalGroup-carrier-group',
+                x: 81_000,
+                y: 186_000,
+                units: [
+                  {
+                    name: 'NavalUnit-carrier-group-carrier-ship-1',
+                    type: 'hms_invincible',
+                    x: 81_000,
+                    y: 186_000
+                  },
+                  {
+                    name: 'NavalUnit-escort-group-escort-ship-1',
+                    type: 'PERRY',
+                    x: 80_200,
+                    y: 185_300
+                  }
+                ]
+              }
+            ]
+          },
+          red: { aircraft: [], ground: [], ships: [] }
+        }
+      })
+    )
+
+    expect(updated.coalitions.player.navalGroups?.[1]).toMatchObject({
+      position: { x: 80_200, y: 185_300 },
+      state: 'operational',
+      units: [{ state: 'operational' }]
+    })
+  })
+
+  test('keeps a mission-only naval patrol at its campaign position while tracking losses', () => {
+    const campaign = createCampaign()
+    campaign.coalitions.opponent.navalGroups = [
+      {
+        id: 'arg-surface-group',
+        name: 'Argentine Surface Group',
+        role: 'surface-combatant',
+        persistPosition: false,
+        unitTypes: ['leander-gun-achilles', 'leander-gun-andromeda', 'leander-gun-ariadne'],
+        units: [
+          {
+            id: 'arg-surface-group-ship-1',
+            type: 'leander-gun-achilles',
+            damage: 0,
+            ammunition: 1,
+            fuel: 1,
+            state: 'operational'
+          },
+          {
+            id: 'arg-surface-group-ship-2',
+            type: 'leander-gun-andromeda',
+            damage: 0,
+            ammunition: 1,
+            fuel: 1,
+            state: 'operational'
+          },
+          {
+            id: 'arg-surface-group-ship-3',
+            type: 'leander-gun-ariadne',
+            damage: 0,
+            ammunition: 1,
+            fuel: 1,
+            state: 'operational'
+          }
+        ],
+        position: { x: -22_010, y: -8_141 },
+        heading: 0,
+        damage: 0,
+        fuel: 1,
+        ammunition: 1,
+        cargo: 0,
+        state: 'operational'
+      }
+    ]
+    const lostUnitName = 'NavalUnit-arg-surface-group-arg-surface-group-ship-1'
+
+    const updated = applyMissionStateUpdate(
+      campaign,
+      createMissionState({
+        lostUnits: [trackedUnit(lostUnitName, 'NavalGroup-arg-surface-group')],
+        groupPositions: {
+          blue: { aircraft: [], ground: [], ships: [] },
+          red: {
+            aircraft: [],
+            ground: [],
+            ships: [
+              {
+                name: 'NavalGroup-arg-surface-group',
+                x: -15_000,
+                y: -2_000,
+                units: [
+                  {
+                    name: 'NavalUnit-arg-surface-group-arg-surface-group-ship-2',
+                    type: 'leander-gun-andromeda',
+                    x: -15_000,
+                    y: -2_000
+                  },
+                  {
+                    name: 'NavalUnit-arg-surface-group-arg-surface-group-ship-3',
+                    type: 'leander-gun-ariadne',
+                    x: -15_700,
+                    y: -2_000
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      })
+    )
+
+    expect(updated.coalitions.opponent.navalGroups?.[0]).toMatchObject({
+      position: { x: -22_010, y: -8_141 },
+      damage: 1 / 3,
+      state: 'damaged',
+      units: [
+        { state: 'sunk', damage: 1 },
+        { state: 'operational', damage: 0 },
+        { state: 'operational', damage: 0 }
+      ]
+    })
+  })
+
+  test('keeps carriers operational when DCS reports a carrier unit lost', () => {
+    const campaign = createCampaign()
+    campaign.coalitions.player.navalGroups = [carrierGroup('sunk')]
+
+    const unitName = 'NavalUnit-carrier-group-carrier-ship-1'
+    const updated = applyMissionStateUpdate(
+      campaign,
+      createMissionState({
+        lostUnits: [trackedUnit(unitName, 'NavalGroup-carrier-group')]
+      })
+    )
+
+    const carrier = updated.coalitions.player.navalGroups?.[0]
+    expect(carrier?.state).toBe('operational')
+    expect(carrier?.damage).toBe(0)
+    expect(carrier?.units?.[0]?.state).toBe('operational')
+    expect(carrier?.units?.[0]?.damage).toBe(0)
+  })
+
+  test('reopens a legacy campaign lost because its carrier was destroyed', () => {
+    const legacy = createCampaign()
+    legacy.scenarioId = 'falklands-1982'
+    legacy.status = 'lost'
+    legacy.timeMultiplier = 0
+    legacy.coalitions.player.navalGroups = [carrierGroup('sunk')]
+    legacy.logs = [
+      {
+        id: 'carrier-defeat',
+        type: 'campaign',
+        coalition: 'opponent',
+        campaignTime: campaignTime.toISOString(),
+        message: 'Campaign lost: carrier capability destroyed',
+        createdAt: campaignTime.toISOString()
+      }
+    ]
+
+    const restored = schemas.campaign.campaign.parse(legacy)
+
+    expect(restored.status).toBe('active')
+    expect(restored.timeMultiplier).toBe(1)
+    expect(restored.logs).toHaveLength(0)
+    expect(restored.coalitions.player.navalGroups?.[0]).toMatchObject({
+      state: 'operational',
+      damage: 0,
+      units: [{ state: 'operational', damage: 0 }]
+    })
   })
 })

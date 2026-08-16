@@ -16,6 +16,8 @@ export const UsNavy1964: z.infer<typeof schemas.faction> = {
     'Strategic Strike': [],
     CAS: ['A-4E-C'],
     CSAR: ['UH-1H'],
+    CASEVAC: ['UH-1H'],
+    'Troop Extraction': ['UH-1H'],
     'Air Assault': ['UH-1H'],
     SEAD: ['A-4E-C'],
     'Antiship Strike': [],

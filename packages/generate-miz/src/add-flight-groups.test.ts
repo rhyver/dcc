@@ -292,19 +292,70 @@ describe('addFlightGroups carrier compatibility', () => {
       'leander-gun-andromeda',
       'leander-gun-ariadne'
     ])
+    const carrierRouteTask = JSON.stringify(shipGroups[0]?.route?.points[0]?.task)
+    expect(carrierRouteTask).toContain('"id":"ActivateBeacon"')
+    expect(carrierRouteTask).toContain('"channel":11')
+    expect(carrierRouteTask).toContain('"modeChannel":"X"')
+    expect(carrierRouteTask).toContain('"callsign":"HMS"')
+    expect(carrierRouteTask).toContain('"system":3')
+    expect(carrierRouteTask).toContain('"frequency":972000000')
+  })
+
+  test('sends the Falklands surface group around a slow circular patrol', () => {
+    const startTime = new Date('1982-05-01T09:00:00Z')
+    const mission = createMission()
+    const campaign = createCampaign(startTime)
+    const scenario = scenarios.find((candidate) => candidate.id === 'falklands-1982')
+    if (!scenario) throw new Error('Falklands scenario is missing')
+    campaign.scenarioId = scenario.id
+    campaign.coalitions.player.navalGroups = []
+    campaign.coalitions.opponent.navalGroups = structuredClone(scenario.navalGroups?.opponent ?? [])
+
+    const result = addNavalGroups(mission, campaign)
+
+    expect(result.isOk()).toBe(true)
+    const surfaceGroup = mission.coalition.red.country?.[0]?.ship?.group?.find(
+      (group) => group.name === 'NavalGroup-arg-surface-group'
+    )
+    const points = surfaceGroup?.route?.points ?? []
+    expect(surfaceGroup?.units.map((unit) => unit.type)).toEqual([
+      'leander-gun-achilles',
+      'leander-gun-andromeda',
+      'leander-gun-ariadne'
+    ])
+    expect(points).toHaveLength(9)
+    expect(points.every((point) => point.speed === 3)).toBe(true)
+    expect(points[0]).toMatchObject({ x: -22_010, y: -8_141 })
+    expect(points.at(-1)?.x).toBeCloseTo(points[0]!.x)
+    expect(points.at(-1)?.y).toBeCloseTo(points[0]!.y)
+    expect(points.at(-1)?.task).toMatchObject({
+      params: {
+        tasks: [
+          {
+            params: {
+              action: {
+                id: 'SwitchWaypoint',
+                params: { fromWaypointIndex: 9, goToWaypointIndex: 2 }
+              }
+            }
+          }
+        ]
+      }
+    })
   })
 
   test.each([
-    ['FA-18C_hornet', 'CVN_71'],
-    ['AV8BNA', 'LHA_Tarawa']
+    ['FA-18C_hornet', 'CVN_71', { channel: 12, band: 'X', callsign: 'CVN' }],
+    ['AV8BNA', 'LHA_Tarawa', { channel: 11, band: 'X', callsign: 'LHA' }]
   ] as const)(
     'links %s to a compatible ship in a mixed carrier group',
-    (aircraftType, shipType) => {
+    (aircraftType, shipType, expectedTacan) => {
       const startTime = new Date('2026-01-01T00:00:00Z')
       const mission = createMission()
       const campaign = createCampaign(startTime)
       const flightGroup = createFlightGroup('carrier-flight', 'Ford-1', startTime)
       flightGroup.homeBase = 'uk-carrier-group'
+      flightGroup.aircrafts[0]!.client = true
       flightGroup.aircrafts.forEach((aircraft) => {
         aircraft.aircraftName = aircraftType
       })
@@ -323,6 +374,7 @@ describe('addFlightGroups carrier compatibility', () => {
               damage: 0,
               ammunition: 1,
               fuel: 1,
+              tacan: { channel: 11, band: 'X', callsign: 'LHA' },
               state: 'operational'
             },
             {
@@ -331,6 +383,7 @@ describe('addFlightGroups carrier compatibility', () => {
               damage: 0,
               ammunition: 1,
               fuel: 1,
+              tacan: { channel: 12, band: 'X', callsign: 'CVN' },
               state: 'operational'
             }
           ],
@@ -349,8 +402,19 @@ describe('addFlightGroups carrier compatibility', () => {
       if (navalResult.isErr()) throw navalResult.error
 
       const carrierMissionGroup = mission.coalition.blue.country?.[0]?.ship?.group[0]
+      expect(carrierMissionGroup).toMatchObject({
+        communication: true,
+        frequency: 250,
+        modulation: 0
+      })
       const expectedCarrier = carrierMissionGroup?.units.find((unit) => unit.type === shipType)
       expect(expectedCarrier).toBeDefined()
+      const carrierRouteTask = JSON.stringify(carrierMissionGroup?.route?.points[0]?.task)
+      expect(carrierRouteTask.match(/"id":"ActivateBeacon"/g)).toHaveLength(2)
+      expect(carrierRouteTask).toContain('"channel":11')
+      expect(carrierRouteTask).toContain('"callsign":"LHA"')
+      expect(carrierRouteTask).toContain('"channel":12')
+      expect(carrierRouteTask).toContain('"callsign":"CVN"')
 
       const flightResult = addFlightGroups(mission, campaign, theatre)
       expect(flightResult.isOk()).toBe(true)
@@ -366,6 +430,12 @@ describe('addFlightGroups carrier compatibility', () => {
       expect(emittedFlight?.units[0]).toMatchObject({
         x: expectedCarrier?.x,
         y: expectedCarrier?.y
+      })
+      expect(flightResult.value[0]).toMatchObject({
+        frequency: 251.05,
+        navigation: {
+          landingTacan: expectedTacan
+        }
       })
     }
   )
@@ -965,7 +1035,87 @@ describe('addFlightGroups mission script config', () => {
 
     const group = mission.coalition.blue.country?.[0]?.plane?.group?.[0]
 
-    expect(group?.frequency).toBe(251)
+    expect(group?.frequency).toBe(251.05)
+  })
+
+  test.each([
+    ['AV8BNA', 1],
+    ['FA-18C_hornet', 1],
+    ['A-10C_2', 2]
+  ] as const)('writes the assigned frequency to %s radio %i channel 1', (aircraftType, radio) => {
+    const startTime = new Date('2026-01-01T00:00:00Z')
+    const mission = createMission()
+    const campaign = createCampaign(startTime)
+    const flightGroup = createFlightGroup('blue-radio', 'Springfield-4', startTime)
+    flightGroup.aircrafts[0]!.client = true
+    flightGroup.aircrafts.forEach((aircraft) => {
+      aircraft.aircraftName = aircraftType
+    })
+    campaign.coalitions.player.flightGroups = [flightGroup]
+    campaign.coalitions.opponent.flightGroups = []
+
+    const result = addFlightGroups(mission, campaign, theatre)
+
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) throw result.error
+
+    const group = mission.coalition.blue.country?.[0]?.plane?.group?.[0]
+    const clientUnit = group?.units?.[0]
+    const aiWingman = group?.units?.[1]
+
+    expect(group?.radioSet).toBe(true)
+    expect(clientUnit?.Radio).toHaveLength(radio)
+    expect(clientUnit?.Radio?.[radio - 1]).toEqual({
+      channels: { 1: 251.05, 2: 251, 3: 250, 4: 305 }
+    })
+    expect(aiWingman?.Radio).toBeUndefined()
+    expect(result.value[0]?.radioPreset).toEqual({ radio, channel: 1 })
+    expect(result.value[0]?.radioChannels).toEqual([
+      { purpose: 'FLIGHT', radio, channel: 1, frequency: 251.05 },
+      { purpose: 'AWACS', radio, channel: 2, frequency: 251 },
+      { purpose: 'ATC', radio, channel: 3, frequency: 250 },
+      { purpose: 'JTAC', radio, channel: 4, frequency: 305 }
+    ])
+  })
+
+  test('uses the home airfield UHF ATC frequency on channel 3', () => {
+    const startTime = new Date('2026-01-01T00:00:00Z')
+    const mission = createMission()
+    const campaign = createCampaign(startTime)
+    const flightGroup = createFlightGroup('blue-radio', 'Springfield-4', startTime)
+    flightGroup.aircrafts[0]!.client = true
+    flightGroup.aircrafts.forEach((aircraft) => {
+      aircraft.aircraftName = 'FA-18C_hornet'
+    })
+    campaign.coalitions.player.flightGroups = [flightGroup]
+    campaign.coalitions.opponent.flightGroups = []
+
+    const result = addFlightGroups(mission, campaign, {
+      ...theatre,
+      airdromeDetails: {
+        'Test Base': {
+          id: 1,
+          name: 'Test Base',
+          x: 1000,
+          y: 1000,
+          runwayAngle: 0,
+          standlist: {},
+          frequency: 264
+        }
+      }
+    })
+
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) throw result.error
+
+    const clientUnit = mission.coalition.blue.country?.[0]?.plane?.group?.[0]?.units?.[0]
+    expect(clientUnit?.Radio?.[0]).toMatchObject({ channels: { 3: 264 } })
+    expect(result.value[0]?.radioChannels).toContainEqual({
+      purpose: 'ATC',
+      radio: 1,
+      channel: 3,
+      frequency: 264
+    })
   })
 
   test('uses the aircraft payload ammo type when generating units', () => {
@@ -1102,6 +1252,41 @@ describe('addFlightGroups mission script config', () => {
     })
   })
 
+  test('equips Harrier Pinpoint Strike flights with the mission-derived GBU-54 loadout', () => {
+    const startTime = new Date('2026-01-01T00:00:00Z')
+    const mission = createMission()
+    const campaign = createCampaign(startTime)
+    const group = createTaskFlightGroup(
+      'blue-harrier-pinpoint-strike',
+      'Enfield-1',
+      startTime,
+      'Pinpoint Strike'
+    )
+    group.aircrafts.forEach((aircraft) => {
+      aircraft.aircraftName = 'AV8BNA'
+    })
+    campaign.coalitions.player.flightGroups = [group]
+    campaign.coalitions.opponent.flightGroups = []
+
+    const result = addFlightGroups(mission, campaign, theatre)
+
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) throw result.error
+
+    const units = mission.coalition.blue.country?.[0]?.plane?.group?.[0]?.units ?? []
+    expect(units).toHaveLength(2)
+    expect(units[0]?.payload?.pylons).toEqual({
+      1: { CLSID: '{6CEB49FC-DED8-4DED-B053-E1F033FF72D3}', num: 1 },
+      2: { CLSID: '{BRU-70A_2*GBU-54_RIGHT}', num: 2 },
+      3: { CLSID: '{BRU-70A_2*GBU-54_LEFT}', num: 3 },
+      4: { CLSID: '{GAU_12_Equalizer}', num: 4 },
+      5: { CLSID: '{ALQ_164_RF_Jammer}', num: 5 },
+      6: { CLSID: '{A111396E-D3E8-4b9c-8AC9-2432489304D5}', num: 6 },
+      7: { CLSID: '{BRU-70A_2*GBU-54_LEFT}', num: 7 },
+      8: { CLSID: '{6CEB49FC-DED8-4DED-B053-E1F033FF72D3}', num: 8 }
+    })
+  })
+
   test('assigns a unique radio frequency to each generated flight group', () => {
     const startTime = new Date('2026-01-01T00:00:00Z')
     const mission = createMission()
@@ -1116,7 +1301,7 @@ describe('addFlightGroups mission script config', () => {
     const groups = mission.coalition.blue.country?.[0]?.plane?.group ?? []
     const frequencies = groups.map((group) => group.frequency)
 
-    expect(frequencies).toEqual([251, 251.05, 251.1, 251.15, 251.2])
+    expect(frequencies).toEqual([251.05, 251.1, 251.15, 251.2, 251.25])
     expect(new Set(frequencies).size).toBe(frequencies.length)
   })
 
@@ -1166,9 +1351,13 @@ describe('addFlightGroups mission script config', () => {
     if (result.isErr()) throw result.error
 
     expect(result.value[0]?.groupId).toEqual(expect.any(Number))
-    expect(result.value.map(({ groupId: _groupId, ...group }) => group)).toEqual([
+    expect(
+      result.value.map(({ groupId: _groupId, radioChannels: _radioChannels, ...group }) => group)
+    ).toEqual([
       {
+        frequency: 251.05,
         name: 'Enfield-1',
+        radioPreset: { radio: 1, channel: 1 },
         task: 'CAP',
         unitNames: ['Enfield-1-1', 'Enfield-1-2']
       }
@@ -1227,6 +1416,10 @@ describe('addFlightGroups mission script config', () => {
         pickupRadius: 150
       }
     })
+    const missionConfig = result.value[0]
+    expect(
+      missionConfig && 'csar' in missionConfig ? missionConfig.csar?.pilotObjectName : undefined
+    ).toMatch(/^Downed Pilot-\d+-1$/)
     expect(
       mission.coalition.blue.country?.[0]?.helicopter?.group?.[0]?.route?.points[0]
     ).toMatchObject({
@@ -1234,6 +1427,22 @@ describe('addFlightGroups mission script config', () => {
       type: 'TakeOffGround'
     })
     expect(mission.coalition.blue.country?.[0]?.helicopter?.group?.[0]?.task).toBe('Transport')
+    const pilotGroups = mission.coalition.blue.country?.[0]?.static?.group ?? []
+    expect(pilotGroups).toHaveLength(1)
+    expect(pilotGroups[0]).toMatchObject({
+      dead: false,
+      x: 3000,
+      y: 4000
+    })
+    expect(pilotGroups[0]?.name).toMatch(/^Downed Pilot-\d+$/)
+    expect(pilotGroups[0]?.units).toHaveLength(1)
+    expect(pilotGroups[0]?.units[0]).toMatchObject({
+      type: 'Pilot standing',
+      category: 'Fortifications',
+      shape_name: 'pilot_parashut',
+      x: 3000,
+      y: 4000
+    })
   })
 
   test('skips CAS JTAC support when disabled in campaign params', () => {
@@ -1264,8 +1473,11 @@ describe('addFlightGroups mission script config', () => {
     const blueGroups = mission.coalition.blue.country?.[0]?.plane?.group ?? []
     expect(blueGroups.map((group) => group.name)).toEqual(['Enfield-1'])
     expect(result.value[0]?.groupId).toEqual(expect.any(Number))
-    expect(result.value.map(({ groupId: _groupId, ...group }) => group)).toEqual([
+    expect(
+      result.value.map(({ groupId: _groupId, radioChannels: _radioChannels, ...group }) => group)
+    ).toEqual([
       {
+        frequency: 251.05,
         name: 'Enfield-1',
         navigation: {
           mode: 'targetVector',
@@ -1275,6 +1487,7 @@ describe('addFlightGroups mission script config', () => {
             z: 3000
           }
         },
+        radioPreset: { radio: 1, channel: 1 },
         task: 'CAS',
         unitNames: ['Enfield-1-1', 'Enfield-1-2']
       }

@@ -635,7 +635,8 @@ function makeDeadPlan(
   const assignment = selectHomeBaseAndTarget({
     homeBases,
     targets,
-    maxDistance: config.packages.DEAD.maxDistance
+    maxDistance: config.packages.DEAD.maxDistance,
+    preference: 'nearest'
   })
   if (!assignment) {
     pushRejection(rejected, 'dead', 'out of range')
@@ -658,7 +659,7 @@ function makeDeadPlan(
     type: 'DEAD Package',
     coalition,
     priority: targets[0]?.operational ? 82 : 72,
-    reason: 'Untargeted radar emitter',
+    reason: 'Nearest untargeted radar emitter',
     targetId: assignment.target.id,
     targetObjectiveId: assignment.target.objectiveId,
     targetType: assignment.target.type,

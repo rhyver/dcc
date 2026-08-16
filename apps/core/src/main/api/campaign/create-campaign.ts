@@ -3,6 +3,8 @@ import {
   assignDeploymentSite,
   ensurePersistentIadsEwrs,
   expandGroundGroupUnits,
+  getCampaignDateForYear,
+  getGpsEnabledCampaignDate,
   isInfantryGroundGroup
 } from '@dcc/campaign'
 import { getScenarios } from '../data/get-scenarios'
@@ -257,14 +259,21 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
     })
   }
 
-  const getStructures = (objectiveIds: string[], airdromeNames: string[]) => {
+  const getStructures = (
+    objectiveIds: string[],
+    airdromeNames: string[],
+    requiredStructures: NonNullable<
+      z.infer<typeof schemas.scenario>['start']['player']['structureAssignments']
+    > = []
+  ) => {
     const coalitionObjectives = getObjectiveInfos(objectiveIds)
     const airbasePositions = airdromeNames
       .map((name) => theatre.airdromeDetails[name])
       .filter((details) => details != null)
       .map((details) => ({ x: details.x, y: details.y }))
     const assignments = assignStructures(coalitionObjectives, airbasePositions, {
-      ensureEveryObjective: scenario.id === 'falklands-1982'
+      ensureEveryObjective: scenario.id === 'falklands-1982',
+      requiredStructures
     })
 
     return assignments.map((assignment) => {
@@ -317,11 +326,13 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
 
   const playerStructures = getStructures(
     objectiveAssignments.player ?? [],
-    scenario.start.player.airdromeNames
+    scenario.start.player.airdromeNames,
+    scenario.start.player.structureAssignments
   )
   const opponentStructures = getStructures(
     objectiveAssignments.opponent ?? [],
-    scenario.start.opponent.airdromeNames
+    scenario.start.opponent.airdromeNames,
+    scenario.start.opponent.structureAssignments
   )
 
   // Assign SAM groups to both coalitions
@@ -499,7 +510,13 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
   applyProfileSupplyPressure(opponentSupplyNodes, 'opponent')
 
   const now = new Date()
-  const campaignTime = new Date(scenario.date)
+  const selectedCampaignTime = getCampaignDateForYear(
+    scenario.date,
+    input.campaignYear ?? scenario.date.getUTCFullYear()
+  )
+  const campaignTime = input.forceGpsEnabledDate
+    ? getGpsEnabledCampaignDate(selectedCampaignTime)
+    : selectedCampaignTime
   const opponentStrategicStrikeCooldownUntil = createInitialStrategicStrikeCooldown(
     campaignTime,
     opponentFaction

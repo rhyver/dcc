@@ -5,6 +5,7 @@ import * as z from 'zod'
 import {
   advanceFalklandsCampaign,
   getSanCarlosLandingReadiness,
+  migrateFalklandsSanCarlosFarp,
   SAN_CARLOS_AMPHIBIOUS_ANCHORAGE,
   SAN_CARLOS_FARP_ID
 } from './falklands-campaign'
@@ -129,13 +130,22 @@ function coalition(id: string): Campaign['coalitions']['player'] {
 function naval(
   id: string,
   role: 'carrier' | 'escort' | 'transport' | 'surface-combatant',
-  state: 'operational' | 'sunk' = 'operational'
+  state: 'operational' | 'sunk' = 'operational',
+  shipCount = 1
 ): NonNullable<Campaign['coalitions']['player']['navalGroups']>[number] {
   return {
     id,
     name: id,
     role,
-    unitTypes: ['PERRY'],
+    unitTypes: Array.from({ length: shipCount }, () => 'PERRY'),
+    units: Array.from({ length: shipCount }, (_, index) => ({
+      id: `${id}-ship-${index + 1}`,
+      type: 'PERRY',
+      damage: state === 'sunk' ? 1 : 0,
+      ammunition: 1,
+      fuel: 1,
+      state
+    })),
     position: { x: 0, y: 0 },
     heading: 0,
     damage: state === 'sunk' ? 1 : 0,
@@ -195,7 +205,10 @@ function campaign(): Campaign {
 describe('Falklands campaign stages', () => {
   test('reserves four validated sites and completes unloading after 30 campaign minutes', () => {
     const state = campaign()
-    expect(getSanCarlosLandingReadiness(state, theatre)).toMatchObject({ ready: true })
+    const readiness = getSanCarlosLandingReadiness(state, theatre)
+    expect(readiness).toMatchObject({ ready: true })
+    expect(readiness.goals).toHaveLength(6)
+    expect(readiness.goals.every((goal) => goal.complete)).toBe(true)
     advanceFalklandsCampaign(state, theatre)
     expect(state.campaignPhase).toBe('san-carlos-landing')
     expect(state.landingOperation?.reservedSiteIds).toHaveLength(4)
@@ -252,20 +265,42 @@ describe('Falklands campaign stages', () => {
   test('combines sea control and landing preparation until the fleet and SAM are destroyed', () => {
     const state = campaign()
     state.campaignPhase = 'landing-preparation'
-    state.coalitions.opponent.navalGroups = [naval('surface', 'surface-combatant')]
+    state.coalitions.opponent.navalGroups = [
+      naval('surface', 'surface-combatant', 'operational', 3)
+    ]
     state.coalitions.opponent.samGroups[0]!.destroyed = false
 
     advanceFalklandsCampaign(state, theatre)
     expect(state.campaignPhase).toBe('sea-control')
-    expect(getSanCarlosLandingReadiness(state, theatre).reasons).toEqual(
+    const blockedReadiness = getSanCarlosLandingReadiness(state, theatre)
+    expect(blockedReadiness.reasons).toEqual(
       expect.arrayContaining([
         'Hostile surface forces remain operational',
         'The Falklands SAM network has not been destroyed (1 battery remaining)'
       ])
     )
+    expect(blockedReadiness.goals.filter((goal) => !goal.complete).map((goal) => goal.id)).toEqual(
+      expect.arrayContaining(['surface-threats', 'sam-network'])
+    )
+    expect(blockedReadiness.goals).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'surface-threats',
+          label: 'Destroy enemy warships (0/3)'
+        }),
+        expect.objectContaining({
+          id: 'sam-network',
+          label: 'Destroy the Falklands SAM network (3/4)'
+        })
+      ])
+    )
 
     state.coalitions.opponent.navalGroups[0]!.state = 'sunk'
     state.coalitions.opponent.navalGroups[0]!.damage = 1
+    for (const unit of state.coalitions.opponent.navalGroups[0]!.units ?? []) {
+      unit.state = 'sunk'
+      unit.damage = 1
+    }
     advanceFalklandsCampaign(state, theatre)
     expect(state.campaignPhase).toBe('sea-control')
 
@@ -285,16 +320,90 @@ describe('Falklands campaign stages', () => {
         type: '55G6 EWR',
         objectiveId: 'Evelyn Station Farm',
         position: { x: 4_000, y: 2_000 }
+      },
+      {
+        id: 'iads-ewr-stanley',
+        type: '55G6 EWR',
+        objectiveId: 'Stanley Airport',
+        position: { x: 8_000, y: 2_000 }
+      },
+      {
+        id: 'iads-ewr-fox-bay',
+        type: '55G6 EWR',
+        objectiveId: 'Fox Bay',
+        position: { x: 12_000, y: 2_000 }
       }
     ]
 
     expect(getSanCarlosLandingReadiness(state, theatre)).toMatchObject({
       ready: false,
-      reasons: expect.arrayContaining(['Local radar defenses are not suppressed'])
+      reasons: expect.arrayContaining(['Local EWR remain operational']),
+      goals: expect.arrayContaining([
+        {
+          id: 'radars',
+          label: 'Destroy all local EWR (0/3)',
+          complete: false
+        }
+      ])
     })
 
-    state.coalitions.opponent.ewrGroups[0]!.destroyed = true
-    expect(getSanCarlosLandingReadiness(state, theatre)).toMatchObject({ ready: true })
+    for (const ewr of state.coalitions.opponent.ewrGroups) ewr.destroyed = true
+    expect(getSanCarlosLandingReadiness(state, theatre)).toMatchObject({
+      ready: true,
+      goals: expect.arrayContaining([
+        {
+          id: 'radars',
+          label: 'Destroy all local EWR (3/3)',
+          complete: true
+        }
+      ])
+    })
+  })
+
+  test('moves an existing San Carlos FARP and its home waypoints to the reviewed site', () => {
+    const state = campaign()
+    state.campaignPhase = 'land-campaign'
+    state.landingOperation = {
+      startedAt: new Date('1982-05-01T09:00:00Z'),
+      completesAt: new Date('1982-05-01T09:30:00Z'),
+      completed: true,
+      reservedSiteIds: ['recovery-san-carlos-farp']
+    }
+    state.coalitions.player.structures.push({
+      id: SAN_CARLOS_FARP_ID,
+      type: 'Farp',
+      objectiveId: 'San Carlos',
+      position: { x: 600, y: -100 },
+      name: 'San Carlos FARP',
+      resources: 0,
+      buildings: [{ offset: { x: 0, y: 0 }, type: 'FARP', alive: true }]
+    })
+    state.coalitions.player.flightGroups = [
+      {
+        homeBase: SAN_CARLOS_FARP_ID,
+        position: { x: 600, y: -100 },
+        flightplan: {
+          waypoints: [
+            { type: 'TakeOff', position: { x: 600, y: -100 } },
+            { type: 'Task', position: { x: 2_000, y: 2_000 } },
+            { type: 'Landing', position: { x: 600, y: -100 } }
+          ]
+        }
+      }
+    ] as Campaign['coalitions']['player']['flightGroups']
+
+    migrateFalklandsSanCarlosFarp(state, theatre)
+
+    expect(
+      state.coalitions.player.structures.find((structure) => structure.id === SAN_CARLOS_FARP_ID)
+        ?.position
+    ).toEqual({ x: 700, y: 0 })
+    expect(state.coalitions.player.flightGroups[0]?.position).toEqual({ x: 700, y: 0 })
+    expect(state.coalitions.player.flightGroups[0]?.flightplan.waypoints).toMatchObject([
+      { type: 'TakeOff', position: { x: 700, y: 0 } },
+      { type: 'Task', position: { x: 2_000, y: 2_000 } },
+      { type: 'Landing', position: { x: 700, y: 0 } }
+    ])
   })
 
   test('adds the expanded SAM network to an existing pre-landing save', () => {
@@ -376,8 +485,9 @@ describe('Falklands campaign stages', () => {
 
   test.each([
     ['capital ship group', ['ara_vdm', 'PERRY']],
-    ['speedboat group', ['speedboat']]
-  ])('replaces the legacy Argentine %s with a Harrier-solvable frigate', (_label, unitTypes) => {
+    ['speedboat group', ['speedboat']],
+    ['single gun-only frigate', ['leander-gun-achilles']]
+  ])('replaces the legacy Argentine %s with a gun-only surface group', (_label, unitTypes) => {
     const state = campaign()
     state.coalitions.opponent.navalGroups = [naval('arg-surface-group', 'surface-combatant')]
     const surfaceGroup = state.coalitions.opponent.navalGroups[0]!
@@ -395,11 +505,17 @@ describe('Falklands campaign stages', () => {
     advanceFalklandsCampaign(state, theatre)
 
     expect(surfaceGroup).toMatchObject({
-      name: 'Argentine Patrol Frigate',
-      unitTypes: ['leander-gun-achilles'],
+      name: 'Argentine Surface Group',
+      missionPatrol: { pattern: 'circle', radius: 2_500, speed: 3 },
+      persistPosition: false,
+      unitTypes: ['leander-gun-achilles', 'leander-gun-andromeda', 'leander-gun-ariadne'],
       damage: 0,
       state: 'operational',
-      units: [{ type: 'leander-gun-achilles', damage: 0, state: 'operational' }]
+      units: [
+        { type: 'leander-gun-achilles', damage: 0, state: 'operational' },
+        { type: 'leander-gun-andromeda', damage: 0, state: 'operational' },
+        { type: 'leander-gun-ariadne', damage: 0, state: 'operational' }
+      ]
     })
   })
 

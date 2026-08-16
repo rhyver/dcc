@@ -14,6 +14,21 @@ export const factionIdsByEra: Record<CampaignEra, { player: string; opponent: st
   Modern: { player: 'usa-2004', opponent: 'russia-1996' }
 }
 
+export function getScenarioCampaignDefaults(scenario: Scenario | undefined): {
+  era: CampaignEra
+  playerFactionId: string
+  opponentFactionId: string
+} {
+  const era = scenario?.era != null && scenario.era !== 'WW2' ? scenario.era : 'Modern'
+  const eraDefaults = factionIdsByEra[era]
+
+  return {
+    era,
+    playerFactionId: scenario?.defaultFactionIds?.player ?? eraDefaults.player,
+    opponentFactionId: scenario?.defaultFactionIds?.opponent ?? eraDefaults.opponent
+  }
+}
+
 export const eraOptions: Array<{
   id: CampaignEra
   label: string
@@ -48,6 +63,19 @@ export const eraOptions: Array<{
 
 export function formatFactionLabel(faction: Faction) {
   return faction.year != null ? `${faction.name} // ${faction.year}` : faction.name
+}
+
+export function getCampaignYearForFactions(
+  factions: Faction[],
+  playerFactionId: string,
+  opponentFactionId: string,
+  fallbackYear: number
+) {
+  const factionYears = [playerFactionId, opponentFactionId]
+    .map((factionId) => factions.find((faction) => faction.id === factionId)?.year)
+    .filter((year): year is number => year != null)
+
+  return factionYears.length > 0 ? Math.max(...factionYears) : fallbackYear
 }
 
 export const aircraftCatalog = Object.values(aircraftDefinitions).sort((left, right) =>

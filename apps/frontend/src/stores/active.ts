@@ -2,6 +2,7 @@ import { schemas } from '@dcc/contracts'
 import {
   ensurePersistentIadsEwrs,
   ensureSupercarrierForAircraft,
+  migrateFalklandsSanCarlosFarp,
   migrateLegacyFalklandsNavalStarts
 } from '@dcc/campaign'
 import { aircrafts as aircraftDefinitions, scenarios, theatres } from '@dcc/data'
@@ -340,7 +341,10 @@ function migrateLoadedCampaign(campaign: Campaign): Campaign {
     const theatre = scenario
       ? theatres.find((entry) => entry.name === scenario.theatreName)
       : undefined
-    if (theatre) ensurePersistentIadsEwrs(draft, theatre)
+    if (theatre) {
+      ensurePersistentIadsEwrs(draft, theatre)
+      migrateFalklandsSanCarlosFarp(draft, theatre)
+    }
   })
 }
 

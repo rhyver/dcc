@@ -1,13 +1,4 @@
-import {
-  Activity,
-  Anchor,
-  Cross,
-  MapPinned,
-  PackageOpen,
-  Route,
-  ShieldAlert,
-  UsersRound
-} from 'lucide-react'
+import { Activity, Anchor, Check, Circle, MapPinned, ShieldAlert } from 'lucide-react'
 import { useSelector } from '@xstate/store/react'
 import {
   getGroundGroupCombatPower,
@@ -45,20 +36,37 @@ export function CampaignOperationsOverview() {
   const player = campaign.coalitions.player
   const formations = player.groundGroups
   const navalGroups = player.navalGroups ?? []
-  const casualtyPoints = player.casualtyPoints ?? []
-  const extractionRequests = player.extractionRequests ?? []
-  const replacementPools = Object.values(player.replacementPools ?? {})
   const isFalklands = campaign.scenarioId === 'falklands-1982'
   const theatre = isFalklands
     ? theatres.find((candidate) => candidate.name === 'SouthAtlantic')
     : undefined
   const landingReadiness = theatre ? getSanCarlosLandingReadiness(campaign, theatre) : undefined
-  const recoveringPersonnel = replacementPools.reduce(
-    (sum, pool) => sum + pool.recoveringPersonnel.reduce((count, entry) => count + entry.count, 0),
-    0
-  )
-  const readyPersonnel = replacementPools.reduce((sum, pool) => sum + pool.readyPersonnel, 0)
-  const storedEquipment = replacementPools.reduce((sum, pool) => sum + pool.equipment.length, 0)
+  const currentPhaseGoals = (() => {
+    if (!isFalklands || !landingReadiness) return []
+
+    if (campaign.campaignPhase === 'land-campaign') {
+      const objectiveIds = campaign.goal?.objectiveIds ?? ['Port Stanley', 'Stanley Airport']
+      return objectiveIds.map((objectiveId) => ({
+        id: objectiveId,
+        label: `Capture ${objectiveId}`,
+        complete: player.objectiveIds.includes(objectiveId)
+      }))
+    }
+
+    if (campaign.campaignPhase === 'san-carlos-landing') {
+      return [
+        ...landingReadiness.goals.filter((goal) => ['carrier', 'transport'].includes(goal.id)),
+        {
+          id: 'unloading',
+          label: 'Complete unloading at San Carlos',
+          complete: campaign.landingOperation?.completed ?? false
+        }
+      ]
+    }
+
+    return landingReadiness.goals
+  })()
+  const remainingPhaseGoals = currentPhaseGoals.filter((goal) => !goal.complete).length
   const recoveringFormations = formations.filter((group) =>
     ['withdrawing', 'awaiting-extraction', 'trapped'].includes(group.state)
   )
@@ -67,9 +75,8 @@ export function CampaignOperationsOverview() {
   if (
     !isFalklands &&
     navalGroups.length === 0 &&
-    casualtyPoints.length === 0 &&
-    extractionRequests.length === 0 &&
-    recoveringFormations.length === 0
+    recoveringFormations.length === 0 &&
+    deferred.length === 0
   ) {
     return null
   }
@@ -90,19 +97,38 @@ export function CampaignOperationsOverview() {
         )}
       </div>
 
-      {isFalklands && landingReadiness && campaign.campaignPhase !== 'land-campaign' && (
+      {isFalklands && currentPhaseGoals.length > 0 && (
         <div className="border-b border-synthwave-pink/12 px-3 py-2.5">
           <div className="mb-1.5 flex items-center justify-between gap-2 text-[10px] uppercase tracking-wide">
             <span className="flex items-center gap-1.5 text-secondary/70">
-              <MapPinned className="h-3 w-3 text-synthwave-pink" /> San Carlos readiness
+              <MapPinned className="h-3 w-3 text-synthwave-pink" /> Phase goals
             </span>
-            <span className={landingReadiness.ready ? 'text-cyan-300' : 'text-amber-300'}>
-              {landingReadiness.ready ? 'Cleared' : `${landingReadiness.reasons.length} holds`}
+            <span className={remainingPhaseGoals === 0 ? 'text-cyan-300' : 'text-amber-300'}>
+              {remainingPhaseGoals === 0 ? 'Cleared' : `${remainingPhaseGoals} remaining`}
             </span>
           </div>
-          {campaign.landingOperation?.completesAt ? (
-            <div className="text-xs text-cyan-200">
-              Unloading until{' '}
+          <ul className="space-y-1.5">
+            {currentPhaseGoals.map((goal) => (
+              <li
+                key={goal.id}
+                className={cn(
+                  'flex items-start gap-2 text-[11px] leading-4',
+                  goal.complete ? 'text-cyan-200/75' : 'text-secondary/80'
+                )}
+              >
+                {goal.complete ? (
+                  <Check className="mt-0.5 h-3 w-3 shrink-0 text-cyan-300" />
+                ) : (
+                  <Circle className="mt-0.5 h-3 w-3 shrink-0 text-amber-300" />
+                )}
+                <span>{goal.label}</span>
+              </li>
+            ))}
+          </ul>
+          {campaign.campaignPhase === 'san-carlos-landing' &&
+          campaign.landingOperation?.completesAt ? (
+            <div className="mt-2 border-t border-synthwave-pink/10 pt-2 text-[10px] text-cyan-200/75">
+              Scheduled completion ·{' '}
               {new Intl.DateTimeFormat('en-GB', {
                 hour: '2-digit',
                 minute: '2-digit',
@@ -110,12 +136,7 @@ export function CampaignOperationsOverview() {
               }).format(campaign.landingOperation.completesAt)}{' '}
               Z
             </div>
-          ) : (
-            <div className="line-clamp-2 text-[11px] leading-relaxed text-secondary/70">
-              {landingReadiness.reasons[0] ??
-                'Carrier, escort, lift, suppression, and sites ready.'}
-            </div>
-          )}
+          ) : null}
         </div>
       )}
 
@@ -139,34 +160,6 @@ export function CampaignOperationsOverview() {
           ))}
         </div>
       )}
-
-      <div className="grid grid-cols-4 gap-px bg-synthwave-pink/10">
-        {[
-          [Route, 'Withdraw', recoveringFormations.length],
-          [
-            Cross,
-            'Casualties',
-            casualtyPoints.filter((point) => point.status === 'awaiting-pickup').length
-          ],
-          [
-            UsersRound,
-            'Extract',
-            extractionRequests.filter((request) => request.status === 'awaiting-aircraft').length
-          ],
-          [PackageOpen, 'Pool', readyPersonnel + recoveringPersonnel + storedEquipment]
-        ].map(([Icon, label, value]) => {
-          const MetricIcon = Icon as typeof Route
-          return (
-            <div key={label as string} className="bg-black/25 px-2 py-2 text-center">
-              <MetricIcon className="mx-auto mb-1 h-3 w-3 text-synthwave-pink" />
-              <div className="text-sm tabular-nums text-cyan-200">{value as number}</div>
-              <div className="text-[8px] uppercase tracking-wide text-secondary/50">
-                {label as string}
-              </div>
-            </div>
-          )
-        })}
-      </div>
 
       {(recoveringFormations.length > 0 || deferred.length > 0) && (
         <div className="space-y-1 border-t border-synthwave-pink/12 px-3 py-2">

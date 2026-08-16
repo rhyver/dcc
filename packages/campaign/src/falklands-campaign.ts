@@ -16,6 +16,11 @@ export type FalklandsReadiness = {
   ready: boolean
   reasons: string[]
   reservedSiteIds: string[]
+  goals: Array<{
+    id: 'carrier' | 'transport' | 'escort' | 'surface-threats' | 'sam-network' | 'radars'
+    label: string
+    complete: boolean
+  }>
 }
 
 export type FalklandsCampaignEvent = {
@@ -27,8 +32,16 @@ const LANDING_DURATION_MS = 30 * 60 * 1_000
 export const SAN_CARLOS_AMPHIBIOUS_ANCHORAGE = { x: 104_255, y: 4_299 } as const
 export const SAN_CARLOS_FARP_ID = 'uk-san-carlos-farp'
 const SAN_CARLOS_APPROACH_HEADING = Math.PI / 4
-const ARGENTINE_PATROL_FRIGATE_UNIT_TYPE = 'leander-gun-achilles'
-const LEGACY_ARGENTINE_SURFACE_UNIT_TYPES = new Set(['ara_vdm', 'PERRY', 'speedboat'])
+const ARGENTINE_SURFACE_GROUP_UNIT_TYPES = [
+  'leander-gun-achilles',
+  'leander-gun-andromeda',
+  'leander-gun-ariadne'
+] as const
+const ARGENTINE_SURFACE_GROUP_PATROL = {
+  pattern: 'circle',
+  radius: 2_500,
+  speed: 3
+} as const
 const BEACHHEAD_OBJECTIVES = new Set(['San Carlos', 'Port San Carlos'])
 const LEGACY_NAVAL_STARTS = [
   {
@@ -102,12 +115,6 @@ const LEGACY_NAVAL_STARTS = [
     heading: (135 * Math.PI) / 180
   }
 ] as const
-const LOCAL_THREAT_OBJECTIVES = new Set<string>([
-  'San Carlos',
-  'Port San Carlos',
-  'Goose Green',
-  'Evelyn Station Farm'
-])
 const FALKLANDS_SAM_NETWORK = [
   { id: 'arg-goose-green-roland', type: 'Roland', objectiveId: 'Goose Green' },
   { id: 'arg-stanley-airport-hawk', type: 'Hawk', objectiveId: 'Stanley Airport' },
@@ -128,31 +135,31 @@ function isNavalRoleOperational(campaign: Campaign, role: 'carrier' | 'escort' |
   )
 }
 
-function isHostileSurfaceThreatSuppressed(campaign: Campaign) {
-  return (campaign.coalitions.opponent.navalGroups ?? [])
-    .filter((group) => group.role === 'surface-combatant' || group.role === 'carrier')
-    .every((group) => group.state === 'sunk' || group.damage >= 0.75)
+function hostileWarshipProgress(campaign: Campaign) {
+  const groups = (campaign.coalitions.opponent.navalGroups ?? []).filter(
+    (group) => group.role === 'surface-combatant' || group.role === 'carrier'
+  )
+  const ships = groups.flatMap((group) =>
+    group.units?.length
+      ? group.units.map((unit) => unit.state === 'sunk' || unit.damage >= 1)
+      : group.unitTypes.map(() => group.state === 'sunk' || group.damage >= 0.75)
+  )
+  const destroyed = ships.filter(Boolean).length
+
+  return { complete: destroyed === ships.length, destroyed, total: ships.length }
 }
 
-function remainingFalklandsSamBatteries(campaign: Campaign) {
-  return campaign.coalitions.opponent.samGroups.filter(
-    (group) => FALKLANDS_SAM_OBJECTIVES.has(group.objectiveId) && !group.destroyed
+function falklandsSamBatteries(campaign: Campaign) {
+  return campaign.coalitions.opponent.samGroups.filter((group) =>
+    FALKLANDS_SAM_OBJECTIVES.has(group.objectiveId)
   )
 }
 
-function areLocalRadarsSuppressed(campaign: Campaign) {
-  const localRadarStructuresSuppressed = campaign.coalitions.opponent.structures
-    .filter(
-      (structure) =>
-        LOCAL_THREAT_OBJECTIVES.has(structure.objectiveId) &&
-        /radar|early warning|communications|command/i.test(structure.type)
-    )
-    .every((structure) => structure.buildings.every((building) => !building.alive))
-  const localEwrsSuppressed = (campaign.coalitions.opponent.ewrGroups ?? [])
-    .filter((ewr) => LOCAL_THREAT_OBJECTIVES.has(ewr.objectiveId))
-    .every((ewr) => ewr.destroyed)
+function ewrProgress(campaign: Campaign) {
+  const ewrs = campaign.coalitions.opponent.ewrGroups ?? []
+  const destroyed = ewrs.filter((ewr) => ewr.destroyed).length
 
-  return localRadarStructuresSuppressed && localEwrsSuppressed
+  return { complete: destroyed === ewrs.length, destroyed, total: ewrs.length }
 }
 
 export function getSanCarlosLandingReadiness(
@@ -160,19 +167,27 @@ export function getSanCarlosLandingReadiness(
   theatre: Theatre
 ): FalklandsReadiness {
   const reasons: string[] = []
-  if (!isNavalRoleOperational(campaign, 'carrier'))
-    reasons.push('Carrier capability is unavailable')
-  if (!isNavalRoleOperational(campaign, 'transport')) reasons.push('Amphibious lift is unavailable')
-  if (!isNavalRoleOperational(campaign, 'escort')) reasons.push('Escort screen is unavailable')
-  if (!isHostileSurfaceThreatSuppressed(campaign))
-    reasons.push('Hostile surface forces remain operational')
-  const remainingSamBatteries = remainingFalklandsSamBatteries(campaign)
+  const carrierOperational = isNavalRoleOperational(campaign, 'carrier')
+  const transportOperational = isNavalRoleOperational(campaign, 'transport')
+  const escortOperational = isNavalRoleOperational(campaign, 'escort')
+  const warships = hostileWarshipProgress(campaign)
+  const surfaceThreatsSuppressed = warships.complete
+  const ewrs = ewrProgress(campaign)
+  const localRadarsSuppressed = ewrs.complete
+
+  if (!carrierOperational) reasons.push('Carrier capability is unavailable')
+  if (!transportOperational) reasons.push('Amphibious lift is unavailable')
+  if (!escortOperational) reasons.push('Escort screen is unavailable')
+  if (!surfaceThreatsSuppressed) reasons.push('Hostile surface forces remain operational')
+  const samBatteries = falklandsSamBatteries(campaign)
+  const remainingSamBatteries = samBatteries.filter((group) => !group.destroyed)
+  const destroyedSamBatteries = samBatteries.length - remainingSamBatteries.length
   if (remainingSamBatteries.length > 0) {
     reasons.push(
       `The Falklands SAM network has not been destroyed (${remainingSamBatteries.length} ${remainingSamBatteries.length === 1 ? 'battery' : 'batteries'} remaining)`
     )
   }
-  if (!areLocalRadarsSuppressed(campaign)) reasons.push('Local radar defenses are not suppressed')
+  if (!localRadarsSuppressed) reasons.push('Local EWR remain operational')
 
   const occupiedSiteIds = new Set(
     Object.values(campaign.coalitions).flatMap((coalition) =>
@@ -227,10 +242,39 @@ export function getSanCarlosLandingReadiness(
   const reservedSiteIds = [infantry?.id, vehicle?.id, airDefense?.id, farp?.id].filter(
     (siteId): siteId is string => siteId != null
   )
-  if (reservedSiteIds.length !== 4)
+  const sitesReady = reservedSiteIds.length === 4
+  if (!sitesReady)
     reasons.push('Four approved San Carlos beachhead sites are required, including a FARP site')
 
-  return { ready: reasons.length === 0, reasons, reservedSiteIds }
+  return {
+    ready: reasons.length === 0,
+    reasons,
+    reservedSiteIds,
+    goals: [
+      { id: 'carrier', label: 'Keep carrier capability operational', complete: carrierOperational },
+      {
+        id: 'transport',
+        label: 'Keep amphibious lift operational',
+        complete: transportOperational
+      },
+      { id: 'escort', label: 'Keep the escort screen operational', complete: escortOperational },
+      {
+        id: 'surface-threats',
+        label: `Destroy enemy warships (${warships.destroyed}/${warships.total})`,
+        complete: surfaceThreatsSuppressed
+      },
+      {
+        id: 'sam-network',
+        label: `Destroy the Falklands SAM network (${destroyedSamBatteries}/${samBatteries.length})`,
+        complete: remainingSamBatteries.length === 0
+      },
+      {
+        id: 'radars',
+        label: `Destroy all local EWR (${ewrs.destroyed}/${ewrs.total})`,
+        complete: localRadarsSuppressed
+      }
+    ]
+  }
 }
 
 function landingFormation(
@@ -382,25 +426,29 @@ export function migrateLegacyFalklandsNavalStarts(campaign: Campaign) {
   const argentineSurfaceGroup = campaign.coalitions.opponent.navalGroups?.find(
     (group) => group.id === 'arg-surface-group'
   )
+  if (argentineSurfaceGroup) {
+    argentineSurfaceGroup.missionPatrol = { ...ARGENTINE_SURFACE_GROUP_PATROL }
+    argentineSurfaceGroup.persistPosition = false
+  }
   if (
-    argentineSurfaceGroup?.unitTypes.some((unitType) =>
-      LEGACY_ARGENTINE_SURFACE_UNIT_TYPES.has(unitType)
-    )
+    argentineSurfaceGroup &&
+    (argentineSurfaceGroup.unitTypes.length !== ARGENTINE_SURFACE_GROUP_UNIT_TYPES.length ||
+      argentineSurfaceGroup.unitTypes.some(
+        (unitType, index) => unitType !== ARGENTINE_SURFACE_GROUP_UNIT_TYPES[index]
+      ))
   ) {
     const wasDefeated =
       argentineSurfaceGroup.state === 'sunk' || argentineSurfaceGroup.damage >= 0.5
-    argentineSurfaceGroup.name = 'Argentine Patrol Frigate'
-    argentineSurfaceGroup.unitTypes = [ARGENTINE_PATROL_FRIGATE_UNIT_TYPE]
-    argentineSurfaceGroup.units = [
-      {
-        id: `${argentineSurfaceGroup.id}-ship-1`,
-        type: ARGENTINE_PATROL_FRIGATE_UNIT_TYPE,
-        damage: wasDefeated ? 1 : 0,
-        ammunition: argentineSurfaceGroup.ammunition,
-        fuel: argentineSurfaceGroup.fuel,
-        state: wasDefeated ? 'sunk' : 'operational'
-      }
-    ]
+    argentineSurfaceGroup.name = 'Argentine Surface Group'
+    argentineSurfaceGroup.unitTypes = [...ARGENTINE_SURFACE_GROUP_UNIT_TYPES]
+    argentineSurfaceGroup.units = ARGENTINE_SURFACE_GROUP_UNIT_TYPES.map((type, index) => ({
+      id: `${argentineSurfaceGroup.id}-ship-${index + 1}`,
+      type,
+      damage: wasDefeated ? 1 : 0,
+      ammunition: argentineSurfaceGroup.ammunition,
+      fuel: argentineSurfaceGroup.fuel,
+      state: wasDefeated ? 'sunk' : 'operational'
+    }))
     argentineSurfaceGroup.damage = wasDefeated ? 1 : 0
     argentineSurfaceGroup.state = wasDefeated ? 'sunk' : 'operational'
   }
@@ -465,6 +513,39 @@ function createSanCarlosFarp(
       { offset: { x: -20, y: -75 }, type: 'FARP Tent', alive: true }
     ]
   })
+}
+
+export function migrateFalklandsSanCarlosFarp(campaign: Campaign, theatre: Theatre) {
+  if (campaign.scenarioId !== 'falklands-1982') return
+
+  const farp = campaign.coalitions.player.structures.find(
+    (structure) => structure.id === SAN_CARLOS_FARP_ID
+  )
+  if (!farp) return
+
+  const reservedSiteIds = new Set(campaign.landingOperation?.reservedSiteIds ?? [])
+  const site = getDeploymentSites(theatre).find(
+    (candidate) =>
+      candidate.objectiveId === 'San Carlos' &&
+      candidate.roles.includes('recovery') &&
+      (reservedSiteIds.size === 0 || reservedSiteIds.has(candidate.id))
+  )
+  if (!site) return
+
+  const previousPosition = farp.position
+  if (previousPosition.x === site.position.x && previousPosition.y === site.position.y) return
+
+  farp.position = { ...site.position }
+  for (const flightGroup of campaign.coalitions.player.flightGroups) {
+    if (flightGroup.homeBase !== SAN_CARLOS_FARP_ID) continue
+
+    flightGroup.position = { ...site.position }
+    for (const waypoint of flightGroup.flightplan.waypoints) {
+      if (waypoint.type === 'TakeOff' || waypoint.type === 'Landing') {
+        waypoint.position = { ...site.position }
+      }
+    }
+  }
 }
 
 function completeSanCarlosLanding(
@@ -576,6 +657,7 @@ export function advanceFalklandsCampaign(
     return []
   const events: FalklandsCampaignEvent[] = []
   migrateLegacyFalklandsNavalStarts(campaign)
+  migrateFalklandsSanCarlosFarp(campaign, theatre)
   removePrematureBeachhead(campaign)
   ensureFalklandsLandingSam(campaign)
 

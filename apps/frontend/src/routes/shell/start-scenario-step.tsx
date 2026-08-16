@@ -21,7 +21,7 @@ export function ScenarioStep({
 }: ScenarioStepProps) {
   return (
     <div className="grid min-h-0 flex-1 gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-      <div className="min-h-0 overflow-auto pr-2">
+      <div className="synthwave-scrollbar min-h-0 overflow-auto pr-2">
         <div className="grid gap-3">
           {scenarios.map((scenario) => {
             const isSelected = scenario.id === selectedScenario?.id
@@ -84,7 +84,7 @@ export function ScenarioStep({
             <div className="mt-2 flex flex-wrap gap-2 text-xs text-synthwave-cyan/80">
               <span>{selectedScenario.theatreName}</span>
             </div>
-            <div className="mt-5 min-h-0 flex-1 overflow-auto border-y border-synthwave-purple/30 py-4">
+            <div className="synthwave-scrollbar mt-5 min-h-0 flex-1 overflow-auto border-y border-synthwave-purple/30 py-4">
               {selectedScenario.briefing
                 .split(/\n{2,}/)
                 .filter((paragraph) => paragraph.trim().length > 0)

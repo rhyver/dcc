@@ -713,6 +713,99 @@ describe('applyMissionStateUpdate naval groups', () => {
     })
   })
 
+  test('keeps a mission-only naval patrol at its campaign position while tracking losses', () => {
+    const campaign = createCampaign()
+    campaign.coalitions.opponent.navalGroups = [
+      {
+        id: 'arg-surface-group',
+        name: 'Argentine Surface Group',
+        role: 'surface-combatant',
+        persistPosition: false,
+        unitTypes: ['leander-gun-achilles', 'leander-gun-andromeda', 'leander-gun-ariadne'],
+        units: [
+          {
+            id: 'arg-surface-group-ship-1',
+            type: 'leander-gun-achilles',
+            damage: 0,
+            ammunition: 1,
+            fuel: 1,
+            state: 'operational'
+          },
+          {
+            id: 'arg-surface-group-ship-2',
+            type: 'leander-gun-andromeda',
+            damage: 0,
+            ammunition: 1,
+            fuel: 1,
+            state: 'operational'
+          },
+          {
+            id: 'arg-surface-group-ship-3',
+            type: 'leander-gun-ariadne',
+            damage: 0,
+            ammunition: 1,
+            fuel: 1,
+            state: 'operational'
+          }
+        ],
+        position: { x: -22_010, y: -8_141 },
+        heading: 0,
+        damage: 0,
+        fuel: 1,
+        ammunition: 1,
+        cargo: 0,
+        state: 'operational'
+      }
+    ]
+    const lostUnitName = 'NavalUnit-arg-surface-group-arg-surface-group-ship-1'
+
+    const updated = applyMissionStateUpdate(
+      campaign,
+      createMissionState({
+        lostUnits: [trackedUnit(lostUnitName, 'NavalGroup-arg-surface-group')],
+        groupPositions: {
+          blue: { aircraft: [], ground: [], ships: [] },
+          red: {
+            aircraft: [],
+            ground: [],
+            ships: [
+              {
+                name: 'NavalGroup-arg-surface-group',
+                x: -15_000,
+                y: -2_000,
+                units: [
+                  {
+                    name: 'NavalUnit-arg-surface-group-arg-surface-group-ship-2',
+                    type: 'leander-gun-andromeda',
+                    x: -15_000,
+                    y: -2_000
+                  },
+                  {
+                    name: 'NavalUnit-arg-surface-group-arg-surface-group-ship-3',
+                    type: 'leander-gun-ariadne',
+                    x: -15_700,
+                    y: -2_000
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      })
+    )
+
+    expect(updated.coalitions.opponent.navalGroups?.[0]).toMatchObject({
+      position: { x: -22_010, y: -8_141 },
+      damage: 1 / 3,
+      state: 'damaged',
+      units: [
+        { state: 'sunk', damage: 1 },
+        { state: 'operational', damage: 0 },
+        { state: 'operational', damage: 0 }
+      ]
+    })
+  })
+
   test('keeps carriers operational when DCS reports a carrier unit lost', () => {
     const campaign = createCampaign()
     campaign.coalitions.player.navalGroups = [carrierGroup('sunk')]

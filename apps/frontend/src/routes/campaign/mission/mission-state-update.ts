@@ -235,7 +235,7 @@ function syncNavalGroupsFromMissionState(
   for (const navalGroup of draft.coalitions[coalition].navalGroups ?? []) {
     const missionGroupId = navalGroup.missionGroupId ?? navalGroup.id
     const missionGroup = groupsByName.get(`NavalGroup-${missionGroupId}`)
-    if (missionGroup) {
+    if (navalGroup.persistPosition !== false && missionGroup) {
       const ownLeadUnit = missionGroup.units.find((unit) =>
         unit.name.startsWith(`NavalUnit-${navalGroup.id}-`)
       )

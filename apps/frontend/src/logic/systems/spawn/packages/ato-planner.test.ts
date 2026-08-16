@@ -326,6 +326,54 @@ describe('ATO package planner', () => {
     })
   })
 
+  test('clears the nearest SAM before a farther EWR from a carrier', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.99)
+    const campaign = createCampaign({ playerAircraft: { DEAD: ['F-16C_50'] } })
+    const context = createContext()
+    campaign.coalitions.player.airdromeNames = []
+    campaign.coalitions.player.navalGroups = [
+      {
+        id: 'carrier-1',
+        name: 'Carrier 1',
+        role: 'carrier',
+        unitTypes: ['CVN_71'],
+        position: { x: 0, y: 0 },
+        heading: 0,
+        damage: 0,
+        fuel: 1,
+        ammunition: 1,
+        cargo: 0,
+        state: 'operational'
+      }
+    ]
+    context.theatre.objectives.push({
+      name: 'Near SAM',
+      type: 'Frontline',
+      position: { x: 25_000, y: 0 }
+    })
+    campaign.coalitions.opponent.samGroups = [
+      { id: 'near-sam', type: 'SA-6', objectiveId: 'Near SAM' }
+    ]
+    campaign.coalitions.opponent.ewrGroups = [
+      {
+        id: 'far-ewr',
+        type: '55G6 EWR',
+        objectiveId: 'Far EWR',
+        position: { x: 200_000, y: 0 }
+      }
+    ]
+
+    const result = planAtoPackages(campaign, 'player', context, plannerPolicy())
+    const dead = result.admitted.find((plan) => plan.kind === 'dead')
+
+    expect(dead).toMatchObject({
+      targetId: 'near-sam',
+      targetType: 'SA-6',
+      reason: 'Nearest untargeted radar emitter'
+    })
+    expect(dead?.flights[0]?.homeBase.name).toBe('carrier-1')
+  })
+
   test('uses DEAD-capable aircraft from other task lists when saved DEAD list is empty', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0)
     const campaign = createCampaign({

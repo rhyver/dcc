@@ -12,6 +12,8 @@ import { CampaignStep } from './start-campaign-step'
 import { FactionEditor } from './start-faction-editor'
 import {
   factionIdsByEra,
+  getCampaignYearForFactions,
+  getScenarioCampaignDefaults,
   type CampaignEra,
   type Faction,
   type ScenarioStep as ScenarioStepName
@@ -41,17 +43,22 @@ export function ScenarioSelect() {
   const navigate = useNavigate()
   const availableScenarios = scenarios.filter((scenario) => scenario.available)
   const firstAvailableScenario = availableScenarios[0] ?? scenarios[0]
+  const initialDefaults = getScenarioCampaignDefaults(firstAvailableScenario)
+  const initialCampaignYear = firstAvailableScenario?.date.getUTCFullYear() ?? 1995
   const [selectedScenarioId, setSelectedScenarioId] = useState(firstAvailableScenario?.id ?? '')
-  const [selectedEra, setSelectedEra] = useState<CampaignEra>('Modern')
-  const defaultFactions = factionIdsByEra.Modern
-  const [selectedPlayerFactionId, setSelectedPlayerFactionId] = useState(defaultFactions.player)
-  const [selectedOpponentFactionId, setSelectedOpponentFactionId] = useState(
-    defaultFactions.opponent
+  const [selectedEra, setSelectedEra] = useState<CampaignEra>(initialDefaults.era)
+  const [selectedPlayerFactionId, setSelectedPlayerFactionId] = useState(
+    initialDefaults.playerFactionId
   )
+  const [selectedOpponentFactionId, setSelectedOpponentFactionId] = useState(
+    initialDefaults.opponentFactionId
+  )
+  const [campaignYear, setCampaignYear] = useState(initialCampaignYear)
   const [customFactions, setCustomFactions] = useState<Faction[]>(loadCustomFactions)
   const [factionEditor, setFactionEditor] = useState<FactionEditorState | null>(null)
   const [step, setStep] = useState<ScenarioStepName>('scenario')
   const [isCreatingCampaign, setIsCreatingCampaign] = useState(false)
+  const [forceGpsEnabledDate, setForceGpsEnabledDate] = useState(false)
   const selectedScenario =
     scenarios.find((scenario) => scenario.id === selectedScenarioId) ?? firstAvailableScenario
   const availableFactions = useMemo(() => [...builtInFactions, ...customFactions], [customFactions])
@@ -67,6 +74,50 @@ export function ScenarioSelect() {
     const defaults = factionIdsByEra[era]
     setSelectedPlayerFactionId(defaults.player)
     setSelectedOpponentFactionId(defaults.opponent)
+    setCampaignYear(
+      getCampaignYearForFactions(
+        availableFactions,
+        defaults.player,
+        defaults.opponent,
+        selectedScenario?.date.getUTCFullYear() ?? initialCampaignYear
+      )
+    )
+  }
+
+  const selectPlayerFaction = (factionId: string) => {
+    setSelectedPlayerFactionId(factionId)
+    setCampaignYear(
+      getCampaignYearForFactions(
+        availableFactions,
+        factionId,
+        selectedOpponentFactionId,
+        selectedScenario?.date.getUTCFullYear() ?? initialCampaignYear
+      )
+    )
+  }
+
+  const selectOpponentFaction = (factionId: string) => {
+    setSelectedOpponentFactionId(factionId)
+    setCampaignYear(
+      getCampaignYearForFactions(
+        availableFactions,
+        selectedPlayerFactionId,
+        factionId,
+        selectedScenario?.date.getUTCFullYear() ?? initialCampaignYear
+      )
+    )
+  }
+
+  const selectScenario = (scenarioId: string) => {
+    setSelectedScenarioId(scenarioId)
+    const scenario = scenarios.find((candidate) => candidate.id === scenarioId)
+    if (!scenario) return
+
+    const defaults = getScenarioCampaignDefaults(scenario)
+    setSelectedEra(defaults.era)
+    setSelectedPlayerFactionId(defaults.playerFactionId)
+    setSelectedOpponentFactionId(defaults.opponentFactionId)
+    setCampaignYear(scenario.date.getUTCFullYear())
   }
 
   const createCampaign = async () => {
@@ -90,7 +141,9 @@ export function ScenarioSelect() {
         playerFactionId: selectedPlayerFactionId,
         opponentFactionId: selectedOpponentFactionId,
         playerFaction: selectedPlayerFaction,
-        opponentFaction: selectedOpponentFaction
+        opponentFaction: selectedOpponentFaction,
+        campaignYear,
+        forceGpsEnabledDate
       })
       navigate('/', { state: { showWelcomeDialog: true } })
     } finally {
@@ -121,10 +174,27 @@ export function ScenarioSelect() {
         : customFactions.map((entry) => (entry.id === faction.id ? faction : entry))
     setCustomFactions(nextCustomFactions)
     localStorage.setItem(CUSTOM_FACTIONS_STORAGE_KEY, JSON.stringify(nextCustomFactions))
+    const nextAvailableFactions = [...builtInFactions, ...nextCustomFactions]
     if (factionEditor.role === 'player') {
       setSelectedPlayerFactionId(faction.id)
+      setCampaignYear(
+        getCampaignYearForFactions(
+          nextAvailableFactions,
+          faction.id,
+          selectedOpponentFactionId,
+          selectedScenario?.date.getUTCFullYear() ?? initialCampaignYear
+        )
+      )
     } else {
       setSelectedOpponentFactionId(faction.id)
+      setCampaignYear(
+        getCampaignYearForFactions(
+          nextAvailableFactions,
+          selectedPlayerFactionId,
+          faction.id,
+          selectedScenario?.date.getUTCFullYear() ?? initialCampaignYear
+        )
+      )
     }
     setFactionEditor(null)
   }
@@ -184,7 +254,7 @@ export function ScenarioSelect() {
             <ScenarioStep
               selectedScenario={selectedScenario}
               isCreatingCampaign={isCreatingCampaign}
-              onSelectScenario={setSelectedScenarioId}
+              onSelectScenario={selectScenario}
               onContinue={() => setStep('era')}
             />
           ) : selectedScenario ? (
@@ -195,10 +265,13 @@ export function ScenarioSelect() {
               factions={availableFactions}
               selectedPlayerFactionId={selectedPlayerFactionId}
               selectedOpponentFactionId={selectedOpponentFactionId}
+              campaignYear={campaignYear}
               isCreatingCampaign={isCreatingCampaign}
+              forceGpsEnabledDate={forceGpsEnabledDate}
               onSelectEra={selectEra}
-              onSelectPlayerFaction={setSelectedPlayerFactionId}
-              onSelectOpponentFaction={setSelectedOpponentFactionId}
+              onSelectPlayerFaction={selectPlayerFaction}
+              onSelectOpponentFaction={selectOpponentFaction}
+              onForceGpsEnabledDateChange={setForceGpsEnabledDate}
               onCustomizeFaction={(role) => openFactionEditor(role, 'customize')}
               onCreateFaction={(role) => openFactionEditor(role, 'create')}
               onCustomizeFactions={() => setStep('factions')}

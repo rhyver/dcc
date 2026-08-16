@@ -2,10 +2,93 @@ import { schemas } from '@dcc/contracts'
 import { err, ok, Result } from 'neverthrow'
 import * as z from 'zod'
 
+import { DEFAULT_ATC_FREQUENCY } from './radio-plan'
+
 type Coalition = z.infer<typeof schemas.coalition>
 type NavalGroup = z.infer<typeof schemas.navalGroup>
 
 const MIN_CARRIER_WIND_SPEED = 0.5
+
+function getTacanFrequency(channel: number) {
+  const megahertz = channel < 64 ? 962 + channel - 1 : 1151 + channel - 64
+  return megahertz * 1_000_000
+}
+
+function wrappedAction(action: { id: string; params: Record<string, unknown> }, number: number) {
+  return {
+    enabled: true,
+    auto: false,
+    id: 'WrappedAction',
+    number,
+    params: { action }
+  }
+}
+
+function comboTask(tasks: ReturnType<typeof wrappedAction>[] = []) {
+  return {
+    id: 'ComboTask',
+    params: { tasks }
+  }
+}
+
+function navalWaypoint(x: number, y: number, speed: number, task = comboTask(), etaLocked = false) {
+  return {
+    alt: 0,
+    alt_type: 'BARO',
+    type: 'Turning Point',
+    action: 'Turning Point',
+    x,
+    y,
+    speed,
+    ETA: 0,
+    ETA_locked: etaLocked,
+    speed_locked: true,
+    formation_template: '',
+    task
+  }
+}
+
+function circularPatrolWaypoints(
+  navalGroup: NavalGroup,
+  patrol: NonNullable<NavalGroup['missionPatrol']>,
+  initialTasks: ReturnType<typeof wrappedAction>[]
+) {
+  const segments = 8
+  const forwardX = Math.cos(navalGroup.heading)
+  const forwardY = Math.sin(navalGroup.heading)
+  const rightX = forwardY
+  const rightY = -forwardX
+  const centerX = navalGroup.position.x + rightX * patrol.radius
+  const centerY = navalGroup.position.y + rightY * patrol.radius
+  const radialX = -rightX
+  const radialY = -rightY
+  const points = Array.from({ length: segments + 1 }, (_, index) => {
+    const angle = (index * 2 * Math.PI) / segments
+    return navalWaypoint(
+      centerX +
+        radialX * patrol.radius * Math.cos(angle) +
+        forwardX * patrol.radius * Math.sin(angle),
+      centerY +
+        radialY * patrol.radius * Math.cos(angle) +
+        forwardY * patrol.radius * Math.sin(angle),
+      patrol.speed,
+      index === 0 ? comboTask(initialTasks) : comboTask()
+    )
+  })
+  points[points.length - 1]!.task = comboTask([
+    wrappedAction(
+      {
+        id: 'SwitchWaypoint',
+        params: {
+          fromWaypointIndex: points.length,
+          goToWaypointIndex: 2
+        }
+      },
+      1
+    )
+  ])
+  return points
+}
 
 function getSpawnHeading(navalGroup: NavalGroup, mission: z.infer<typeof schemas.dcs.mission>) {
   const surfaceWind = mission.weather.wind.atGround
@@ -26,6 +109,7 @@ function getPersistentUnits(navalGroup: NavalGroup) {
       damage: 0,
       ammunition: navalGroup.ammunition,
       fuel: navalGroup.fuel,
+      tacan: undefined,
       state: 'operational' as const
     }))
   )
@@ -73,7 +157,8 @@ export function addNavalGroups(
         if (!leader) continue
         const members = [leader, ...unsortedMembers.filter((group) => group !== leader)]
 
-        const carrier = members.find((group) => group.role === 'carrier')
+        const carriers = members.filter((group) => group.role === 'carrier')
+        const carrier = carriers[0]
         const spawnHeading = getSpawnHeading(carrier ?? leader, mission)
         const formationBearing = spawnHeading + Math.PI / 2
         const units = members.flatMap((navalGroup) => {
@@ -90,6 +175,53 @@ export function addNavalGroups(
         })
         if (units.length === 0) continue
 
+        const carrierBeacons = carriers.flatMap((carrierGroup) => {
+          const persistentUnits = getPersistentUnits(carrierGroup)
+          return persistentUnits.flatMap((persistentUnit, index) => {
+            const tacan = persistentUnit.tacan ?? (index === 0 ? carrierGroup.tacan : undefined)
+            if (!tacan) return []
+
+            const missionUnit = units.find(
+              (unit) => unit.name === `NavalUnit-${carrierGroup.id}-${persistentUnit.id}`
+            )
+            return missionUnit ? [{ missionUnit, tacan }] : []
+          })
+        })
+        const carrierTasks = carrier
+          ? [
+              wrappedAction({ id: 'SetImmortal', params: { value: true } }, 1),
+              ...carrierBeacons.map(({ missionUnit, tacan }, index) =>
+                wrappedAction(
+                  {
+                    id: 'ActivateBeacon',
+                    params: {
+                      type: 4,
+                      frequency: getTacanFrequency(tacan.channel),
+                      callsign: tacan.callsign,
+                      channel: tacan.channel,
+                      unitId: missionUnit.unitId,
+                      modeChannel: tacan.band,
+                      bearing: true,
+                      system: 3
+                    }
+                  },
+                  index + 2
+                )
+              )
+            ]
+          : []
+        const routePoints = leader.missionPatrol
+          ? circularPatrolWaypoints(leader, leader.missionPatrol, carrierTasks)
+          : [
+              navalWaypoint(
+                leader.position.x,
+                leader.position.y,
+                leader.state === 'unloading' ? 0 : 8,
+                comboTask(carrierTasks),
+                true
+              )
+            ]
+
         country.ship.group.push({
           groupId: nextId(),
           name: `NavalGroup-${missionGroupId}`,
@@ -97,39 +229,15 @@ export function addNavalGroups(
           y: leader.position.y,
           units,
           task: 'Nothing',
-          route: {
-            points: [
-              {
-                alt: 0,
-                alt_type: 'BARO',
-                type: 'Turning Point',
-                action: 'Turning Point',
-                x: leader.position.x,
-                y: leader.position.y,
-                speed: leader.state === 'unloading' ? 0 : 8,
-                ETA: 0,
-                ETA_locked: true,
-                speed_locked: true,
-                task: {
-                  id: 'ComboTask',
-                  params: {
-                    tasks: carrier
-                      ? [
-                          {
-                            enabled: true,
-                            auto: false,
-                            id: 'WrappedAction',
-                            number: 1,
-                            params: {
-                              action: { id: 'SetImmortal', params: { value: true } }
-                            }
-                          }
-                        ]
-                      : []
-                  }
-                }
+          ...(carrier
+            ? {
+                communication: true,
+                frequency: DEFAULT_ATC_FREQUENCY,
+                modulation: 0
               }
-            ]
+            : {}),
+          route: {
+            points: routePoints
           }
         })
       }

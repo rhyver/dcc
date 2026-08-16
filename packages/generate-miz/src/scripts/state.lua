@@ -1077,6 +1077,10 @@ local function csarPickup(groupConfig)
     end
 
     pickedUpPilotIds[csar.pilotId] = true
+    local pilotObject = csar.pilotObjectName and StaticObject.getByName(csar.pilotObjectName) or nil
+    if pilotObject and pilotObject:isExist() then
+        pilotObject:destroy()
+    end
     csarMessage(groupConfig, tostring(csar.pilotName)..' is aboard. Return to the drop-off point.', 25)
 end
 

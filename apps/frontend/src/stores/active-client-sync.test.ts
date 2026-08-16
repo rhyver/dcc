@@ -166,6 +166,65 @@ describe('active store client flight timing sync', () => {
     )
   })
 
+  test('moves a saved San Carlos FARP inland when loading the campaign', () => {
+    const campaign = createCampaign()
+    campaign.scenarioId = 'falklands-1982'
+    campaign.campaignPhase = 'land-campaign'
+    campaign.landingOperation = {
+      startedAt: campaignTime,
+      completesAt: campaignTime,
+      completed: true,
+      reservedSiteIds: ['recovery-San Carlos-reserve']
+    }
+    campaign.coalitions.player.structures = [
+      {
+        id: 'uk-san-carlos-farp',
+        type: 'Farp',
+        objectiveId: 'San Carlos',
+        position: { x: 99_695, y: 6_383 },
+        name: 'San Carlos FARP',
+        resources: 0,
+        buildings: [{ offset: { x: 0, y: 0 }, type: 'FARP', alive: true }]
+      }
+    ]
+    const flightGroup = createFlightGroup({
+      id: 'san-carlos-cas',
+      callsign: 'Uzi-1',
+      startTime: campaignTime.toISOString(),
+      tot: campaignTime.toISOString(),
+      task: 'CAS'
+    })
+    flightGroup.homeBase = 'uk-san-carlos-farp'
+    flightGroup.position = { x: 99_695, y: 6_383 }
+    flightGroup.flightplan.waypoints = [
+      {
+        name: 'Take Off',
+        position: { x: 99_695, y: 6_383 },
+        altitude: 0,
+        speed: 0,
+        type: 'TakeOff'
+      },
+      {
+        name: 'Landing',
+        position: { x: 99_695, y: 6_383 },
+        altitude: 0,
+        speed: 0,
+        type: 'Landing'
+      }
+    ]
+    campaign.coalitions.player.flightGroups = [flightGroup]
+
+    activeStore.send({ type: 'loadCampaign', campaign })
+
+    const loaded = activeStore.getSnapshot().context
+    expect(loaded.coalitions.player.structures[0]?.position).toEqual({ x: 99_695, y: 7_883 })
+    expect(loaded.coalitions.player.flightGroups[0]?.position).toEqual({ x: 99_695, y: 7_883 })
+    expect(loaded.coalitions.player.flightGroups[0]?.flightplan.waypoints).toMatchObject([
+      { type: 'TakeOff', position: { x: 99_695, y: 7_883 } },
+      { type: 'Landing', position: { x: 99_695, y: 7_883 } }
+    ])
+  })
+
   test('repairs saved campaigns that have compatible aircraft but no DEAD task list', () => {
     const campaign = createCampaign()
     campaign.coalitions.player.id = 'usa-1977'

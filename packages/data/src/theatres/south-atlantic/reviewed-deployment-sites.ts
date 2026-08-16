@@ -136,16 +136,16 @@ export const reviewedDeploymentSites: ReviewedDeploymentSite[] = [
   {
     objectiveId: 'San Carlos',
     kind: 'recovery',
-    position: { x: 99695, y: 6383 },
+    position: { x: 99695, y: 7883 },
     slots: [
-      { x: 99796.100772, y: 6417.33346, heading: 0.327377 },
-      { x: 99751.6, y: 6439.6, heading: 0.785398 },
-      { x: 99719.610188, y: 6522.692797, heading: 1.396412 },
-      { x: 99638.4, y: 6439.6, heading: 2.356194 },
-      { x: 99615, y: 6383, heading: 3.141593 },
-      { x: 99638.4, y: 6326.4, heading: 3.926991 },
-      { x: 99695, y: 6303, heading: 4.712389 },
-      { x: 99735.506191, y: 6363.952222, heading: 5.843625 }
+      { x: 99796.100772, y: 7917.33346, heading: 0.327377 },
+      { x: 99751.6, y: 7939.6, heading: 0.785398 },
+      { x: 99719.610188, y: 8022.692797, heading: 1.396412 },
+      { x: 99638.4, y: 7939.6, heading: 2.356194 },
+      { x: 99615, y: 7883, heading: 3.141593 },
+      { x: 99638.4, y: 7826.4, heading: 3.926991 },
+      { x: 99695, y: 7803, heading: 4.712389 },
+      { x: 99735.506191, y: 7863.952222, heading: 5.843625 }
     ]
   },
   {

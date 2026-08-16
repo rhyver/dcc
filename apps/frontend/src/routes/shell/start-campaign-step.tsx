@@ -1,4 +1,4 @@
-import { Clock3, Plane } from 'lucide-react'
+import { Check, Clock3, Plane } from 'lucide-react'
 import { useState } from 'react'
 
 import { cn } from '@/lib/utils'
@@ -21,10 +21,13 @@ type CampaignStepProps = {
   factions: Faction[]
   selectedPlayerFactionId: string
   selectedOpponentFactionId: string
+  campaignYear: number
   isCreatingCampaign: boolean
+  forceGpsEnabledDate: boolean
   onSelectEra: (era: CampaignEra) => void
   onSelectPlayerFaction: (factionId: string) => void
   onSelectOpponentFaction: (factionId: string) => void
+  onForceGpsEnabledDateChange: (force: boolean) => void
   onCustomizeFaction: (role: 'player' | 'opponent') => void
   onCreateFaction: (role: 'player' | 'opponent') => void
   onCustomizeFactions: () => void
@@ -38,10 +41,13 @@ export function CampaignStep({
   factions,
   selectedPlayerFactionId,
   selectedOpponentFactionId,
+  campaignYear,
   isCreatingCampaign,
+  forceGpsEnabledDate,
   onSelectEra,
   onSelectPlayerFaction,
   onSelectOpponentFaction,
+  onForceGpsEnabledDateChange,
   onCustomizeFaction,
   onCreateFaction,
   onCustomizeFactions,
@@ -158,7 +164,7 @@ export function CampaignStep({
                           isSelected
                             ? isActive
                               ? 'border-synthwave-pink text-white shadow-[inset_3px_0_0_var(--synthwave-pink),0_0_24px_rgba(255,0,170,0.2)]'
-                              : 'border-synthwave-purple/75 text-white'
+                              : 'border-synthwave-cyan/80 bg-synthwave-cyan/[0.06] text-white shadow-[inset_3px_0_0_var(--synthwave-cyan),0_0_20px_rgba(0,255,255,0.12)]'
                             : 'border-synthwave-purple/45 text-synthwave-light hover:border-synthwave-cyan hover:bg-synthwave-purple/10',
                           isConflict && !isSelected && 'opacity-45'
                         )}
@@ -174,16 +180,31 @@ export function CampaignStep({
                               {faction.year != null ? `YEAR ${faction.year}` : faction.id}
                             </div>
                           </div>
-                          <span
-                            className={cn(
-                              'rounded border px-2 py-0.5 text-[0.6rem] uppercase tracking-wider',
-                              faction.color === 'blue'
-                                ? 'border-synthwave-cyan/50 text-synthwave-cyan'
-                                : 'border-synthwave-pink/50 text-synthwave-pink'
-                            )}
-                          >
-                            {faction.color}
-                          </span>
+                          <div className="flex shrink-0 items-center gap-1.5">
+                            {isSelected ? (
+                              <span
+                                className={cn(
+                                  'inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[0.58rem] uppercase tracking-wider',
+                                  isActive
+                                    ? 'border-synthwave-pink/60 bg-synthwave-pink/10 text-synthwave-pink'
+                                    : 'border-synthwave-cyan/60 bg-synthwave-cyan/10 text-synthwave-cyan'
+                                )}
+                              >
+                                <Check className="h-2.5 w-2.5" />
+                                Selected
+                              </span>
+                            ) : null}
+                            <span
+                              className={cn(
+                                'rounded border px-2 py-0.5 text-[0.6rem] uppercase tracking-wider',
+                                faction.color === 'blue'
+                                  ? 'border-synthwave-cyan/50 text-synthwave-cyan'
+                                  : 'border-synthwave-pink/50 text-synthwave-pink'
+                              )}
+                            >
+                              {faction.color}
+                            </span>
+                          </div>
                         </div>
                         {faction.id.startsWith('custom-') ? (
                           <div className="mt-2 text-[0.58rem] uppercase tracking-[0.18em] text-synthwave-pink/75">
@@ -207,11 +228,14 @@ export function CampaignStep({
         playerFaction={selectedPlayerFaction}
         opponentFaction={selectedOpponentFaction}
         playerFactionId={selectedPlayerFactionId}
+        campaignYear={campaignYear}
         aircraft={playerAircraft}
         isCreatingCampaign={isCreatingCampaign}
+        forceGpsEnabledDate={forceGpsEnabledDate}
         factionsDiffer={factionsDiffer}
         selectedFaction={activeFaction}
         onCustomizeFactions={onCustomizeFactions}
+        onForceGpsEnabledDateChange={onForceGpsEnabledDateChange}
         onCustomizeSelectedFaction={() => onCustomizeFaction(activeFactionRole)}
         onCreateSelectedFaction={() => onCreateFaction(activeFactionRole)}
         onCreateCampaign={onCreateCampaign}

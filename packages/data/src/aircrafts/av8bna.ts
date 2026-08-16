@@ -68,6 +68,21 @@ const aircraftDefinition: z.infer<typeof schemas.dcs.aircraft> = {
       ]
     },
     {
+      task: 'Pinpoint Strike',
+      name: 'Pinpoint Strike',
+      displayName: 'Pinpoint Strike',
+      pylons: [
+        { CLSID: '{6CEB49FC-DED8-4DED-B053-E1F033FF72D3}', num: 1 },
+        { CLSID: '{BRU-70A_2*GBU-54_RIGHT}', num: 2 },
+        { CLSID: '{BRU-70A_2*GBU-54_LEFT}', num: 3 },
+        { CLSID: '{GAU_12_Equalizer}', num: 4 },
+        { CLSID: '{ALQ_164_RF_Jammer}', num: 5 },
+        { CLSID: '{A111396E-D3E8-4b9c-8AC9-2432489304D5}', num: 6 },
+        { CLSID: '{BRU-70A_2*GBU-54_LEFT}', num: 7 },
+        { CLSID: '{6CEB49FC-DED8-4DED-B053-E1F033FF72D3}', num: 8 }
+      ]
+    },
+    {
       task: 'SEAD',
       name: 'SEAD',
       displayName: 'SEAD',

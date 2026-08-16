@@ -1568,7 +1568,7 @@ export const reviewedDeploymentSiteFirstSlotOverrides = {
   },
   'recovery-San Carlos-reserve': {
     x: 99796.100772,
-    y: 6417.33346,
+    y: 7917.33346,
     heading: 0.327377
   },
   'legacy-Port San Carlos-1-Vehicle': {

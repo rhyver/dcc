@@ -20,7 +20,14 @@ export const EagleDown: z.infer<typeof schemas.scenario> = {
       airdromeNames: ['Sharjah Intl'],
       carrierObjectiveId: 'Alpha',
       groundGroupSpawnMultiplier: 2,
-      objectiveIds: ['Bunji-ye-Maski']
+      objectiveIds: ['Bunji-ye-Maski'],
+      structureAssignments: [
+        {
+          objectiveId: 'Bunji-ye-Maski',
+          targetName: 'Bunji-ye-Maski|Structure|2',
+          type: 'Farp'
+        }
+      ]
     },
     opponent: {
       airdromeNames: ['Bandar Abbas Intl', 'Lar', 'Kerman'],

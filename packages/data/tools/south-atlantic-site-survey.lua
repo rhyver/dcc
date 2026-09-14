@@ -71,6 +71,10 @@ local function evaluate(x, y, extractionRadius)
         local angle = math.pi * 2 * (index - 1) / SLOT_COUNT
         local slotX = x + math.cos(angle) * SLOT_RADIUS
         local slotY = y + math.sin(angle) * SLOT_RADIUS
+        local slotSurface = land.getSurfaceType({ x = slotX, y = slotY })
+        if slotSurface ~= land.SurfaceType.LAND and slotSurface ~= land.SurfaceType.ROAD then
+            reasons[#reasons + 1] = 'slot-' .. index .. '-surface:' .. surfaceName(slotSurface)
+        end
         local clearance = obstructionCount(slotX, slotY, MIN_SCENERY_CLEARANCE)
         local slotSlope = slopeDegrees(slotX, slotY)
         if clearance > 0 then reasons[#reasons + 1] = 'slot-' .. index .. '-obstruction:' .. clearance end
@@ -85,6 +89,11 @@ local function evaluate(x, y, extractionRadius)
             local angle = math.pi * 2 * (sample - 1) / 12
             local sampleX = x + math.cos(angle) * extractionRadius
             local sampleY = y + math.sin(angle) * extractionRadius
+            local sampleSurface = land.getSurfaceType({ x = sampleX, y = sampleY })
+            if sampleSurface ~= land.SurfaceType.LAND and sampleSurface ~= land.SurfaceType.ROAD then
+                reasons[#reasons + 1] = 'extraction-zone-surface:' .. surfaceName(sampleSurface)
+                break
+            end
             if slopeDegrees(sampleX, sampleY) > MAX_SLOPE_DEGREES then
                 reasons[#reasons + 1] = 'extraction-zone-slope'
                 break

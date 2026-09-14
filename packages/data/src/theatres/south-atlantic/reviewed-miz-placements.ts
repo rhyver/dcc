@@ -1837,7 +1837,7 @@ export const reviewedDeploymentSiteFirstSlotOverrides = {
     heading: 0
   },
   'legacy-Murrell Farm-1-Vehicle': {
-    x: 90650.20663182,
+    x: 90950.20663182,
     y: 84968.493462316,
     heading: 0
   },

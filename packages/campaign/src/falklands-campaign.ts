@@ -368,7 +368,9 @@ function removePrematureBeachhead(campaign: Campaign) {
     (objectiveId) => !BEACHHEAD_OBJECTIVES.has(objectiveId)
   )
   player.structures = player.structures.filter(
-    (structure) => !BEACHHEAD_OBJECTIVES.has(structure.objectiveId)
+    (structure) =>
+      !BEACHHEAD_OBJECTIVES.has(structure.objectiveId) ||
+      (campaign.campaignPhase === 'san-carlos-landing' && structure.id === SAN_CARLOS_FARP_ID)
   )
   player.samGroups = player.samGroups.filter(
     (group) => !BEACHHEAD_OBJECTIVES.has(group.objectiveId)
@@ -518,19 +520,28 @@ function createSanCarlosFarp(
 export function migrateFalklandsSanCarlosFarp(campaign: Campaign, theatre: Theatre) {
   if (campaign.scenarioId !== 'falklands-1982') return
 
+  const reservedSiteIds = new Set(campaign.landingOperation?.reservedSiteIds ?? [])
+  const sites = getDeploymentSites(theatre).filter(
+    (candidate) =>
+      candidate.objectiveId === 'San Carlos' &&
+      candidate.id.startsWith('recovery-') &&
+      candidate.validationStatus !== 'candidate' &&
+      candidate.roles.includes('recovery')
+  )
+  const site = sites.find((candidate) => reservedSiteIds.has(candidate.id)) ?? sites[0]
+  if (!site) return
+
+  if (
+    campaign.campaignPhase === 'san-carlos-landing' ||
+    campaign.campaignPhase === 'land-campaign' ||
+    campaign.landingOperation?.completed
+  ) {
+    createSanCarlosFarp(campaign, theatre, site.id)
+  }
   const farp = campaign.coalitions.player.structures.find(
     (structure) => structure.id === SAN_CARLOS_FARP_ID
   )
   if (!farp) return
-
-  const reservedSiteIds = new Set(campaign.landingOperation?.reservedSiteIds ?? [])
-  const site = getDeploymentSites(theatre).find(
-    (candidate) =>
-      candidate.objectiveId === 'San Carlos' &&
-      candidate.roles.includes('recovery') &&
-      (reservedSiteIds.size === 0 || reservedSiteIds.has(candidate.id))
-  )
-  if (!site) return
 
   const previousPosition = farp.position
   if (previousPosition.x === site.position.x && previousPosition.y === site.position.y) return
@@ -700,6 +711,7 @@ export function advanceFalklandsCampaign(
       reservedSiteIds: readiness.reservedSiteIds,
       completed: false
     }
+    migrateFalklandsSanCarlosFarp(campaign, theatre)
     deployArgentineLandingDefenders(campaign, theatre)
     const transport = (campaign.coalitions.player.navalGroups ?? []).find(
       (group) => group.role === 'transport' && group.state !== 'sunk'

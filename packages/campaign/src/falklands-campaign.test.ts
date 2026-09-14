@@ -212,6 +212,23 @@ describe('Falklands campaign stages', () => {
     advanceFalklandsCampaign(state, theatre)
     expect(state.campaignPhase).toBe('san-carlos-landing')
     expect(state.landingOperation?.reservedSiteIds).toHaveLength(4)
+    expect(state.coalitions.player.structures).toContainEqual(
+      expect.objectContaining({
+        id: SAN_CARLOS_FARP_ID,
+        type: 'Farp',
+        position: { x: 700, y: 0 },
+        buildings: expect.arrayContaining([expect.objectContaining({ type: 'FARP', alive: true })])
+      })
+    )
+    const landingFarp = state.coalitions.player.structures.find(
+      (structure) => structure.id === SAN_CARLOS_FARP_ID
+    )
+    state.time = new Date('1982-05-01T09:15:00Z')
+    advanceFalklandsCampaign(state, theatre)
+    expect(
+      state.coalitions.player.structures.filter((structure) => structure.id === SAN_CARLOS_FARP_ID)
+    ).toEqual([landingFarp])
+    expect(state.coalitions.player.groundGroups).toHaveLength(0)
     expect(state.coalitions.opponent.groundGroups).toEqual([
       expect.objectContaining({
         id: 'arg-port-san-carlos-infantry',
@@ -358,6 +375,38 @@ describe('Falklands campaign stages', () => {
         }
       ])
     })
+  })
+
+  test.each(['san-carlos-landing', 'land-campaign'] as const)(
+    'repairs a missing FARP in an existing %s save with legacy reservations',
+    (phase) => {
+      const state = campaign()
+      state.campaignPhase = phase
+      state.landingOperation = {
+        completed: phase === 'land-campaign',
+        reservedSiteIds: ['san-carlos-vehicle']
+      }
+
+      migrateFalklandsSanCarlosFarp(state, theatre)
+      migrateFalklandsSanCarlosFarp(state, theatre)
+
+      expect(state.coalitions.player.structures).toEqual([
+        expect.objectContaining({
+          id: SAN_CARLOS_FARP_ID,
+          position: { x: 700, y: 0 }
+        })
+      ])
+      // A destroyed pad must retain its damage when the save is loaded again.
+      state.coalitions.player.structures[0]!.buildings[0]!.alive = false
+      migrateFalklandsSanCarlosFarp(state, theatre)
+      expect(state.coalitions.player.structures[0]!.buildings[0]!.alive).toBe(false)
+    }
+  )
+
+  test('does not create a FARP before the landing starts', () => {
+    const state = campaign()
+    migrateFalklandsSanCarlosFarp(state, theatre)
+    expect(state.coalitions.player.structures).toEqual([])
   })
 
   test('moves an existing San Carlos FARP and its home waypoints to the reviewed site', () => {

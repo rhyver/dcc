@@ -199,6 +199,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
 
+function getTaskEntries(task: unknown): unknown[] {
+  if (!isRecord(task) || !isRecord(task.params) || !Array.isArray(task.params.tasks)) return []
+  return task.params.tasks
+}
+
 function getStationNumber(unit: AircraftUnit): unknown {
   const addPropAircraft = unit.AddPropAircraft as unknown
   if (!isRecord(addPropAircraft)) return undefined
@@ -1252,15 +1257,135 @@ describe('addFlightGroups mission script config', () => {
     if (result.isErr()) throw result.error
     const dcsGroup = mission.coalition.blue.country?.[0]?.plane?.group?.[0]
     const taskWaypoint = dcsGroup?.route?.points.find((point) => point.name === 'DEAD')
-    const tasks = taskWaypoint?.task?.params?.tasks
+    const tasks = getTaskEntries(taskWaypoint?.task as unknown)
 
     expect(dcsGroup?.task).toBe('SEAD')
-    expect(tasks).toContainEqual(
-      expect.objectContaining({
-        id: 'AttackGroup',
-        params: expect.objectContaining({ groupId: 900 })
-      })
+    const attackGroupTask = tasks.find((task) => isRecord(task) && task.id === 'AttackGroup')
+    expect(attackGroupTask).toBeDefined()
+    if (!isRecord(attackGroupTask) || !isRecord(attackGroupTask.params)) {
+      throw new Error('expected DEAD AttackGroup task params')
+    }
+    expect(attackGroupTask.params.groupId).toBe(900)
+  })
+
+  test('activates a strike bombing task before the target waypoint', () => {
+    const startTime = new Date('2026-01-01T00:00:00Z')
+    const mission = createMission()
+    const campaign = createCampaign(startTime)
+    const group = createTaskFlightGroup(
+      'blue-pinpoint-strike',
+      'Enfield-1',
+      startTime,
+      'Pinpoint Strike'
     )
+    group.target = {
+      id: 'target-structure',
+      type: 'Ammo Depot',
+      objectiveId: 'objective-1'
+    }
+    group.flightplan.waypoints = [
+      group.flightplan.waypoints[0]!,
+      {
+        name: 'Attack',
+        position: { x: 8_000, y: 2_000 },
+        altitude: 6_000,
+        altitudeType: 'BARO',
+        speed: 250,
+        type: 'Task'
+      },
+      {
+        name: 'Target',
+        position: { x: 10_000, y: 2_000 },
+        altitude: 0,
+        altitudeType: 'RADIO',
+        speed: 250,
+        type: 'Nav'
+      },
+      group.flightplan.waypoints[2]!
+    ]
+    campaign.coalitions.player.flightGroups = [group]
+    campaign.coalitions.opponent.flightGroups = []
+    campaign.coalitions.opponent.structures = [
+      {
+        id: 'target-structure',
+        type: 'Ammo Depot',
+        objectiveId: 'objective-1',
+        position: { x: 10_000, y: 2_000 },
+        name: 'Target depot',
+        resources: 100,
+        buildings: [{ type: 'Workshop A', offset: { x: 125, y: -75 }, alive: true }]
+      }
+    ]
+
+    const result = addFlightGroups(mission, campaign, theatre)
+
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) throw result.error
+    const route = mission.coalition.blue.country?.[0]?.plane?.group?.[0]?.route?.points ?? []
+    const attackTasks = getTaskEntries(
+      route.find((point) => point.name === 'Attack')?.task as unknown
+    )
+    const targetTasks = getTaskEntries(
+      route.find((point) => point.name === 'Target')?.task as unknown
+    )
+
+    const bombingTask = attackTasks.find((task) => isRecord(task) && task.id === 'Bombing')
+    expect(bombingTask).toBeDefined()
+    if (!isRecord(bombingTask) || !isRecord(bombingTask.params)) {
+      throw new Error('expected strike Bombing task params')
+    }
+    expect(bombingTask.params).toMatchObject({ x: 10_125, y: 1_925 })
+    expect(targetTasks.some((task) => isRecord(task) && task.id === 'Bombing')).toBe(false)
+  })
+
+  test('gives Ground Attack flights an explicit pre-target bombing task', () => {
+    const startTime = new Date('2026-01-01T00:00:00Z')
+    const mission = createMission()
+    const campaign = createCampaign(startTime)
+    const group = createTaskFlightGroup(
+      'blue-ground-attack',
+      'Enfield-1',
+      startTime,
+      'Ground Attack'
+    )
+    group.flightplan.waypoints = [
+      group.flightplan.waypoints[0]!,
+      {
+        name: 'Attack',
+        position: { x: 8_000, y: 2_000 },
+        altitude: 6_000,
+        altitudeType: 'BARO',
+        speed: 250,
+        type: 'Task'
+      },
+      {
+        name: 'Target',
+        position: { x: 10_000, y: 2_000 },
+        altitude: 6_000,
+        altitudeType: 'BARO',
+        speed: 250,
+        type: 'Nav'
+      },
+      group.flightplan.waypoints[2]!
+    ]
+    campaign.coalitions.player.flightGroups = [group]
+    campaign.coalitions.opponent.flightGroups = []
+
+    const result = addFlightGroups(mission, campaign, theatre)
+
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) throw result.error
+    const route = mission.coalition.blue.country?.[0]?.plane?.group?.[0]?.route?.points ?? []
+    const attackTasks = getTaskEntries(
+      route.find((point) => point.name === 'Attack')?.task as unknown
+    )
+
+    const bombingTask = attackTasks.find((task) => isRecord(task) && task.id === 'Bombing')
+    expect(bombingTask).toBeDefined()
+    if (!isRecord(bombingTask) || !isRecord(bombingTask.params)) {
+      throw new Error('expected Ground Attack Bombing task params')
+    }
+    expect(bombingTask.params).toMatchObject({ x: 10_000, y: 2_000, weaponType: 0 })
   })
 
   test('equips Harrier CAS flights with air-to-ground weapons and a targeting pod', () => {

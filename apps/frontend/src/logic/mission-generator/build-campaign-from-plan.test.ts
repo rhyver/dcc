@@ -45,9 +45,9 @@ describe('buildCampaignFromPlan', () => {
     expect(flightGroup?.aircrafts[0]?.aircraftName).toBe('B-52H')
     expect(
       flightGroup?.flightplan.waypoints
-        .filter((waypoint) => ['Ingress', 'IP', 'RTB'].includes(waypoint.name))
+        .filter((waypoint) => ['Ingress', 'Attack', 'Target', 'RTB'].includes(waypoint.name))
         .map((waypoint) => waypoint.altitude)
-    ).toEqual([12_192, 12_192, 12_192])
+    ).toEqual([12_192, 12_192, 12_192, 12_192])
   })
 
   test('leaves normal Pinpoint Strike aircraft at the default mission altitude', () => {
@@ -62,8 +62,24 @@ describe('buildCampaignFromPlan', () => {
     expect(flightGroup?.aircrafts[0]?.aircraftName).toBe('F-16C_50')
     expect(
       flightGroup?.flightplan.waypoints
-        .filter((waypoint) => ['Ingress', 'IP', 'RTB'].includes(waypoint.name))
+        .filter((waypoint) => ['Ingress', 'Attack', 'Target', 'RTB'].includes(waypoint.name))
         .map((waypoint) => waypoint.altitude)
-    ).toEqual([5_500, 5_500, 3_000])
+    ).toEqual([5_500, 5_500, 5_500, 3_000])
+  })
+
+  test('places a Ground Attack task before its target', () => {
+    const campaign = buildCampaignFromPlan(
+      createMissionPlan({
+        aircraftType: 'A-10C_2',
+        task: 'Ground Attack'
+      })
+    )
+    const waypoints = campaign.coalitions.player.flightGroups[0]?.flightplan.waypoints ?? []
+    const attack = waypoints.find((waypoint) => waypoint.name === 'Attack')
+    const target = waypoints.find((waypoint) => waypoint.name === 'Target')
+
+    expect(attack?.type).toBe('Task')
+    expect(target?.type).toBe('Nav')
+    expect(attack?.position).not.toEqual(target?.position)
   })
 })

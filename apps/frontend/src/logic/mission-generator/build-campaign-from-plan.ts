@@ -101,8 +101,14 @@ function createFlightplan(params: {
   start: z.infer<typeof schemas.position>
   target: z.infer<typeof schemas.position>
   startTime: Date
+  task: z.infer<typeof schemas.task>
   cruiseAltitude?: number
 }): z.infer<typeof schemas.flightplan> {
+  const dx = params.target.x - params.start.x
+  const dy = params.target.y - params.start.y
+  const distance = Math.hypot(dx, dy)
+  const ux = distance > 0 ? dx / distance : 1
+  const uy = distance > 0 ? dy / distance : 0
   const midpoint = {
     x: (params.start.x + params.target.x) / 2,
     y: (params.start.y + params.target.y) / 2
@@ -110,6 +116,34 @@ function createFlightplan(params: {
   const cruiseAltitude = params.cruiseAltitude ?? DEFAULT_MISSION_ALTITUDE_METERS
   const rtbAltitude =
     params.cruiseAltitude == null ? DEFAULT_RTB_ALTITUDE_METERS : params.cruiseAltitude
+  const usesBombingRun = ['Ground Attack', 'Pinpoint Strike', 'Strategic Strike'].includes(
+    params.task
+  )
+  const attackDistanceFromTarget = Math.min(
+    12_000,
+    Math.max(3_000, distance * 0.12),
+    distance * 0.4
+  )
+  const taskWaypoint = usesBombingRun
+    ? {
+        name: 'Attack',
+        position: {
+          x: params.target.x - ux * attackDistanceFromTarget,
+          y: params.target.y - uy * attackDistanceFromTarget
+        },
+        altitude: cruiseAltitude,
+        altitudeType: 'BARO' as const,
+        speed: 220,
+        type: 'Task' as const
+      }
+    : {
+        name: 'IP',
+        position: params.target,
+        altitude: cruiseAltitude,
+        altitudeType: 'BARO' as const,
+        speed: 220,
+        type: 'Task' as const
+      }
 
   return {
     id: crypto.randomUUID(),
@@ -124,14 +158,19 @@ function createFlightplan(params: {
         speed: 220,
         type: 'Nav'
       },
-      {
-        name: 'IP',
-        position: params.target,
-        altitude: cruiseAltitude,
-        altitudeType: 'BARO',
-        speed: 220,
-        type: 'Task'
-      },
+      taskWaypoint,
+      ...(usesBombingRun
+        ? [
+            {
+              name: 'Target',
+              position: params.target,
+              altitude: cruiseAltitude,
+              altitudeType: 'BARO' as const,
+              speed: 220,
+              type: 'Nav' as const
+            }
+          ]
+        : []),
       {
         name: 'RTB',
         position: params.start,
@@ -191,6 +230,7 @@ function createFlightGroup(params: {
       start: params.homePosition,
       target: params.targetPosition,
       startTime: new Date(params.tot.getTime() - 15 * 60 * 1000),
+      task: params.task,
       cruiseAltitude: params.cruiseAltitude
     }),
     packageId: params.packageId

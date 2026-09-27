@@ -25,32 +25,50 @@ export function buildAttackMissionWaypoints(
   const distance = Math.sqrt(dx * dx + dy * dy)
   const ux = distance > 0 ? dx / distance : 1
   const uy = distance > 0 ? dy / distance : 0
-  const ipDistance = Math.max(20000, distance - 20000)
+  const px = -uy
+  const py = ux
+  const ipDistanceFromTarget = Math.min(25_000, Math.max(12_000, distance * 0.25), distance * 0.7)
+  const attackDistanceFromTarget = Math.min(
+    12_000,
+    Math.max(3_000, distance * 0.12),
+    distance * 0.4
+  )
 
   return [
     {
       name: 'IP',
       position: {
-        x: homeBasePosition.x + ux * ipDistance,
-        y: homeBasePosition.y + uy * ipDistance
+        x: targetPosition.x - ux * ipDistanceFromTarget,
+        y: targetPosition.y - uy * ipDistanceFromTarget
       },
       altitude: 6000,
       speed: 250,
       type: 'Nav'
     },
     {
-      name: 'Target',
-      position: targetPosition,
+      name: 'Attack',
+      position: {
+        x: targetPosition.x - ux * attackDistanceFromTarget,
+        y: targetPosition.y - uy * attackDistanceFromTarget
+      },
       speed: 275,
       type: 'Task',
-      altitude: 0,
-      altitudeType: 'RADIO'
+      altitude: 6000,
+      altitudeType: 'BARO'
+    },
+    {
+      name: 'Target',
+      position: targetPosition,
+      speed: 250,
+      type: 'Nav',
+      altitude: 6000,
+      altitudeType: 'BARO'
     },
     {
       name: 'Egress',
       position: {
-        x: homeBasePosition.x + ux * ipDistance,
-        y: homeBasePosition.y + uy * ipDistance
+        x: targetPosition.x + ux * 18_000 + px * 10_000,
+        y: targetPosition.y + uy * 18_000 + py * 10_000
       },
       altitude: 6000,
       speed: 250,

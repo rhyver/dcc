@@ -613,6 +613,32 @@ function createCapOrbitTask(
   }
 }
 
+function createBombingTask(
+  target: z.infer<typeof schemas.position>,
+  taskNumber: number,
+  weaponType = 0
+): z.infer<typeof schemas.dcs.task> {
+  return {
+    enabled: true,
+    auto: false,
+    id: 'Bombing',
+    number: taskNumber,
+    params: {
+      direction: 0,
+      attackQtyLimit: false,
+      attackQty: 1,
+      expend: 'Auto',
+      y: target.y,
+      directionEnabled: false,
+      groupAttack: false,
+      altitude: 6000,
+      altitudeEnabled: false,
+      weaponType,
+      x: target.x
+    }
+  }
+}
+
 function createWrappedActionTask(
   action: { id: string; params?: Record<string, unknown> },
   taskNumber: number
@@ -1841,32 +1867,36 @@ export function addFlightGroups(
           })
         }
 
-        if (wp.name === 'Target' && fg.target && fg.task === 'Pinpoint Strike') {
+        if (
+          wp.type === 'Task' &&
+          fg.target &&
+          (fg.task === 'Pinpoint Strike' || fg.task === 'Strategic Strike')
+        ) {
           const targetStructure = structureMap.get(fg.target.id)
 
           if (targetStructure) {
             targetStructure.buildings.forEach((building) => {
-              tasks.push({
-                enabled: true,
-                auto: false,
-                id: 'Bombing',
-                number: tasks.length + 1,
-                params: {
-                  direction: 0,
-                  attackQtyLimit: false,
-                  attackQty: 1,
-                  expend: 'Auto',
-                  y: targetStructure.position.y + building.offset.y,
-                  directionEnabled: false,
-                  groupAttack: false,
-                  altitude: 6000,
-                  altitudeEnabled: false,
-                  weaponType: 4030478,
-                  x: targetStructure.position.x + building.offset.x
-                }
-              })
+              tasks.push(
+                createBombingTask(
+                  {
+                    x: targetStructure.position.x + building.offset.x,
+                    y: targetStructure.position.y + building.offset.y
+                  },
+                  tasks.length + 1,
+                  4030478
+                )
+              )
             })
           }
+        }
+
+        if (wp.type === 'Task' && fg.task === 'Ground Attack') {
+          const targetWaypoint = waypointsToUse
+            .slice(index + 1)
+            .find((candidate) => candidate.name === 'Target')
+          const targetPosition =
+            targetWaypoint?.position ?? resolveTargetPosition(campaign, theatre, fg) ?? wp.position
+          tasks.push(createBombingTask(targetPosition, tasks.length + 1))
         }
 
         const routePointIndex = routePoints.length

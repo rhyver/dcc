@@ -32,6 +32,10 @@ type AircraftName = z.infer<typeof schemas.dcs.aircraftName>
 type Position = z.infer<typeof schemas.position>
 type Supply = z.infer<typeof schemas.supply>
 
+export type ManualFlightTarget = {
+  id: string
+}
+
 type ManualSpawnPlan =
   | {
       task: 'CAP'
@@ -172,7 +176,8 @@ function getNearestSupplySource(
 function createManualSpawnPlan(
   draft: Campaign,
   coalition: Coalition,
-  task: FlightTask
+  task: FlightTask,
+  requestedTarget?: ManualFlightTarget
 ): ManualSpawnPlan | null {
   const context = resolveSpawnContext(draft, coalition)
   if (!context) return null
@@ -182,6 +187,8 @@ function createManualSpawnPlan(
   const flightGroups = draft.coalitions[coalition].flightGroups
 
   if (task === 'CAP') {
+    if (requestedTarget) return null
+
     const capGroups = flightGroups.filter((g) => g.task === 'CAP')
     const aircraftType = pickRandomAircraftType(draft.coalitions[coalition].aircraftTypes.CAP)
     if (!aircraftType) return null
@@ -227,7 +234,11 @@ function createManualSpawnPlan(
         .filter((id): id is string => id != null)
     )
     const targets = draft.coalitions[enemyCoalition].structures
-      .filter((structure) => !targetedObjectiveIds.has(structure.objectiveId))
+      .filter(
+        (structure) =>
+          (!requestedTarget || structure.id === requestedTarget.id) &&
+          !targetedObjectiveIds.has(structure.objectiveId)
+      )
       .map((structure) => {
         const position = getObjectivePosition(theatre, structure.objectiveId)
         return position
@@ -278,7 +289,9 @@ function createManualSpawnPlan(
         .filter((id): id is string => id != null)
     )
     const targets = getIadsEmitterTargets(draft, enemyCoalition, theatre, task).filter(
-      (emitter) => !targetedEmitterIds.has(emitter.target.id)
+      (emitter) =>
+        (!requestedTarget || emitter.target.id === requestedTarget.id) &&
+        !targetedEmitterIds.has(emitter.target.id)
     )
 
     const assignment = selectHomeBaseAndTarget({
@@ -316,6 +329,7 @@ function createManualSpawnPlan(
           evaluateCombatViability(group).casEligible &&
           group.state === 'idle' &&
           group.objectiveId != null &&
+          (!requestedTarget || group.id === requestedTarget.id) &&
           !targetedGroundGroupIds.has(group.id)
       )
       .map((group) => {
@@ -353,6 +367,8 @@ function createManualSpawnPlan(
   }
 
   if (task === 'Transport') {
+    if (requestedTarget) return null
+
     const transportAircraft = draft.coalitions[coalition].aircraftTypes.Transport
     const targetNode = getNodesNeedingResupply(draft, coalition, theatre)[0]
     if (!targetNode) return null
@@ -395,17 +411,19 @@ function createManualSpawnPlan(
 export function canCreateManualFlightGroup(
   draft: Campaign,
   coalition: Coalition,
-  task: FlightTask
+  task: FlightTask,
+  target?: ManualFlightTarget
 ) {
-  return createManualSpawnPlan(draft, coalition, task) != null
+  return createManualSpawnPlan(draft, coalition, task, target) != null
 }
 
 export function createManualFlightGroup(
   draft: Campaign,
   coalition: Coalition,
-  task: FlightTask
+  task: FlightTask,
+  target?: ManualFlightTarget
 ): string | null {
-  const plan = createManualSpawnPlan(draft, coalition, task)
+  const plan = createManualSpawnPlan(draft, coalition, task, target)
   if (!plan) return null
 
   const startTime = new Date(draft.time)

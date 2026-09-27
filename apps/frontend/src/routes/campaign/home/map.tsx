@@ -916,6 +916,7 @@ export function Map({
       <DetailsCard
         selectedItem={liveSelectedItem}
         onClose={() => onSelect(null)}
+        onSelectItem={onSelect}
         onSelectObjective={(name) => {
           const marker = objectiveMarkers.find((m) => m.name === name)
           if (marker) onSelect(marker)

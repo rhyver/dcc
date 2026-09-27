@@ -13,6 +13,7 @@ import { activeStore } from '@/stores/active'
 import { calculateResourceGainPerLogicTick } from '@/logic/systems/update-resources'
 import type { SelectedItem } from './map'
 import { cn } from '@/lib/utils'
+import { TargetFlightDialog } from './target-flight-dialog'
 
 function formatInGameClock(date: Date) {
   return new Intl.DateTimeFormat('en-GB', {
@@ -52,11 +53,13 @@ function getConnectedRoutes(
 export function DetailsCard({
   selectedItem,
   onClose,
-  onSelectObjective
+  onSelectObjective,
+  onSelectItem
 }: {
   selectedItem: SelectedItem
   onClose: () => void
   onSelectObjective?: (objectiveName: string) => void
+  onSelectItem?: (item: SelectedItem) => void
 }) {
   const campaign = useSelector(activeStore, (state) => state.context)
 
@@ -152,6 +155,19 @@ export function DetailsCard({
       ? (campaign.coalitions[selectedCoalition].packages.find(
           (missionPackage) => missionPackage.id === selectedItem.packageId
         ) ?? null)
+      : null
+  const targetFlight =
+    'type' in selectedItem &&
+    selectedItem.coalition === 'opponent' &&
+    (selectedItem.type === 'Ground Group' ||
+      selectedItem.type === 'Structure' ||
+      selectedItem.type === 'SAM' ||
+      selectedItem.type === 'EWR')
+      ? {
+          id: selectedItem.id,
+          name: headerTitle ?? defaultTitle ?? 'Selected target',
+          type: selectedItem.type
+        }
       : null
 
   const gainPerInGameSecond =
@@ -491,6 +507,9 @@ export function DetailsCard({
               </>
             )}
           </div>
+          {targetFlight && (
+            <TargetFlightDialog target={targetFlight} onSelectFlight={onSelectItem} />
+          )}
         </CardContent>
       </Card>
     </div>

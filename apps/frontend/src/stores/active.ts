@@ -10,7 +10,10 @@ import { createStore } from '@xstate/store'
 import { produce } from 'immer'
 import * as z from 'zod'
 
-import { createManualFlightGroup } from '@/logic/systems/spawn/manual-flight-group'
+import {
+  createManualFlightGroup,
+  type ManualFlightTarget
+} from '@/logic/systems/spawn/manual-flight-group'
 import { rehomeCasForAircraftChange } from '@/logic/systems/rehome-farp-cas'
 
 const initialState: z.infer<typeof schemas.campaign.campaign> = {
@@ -480,9 +483,12 @@ export const activeStore = createStore({
         draft.logs = []
       }),
     clearFlightGroupClientSelections: (context) => resetFlightGroupClientSelections(context),
-    createManualPlayerFlightGroup: (context, { task }: { task: z.infer<typeof schemas.task> }) =>
+    createManualPlayerFlightGroup: (
+      context,
+      { task, target }: { task: z.infer<typeof schemas.task>; target?: ManualFlightTarget }
+    ) =>
       produce(context, (draft) => {
-        createManualFlightGroup(draft, 'player', task)
+        createManualFlightGroup(draft, 'player', task, target)
       }),
 
     setFlightGroupClientCount: (

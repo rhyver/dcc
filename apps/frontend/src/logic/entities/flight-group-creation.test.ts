@@ -5,7 +5,11 @@ import type * as z from 'zod'
 import { CapFlightGroup } from './cap-flight-group'
 import { DeadFlightGroup } from './dead-flight-group'
 import { FlightGroup } from './flight-group'
-import { buildStrikeMissionWaypoints, spawnPlannedFlightGroup } from './flight-group-spawn'
+import {
+  buildAttackMissionWaypoints,
+  buildStrikeMissionWaypoints,
+  spawnPlannedFlightGroup
+} from './flight-group-spawn'
 import { SeadFlightGroup } from './sead-flight-group'
 import { StrikeFlightGroup } from './strike-flight-group'
 import { TransportFlightGroup } from './transport-flight-group'
@@ -490,5 +494,26 @@ describe('Strike mission waypoint builder', () => {
     })
     expect(waypoints[3]?.position).not.toEqual(waypoints[0]?.position)
     expect(waypoints[3]?.position).not.toEqual(targetPosition)
+  })
+})
+
+describe('Ground Attack mission waypoint builder', () => {
+  test('activates the attack before the target and exits beyond it', () => {
+    const waypoints = buildAttackMissionWaypoints(homeBasePosition, targetPosition)
+
+    expect(waypoints.map((waypoint) => waypoint.name)).toEqual(['IP', 'Attack', 'Target', 'Egress'])
+    expect(waypoints[1]).toMatchObject({
+      position: { x: 88_000, y: 0 },
+      altitude: 6000,
+      altitudeType: 'BARO',
+      type: 'Task'
+    })
+    expect(waypoints[2]).toMatchObject({
+      position: targetPosition,
+      altitude: 6000,
+      altitudeType: 'BARO',
+      type: 'Nav'
+    })
+    expect(waypoints[3]?.position.x).toBeGreaterThan(targetPosition.x)
   })
 })

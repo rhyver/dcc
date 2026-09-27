@@ -15,6 +15,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { activeStore } from '@/stores/active'
 import { hasFlightGroupTakenOff } from '@/logic/entities/flight-status'
 import { canCreateManualFlightGroup } from '@/logic/systems/spawn/manual-flight-group'
+import { getTaskAircraftTypeOptions } from '@/lib/aircraft-display'
 import { FlightGroupCard } from '../components/flight-group-card'
 import type { SelectedItem } from './map'
 import {
@@ -34,6 +35,7 @@ interface ActiveFlightGroupsProps {
 export function ActiveFlightGroups({ selectedItem, onSelect, onPreview }: ActiveFlightGroupsProps) {
   const [selectedTask, setSelectedTask] = useState<string | null>(null)
   const [isNewDialogOpen, setIsNewDialogOpen] = useState(false)
+  const [showAllAircraft, setShowAllAircraft] = useState(false)
   const flightGroups = useSelector(
     activeStore,
     (state) => state.context.coalitions.player.flightGroups
@@ -171,6 +173,22 @@ export function ActiveFlightGroups({ selectedItem, onSelect, onPreview }: Active
                     isAirborne={hasFlightGroupTakenOff(group, currentTime)}
                     selected={selectedItem?.id === group.id}
                     showClientControls={selectedItem?.id === group.id}
+                    showAircraftType
+                    aircraftTypeOptions={getTaskAircraftTypeOptions(
+                      group.task,
+                      showAllAircraft
+                        ? undefined
+                        : campaign.coalitions.player.aircraftTypes[group.task]
+                    )}
+                    showAllAircraftTypes={showAllAircraft}
+                    onAircraftTypeChange={(aircraftType) =>
+                      activeStore.send({
+                        type: 'setFlightGroupAircraftType',
+                        flightGroupId: group.id,
+                        aircraftType
+                      })
+                    }
+                    onShowAllAircraftTypesChange={setShowAllAircraft}
                     onClientCountChange={(count) =>
                       activeStore.send({
                         type: 'setFlightGroupClientCount',

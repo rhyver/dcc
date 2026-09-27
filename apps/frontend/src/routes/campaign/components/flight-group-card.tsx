@@ -6,12 +6,14 @@ import {
   Select,
   SelectContent,
   SelectItem,
+  SelectSeparator,
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { getAircraftDisplayName } from '@/lib/aircraft-display'
 import { cn } from '@/lib/utils'
+import { AircraftRosterFilterToggle } from './aircraft-roster-filter-toggle'
 
 type FlightGroup = z.infer<typeof schemas.flightGroup>
 
@@ -31,7 +33,9 @@ interface FlightGroupCardProps {
   showAircraftType?: boolean
   aircraftTypeDisabled?: boolean
   aircraftTypeOptions?: string[]
+  showAllAircraftTypes?: boolean
   onAircraftTypeChange?: (aircraftType: string) => void
+  onShowAllAircraftTypesChange?: (checked: boolean) => void
   onClientCountChange?: (count: number) => void
 }
 
@@ -57,7 +61,9 @@ export function FlightGroupCard({
   showAircraftType = false,
   aircraftTypeDisabled = false,
   aircraftTypeOptions = [],
+  showAllAircraftTypes = false,
   onAircraftTypeChange,
+  onShowAllAircraftTypesChange,
   onClientCountChange
 }: FlightGroupCardProps) {
   const hasClients = group.aircrafts.some((aircraft) => aircraft.client)
@@ -172,9 +178,14 @@ export function FlightGroupCard({
               className="h-8 border-[#00ddff]/25 bg-black/35 text-xs text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] hover:border-[#00ddff]/45 focus:ring-[#00ddff]/25 disabled:cursor-default disabled:opacity-55"
               title="Aircraft type"
             >
-              <SelectValue placeholder="Aircraft type" />
+              <SelectValue placeholder="Aircraft type">
+                {getAircraftDisplayName(selectedAircraftType)}
+              </SelectValue>
             </SelectTrigger>
-            <SelectContent className="border-[#00ddff]/25 bg-[#100019]/95 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur">
+            <SelectContent
+              className="border-[#00ddff]/25 bg-[#100019]/95 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur"
+              viewportClassName="!h-auto max-h-80"
+            >
               {aircraftTypeOptions.map((aircraftType) => (
                 <SelectItem
                   key={aircraftType}
@@ -184,6 +195,15 @@ export function FlightGroupCard({
                   {getAircraftDisplayName(aircraftType)}
                 </SelectItem>
               ))}
+              {onShowAllAircraftTypesChange && (
+                <>
+                  <SelectSeparator className="bg-[#00ddff]/15" />
+                  <AircraftRosterFilterToggle
+                    checked={showAllAircraftTypes}
+                    onCheckedChange={onShowAllAircraftTypesChange}
+                  />
+                </>
+              )}
             </SelectContent>
           </Select>
         </div>

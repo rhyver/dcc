@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSelector } from '@xstate/store/react'
 import { useQuery } from '@tanstack/react-query'
-import { aircrafts as aircraftDefinitions, samTemplates } from '@dcc/data'
+import { samTemplates } from '@dcc/data'
 import { ArrowLeft, ChevronDown, Clock, CloudSun, Plane, Sun, Target, Wind, X } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import type { schemas } from '@dcc/contracts'
@@ -15,13 +15,13 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Switch } from '@/components/ui/switch'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { cn } from '@/lib/utils'
+import { getTaskAircraftTypeOptions } from '@/lib/aircraft-display'
 
 import { FlightGroupCard } from '../components/flight-group-card'
 import { MissionDebriefScreen, type MissionDebrief, type TargetOutcome } from './mission-debrief'
 import { applyMissionStateUpdate } from './mission-state-update'
 
 const KNOTS_PER_MS = 1.94384
-type FlightTask = z.infer<typeof schemas.flightGroup>['task']
 type Campaign = z.infer<typeof schemas.campaign.campaign>
 type FlightGroup = Campaign['coalitions']['player']['flightGroups'][number]
 type MissionState = z.infer<typeof schemas.missionState>
@@ -33,12 +33,6 @@ const eraLabels: Partial<Record<z.infer<typeof schemas.era>, string>> = {
 
 function formatEra(era: z.infer<typeof schemas.era>) {
   return eraLabels[era] ?? era
-}
-
-function getTaskAircraftOptions(task: FlightTask) {
-  return Object.values(aircraftDefinitions)
-    .filter((aircraft) => aircraft.controllable && aircraft.availableTasks.includes(task))
-    .sort((a, b) => a.display_name.localeCompare(b.display_name))
 }
 
 function formatTargetOutcome(progress: { destroyed: number; total: number }): TargetOutcome {
@@ -292,6 +286,7 @@ export function Mission() {
   const [isMissionStateReady, setIsMissionStateReady] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [missionOptionsOpen, setMissionOptionsOpen] = useState(false)
+  const [showAllAircraft, setShowAllAircraft] = useState(false)
   const [debrief, setDebrief] = useState<MissionDebrief | null>(null)
   const [toast, setToast] = useState<{
     title: string
@@ -332,6 +327,10 @@ export function Mission() {
   const playerFlightGroups = useSelector(
     activeStore,
     (state) => state.context.coalitions.player.flightGroups
+  )
+  const playerAircraftTypes = useSelector(
+    activeStore,
+    (state) => state.context.coalitions.player.aircraftTypes
   )
 
   const scenarioQuery = useQuery(
@@ -849,8 +848,9 @@ export function Mission() {
             <div className="min-h-0 flex-1 overflow-y-auto">
               <div className="flex w-full min-w-0 flex-col gap-2">
                 {clientFlightGroups.map((group) => {
-                  const aircraftOptions = getTaskAircraftOptions(group.task).map(
-                    (aircraft) => aircraft.name
+                  const aircraftOptions = getTaskAircraftTypeOptions(
+                    group.task,
+                    showAllAircraft ? undefined : playerAircraftTypes[group.task]
                   )
 
                   return (
@@ -861,9 +861,11 @@ export function Mission() {
                       showAircraftType
                       aircraftTypeDisabled={isGenerated || isGenerating}
                       aircraftTypeOptions={aircraftOptions}
+                      showAllAircraftTypes={showAllAircraft}
                       onAircraftTypeChange={(aircraftType) =>
                         handleAircraftTypeChange(group.id, aircraftType)
                       }
+                      onShowAllAircraftTypesChange={setShowAllAircraft}
                     />
                   )
                 })}

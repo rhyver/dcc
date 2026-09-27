@@ -53,6 +53,21 @@ const aircraftDefinition: z.infer<typeof schemas.dcs.aircraft> = {
       pylons: []
     },
     {
+      task: 'CAP',
+      name: 'CAP',
+      displayName: 'CAP',
+      pylons: [
+        { CLSID: '{AGM_122_SIDEARM}', num: 1 },
+        { CLSID: '{LAU_7_AGM_122_SIDEARM}', num: 2 },
+        { CLSID: 'LAU_117_AGM_65F', num: 3 },
+        { CLSID: '{GAU_12_Equalizer}', num: 4 },
+        { CLSID: '{ALQ_164_RF_Jammer}', num: 5 },
+        { CLSID: 'LAU_117_AGM_65F', num: 6 },
+        { CLSID: '{LAU_7_AGM_122_SIDEARM}', num: 7 },
+        { CLSID: '{AGM_122_SIDEARM}', num: 8 }
+      ]
+    },
+    {
       task: 'CAS',
       name: 'CAS',
       displayName: 'CAS',

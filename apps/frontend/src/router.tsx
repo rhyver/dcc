@@ -184,11 +184,9 @@ function AppTitleBar({ showDevMenu = true }: { showDevMenu?: boolean }) {
   const showLogistics = useSelector(uiStore, (state) => state.context.showLogistics)
   const logEntries = useSelector(activeStore, (state) => state.context.logs)
 
-  useEffect(() => {
-    if (!showDevMenu) {
-      setIsDevMenuOpen(false)
-    }
-  }, [showDevMenu])
+  if (!showDevMenu && isDevMenuOpen) {
+    setIsDevMenuOpen(false)
+  }
 
   useEffect(() => {
     let cancelled = false

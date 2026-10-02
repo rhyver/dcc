@@ -7,11 +7,7 @@ export type LngLat = { lat: number; lng: number }
  * Runtime positions can legitimately fall outside that grid (for example, older
  * South Atlantic saves), so map rendering must treat conversion as fallible.
  */
-export function tryDcsPositionToLngLat(
-  theatre: string,
-  x: number,
-  z: number
-): LngLat | undefined {
+export function tryDcsPositionToLngLat(theatre: string, x: number, z: number): LngLat | undefined {
   if (!Number.isFinite(x) || !Number.isFinite(z)) return undefined
 
   try {

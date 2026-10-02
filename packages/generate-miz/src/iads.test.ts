@@ -196,10 +196,14 @@ describe('buildIadsConfig', () => {
       powerSources: ['Static-power-Power Plant-102-1'],
       connectionNodes: ['Static-link-Logistics Hub-103-1']
     })
+    const ewrGroup = mission.coalition.red.country?.[0]?.vehicle?.group[0]
     expect(mission.coalition.red.country?.[0]?.vehicle?.group).toHaveLength(1)
-    expect(mission.coalition.red.country?.[0]?.vehicle?.group[0]).toMatchObject({
-      name: expect.stringMatching(/^IADS-EWR-ewr-alpha-1-/),
-      units: [{ name: 'IADS-EWR-Unit-ewr-alpha-1', type: '55G6 EWR', x: 1000, y: 2000 }]
+    expect(ewrGroup?.name).toMatch(/^IADS-EWR-ewr-alpha-1-/)
+    expect(ewrGroup?.units[0]).toMatchObject({
+      name: 'IADS-EWR-Unit-ewr-alpha-1',
+      type: '55G6 EWR',
+      x: 1000,
+      y: 2000
     })
   })
 

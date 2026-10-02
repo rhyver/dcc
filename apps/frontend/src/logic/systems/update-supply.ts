@@ -94,7 +94,11 @@ function createBaselineSupply(isAirdrome: boolean): Supply {
   }
 }
 
-function scalePoolCapacity(pool: SupplyPool | undefined, max: number, productionRate: number): void {
+function scalePoolCapacity(
+  pool: SupplyPool | undefined,
+  max: number,
+  productionRate: number
+): void {
   if (!pool) return
 
   const ratio = pool.max > 0 ? pool.current / pool.max : 0

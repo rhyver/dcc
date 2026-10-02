@@ -20,6 +20,8 @@ function createAircraftTypes(): CoalitionData['aircraftTypes'] {
     'Strategic Strike': [],
     CAS: [],
     CSAR: [],
+    CASEVAC: [],
+    'Troop Extraction': [],
     'Air Assault': [],
     SEAD: [],
     Intercept: [],

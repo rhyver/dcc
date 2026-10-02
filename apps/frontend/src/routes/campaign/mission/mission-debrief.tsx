@@ -7,10 +7,7 @@ import { useSelector } from '@xstate/store/react'
 import maplibregl from 'maplibre-gl'
 import { Protocol } from 'pmtiles'
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import MaplibreMap, {
-  Marker as MaplibreMarker,
-  type MapRef
-} from 'react-map-gl/maplibre'
+import MaplibreMap, { Marker as MaplibreMarker, type MapRef } from 'react-map-gl/maplibre'
 import * as z from 'zod'
 
 import { Button } from '@/components/ui/button'
@@ -20,10 +17,7 @@ import { orpc } from '@/lib/orpc'
 import { cn } from '@/lib/utils'
 import { activeStore } from '@/stores/active'
 import { FlightGroupCard } from '../components/flight-group-card'
-import {
-  CAUCASUS_DETAIL_MAX_ZOOM,
-  offlineCaucasusMapStyle
-} from '../home/offline-map-style'
+import { CAUCASUS_DETAIL_MAX_ZOOM, offlineCaucasusMapStyle } from '../home/offline-map-style'
 
 type MissionState = z.infer<typeof schemas.missionState>
 type Campaign = z.infer<typeof schemas.campaign.campaign>
@@ -101,7 +95,9 @@ function groupLostUnitsBySide(lostUnits: LostUnit[]) {
   )
 
   for (const side of ['blue', 'red', 'unknown'] as const) {
-    grouped[side].sort((a, b) => (a.time ?? Number.POSITIVE_INFINITY) - (b.time ?? Number.POSITIVE_INFINITY))
+    grouped[side].sort(
+      (a, b) => (a.time ?? Number.POSITIVE_INFINITY) - (b.time ?? Number.POSITIVE_INFINITY)
+    )
   }
 
   return grouped
@@ -167,8 +163,7 @@ function DebriefEventMarker({
     () => tryDcsPositionToLngLat(theatreName, unit.x, unit.y),
     [theatreName, unit.x, unit.y]
   )
-  const color =
-    side === 'blue' ? '#00ddff' : side === 'red' ? '#ff3366' : 'rgba(255,255,255,0.72)'
+  const color = side === 'blue' ? '#00ddff' : side === 'red' ? '#ff3366' : 'rgba(255,255,255,0.72)'
   const time = formatEventTime(unit)
 
   if (!position) return null
@@ -206,13 +201,7 @@ function DebriefEventMarker({
   )
 }
 
-function ExplosionIcon({
-  className,
-  style
-}: {
-  className?: string
-  style?: CSSProperties
-}) {
+function ExplosionIcon({ className, style }: { className?: string; style?: CSSProperties }) {
   return (
     <svg
       className={className}
@@ -252,7 +241,9 @@ function countRemainingTargetUnits(missionState: MissionState, targetId: string)
 }
 
 function getTargetUnitTotal(group: FlightGroup) {
-  const target = group.target as (Record<string, unknown> & NonNullable<FlightGroup['target']>) | undefined
+  const target = group.target as
+    | (Record<string, unknown> & NonNullable<FlightGroup['target']>)
+    | undefined
   if (!target) return undefined
 
   return (

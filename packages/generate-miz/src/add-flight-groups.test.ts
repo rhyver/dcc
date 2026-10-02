@@ -204,6 +204,15 @@ function getTaskEntries(task: unknown): unknown[] {
   return task.params.tasks
 }
 
+function readComboTasks(task: unknown): Array<{ id: string; params: Record<string, unknown> }> {
+  if (!isRecord(task) || !isRecord(task.params) || !Array.isArray(task.params.tasks)) return []
+
+  return task.params.tasks.flatMap((entry) => {
+    if (!isRecord(entry) || typeof entry.id !== 'string' || !isRecord(entry.params)) return []
+    return [{ id: entry.id, params: entry.params }]
+  })
+}
+
 function getStationNumber(unit: AircraftUnit): unknown {
   const addPropAircraft = unit.AddPropAircraft as unknown
   if (!isRecord(addPropAircraft)) return undefined

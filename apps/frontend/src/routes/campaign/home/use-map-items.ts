@@ -301,11 +301,7 @@ export function useMapItems(options: { showGoalMarkers?: boolean } = {}): {
       coalition: z.infer<typeof schemas.coalition>
     ) => {
       for (const pilot of downedPilots) {
-        const position = tryDcsPositionToLngLat(
-          theatre.name,
-          pilot.position.x,
-          pilot.position.y
-        )
+        const position = tryDcsPositionToLngLat(theatre.name, pilot.position.x, pilot.position.y)
         if (!position) continue
         mapItems.push({
           id: pilot.id,

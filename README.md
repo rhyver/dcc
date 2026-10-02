@@ -18,20 +18,24 @@ data packages, and mission generation logic in one TypeScript monorepo.
 - React 19 and Vite for the renderer apps
 - TypeScript across apps and shared packages
 - ORPC and Zod for typed client/server contracts
+- Tailwind CSS for renderer styling
 - TanStack Query and XState Store for frontend state flows
 - MapLibre GL and Turf.js for map rendering and spatial logic
 - Turborepo for workspace task orchestration
-- Bun as the package manager/runtime entrypoint
+- Vitest for unit tests
+- Bun as the package manager (Node.js runs the tooling)
 
 ## Workspace Layout
 
 ```text
 apps/
-  core/       Electron main process, window lifecycle, backend APIs
-  campaign/   Primary renderer for campaign planning and map workflows
-  document/   Secondary renderer for document/reference views
+  core/         Electron main process, window lifecycle, ORPC backend APIs
+  frontend/     Main renderer: campaign planning and map workflows
+  document/     Document/reference renderer (packaged with the desktop app)
+  website/      Public marketing site (prerendered static build)
 
 packages/
+  campaign/     Campaign simulation logic (IADS, ground deployment, carrier ops, scenarios)
   contracts/    Shared ORPC contracts and Zod schemas
   data/         Static DCS data such as aircraft, factions, theatres, scenarios
   generate-miz/ Mission assembly pipeline for `.miz` output
@@ -42,8 +46,10 @@ packages/
 
 ### Prerequisites
 
-- [Bun](https://bun.sh/) 1.3+
-- Node.js 20+
+- [Bun](https://bun.sh/) 1.3+ (the repo pins `bun@1.3.13` via `packageManager`)
+- [Node.js](https://nodejs.org/) `^20.19` or `>=22.12` (required by Vite 8 and
+  electron-vite). It must be a real Node install: ESLint, Vitest and
+  electron-vite run on `node`, and Bun's `node` shim is not enough.
 
 ### Install
 
@@ -51,18 +57,65 @@ packages/
 bun install
 ```
 
+Electron downloads its binary the first time it starts, so the first
+`bun run dev` takes longer.
+
 ### Run In Development
 
-This starts the Electron app plus the renderer dev servers through Turborepo.
+This starts the Electron app plus all Vite dev servers through Turborepo.
 
 ```bash
 bun run dev
 ```
 
-Renderer dev servers:
+The Electron window loads the frontend from `http://localhost:5173`. The
+`website` and `document` dev servers also start; both are configured for port
+`5174`, so whichever starts second moves to `5175`. Check the terminal output
+for the actual URLs.
 
-- Campaign UI: `http://localhost:5173`
-- Document UI: `http://localhost:5174`
+To work on a single app, filter the task, for example
+`bunx turbo run dev --filter=@dcc/website`.
+
+#### Optional setup
+
+- **DCS install path:** set it in the app settings, or export
+  `DCS_INSTALL_PATH`, so DCC can find `Scripts/MissionScripting.lua`.
+  Without it the app runs, but it logs a warning and skips DCS persistence
+  setup.
+- **Offline map tiles:** Caucasus, Persian Gulf and Syria tiles are committed
+  under `apps/frontend/public/maps`. The South Atlantic tiles are not committed;
+  generate them (and refresh the others) with `bun run cache:map`. Until then,
+  kneeboard route maps for that theatre omit terrain features.
+
+### Running On Linux
+
+Lint, type checks, tests and `bun run dev` all work on Linux. The one common
+problem is Electron's Chromium sandbox. On distributions that restrict
+unprivileged user namespaces (for example Ubuntu 23.10+), `bun run dev` can
+abort right after `starting electron app...` with:
+
+```text
+The SUID sandbox helper binary was found, but is not configured correctly ...
+chrome-sandbox is owned by root and has mode 4755.
+```
+
+Fix it in either of two ways:
+
+```bash
+# Option A (keeps the sandbox): make the helper setuid root.
+# Repeat this after every reinstall of Electron.
+sudo chown root:root node_modules/.bun/electron@*/node_modules/electron/dist/chrome-sandbox
+sudo chmod 4755 node_modules/.bun/electron@*/node_modules/electron/dist/chrome-sandbox
+
+# Option B (development only): run Electron without the sandbox.
+# Start the frontend dev server in one terminal...
+cd apps/frontend && bun run dev
+# ...and Electron in another:
+cd apps/core && FRONTEND_URL=http://localhost:5173 bunx electron-vite dev -- --no-sandbox
+```
+
+`ELECTRON_DISABLE_SANDBOX=1` does not get around this error. Pass
+`--no-sandbox` instead.
 
 ### Build
 
@@ -94,6 +147,24 @@ bun run build:unpack
 bun run lint
 bun run lint:fix
 bun run tsc
+bun run test
+bun run format   # prettier --write .
+```
+
+Tests run with Vitest in `@dcc/frontend`, `@dcc/campaign` and
+`@dcc/generate-miz`.
+
+## Releasing
+
+`bun run release` bumps the version (`<base>-YYYYMMDDNN`), builds, commits,
+tags and publishes the release to Codeberg. Publishing needs a
+`CODEBERG_TOKEN` environment variable.
+
+```bash
+bun run release                # auto version, build, tag, publish
+bun run release 0.6.0          # manual version override
+bun run release --no-publish   # build and tag locally only
+bun run release --resume       # retry publishing after a failed upload
 ```
 
 ## Mission Generator Notes
@@ -101,15 +172,15 @@ bun run tsc
 The core app supports AI-backed mission planning. API keys are configured inside
 the application settings rather than through required repo-level environment
 variables. The current code supports OpenAI, Anthropic, and OpenRouter-backed
-models.
+models via the Vercel AI SDK.
 
 ## Architecture
 
-1. The `campaign` renderer collects user input and drives campaign workflows.
+1. The `frontend` renderer collects user input and drives campaign workflows.
 2. Shared contracts from `@dcc/contracts` define the typed request/response boundary.
 3. The Electron `core` app handles orchestration and backend operations.
-4. Domain data from `@dcc/data` and generation logic from `@dcc/generate-miz`
-   are used to assemble mission output.
+4. Campaign simulation from `@dcc/campaign`, domain data from `@dcc/data` and
+   generation logic from `@dcc/generate-miz` are used to assemble mission output.
 5. Lua-oriented serialization helpers from `@dcc/lua-table` support DCS file generation.
 
 ## License

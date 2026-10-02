@@ -199,6 +199,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
 
+function readComboTasks(task: unknown): Array<{ id: string; params: Record<string, unknown> }> {
+  if (!isRecord(task) || !isRecord(task.params) || !Array.isArray(task.params.tasks)) return []
+
+  return task.params.tasks.flatMap((entry) => {
+    if (!isRecord(entry) || typeof entry.id !== 'string' || !isRecord(entry.params)) return []
+    return [{ id: entry.id, params: entry.params }]
+  })
+}
+
 function getStationNumber(unit: AircraftUnit): unknown {
   const addPropAircraft = unit.AddPropAircraft as unknown
   if (!isRecord(addPropAircraft)) return undefined
@@ -1252,15 +1261,12 @@ describe('addFlightGroups mission script config', () => {
     if (result.isErr()) throw result.error
     const dcsGroup = mission.coalition.blue.country?.[0]?.plane?.group?.[0]
     const taskWaypoint = dcsGroup?.route?.points.find((point) => point.name === 'DEAD')
-    const tasks = taskWaypoint?.task?.params?.tasks
+    const attackGroup = readComboTasks(taskWaypoint?.task as unknown).find(
+      (task) => task.id === 'AttackGroup'
+    )
 
     expect(dcsGroup?.task).toBe('SEAD')
-    expect(tasks).toContainEqual(
-      expect.objectContaining({
-        id: 'AttackGroup',
-        params: expect.objectContaining({ groupId: 900 })
-      })
-    )
+    expect(attackGroup?.params).toMatchObject({ groupId: 900 })
   })
 
   test('equips Harrier CAS flights with air-to-ground weapons and a targeting pod', () => {

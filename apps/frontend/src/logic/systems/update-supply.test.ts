@@ -115,13 +115,13 @@ describe('virtual logistics network', () => {
   test('scales production and route transfer by fast-forwarded campaign time', () => {
     const campaign = createCampaign()
     campaign.timeMultiplier = 300
-    campaign.coalitions.player.supplyNodes!.Kobuleti.current = 5_000
-    campaign.coalitions.player.supplyNodes!['Enguri Dam'].current = 100
+    campaign.coalitions.player.supplyNodes!.Kobuleti!.current = 5_000
+    campaign.coalitions.player.supplyNodes!['Enguri Dam']!.current = 100
 
     updateSupply(campaign, 'player', 1_000)
 
-    expect(campaign.coalitions.player.supplyNodes?.Kobuleti.current).toBeGreaterThan(5_000)
-    expect(campaign.coalitions.player.supplyNodes?.['Enguri Dam'].current).toBe(1_000)
+    expect(campaign.coalitions.player.supplyNodes?.Kobuleti?.current).toBeGreaterThan(5_000)
+    expect(campaign.coalitions.player.supplyNodes?.['Enguri Dam']?.current).toBe(1_000)
   })
 
   test('moves supply from a hub to a low owned node over a virtual route', () => {

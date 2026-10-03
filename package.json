@@ -21,6 +21,7 @@
     "build:win": "turbo run build && turbo run build:win --filter=@dcc/core",
     "build:mac": "turbo run build && turbo run build:mac --filter=@dcc/core",
     "build:linux": "turbo run build && turbo run build:linux --filter=@dcc/core",
+    "build:linux:docker": "bun scripts/build-linux.ts",
     "release": "bun scripts/release.ts"
   },
   "devDependencies": {

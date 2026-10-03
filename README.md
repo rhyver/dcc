@@ -137,6 +137,9 @@ bun run build:mac
 # Linux
 bun run build:linux
 
+# Linux x64 AppImage + Debian package via Docker (also works on Windows)
+bun run build:linux:docker
+
 # Unpacked directory only
 bun run build:unpack
 ```
@@ -159,6 +162,16 @@ Tests run with Vitest in `@dcc/frontend`, `@dcc/campaign` and
 `bun run release` bumps the version (`<base>-YYYYMMDDNN`), builds, commits,
 tags and publishes the release to Codeberg. Publishing needs a
 `CODEBERG_TOKEN` environment variable.
+
+Releases include the Windows installer and Linux x64 AppImage and Debian packages,
+plus update manifests for both platforms. Start Docker Desktop with Linux containers
+before releasing. Linux builds run with separate dependencies inside Docker and write
+to `dist/linux`, preserving the Windows artifacts in `dist`. The first build downloads
+the builder image and dependencies; subsequent builds reuse download caches.
+
+To verify Linux packaging without committing, tagging, or publishing, run
+`bun run build:linux:docker`. `--resume` requires both platforms' artifacts from the
+original build.
 
 ```bash
 bun run release                # auto version, build, tag, publish

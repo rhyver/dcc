@@ -55,6 +55,7 @@ mac:
 dmg:
   artifactName: dcc-${version}.${ext}
 linux:
+  executableName: dcc
   target:
     - AppImage
     - snap
@@ -63,6 +64,8 @@ linux:
   category: Utility
 appImage:
   artifactName: dcc-${version}.${ext}
+deb:
+  artifactName: dcc-${version}-${arch}.${ext}
 npmRebuild: false
 publish:
   provider: generic

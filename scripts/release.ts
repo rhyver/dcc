@@ -17,7 +17,9 @@ const KNOWN_FLAGS = new Set(['--no-publish', '--resume'])
 if (argv.some((a) => a.startsWith('--') && !KNOWN_FLAGS.has(a))) {
   console.error('usage: bun run release [version] [--no-publish] [--resume]')
   console.error('       version    optional manual override (e.g. 0.5.0-2026041901 or 0.6.0)')
-  console.error('                  if omitted, derived as <base>-YYYYMMDDNN from package.json + today')
+  console.error(
+    '                  if omitted, derived as <base>-YYYYMMDDNN from package.json + today'
+  )
   console.error('       --resume   skip bump/build/commit/tag; push and publish the version')
   console.error('                  already in package.json (use after a failed publish)')
   console.error('       CODEBERG_TOKEN=<token> required unless --no-publish')
@@ -136,12 +138,23 @@ if (!resume) {
 
   console.log('==> building Windows installer')
   await $`bun run build:win`
+
+  console.log('==> building Linux AppImage and Debian package')
+  await $`bun run build:linux:docker`
 }
 
 const installer = `dist/dcc-${version}-setup.exe`
 const blockmap = `dist/dcc-${version}-setup.exe.blockmap`
 const manifest = `dist/latest.yml`
-const artifacts = [installer, blockmap, manifest]
+const linuxManifest = 'dist/linux/latest-linux.yml'
+const artifacts = [
+  installer,
+  blockmap,
+  manifest,
+  `dist/linux/dcc-${version}.AppImage`,
+  `dist/linux/dcc-${version}-amd64.deb`,
+  linuxManifest
+]
 
 console.log('==> verifying artifacts')
 const missing = artifacts.filter((f) => !existsSync(f))
@@ -152,10 +165,12 @@ if (missing.length > 0) {
 }
 for (const f of artifacts) console.log(`    ok: ${f}`)
 
-const manifestText = readFileSync(manifest, 'utf8')
-if (!manifestText.includes(`version: ${version}`)) {
-  console.error(`error: ${manifest} does not reference version ${version}`)
-  process.exit(1)
+for (const path of [manifest, linuxManifest]) {
+  const manifestText = readFileSync(path, 'utf8')
+  if (!manifestText.includes(`version: ${version}`)) {
+    console.error(`error: ${path} does not reference version ${version}`)
+    process.exit(1)
+  }
 }
 
 if (!resume) {
@@ -205,10 +220,7 @@ async function describe(res: Response): Promise<string> {
   return `${res.status} ${res.statusText} ${body}`.trim()
 }
 
-async function createRelease(
-  payload: Record<string, unknown>,
-  label: string
-): Promise<Release> {
+async function createRelease(payload: Record<string, unknown>, label: string): Promise<Release> {
   const delaysMs = [3000, 6000, 12000]
   let lastError = ''
   for (let attempt = 0; attempt <= delaysMs.length; attempt++) {

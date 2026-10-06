@@ -204,15 +204,6 @@ function getTaskEntries(task: unknown): unknown[] {
   return task.params.tasks
 }
 
-function readComboTasks(task: unknown): Array<{ id: string; params: Record<string, unknown> }> {
-  if (!isRecord(task) || !isRecord(task.params) || !Array.isArray(task.params.tasks)) return []
-
-  return task.params.tasks.flatMap((entry) => {
-    if (!isRecord(entry) || typeof entry.id !== 'string' || !isRecord(entry.params)) return []
-    return [{ id: entry.id, params: entry.params }]
-  })
-}
-
 function getStationNumber(unit: AircraftUnit): unknown {
   const addPropAircraft = unit.AddPropAircraft as unknown
   if (!isRecord(addPropAircraft)) return undefined
@@ -251,6 +242,64 @@ function getMissionUnitIds(entries: unknown): number[] {
     return entry.missionUnitId as number
   })
 }
+
+describe('OH-58D mission generation', () => {
+  test.each(['CSAR', 'CAS', 'Ground Attack'] as const)(
+    'generates a client %s helicopter with the mission-derived payload',
+    (task) => {
+      const startTime = new Date('2026-01-01T00:00:00Z')
+      const mission = createMission()
+      const campaign = createCampaign(startTime)
+      const group = createTaskFlightGroup('blue-kiowa', 'Enfield-1', startTime, task)
+      group.aircrafts = [
+        {
+          id: 'blue-kiowa-1',
+          unitName: 'Enfield-1-1',
+          aircraftName: 'OH58D',
+          client: true
+        }
+      ]
+      campaign.coalitions.player.flightGroups = [group]
+      campaign.coalitions.opponent.flightGroups = []
+
+      const result = addFlightGroups(mission, campaign, theatre)
+
+      expect(result.isOk()).toBe(true)
+      if (result.isErr()) throw result.error
+      expect(result.value[0]).toMatchObject({ task, isHelicopter: true })
+      const helicopterGroups = mission.coalition.blue.country?.[0]?.helicopter?.group
+      expect(helicopterGroups).toHaveLength(1)
+      expect(mission.coalition.blue.country?.[0]?.plane?.group).toEqual([])
+      expect(helicopterGroups?.[0]?.task).toBe(task === 'CSAR' ? 'Transport' : task)
+      expect(helicopterGroups?.[0]?.units[0]).toMatchObject({
+        type: 'OH58D',
+        skill: 'Client',
+        payload: {
+          fuel: 333.69,
+          flare: 30,
+          chaff: 0,
+          gun: 100
+        },
+        AddPropAircraft: {
+          'MMS removal': false,
+          'Remove doors': true,
+          'Rapid Deployment Gear': false,
+          ALQ144: false,
+          PDU: false,
+          tacNet: 1
+        }
+      })
+      expect(helicopterGroups?.[0]?.units[0]?.payload?.pylons).toEqual(
+        task === 'CSAR'
+          ? {}
+          : {
+              1: { CLSID: 'OH58D_AGM_114_L', num: 1 },
+              5: { CLSID: 'OH58D_AGM_114_R', num: 5 }
+            }
+      )
+    }
+  )
+})
 
 describe('addFlightGroups carrier compatibility', () => {
   test('spawns carriers facing into the surface wind used by their startup route', () => {
@@ -371,7 +420,8 @@ describe('addFlightGroups carrier compatibility', () => {
 
   test.each([
     ['FA-18C_hornet', 'CVN_71', { channel: 12, band: 'X', callsign: 'CVN' }],
-    ['AV8BNA', 'LHA_Tarawa', { channel: 11, band: 'X', callsign: 'LHA' }]
+    ['AV8BNA', 'LHA_Tarawa', { channel: 11, band: 'X', callsign: 'LHA' }],
+    ['OH58D', 'LHA_Tarawa', { channel: 11, band: 'X', callsign: 'LHA' }]
   ] as const)(
     'links %s to a compatible ship in a mixed carrier group',
     (aircraftType, shipType, expectedTacan) => {
@@ -445,7 +495,12 @@ describe('addFlightGroups carrier compatibility', () => {
       expect(flightResult.isOk()).toBe(true)
       if (flightResult.isErr()) throw flightResult.error
 
-      const emittedFlight = mission.coalition.blue.country?.[0]?.plane?.group[0]
+      const country = mission.coalition.blue.country?.[0]
+      const emittedFlight =
+        aircraftType === 'OH58D' ? country?.helicopter?.group[0] : country?.plane?.group[0]
+      expect(emittedFlight?.units[0]?.skill).toBe('Client')
+      expect(emittedFlight?.units[0]?.type).toBe(aircraftType)
+      expect(emittedFlight?.route?.points[0]?.type).toBe('TakeOffParking')
       expect(emittedFlight?.route?.points[0]?.helipadId).toBe(expectedCarrier?.unitId)
       expect(emittedFlight?.route?.points.at(-1)).toMatchObject({
         helipadId: expectedCarrier?.unitId,

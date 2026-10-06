@@ -1,6 +1,60 @@
 import { Footer, Nav } from './site-shell'
 
-const latestReleaseChanges = [
+const october6ReleaseChanges = [
+  {
+    title: 'Linux packages',
+    body: 'The release workflow now includes Linux x64 AppImage and Debian .deb packages. Linux updates require manually downloading and installing a newer release.'
+  },
+  {
+    title: 'OH-58D Kiowa Warrior support',
+    body: 'The Kiowa is available for CSAR, CAS, and Ground Attack missions in the modern USA faction, with Hellfire loadouts for CAS and Ground Attack.'
+  },
+  {
+    title: 'Plan flights from map targets',
+    body: 'Create attack flights directly from selected targets on the campaign map, or view flights already assigned to them.'
+  },
+  {
+    title: 'Aircraft roster override',
+    body: 'Aircraft selection includes a "Show all compatible aircraft" option to choose aircraft outside the player faction roster while retaining mission-role compatibility.'
+  },
+  {
+    title: 'More client slots',
+    body: 'Client flights can expand beyond their planned size to accommodate up to four player slots. Aircraft added for those slots are removed when the slots are cleared.'
+  },
+  {
+    title: 'Improved attack routes',
+    body: 'Ground Attack, Pinpoint Strike, and Strategic Strike routes include an attack waypoint before the target, with attack tasks assigned at the appropriate point in generated missions.'
+  },
+  {
+    title: 'AV-8B CAP loadout',
+    body: 'The AV-8B now has a dedicated CAP loadout.'
+  },
+  {
+    title: 'Corrected mission and kneeboard timing',
+    body: 'Generated waypoint ETAs and kneeboard timings account for the ten-minute startup allowance, including flights whose scheduled start time has already passed.'
+  },
+  {
+    title: 'San Carlos FARP recovery',
+    body: 'The San Carlos FARP becomes available during the Falklands landing phase and is restored at a validated recovery site when loading affected saves.'
+  },
+  {
+    title: 'Murrell Farm deployment correction',
+    body: 'Corrected a ground-unit deployment position at Murrell Farm on the South Atlantic map.'
+  }
+]
+
+const august16PatchReleaseChanges = [
+  {
+    title: 'Campaign welcome layout',
+    body: 'Improved the campaign welcome dialog layout on smaller screens.'
+  },
+  {
+    title: 'Naval patrol timing correction',
+    body: 'Corrected the initial waypoint timing lock for naval patrol routes in generated missions.'
+  }
+]
+
+const august16ReleaseChanges = [
   {
     title: 'Operation Corporate — Falklands 1982',
     body: 'A new South Atlantic campaign follows the British task force from sea control through the San Carlos landing and the advance on Stanley, with dedicated British and Argentine factions, persistent naval groups, and anti-ship missions.'
@@ -219,11 +273,43 @@ export function ChangelogPage() {
           <section className="release-block current">
             <div className="release-meta">
               <span>Current release</span>
+              <span>6 October 2026</span>
+            </div>
+            <h2>v0.5.0-2026100601</h2>
+            <div className="change-list">
+              {october6ReleaseChanges.map((change) => (
+                <div className="change-item" key={change.title}>
+                  <h3>{change.title}</h3>
+                  <p>{change.body}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="release-block">
+            <div className="release-meta">
+              <span />
+              <span>16 August 2026</span>
+            </div>
+            <h2>v0.5.0-2026081602</h2>
+            <div className="change-list">
+              {august16PatchReleaseChanges.map((change) => (
+                <div className="change-item" key={change.title}>
+                  <h3>{change.title}</h3>
+                  <p>{change.body}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="release-block">
+            <div className="release-meta">
+              <span />
               <span>16 August 2026</span>
             </div>
             <h2>v0.5.0-2026081601</h2>
             <div className="change-list">
-              {latestReleaseChanges.map((change) => (
+              {august16ReleaseChanges.map((change) => (
                 <div className="change-item" key={change.title}>
                   <h3>{change.title}</h3>
                   <p>{change.body}</p>

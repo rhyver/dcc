@@ -862,6 +862,59 @@ describe('addFlightGroups enemy traffic throttle', () => {
   })
 })
 
+describe('addFlightGroups route timing', () => {
+  const firstLegSeconds = Math.hypot(1000, 1000) / 150
+
+  function emitClientRoute(startTime: Date, campaignTime: Date) {
+    const mission = createMission()
+    mission.start_time =
+      campaignTime.getUTCHours() * 3600 +
+      campaignTime.getUTCMinutes() * 60 +
+      campaignTime.getUTCSeconds()
+    const campaign = createCampaign(campaignTime)
+    const clientGroup = createFlightGroup('blue-client', 'Enfield-1', startTime)
+    clientGroup.aircrafts[0]!.client = true
+    campaign.coalitions.player.flightGroups = [clientGroup]
+    campaign.coalitions.opponent.flightGroups = []
+
+    const result = addFlightGroups(mission, campaign, theatre)
+
+    expect(result.isOk()).toBe(true)
+    if (result.isErr()) throw result.error
+
+    return mission.coalition.blue.country?.[0]?.plane?.group?.[0]?.route?.points ?? []
+  }
+
+  test('spawns ground starts at their start time and times the route from planned takeoff', () => {
+    const startTime = new Date('2026-01-01T00:00:00Z')
+
+    const points = emitClientRoute(startTime, startTime)
+
+    expect(points[0]).toMatchObject({ type: 'TakeOffParking', ETA: 0, ETA_locked: true })
+    expect(points[1]?.ETA).toBeCloseTo(600 + firstLegSeconds)
+  })
+
+  test('only keeps the remaining startup allowance when the start time has passed', () => {
+    const startTime = new Date('2026-01-01T00:00:00Z')
+    const campaignTime = new Date('2026-01-01T00:04:00Z')
+
+    const points = emitClientRoute(startTime, campaignTime)
+
+    expect(points[0]?.ETA).toBe(0)
+    expect(points[1]?.ETA).toBeCloseTo(360 + firstLegSeconds)
+  })
+
+  test('delays future ground starts and adds the startup allowance after spawning', () => {
+    const startTime = new Date('2026-01-01T00:05:00Z')
+    const campaignTime = new Date('2026-01-01T00:00:00Z')
+
+    const points = emitClientRoute(startTime, campaignTime)
+
+    expect(points[0]?.ETA).toBe(300)
+    expect(points[1]?.ETA).toBeCloseTo(900 + firstLegSeconds)
+  })
+})
+
 describe('addFlightGroups mission script config', () => {
   test('sets a single selected client aircraft to client skill', () => {
     const startTime = new Date('2026-01-01T00:00:00Z')

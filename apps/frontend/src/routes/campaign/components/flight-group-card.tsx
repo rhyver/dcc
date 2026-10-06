@@ -13,6 +13,7 @@ import {
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { getAircraftDisplayName } from '@/lib/aircraft-display'
 import { cn } from '@/lib/utils'
+import { getAvailableClientSlots } from '@/logic/systems/client-slots'
 import { AircraftRosterFilterToggle } from './aircraft-roster-filter-toggle'
 
 type FlightGroup = z.infer<typeof schemas.flightGroup>
@@ -68,7 +69,7 @@ export function FlightGroupCard({
 }: FlightGroupCardProps) {
   const hasClients = group.aircrafts.some((aircraft) => aircraft.client)
   const clientCount = group.aircrafts.filter((aircraft) => aircraft.client).length
-  const availableClientCount = group.aircrafts.length
+  const availableClientCount = getAvailableClientSlots(group)
   const selectedAircraftType = group.aircrafts[0]?.aircraftName
   const showAircraftTypeSelect =
     showAircraftType &&
@@ -229,7 +230,7 @@ export function FlightGroupCard({
                 onClientCountChange(parseInt(value))
               }}
             >
-              {Array.from({ length: group.aircrafts.length + 1 }).map((_, index) => (
+              {Array.from({ length: availableClientCount + 1 }).map((_, index) => (
                 <ToggleGroupItem
                   key={index}
                   value={index.toString()}

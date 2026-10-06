@@ -190,7 +190,7 @@ describe('kneeboard geographic map', () => {
 })
 
 describe('kneeboard waypoint rows', () => {
-  test('formats route timing, distance, bearing, altitude, and speed', () => {
+  test('formats route timing from planned takeoff, distance, bearing, altitude, and speed', () => {
     const startTime = new Date('2026-01-01T12:00:00Z')
     const rows = buildKneeboardWaypointRows(
       createFlightGroup('blue-client', 'Enfield-1', startTime)
@@ -199,7 +199,7 @@ describe('kneeboard waypoint rows', () => {
     expect(rows).toMatchObject([
       {
         index: undefined,
-        eta: '12:00Z',
+        eta: '12:10Z',
         altitude: '0',
         speed: '292',
         legDistance: '---',
@@ -209,7 +209,7 @@ describe('kneeboard waypoint rows', () => {
       },
       {
         index: 1,
-        eta: '12:02Z',
+        eta: '12:12Z',
         altitude: '19,685',
         speed: '360',
         legDistance: '15.3',
@@ -219,7 +219,7 @@ describe('kneeboard waypoint rows', () => {
       },
       {
         index: 2,
-        eta: '12:05Z',
+        eta: '12:15Z',
         altitude: '0',
         speed: '292',
         legDistance: '15.3',

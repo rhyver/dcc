@@ -125,7 +125,7 @@ export const aircraftName = z.enum([
   'SH-60B',
   'UH-1H',
   'Mi-28N',
-  // "OH-58D",
+  'OH58D',
   'AH-64D_BLK_II',
   'Ka-50',
   'Ka-50_3',

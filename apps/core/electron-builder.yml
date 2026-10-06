@@ -3,7 +3,7 @@ productName: DCC
 directories:
   app: apps/core
   buildResources: build
-electronDist: node_modules/electron/dist
+electronDist: ./electron-dist.cjs
 files:
   # Explicit include set to avoid traversing workspace symlinks by default
   - out/**
@@ -72,5 +72,3 @@ publish:
   provider: generic
   url: https://codeberg.org/rhyver/dcc/releases/download/dcc-latest
   channel: latest
-electronDownload:
-  mirror: https://npmmirror.com/mirrors/electron/

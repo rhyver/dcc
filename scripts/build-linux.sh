@@ -11,6 +11,8 @@ tar -C /source --exclude=.git --exclude=node_modules --exclude=.turbo \
 ln -s /source/apps/frontend/public/maps /project/apps/frontend/public/maps
 cd /project
 bun install --frozen-lockfile
+# Electron 42 has no postinstall, so bun install does not download the binary.
+node node_modules/electron/install.js
 bun run build
 cd apps/core
 bun x electron-builder --projectDir ../.. -c apps/core/electron-builder.yml \

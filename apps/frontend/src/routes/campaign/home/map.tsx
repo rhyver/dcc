@@ -2,6 +2,7 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 
 import { useSelector } from '@xstate/store/react'
 import { activeStore, isEditableWaypoint, isFlightRouteEditable } from '@/stores/active'
+import { uiStore, type MapLayerKey } from '@/stores/ui'
 import { useQuery } from '@tanstack/react-query'
 import { orpc } from '@/lib/orpc'
 import { memo, useMemo, useState, useEffect, useRef, useCallback } from 'react'
@@ -26,6 +27,17 @@ import { cn } from '@/lib/utils'
 import { DetailsCard } from './details-card'
 import { CAUCASUS_DETAIL_MAX_ZOOM, offlineCaucasusMapStyle } from './offline-map-style'
 import { tryDcsPositionToLngLat, tryLngLatToDcsPosition } from '@/logic/dcs-coordinates'
+
+const mapItemLayers: Record<z.infer<typeof schemas.MapItem>['type'], MapLayerKey> = {
+  Airdrome: 'airdromes',
+  'Flight Group': 'flights',
+  'Ground Group': 'ground',
+  'Naval Group': 'naval',
+  Structure: 'structures',
+  SAM: 'sam',
+  EWR: 'ewr',
+  'Downed Pilot': 'pilots'
+}
 
 const globalWithPmtiles = globalThis as typeof globalThis & {
   __dccPmtilesProtocol?: Protocol
@@ -491,6 +503,7 @@ export function Map({
   showGoalMarkers?: boolean
 }) {
   const scenarioId = useSelector(activeStore, (state) => state.context.scenarioId)
+  const mapLayers = useSelector(uiStore, (state) => state.context.mapLayers)
   const mapRef = useRef<MapRef | null>(null)
   const lastCenteredSelectionIdRef = useRef<string | null>(null)
   const [measureState, setMeasureState] = useState<MeasureState>({
@@ -528,8 +541,13 @@ export function Map({
     }
   }, [theatreQuery.data, zoom])
   const { mapItems, objectiveMarkers, frontline, flightGroups } = useMapItems({
-    showGoalMarkers
+    showGoalMarkers,
+    showObjectiveMarkers: mapLayers.towns
   })
+  const visibleMapItems = useMemo(
+    () => mapItems.filter((item) => mapLayers[mapItemLayers[item.type]]),
+    [mapItems, mapLayers]
+  )
 
   const measureSegments = useMemo<MeasureSegment[]>(() => {
     const segments: MeasureSegment[] = []
@@ -827,8 +845,9 @@ export function Map({
   // Generate GeoJSON for SAM range circles
   const samRangeGeoJson = useMemo(() => {
     const features: GeoJSON.Feature<GeoJSON.Polygon>[] = []
+    if (!mapLayers.sam || !mapLayers.samRange) return turf.featureCollection(features)
 
-    for (const item of mapItems) {
+    for (const item of visibleMapItems) {
       if (item.type !== 'SAM') continue
       if (!item.active) continue
 
@@ -849,7 +868,7 @@ export function Map({
     }
 
     return turf.featureCollection(features)
-  }, [mapItems])
+  }, [mapLayers.sam, mapLayers.samRange, visibleMapItems])
 
   // Only show the map if the view state is available
   if (initialViewState == null) return null
@@ -972,7 +991,7 @@ export function Map({
             />
           </Source>
         )}
-        {frontline && (
+        {mapLayers.frontline && frontline && (
           <Source id="frontline-source" type="geojson" data={frontline}>
             <Layer
               id="frontline-player"
@@ -1110,7 +1129,7 @@ export function Map({
               </div>
             </MaplibreMarker>
           ))}
-        {mapItems.map((item) => (
+        {visibleMapItems.map((item) => (
           <Marker
             key={item.id}
             item={item}

@@ -1,7 +1,7 @@
 # Community Germany fork port plan
 
 Date: 2026-10-07  
-Status: In progress; editable map waypoints (Stage 3) ported ahead of the staged order.
+Status: In progress; red-side campaigns, editable map waypoints, and map-layer controls ported.
 
 ## Objective
 
@@ -81,7 +81,7 @@ not establish compatible behavior.
 - [ ] Add the Fulda Gap scenario with NATO's Leipzig objective and the Pact's Frankfurt
   objective, initial ownership, authored structures, and briefings.
 - [ ] Import East/West Germany 1985 and US/Soviet Germany 1955/1967 factions and templates.
-- [ ] Add supported blue/red player selection and scenario mirroring, preserving scenarios that
+- [x] Add supported blue/red player selection and scenario mirroring, preserving scenarios that
   restrict player-side selection.
 - [ ] Add Germany map caching, offline renderer support, and kneeboard map lookup. Keep the
   roughly 1 GB PMTiles download outside Git and define its packaging behavior.
@@ -147,8 +147,10 @@ not establish compatible behavior.
   the existing target-flight workflow.
 - [x] Add editable map waypoints: drag, insert, and remove navigation waypoints for player
   flights before takeoff. Ported 2026-10-07 without the Germany coordinate fit (Stage 1).
-- [ ] Add map-layer controls, mission footprints, and separate ground, aircraft, and long-range
-  SAM loading radii.
+- [x] Add map-layer controls for airfields, towns/objectives, flights, ground/naval forces,
+  structures, SAMs, radars, downed pilots, frontline, and SAM threat ranges. Preserve selected
+  routes and briefing objectives, with a reset to current visibility defaults.
+- [ ] Add mission footprints and separate ground, aircraft, and long-range SAM loading radii.
 - [ ] Add configurable air activity, enemy AI skill, optional DCS cheats, and faster campaign
   time controls with explicit defaults.
 - [ ] Integrate profile-aware radio programming, navigation aids, kneeboard units, mission

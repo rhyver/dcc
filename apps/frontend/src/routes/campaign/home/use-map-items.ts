@@ -24,7 +24,9 @@ export type ObjectiveMarker = {
   }
 }
 
-export function useMapItems(options: { showGoalMarkers?: boolean } = {}): {
+export function useMapItems(
+  options: { showGoalMarkers?: boolean; showObjectiveMarkers?: boolean } = {}
+): {
   mapItems: z.infer<typeof schemas.MapItem>[]
   objectiveMarkers: ObjectiveMarker[]
   frontline: GeoJSON.FeatureCollection<GeoJSON.LineString> | null
@@ -313,9 +315,14 @@ export function useMapItems(options: { showGoalMarkers?: boolean } = {}): {
       }
     }
 
-    //_addObjectiveMarkers(playerCoalition.objectiveIds ?? [], 'player')
-    //_addObjectiveMarkers(opponentCoalition.objectiveIds ?? [], 'opponent')
     const goal = campaignGoal ?? scenarioGoal
+    if (options.showObjectiveMarkers) {
+      const goalIds = new Set(options.showGoalMarkers ? goal?.objectiveIds : [])
+      const towns = (ids: string[]) =>
+        ids.filter((id) => !theatre.airdromeDetails[id] && !goalIds.has(id))
+      _addObjectiveMarkers(towns(playerCoalition.objectiveIds ?? []), 'player')
+      _addObjectiveMarkers(towns(opponentCoalition.objectiveIds ?? []), 'opponent')
+    }
     if (options.showGoalMarkers && goal) {
       _addObjectiveMarkers(goal.objectiveIds, goal.coalition, { goal: true })
     }
@@ -459,6 +466,7 @@ export function useMapItems(options: { showGoalMarkers?: boolean } = {}): {
     scenarioGoal,
     theatre,
     campaignTime,
-    options.showGoalMarkers
+    options.showGoalMarkers,
+    options.showObjectiveMarkers
   ])
 }

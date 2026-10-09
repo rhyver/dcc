@@ -34,6 +34,7 @@ import {
   DialogTrigger
 } from '@/components/ui/dialog'
 import type { SelectedItem } from './map'
+import { MapLayerFilter } from './map-layer-filter'
 import { activeStore } from '@/stores/active'
 import { uiStore } from '@/stores/ui'
 import { coreClient, orpc } from '@/lib/orpc'
@@ -264,6 +265,7 @@ export function Home() {
         <div className="absolute inset-0 flex flex-col overflow-hidden">
           {/* Map Controls & Weather - Floating bottom right */}
           <div className="absolute right-3 bottom-16 z-1100 flex flex-col items-end gap-3">
+            <MapLayerFilter />
             {/* Zoom Controls */}
             <div className="tactical-inset flex flex-col gap-2 rounded-full p-2">
               <Button

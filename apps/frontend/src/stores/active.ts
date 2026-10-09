@@ -15,6 +15,10 @@ import {
   type ManualFlightTarget
 } from '@/logic/systems/spawn/manual-flight-group'
 import { hasFlightGroupTakenOff } from '@/logic/entities/flight-status'
+import {
+  applyFlightGroupClientCount,
+  removeUnusedClientAircraft
+} from '@/logic/systems/client-slots'
 import { rehomeCasForAircraftChange } from '@/logic/systems/rehome-farp-cas'
 
 const initialState: z.infer<typeof schemas.campaign.campaign> = {
@@ -379,6 +383,7 @@ export function resetFlightGroupClientSelections(campaign: Campaign) {
         for (const aircraft of group.aircrafts) {
           aircraft.client = false
         }
+        removeUnusedClientAircraft(group)
 
         if (group.flightplan.originalStartTime) {
           restoreFlightGroupTiming(group)
@@ -585,10 +590,8 @@ export const activeStore = createStore({
               group.flightplan.originalStartTime = group.flightplan.startTime
             }
 
-            // Update client status
-            group.aircrafts.forEach((aircraft, index) => {
-              aircraft.client = index < count
-            })
+            // Update client status, growing or shrinking the flight to fit the client slots
+            applyFlightGroupClientCount(group, count)
 
             break
           }

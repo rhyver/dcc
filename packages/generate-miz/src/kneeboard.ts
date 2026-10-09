@@ -2,7 +2,7 @@ import { schemas } from '@dcc/contracts'
 import sharp from 'sharp'
 import * as z from 'zod'
 
-import type { MissionFlightConfig } from './add-flight-groups'
+import { type MissionFlightConfig, STARTUP_DELAY_MS } from './add-flight-groups'
 import { getKneeboardLogoPng, KNEEBOARD_LOGO_BOX } from './kneeboard-logo'
 import {
   createRouteMapViewport,
@@ -132,7 +132,8 @@ function getWaypointRemark(waypoint: Waypoint, flightGroup: FlightGroup): string
 
 export function buildKneeboardWaypointRows(flightGroup: FlightGroup): KneeboardWaypointRow[] {
   let totalMeters = 0
-  let elapsedSeconds = 0
+  // Planned ToT includes the startup allowance, so the route is timed from takeoff
+  let elapsedSeconds = STARTUP_DELAY_MS / 1000
   let waypointNumber = 0
 
   return flightGroup.flightplan.waypoints.map((waypoint, index, waypoints) => {

@@ -693,3 +693,67 @@ describe('active store aircraft overrides', () => {
     expect(group.homeBase).toBe('farp-1')
   })
 })
+
+describe('active store client flight size', () => {
+  function loadTwoShip() {
+    const campaign = createCampaign()
+    const group = createFlightGroup({
+      id: 'cap',
+      callsign: 'Enfield-1',
+      startTime: '2026-01-01T12:10:00.000Z',
+      tot: '2026-01-01T12:40:00.000Z'
+    })
+    group.aircrafts.push({ id: 'cap-2', unitName: 'Enfield-1-2', aircraftName: 'F-16C_50' })
+    campaign.coalitions.player.flightGroups = [group]
+    activeStore.send({ type: 'loadCampaign', campaign })
+  }
+
+  function getAircrafts() {
+    return activeStore.getSnapshot().context.coalitions.player.flightGroups[0]!.aircrafts
+  }
+
+  test('grows the flight to fit up to four clients', () => {
+    loadTwoShip()
+
+    activeStore.send({ type: 'setFlightGroupClientCount', flightGroupId: 'cap', count: 4 })
+
+    expect(getAircrafts().map((aircraft) => aircraft.client)).toEqual([true, true, true, true])
+    expect(getAircrafts().map((aircraft) => aircraft.aircraftName)).toEqual(
+      Array(4).fill('F-16C_50')
+    )
+    expect(getAircrafts().map((aircraft) => aircraft.addedForClient === true)).toEqual([
+      false,
+      false,
+      true,
+      true
+    ])
+  })
+
+  test('does not grow the flight beyond four aircraft', () => {
+    loadTwoShip()
+
+    activeStore.send({ type: 'setFlightGroupClientCount', flightGroupId: 'cap', count: 6 })
+
+    expect(getAircrafts()).toHaveLength(4)
+  })
+
+  test('shrinks back to the planned flight size when clients leave', () => {
+    loadTwoShip()
+
+    activeStore.send({ type: 'setFlightGroupClientCount', flightGroupId: 'cap', count: 4 })
+    activeStore.send({ type: 'setFlightGroupClientCount', flightGroupId: 'cap', count: 3 })
+    expect(getAircrafts()).toHaveLength(3)
+
+    activeStore.send({ type: 'setFlightGroupClientCount', flightGroupId: 'cap', count: 1 })
+    expect(getAircrafts().map((aircraft) => aircraft.client === true)).toEqual([true, false])
+  })
+
+  test('removes added client aircraft when all client selections are cleared', () => {
+    loadTwoShip()
+
+    activeStore.send({ type: 'setFlightGroupClientCount', flightGroupId: 'cap', count: 4 })
+    activeStore.send({ type: 'clearFlightGroupClientSelections' })
+
+    expect(getAircrafts().map((aircraft) => aircraft.id)).toEqual(['cap-1', 'cap-2'])
+  })
+})

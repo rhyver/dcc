@@ -1,5 +1,44 @@
 # Changelog
 
+## v0.5.0-2026100601 - 2026-10-06
+
+### New
+
+- Linux x64 AppImage and Debian `.deb` packages are now included in the release workflow.
+  Linux updates require manually downloading and installing a newer release.
+- OH-58D Kiowa Warrior support for CSAR, CAS, and Ground Attack missions in the modern USA
+  faction, with Hellfire loadouts for CAS and Ground Attack.
+- Create attack flights directly from selected targets on the campaign map, or view flights
+  already assigned to them.
+- Aircraft selection now includes a "Show all compatible aircraft" option to choose aircraft
+  outside the player faction's roster while retaining mission-role compatibility.
+- Client flights can now expand beyond their planned size to accommodate up to four player slots;
+  aircraft added for those slots are removed when the slots are cleared.
+
+### Improved
+
+- Ground Attack, Pinpoint Strike, and Strategic Strike routes now include an attack waypoint
+  before the target, with attack tasks assigned at the appropriate point in generated missions.
+- The AV-8B now has a dedicated CAP loadout.
+
+### Fixed
+
+- Generated mission waypoint ETAs and kneeboard timings now account for the ten-minute startup
+  allowance, including flights whose scheduled start time has already passed.
+- The San Carlos FARP now becomes available during the Falklands landing phase and is restored
+  at a validated recovery site when loading affected saves.
+- Corrected a ground-unit deployment position at Murrell Farm on the South Atlantic map.
+
+## v0.5.0-2026081602 - 2026-08-16
+
+### Improved
+
+- Improved the campaign welcome dialog layout on smaller screens.
+
+### Fixed
+
+- Corrected the initial waypoint timing lock for naval patrol routes in generated missions.
+
 ## v0.5.0-2026081601 - 2026-08-16
 
 ### New

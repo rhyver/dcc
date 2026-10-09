@@ -26,7 +26,7 @@ Object.values(aircrafts).forEach((def) => {
   }
 })
 
-const STARTUP_DELAY_MS = 10 * 60 * 1000 // 10 minutes in milliseconds
+export const STARTUP_DELAY_MS = 10 * 60 * 1000 // 10 minutes in milliseconds
 const FEET_TO_METERS = 0.3048
 const MIN_AIRCRAFT_AIRBORNE_SPAWN_ALTITUDE = 10_000 * FEET_TO_METERS
 const MIN_HELICOPTER_AIRBORNE_SPAWN_ALTITUDE = 200 * FEET_TO_METERS
@@ -1648,11 +1648,14 @@ export function addFlightGroups(
       // For ground aircraft that are scheduled to start after mission start, delay them
       // For ground aircraft whose scheduled time has passed, start immediately (ETA = 0)
       let currentEta = 0
+      // Planned takeoff time; the campaign ToT assumes a startup allowance after spawning
+      let takeoffEta: number | undefined
       if (!isInFlight) {
         const startDelay = flightStartTimeSeconds - missionStartTime
         // Only delay if the flight is scheduled for the future
         // If startDelay <= 0, the flight should start immediately
         currentEta = startDelay > 0 ? startDelay : 0
+        takeoffEta = Math.max(currentEta, startDelay + STARTUP_DELAY_MS / 1000)
       }
       let lastWp: { x: number; y: number; speed: number } | undefined
 
@@ -1772,6 +1775,10 @@ export function addFlightGroups(
           }
         }
         currentEta = eta
+        if (wp.type === 'TakeOff' && takeoffEta !== undefined) {
+          // The takeoff point keeps the spawn time; later ETAs count from the planned takeoff
+          currentEta = Math.max(currentEta, takeoffEta)
+        }
         lastWp = { x: x, y: y, speed: wp.speed }
 
         const tasks: z.infer<typeof schemas.dcs.task>[] = []

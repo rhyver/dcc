@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { samTemplates } from '@dcc/data'
 import { ArrowLeft, ChevronDown, Clock, CloudSun, Plane, Sun, Target, Wind, X } from 'lucide-react'
 import { useNavigate } from 'react-router'
-import type { schemas } from '@dcc/contracts'
+import { schemas } from '@dcc/contracts'
 import type * as z from 'zod'
 
 import { activeStore, resetFlightGroupClientSelections } from '@/stores/active'
@@ -26,6 +26,9 @@ type Campaign = z.infer<typeof schemas.campaign.campaign>
 type FlightGroup = Campaign['coalitions']['player']['flightGroups'][number]
 type MissionState = z.infer<typeof schemas.missionState>
 type AiWingmanSpawn = NonNullable<NonNullable<Campaign['campaignParams']>['aiWingmanSpawn']>
+type EnemySkill = z.infer<typeof schemas.campaign.enemySkill>
+
+const enemySkillOptions = ['default', ...schemas.campaign.enemySkill.options] as const
 
 const eraLabels: Partial<Record<z.infer<typeof schemas.era>, string>> = {
   'Late CW': 'Late Cold War'
@@ -304,6 +307,10 @@ export function Mission() {
     (state) => state.context.campaignParams?.aiWingmanSpawn ?? 'landOnly'
   )
   const culling = useSelector(activeStore, (state) => state.context.campaignParams?.culling ?? true)
+  const enemySkill = useSelector(
+    activeStore,
+    (state) => state.context.campaignParams?.enemySkill ?? 'default'
+  )
   const ewr = useSelector(activeStore, (state) => state.context.campaignParams?.ewr ?? true)
   const iads = useSelector(activeStore, (state) => state.context.campaignParams?.iads ?? true)
   const exactTarget = useSelector(
@@ -601,7 +608,7 @@ export function Mission() {
                                 Advanced Mission Options
                               </div>
                               <div className="text-sm text-white/40">
-                                AI wingmen, performance, navigation, and mission support
+                                AI difficulty, wingmen, performance, and mission support
                               </div>
                             </div>
                             <ChevronDown
@@ -613,6 +620,49 @@ export function Mission() {
                           </button>
                           {missionOptionsOpen && (
                             <div className="space-y-3 border-t border-[#ff00aa]/15 p-3">
+                              <div className="space-y-3 rounded-lg border border-[#ff00aa]/20 bg-[#ff00aa]/5 p-3">
+                                <div>
+                                  <div className="text-sm font-medium text-white">
+                                    Enemy AI Skill
+                                  </div>
+                                  <div className="text-sm leading-relaxed text-white/40">
+                                    Set the skill of enemy aircraft, ground units, SAMs, and ships.
+                                    Default keeps each unit’s existing skill; Random lets DCS choose
+                                    per unit.
+                                  </div>
+                                </div>
+                                <ToggleGroup
+                                  type="single"
+                                  value={enemySkill}
+                                  variant="outline"
+                                  size="sm"
+                                  aria-label="Enemy AI skill"
+                                  onValueChange={(value) => {
+                                    if (!value) return
+                                    activeStore.send({
+                                      type: 'setEnemySkill',
+                                      enemySkill:
+                                        value === 'default' ? undefined : (value as EnemySkill)
+                                    })
+                                  }}
+                                  className="flex-wrap justify-start gap-1.5"
+                                >
+                                  {enemySkillOptions.map((skill) => (
+                                    <ToggleGroupItem
+                                      key={skill}
+                                      value={skill}
+                                      aria-label={
+                                        skill === 'default'
+                                          ? 'Keep default enemy AI skill'
+                                          : `Set enemy AI skill to ${skill}`
+                                      }
+                                      className="border-[#ff00aa]/25 bg-transparent text-white/55 hover:bg-[#ff00aa]/10 hover:text-white data-[state=on]:bg-[#ff00aa]/20 data-[state=on]:text-[#ff66cc]"
+                                    >
+                                      {skill === 'default' ? 'Default' : skill}
+                                    </ToggleGroupItem>
+                                  ))}
+                                </ToggleGroup>
+                              </div>
                               <div className="flex items-center justify-between gap-3">
                                 <div>
                                   <div className="text-sm font-medium text-white">AI Wingman</div>

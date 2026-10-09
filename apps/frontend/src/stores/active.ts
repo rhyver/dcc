@@ -438,6 +438,18 @@ export const activeStore = createStore({
         }
         draft.campaignParams.culling = culling
       }),
+    setEnemySkill: (
+      context,
+      { enemySkill }: { enemySkill: NonNullable<Campaign['campaignParams']>['enemySkill'] }
+    ) =>
+      produce(context, (draft) => {
+        draft.campaignParams ??= {}
+        if (enemySkill == null) {
+          delete draft.campaignParams.enemySkill
+        } else {
+          draft.campaignParams.enemySkill = enemySkill
+        }
+      }),
     setEwr: (context, { ewr }: { ewr: boolean }) =>
       produce(context, (draft) => {
         if (!draft.campaignParams) {

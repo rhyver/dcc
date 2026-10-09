@@ -217,6 +217,34 @@ function addTestGroundGroups(campaign: Campaign) {
 }
 
 describe('mission culling', () => {
+  test.each([undefined, 'Average', 'Random'] as const)(
+    'generates enemy ground and SAM units at %s skill while preserving friendly units',
+    (enemySkill) => {
+      const campaign = createCampaign(false)
+      campaign.campaignParams = { culling: false, enemySkill }
+      addTestGroundGroups(campaign)
+      campaign.coalitions.player.groundGroups = structuredClone(
+        campaign.coalitions.opponent.groundGroups
+      )
+      campaign.coalitions.player.samGroups = structuredClone(campaign.coalitions.opponent.samGroups)
+      const mission = createMission()
+
+      expect(addGroundGroups(mission, campaign, theatre).isOk()).toBe(true)
+
+      for (const [side, expectedSkill] of [
+        ['blue', 'High'],
+        ['red', enemySkill ?? 'High']
+      ] as const) {
+        const groups = mission.coalition[side].country?.[0]?.vehicle?.group ?? []
+        expect(groups.some((group) => group.name.startsWith('SAM-'))).toBe(true)
+        expect(groups.some((group) => group.name.startsWith('Ground-'))).toBe(true)
+        expect(new Set(groups.flatMap((group) => group.units).map((unit) => unit.skill))).toEqual(
+          new Set([expectedSkill])
+        )
+      }
+    }
+  )
+
   test('keeps a FARP used as a flight home base', () => {
     const campaign = createCampaign()
     const farpTemplate = structureTemplates.Farp[0]

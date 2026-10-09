@@ -27,6 +27,8 @@ const campaignLogEntry = z.object({
 
 const campaignStatus = z.enum(['active', 'won', 'lost'])
 
+export const enemySkill = z.enum(['Average', 'Good', 'High', 'Excellent', 'Random'])
+
 const campaignGoal = z.object({
   coalition,
   objectiveIds: z.array(z.string()).min(1)
@@ -365,6 +367,7 @@ export const campaign = z.preprocess(
         hotStart: z.boolean().optional(),
         aiWingmanSpawn: z.enum(['never', 'landOnly', 'always']).optional(),
         culling: z.boolean().optional(),
+        enemySkill: enemySkill.optional(),
         ewr: z.boolean().optional(),
         iads: z.boolean().optional(),
         exactTarget: z.boolean().optional(),

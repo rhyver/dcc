@@ -3,7 +3,8 @@ import {
   campaignDownedPilot,
   campaignEwrGroup,
   campaignSamGroup,
-  campaignSummary
+  campaignSummary,
+  enemySkill
 } from './campaign'
 import { entityTypeSchema } from './entity'
 import { settings, settingsOutput } from './settings'
@@ -14,6 +15,7 @@ export const campaign = {
   campaignEwrGroup,
   campaignSamGroup,
   campaignSummary,
+  enemySkill,
   entityType: entityTypeSchema,
   settings,
   settingsOutput

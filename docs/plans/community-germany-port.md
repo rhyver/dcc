@@ -1,7 +1,7 @@
 # Community Germany fork port plan
 
 Date: 2026-10-07  
-Status: In progress; red-side campaigns, editable map waypoints, and map-layer controls ported.
+Status: In progress; red-side campaigns, editable map waypoints, map-layer controls, and enemy AI skill ported.
 
 ## Objective
 
@@ -151,8 +151,12 @@ not establish compatible behavior.
   structures, SAMs, radars, downed pilots, frontline, and SAM threat ranges. Preserve selected
   routes and briefing objectives, with a reset to current visibility defaults.
 - [ ] Add mission footprints and separate ground, aircraft, and long-range SAM loading radii.
-- [ ] Add configurable air activity, enemy AI skill, optional DCS cheats, and faster campaign
-  time controls with explicit defaults.
+- [x] Add configurable enemy AI skill: Default, Average, Good, High, Excellent, and Random.
+  Save the override with the campaign; apply it to opposing aircraft, AWACS, ground units,
+  SAMs, EWRs, and ships while preserving friendly AI and client aircraft. Existing campaigns
+  retain per-unit defaults. Live DCS difficulty checks remain outstanding.
+- [ ] Add configurable air activity, optional DCS cheats, and faster campaign time controls
+  with explicit defaults.
 - [ ] Integrate profile-aware radio programming, navigation aids, kneeboard units, mission
   failures, and remaining-ammunition reporting.
 

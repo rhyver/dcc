@@ -3,6 +3,7 @@ import { getSamDeadUnitIndexes, isSamFullyDestroyed, samTemplates } from '@dcc/d
 import { err, ok, Result } from 'neverthrow'
 import * as z from 'zod'
 
+import { resolveAiSkill } from './ai-skill'
 import { isAirDefenseUnit, type MissionCullingPlan } from './mission-culling'
 import { findTargetPlacement, positionsMatch } from './target-placement'
 
@@ -120,7 +121,7 @@ export function addGroundGroups(
             y: pos.y,
             type: unitType,
             heading: pos.heading,
-            skill: 'High'
+            skill: resolveAiSkill(campaign, coalitionKey, 'High')
           }
         })
 
@@ -261,7 +262,7 @@ export function addGroundGroups(
           y: eu.y,
           type: eu.type,
           heading: eu.heading,
-          skill: 'High'
+          skill: resolveAiSkill(campaign, coalitionKey, 'High')
         }))
 
         const firstUnit = units[0]

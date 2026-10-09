@@ -1,5 +1,7 @@
 import { schemas } from '@dcc/contracts'
 import * as z from 'zod'
+import MilSymbol from 'milsymbol'
+import { getCoalitionColor, type PlayerSide } from './coalition-display'
 
 const sidcUnitCode = {
   airport: 'IBA---',
@@ -138,4 +140,11 @@ export function getMilSymbolCode(item: z.infer<typeof schemas.MapItem>): string 
   const unitCode = getUnitCode(item)
   const domainCode = domain === 'air' ? 'A' : domain === 'sea' ? 'S' : 'G'
   return `S${hostileCode}${domainCode}-${sidcUnitCode[unitCode]}`
+}
+
+export function getMilSymbolSvg(item: z.infer<typeof schemas.MapItem>, playerSide?: PlayerSide) {
+  return new MilSymbol.Symbol(getMilSymbolCode(item), {
+    size: 20,
+    fillColor: getCoalitionColor(item.coalition, playerSide)
+  }).asSVG()
 }

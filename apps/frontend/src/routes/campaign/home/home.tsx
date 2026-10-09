@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/dialog'
 import type { SelectedItem } from './map'
 import { MapLayerFilter } from './map-layer-filter'
+import { getCoalitionSide } from './coalition-display'
 import { activeStore } from '@/stores/active'
 import { uiStore } from '@/stores/ui'
 import { coreClient, orpc } from '@/lib/orpc'
@@ -516,7 +517,7 @@ export function Home() {
                         >
                           <div
                             className={`rounded border px-2 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${
-                              entry.coalition === 'player'
+                              getCoalitionSide(entry.coalition, playerSide) === 'blue'
                                 ? 'border-cyan-400/30 bg-cyan-950/30'
                                 : 'border-red-400/30 bg-red-950/30'
                             } ${
@@ -556,7 +557,7 @@ export function Home() {
                             </div>
                             <div
                               className={
-                                entry.coalition === 'player'
+                                getCoalitionSide(entry.coalition, playerSide) === 'blue'
                                   ? 'mt-0.5 text-cyan-100'
                                   : 'mt-0.5 text-red-100'
                               }

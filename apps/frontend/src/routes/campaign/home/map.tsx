@@ -19,9 +19,9 @@ import MaplibreMap, {
 import maplibregl from 'maplibre-gl'
 import { Protocol } from 'pmtiles'
 import { RotateCcw, Star } from 'lucide-react'
-import MilSymbol from 'milsymbol'
 import * as turf from '@turf/turf'
-import { getMilSymbolCode } from './unit-code'
+import { getMilSymbolSvg } from './unit-code'
+import { getCoalitionColor, type PlayerSide } from './coalition-display'
 import { type ObjectiveMarker as ObjectiveMarkerType, useMapItems } from './use-map-items'
 import { cn } from '@/lib/utils'
 import { DetailsCard } from './details-card'
@@ -49,24 +49,21 @@ if (!globalWithPmtiles.__dccPmtilesProtocol) {
 
 const Marker = memo(function Marker({
   item,
+  playerSide,
   onClick,
   isSelected
 }: {
   item: z.infer<typeof schemas.MapItem>
+  playerSide: PlayerSide
   onClick: () => void
   isSelected: boolean
 }) {
-  const symbol = useMemo(() => {
-    const symbol = new MilSymbol.Symbol(getMilSymbolCode(item), {
-      size: 20
-    })
-    return symbol.asSVG()
-  }, [item])
+  const symbol = useMemo(() => getMilSymbolSvg(item, playerSide), [item, playerSide])
 
   const isPersistentCommandAsset = item.type === 'Airdrome' || item.type === 'Naval Group'
   const showTitleCard = isPersistentCommandAsset || isSelected
   const isInactive = 'active' in item && item.active === false
-  const coalitionColor = item.coalition === 'player' ? 'var(--synthwave-cyan)' : 'var(--enemy-red)'
+  const coalitionColor = getCoalitionColor(item.coalition, playerSide)
 
   return (
     <MaplibreMarker
@@ -122,14 +119,16 @@ const Marker = memo(function Marker({
 
 const ObjectiveCircleMarker = memo(function ObjectiveCircleMarker({
   marker,
+  playerSide,
   onClick,
   isSelected
 }: {
   marker: ObjectiveMarkerType
+  playerSide: PlayerSide
   onClick: () => void
   isSelected: boolean
 }) {
-  const color = marker.coalition === 'player' ? 'var(--synthwave-cyan)' : 'var(--enemy-red)'
+  const color = getCoalitionColor(marker.coalition, playerSide)
   const showTitleCard = marker.isGoal || isSelected
 
   return (
@@ -637,6 +636,8 @@ export function Map({
   }, [livePreviewItem, liveSelectedItem])
 
   const campaign = useSelector(activeStore, (state) => state.context)
+  const playerColor = getCoalitionColor('player', campaign.playerSide)
+  const opponentColor = getCoalitionColor('opponent', campaign.playerSide)
   const selectedPlayerFlight = useMemo(() => {
     if (!selectedItem || !('id' in selectedItem)) return null
     return (
@@ -951,7 +952,7 @@ export function Map({
               type="fill"
               filter={['==', ['get', 'coalition'], 'player']}
               paint={{
-                'fill-color': '#00d4ff',
+                'fill-color': playerColor,
                 'fill-opacity': 0.1
               }}
             />
@@ -961,7 +962,7 @@ export function Map({
               type="line"
               filter={['==', ['get', 'coalition'], 'player']}
               paint={{
-                'line-color': '#00d4ff',
+                'line-color': playerColor,
                 'line-width': 2,
                 'line-opacity': 0.6,
                 'line-dasharray': [4, 2]
@@ -973,7 +974,7 @@ export function Map({
               type="fill"
               filter={['==', ['get', 'coalition'], 'opponent']}
               paint={{
-                'fill-color': '#ff4444',
+                'fill-color': opponentColor,
                 'fill-opacity': 0.1
               }}
             />
@@ -983,7 +984,7 @@ export function Map({
               type="line"
               filter={['==', ['get', 'coalition'], 'opponent']}
               paint={{
-                'line-color': '#ff4444',
+                'line-color': opponentColor,
                 'line-width': 2,
                 'line-opacity': 0.6,
                 'line-dasharray': [4, 2]
@@ -997,7 +998,7 @@ export function Map({
               id="frontline-player"
               type="line"
               paint={{
-                'line-color': '#00ddff',
+                'line-color': playerColor,
                 'line-width': 2,
                 'line-opacity': 0.85,
                 'line-offset': -4,
@@ -1008,7 +1009,7 @@ export function Map({
               id="frontline-opponent"
               type="line"
               paint={{
-                'line-color': '#ff4d4f',
+                'line-color': opponentColor,
                 'line-width': 2,
                 'line-opacity': 0.85,
                 'line-offset': 4,
@@ -1133,6 +1134,7 @@ export function Map({
           <Marker
             key={item.id}
             item={item}
+            playerSide={campaign.playerSide}
             onClick={() => onSelect(item)}
             isSelected={liveSelectedItem?.id === item.id}
           />
@@ -1141,6 +1143,7 @@ export function Map({
           <ObjectiveCircleMarker
             key={marker.id}
             marker={marker}
+            playerSide={campaign.playerSide}
             onClick={() => onSelect(marker)}
             isSelected={liveSelectedItem?.id === marker.id}
           />

@@ -76,6 +76,7 @@ type MissionScriptConfig = {
   crashPilotSurvivalChance: number
   welcomeMessage?: MissionWelcomeMessage
   cullingManifest?: MissionCullingManifest
+  magneticVariationDegrees?: number
 }
 
 type CarrierOpsConfig = {
@@ -873,7 +874,10 @@ export async function generateMizFromCampaign(
     ...(carrierOps.length > 0 ? { carrierOps } : {}),
     crashPilotSurvivalChance: config.packages.CSAR.pilotSurvivalChance,
     ...(welcomeMessage ? { welcomeMessage } : {}),
-    ...(cullingPlan.enabled ? { cullingManifest: cullingPlan.manifest } : {})
+    ...(cullingPlan.enabled ? { cullingManifest: cullingPlan.manifest } : {}),
+    ...(theatre.info.magneticVariationDegrees != null
+      ? { magneticVariationDegrees: theatre.info.magneticVariationDegrees }
+      : {})
   }
   const scriptConfigLuaResult = luaTable.stringify(scriptConfig, {
     mixedKeyTypes: true,

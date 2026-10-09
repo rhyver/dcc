@@ -37,5 +37,11 @@ export const scenario = z.object({
   navalGroups: z.record(coalition, z.array(navalGroup)).optional(),
   deferredObjectiveIds: z.array(z.string()).optional(),
   goal: scenarioGoal.optional(),
+  /** Win condition when the player takes the opponent side; also the AI side's race goal. */
+  opponentGoal: scenarioGoal.optional(),
+  /** Briefing shown when the player takes the opponent side. */
+  opponentBriefing: z.string().optional(),
+  /** Offers the opponent side at campaign creation. Asymmetric scenarios leave this unset. */
+  sideSelectable: z.boolean().optional(),
   start: z.record(coalition, startObjectives)
 })

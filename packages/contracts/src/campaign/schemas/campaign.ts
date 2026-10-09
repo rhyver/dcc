@@ -340,6 +340,8 @@ export const campaign = z.preprocess(
     createdAt: z.date(),
     updatedAt: z.date(),
     era: era.optional(),
+    /** Scenario side the player took; red campaigns were created from the mirrored scenario. */
+    playerSide: z.enum(['blue', 'red']).optional(),
     time: z.date(),
     timeMultiplier: z.number(),
     timeTarget: z.date().optional(),

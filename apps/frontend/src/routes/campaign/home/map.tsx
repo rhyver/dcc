@@ -1,7 +1,7 @@
 import 'maplibre-gl/dist/maplibre-gl.css'
 
 import { useSelector } from '@xstate/store/react'
-import { activeStore } from '@/stores/active'
+import { activeStore, isEditableWaypoint, isFlightRouteEditable } from '@/stores/active'
 import { useQuery } from '@tanstack/react-query'
 import { orpc } from '@/lib/orpc'
 import { memo, useMemo, useState, useEffect, useRef, useCallback } from 'react'
@@ -25,7 +25,7 @@ import { type ObjectiveMarker as ObjectiveMarkerType, useMapItems } from './use-
 import { cn } from '@/lib/utils'
 import { DetailsCard } from './details-card'
 import { CAUCASUS_DETAIL_MAX_ZOOM, offlineCaucasusMapStyle } from './offline-map-style'
-import { tryDcsPositionToLngLat } from '@/logic/dcs-coordinates'
+import { tryDcsPositionToLngLat, tryLngLatToDcsPosition } from '@/logic/dcs-coordinates'
 
 const globalWithPmtiles = globalThis as typeof globalThis & {
   __dccPmtilesProtocol?: Protocol
@@ -315,6 +315,108 @@ const WaypointLabelMarker = memo(function WaypointLabelMarker({
   )
 })
 
+type RouteDragPreview = {
+  kind: 'move' | 'insert'
+  index: number
+  lng: number
+  lat: number
+}
+
+const EditableWaypointMarker = memo(function EditableWaypointMarker({
+  waypoint,
+  index,
+  lngLat,
+  onDrag,
+  onDragEnd,
+  onRemove
+}: {
+  waypoint: z.infer<typeof schemas.waypoint>
+  index: number
+  lngLat: { lng: number; lat: number }
+  onDrag: (preview: RouteDragPreview) => void
+  onDragEnd: (preview: RouteDragPreview) => void
+  onRemove: (index: number) => void
+}) {
+  const removable = waypoint.type === 'Nav'
+  return (
+    <MaplibreMarker
+      longitude={lngLat.lng}
+      latitude={lngLat.lat}
+      anchor="center"
+      draggable
+      style={{ zIndex: 50 }}
+      onDrag={(event) =>
+        onDrag({ kind: 'move', index, lng: event.lngLat.lng, lat: event.lngLat.lat })
+      }
+      onDragEnd={(event) =>
+        onDragEnd({ kind: 'move', index, lng: event.lngLat.lng, lat: event.lngLat.lat })
+      }
+    >
+      <div
+        className="group relative flex cursor-move flex-col items-center"
+        title={
+          removable
+            ? `${waypoint.name}: drag to move, right-click to delete`
+            : `${waypoint.name}: drag to move`
+        }
+        onContextMenu={(event) => {
+          event.preventDefault()
+          event.stopPropagation()
+          if (removable) onRemove(index)
+        }}
+      >
+        <span className="block h-3.5 w-3.5 rounded-full border-2 border-synthwave-pink bg-synthwave-dark shadow-[0_0_8px_rgba(255,0,170,0.6)] transition-transform group-hover:scale-125" />
+        <span className="pointer-events-none absolute top-4 whitespace-nowrap rounded-full bg-synthwave-dark/80 px-2 py-0.5 text-xs text-synthwave-light ring-1 ring-synthwave-pink/40">
+          {waypoint.name}
+        </span>
+      </div>
+    </MaplibreMarker>
+  )
+})
+
+const RouteInsertHandle = memo(function RouteInsertHandle({
+  afterIndex,
+  lngLat,
+  onDrag,
+  onDragEnd
+}: {
+  afterIndex: number
+  lngLat: { lng: number; lat: number }
+  onDrag: (preview: RouteDragPreview) => void
+  onDragEnd: (preview: RouteDragPreview) => void
+}) {
+  return (
+    <MaplibreMarker
+      longitude={lngLat.lng}
+      latitude={lngLat.lat}
+      anchor="center"
+      draggable
+      style={{ zIndex: 45 }}
+      onDrag={(event) =>
+        onDrag({
+          kind: 'insert',
+          index: afterIndex,
+          lng: event.lngLat.lng,
+          lat: event.lngLat.lat
+        })
+      }
+      onDragEnd={(event) =>
+        onDragEnd({
+          kind: 'insert',
+          index: afterIndex,
+          lng: event.lngLat.lng,
+          lat: event.lngLat.lat
+        })
+      }
+    >
+      <span
+        className="block h-2.5 w-2.5 cursor-copy rounded-full border border-synthwave-pink/80 bg-synthwave-pink/30 opacity-70 hover:opacity-100"
+        title="Drag to add a waypoint here"
+      />
+    </MaplibreMarker>
+  )
+})
+
 const GroundGroupPathOverlay = memo(function GroundGroupPathOverlay({
   groupPosition,
   targetPosition,
@@ -517,6 +619,87 @@ export function Map({
   }, [livePreviewItem, liveSelectedItem])
 
   const campaign = useSelector(activeStore, (state) => state.context)
+  const selectedPlayerFlight = useMemo(() => {
+    if (!selectedItem || !('id' in selectedItem)) return null
+    return (
+      campaign.coalitions.player.flightGroups.find((group) => group.id === selectedItem.id) ?? null
+    )
+  }, [campaign, selectedItem])
+  const [routeDragPreview, setRouteDragPreview] = useState<RouteDragPreview | null>(null)
+  // Remounts the draggable markers after each drag so they follow the stored route.
+  const [routeRevision, setRouteRevision] = useState(0)
+  const editableFlight = useMemo(() => {
+    if (!flightPlanDisplayItem || !selectedPlayerFlight) return null
+    if (flightPlanDisplayItem.id !== selectedPlayerFlight.id) return null
+    return isFlightRouteEditable(selectedPlayerFlight, campaign.time) ? selectedPlayerFlight : null
+  }, [campaign.time, flightPlanDisplayItem, selectedPlayerFlight])
+  const displayedFlightplan = useMemo(() => {
+    if (!flightPlanDisplayItem) return null
+    const flightplan = flightPlanDisplayItem.flightplan
+    if (!routeDragPreview || !editableFlight || !theatreQuery.data) return flightplan
+    const position = tryLngLatToDcsPosition(
+      theatreQuery.data.name,
+      routeDragPreview.lng,
+      routeDragPreview.lat
+    )
+    if (!position) return flightplan
+    const waypoints = [...flightplan.waypoints]
+    if (routeDragPreview.kind === 'move') {
+      const waypoint = waypoints[routeDragPreview.index]
+      if (!waypoint) return flightplan
+      waypoints[routeDragPreview.index] = { ...waypoint, position }
+    } else {
+      const previous = waypoints[routeDragPreview.index]
+      if (!previous) return flightplan
+      waypoints.splice(routeDragPreview.index + 1, 0, {
+        ...previous,
+        name: 'Nav',
+        type: 'Nav',
+        position
+      })
+    }
+    return { ...flightplan, waypoints }
+  }, [editableFlight, flightPlanDisplayItem, routeDragPreview, theatreQuery.data])
+  const handleRouteDragEnd = useCallback(
+    (preview: RouteDragPreview) => {
+      setRouteDragPreview(null)
+      setRouteRevision((revision) => revision + 1)
+      if (!editableFlight || !theatreQuery.data) return
+      const position = tryLngLatToDcsPosition(theatreQuery.data.name, preview.lng, preview.lat)
+      if (!position) return
+      if (preview.kind === 'move') {
+        activeStore.send({
+          type: 'moveWaypoint',
+          flightGroupId: editableFlight.id,
+          index: preview.index,
+          position
+        })
+      } else {
+        activeStore.send({
+          type: 'insertWaypoint',
+          flightGroupId: editableFlight.id,
+          afterIndex: preview.index,
+          position
+        })
+      }
+    },
+    [editableFlight, theatreQuery.data]
+  )
+  const handleRemoveWaypoint = useCallback(
+    (index: number) => {
+      if (!editableFlight) return
+      activeStore.send({ type: 'removeWaypoint', flightGroupId: editableFlight.id, index })
+    },
+    [editableFlight]
+  )
+  const editableWaypointPositions = useMemo(() => {
+    if (!editableFlight || !theatreQuery.data) return []
+    const theatreName = theatreQuery.data.name
+    return editableFlight.flightplan.waypoints.map((waypoint) =>
+      tryDcsPositionToLngLat(theatreName, waypoint.position.x, waypoint.position.y)
+    )
+  }, [editableFlight, theatreQuery.data])
+
   const showDeploymentOverlay =
     import.meta.env.DEV && new URLSearchParams(window.location.search).has('deployment-overlay')
   const deploymentOverlay = useMemo(() => {
@@ -685,9 +868,9 @@ export function Map({
         maxZoom={CAUCASUS_DETAIL_MAX_ZOOM}
         onClick={handleMapClick}
       >
-        {flightPlanDisplayItem && theatreQuery.data && (
+        {displayedFlightplan && theatreQuery.data && (
           <FlightPlanOverlay
-            flightplan={flightPlanDisplayItem.flightplan}
+            flightplan={displayedFlightplan}
             theatreName={theatreQuery.data.name}
           />
         )}
@@ -700,13 +883,44 @@ export function Map({
         )}
         {flightPlanDisplayItem && theatreQuery.data && (
           <>
-            {flightPlanDisplayItem.flightplan.waypoints.map((waypoint, index) => (
-              <WaypointLabelMarker
-                key={`${waypoint.name}-${index}`}
-                waypoint={waypoint}
-                theatreName={theatreQuery.data.name}
-              />
-            ))}
+            {flightPlanDisplayItem.flightplan.waypoints.map((waypoint, index) => {
+              const lngLat = editableWaypointPositions[index]
+              if (editableFlight && lngLat && isEditableWaypoint(waypoint)) {
+                return (
+                  <EditableWaypointMarker
+                    key={`edit-${routeRevision}-${index}`}
+                    waypoint={waypoint}
+                    index={index}
+                    lngLat={lngLat}
+                    onDrag={setRouteDragPreview}
+                    onDragEnd={handleRouteDragEnd}
+                    onRemove={handleRemoveWaypoint}
+                  />
+                )
+              }
+              return (
+                <WaypointLabelMarker
+                  key={`${waypoint.name}-${index}`}
+                  waypoint={waypoint}
+                  theatreName={theatreQuery.data.name}
+                />
+              )
+            })}
+            {editableFlight &&
+              !routeDragPreview &&
+              editableWaypointPositions.slice(0, -1).map((from, index) => {
+                const to = editableWaypointPositions[index + 1]
+                if (!from || !to) return null
+                return (
+                  <RouteInsertHandle
+                    key={`insert-${routeRevision}-${index}`}
+                    afterIndex={index}
+                    lngLat={{ lng: (from.lng + to.lng) / 2, lat: (from.lat + to.lat) / 2 }}
+                    onDrag={setRouteDragPreview}
+                    onDragEnd={handleRouteDragEnd}
+                  />
+                )
+              })}
           </>
         )}
         {/* SAM Range Circles - rendered first so they appear below other markers */}

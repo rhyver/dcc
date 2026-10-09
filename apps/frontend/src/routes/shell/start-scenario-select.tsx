@@ -16,6 +16,7 @@ import {
   getScenarioCampaignDefaults,
   type CampaignEra,
   type Faction,
+  type PlayerSide,
   type ScenarioStep as ScenarioStepName
 } from './start-campaign-options'
 import { ScenarioStep } from './start-scenario-step'
@@ -69,9 +70,23 @@ export function ScenarioSelect() {
     (faction) => faction.id === selectedOpponentFactionId
   )
 
+  const [playerSide, setPlayerSide] = useState<PlayerSide>('blue')
+  const sideSelectable = selectedScenario?.sideSelectable === true
+
+  const selectPlayerSide = (side: PlayerSide) => {
+    if (side === playerSide) return
+    setPlayerSide(side)
+    setSelectedPlayerFactionId(selectedOpponentFactionId)
+    setSelectedOpponentFactionId(selectedPlayerFactionId)
+  }
+
   const selectEra = (era: CampaignEra) => {
     setSelectedEra(era)
-    const defaults = factionIdsByEra[era]
+    const eraDefaults = factionIdsByEra[era]
+    const defaults =
+      playerSide === 'red'
+        ? { player: eraDefaults.opponent, opponent: eraDefaults.player }
+        : eraDefaults
     setSelectedPlayerFactionId(defaults.player)
     setSelectedOpponentFactionId(defaults.opponent)
     setCampaignYear(
@@ -114,6 +129,7 @@ export function ScenarioSelect() {
     if (!scenario) return
 
     const defaults = getScenarioCampaignDefaults(scenario)
+    setPlayerSide('blue')
     setSelectedEra(defaults.era)
     setSelectedPlayerFactionId(defaults.playerFactionId)
     setSelectedOpponentFactionId(defaults.opponentFactionId)
@@ -143,7 +159,8 @@ export function ScenarioSelect() {
         playerFaction: selectedPlayerFaction,
         opponentFaction: selectedOpponentFaction,
         campaignYear,
-        forceGpsEnabledDate
+        forceGpsEnabledDate,
+        playerSide: sideSelectable ? playerSide : 'blue'
       })
       navigate('/', { state: { showWelcomeDialog: true } })
     } finally {
@@ -268,6 +285,9 @@ export function ScenarioSelect() {
               campaignYear={campaignYear}
               isCreatingCampaign={isCreatingCampaign}
               forceGpsEnabledDate={forceGpsEnabledDate}
+              playerSide={sideSelectable ? playerSide : 'blue'}
+              sideSelectable={sideSelectable}
+              onSelectPlayerSide={selectPlayerSide}
               onSelectEra={selectEra}
               onSelectPlayerFaction={selectPlayerFaction}
               onSelectOpponentFaction={selectOpponentFaction}

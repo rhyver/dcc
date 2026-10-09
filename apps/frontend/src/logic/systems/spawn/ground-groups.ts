@@ -78,11 +78,13 @@ export function spawnGroundGroups(
 
   const enemyCoalition = coalition === 'player' ? 'opponent' : 'player'
   const enemyObjectiveIds = draft.coalitions[enemyCoalition].objectiveIds
+  // Red-side campaigns were created from the mirrored scenario, so its sides are swapped here.
+  const scenarioCoalition = draft.playerSide === 'red' ? enemyCoalition : coalition
   const maxSpawnsThisTick = Math.max(
     0,
     Math.floor(
       MAX_SPAWNS_PER_TICK *
-        (scenario.start[coalition].groundGroupSpawnMultiplier ??
+        (scenario.start[scenarioCoalition].groundGroupSpawnMultiplier ??
           DEFAULT_GROUND_GROUP_SPAWN_MULTIPLIER)
     )
   )

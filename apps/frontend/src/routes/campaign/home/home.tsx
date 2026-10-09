@@ -115,7 +115,11 @@ export function Home() {
       input: scenarioId
     })
   )
-  const scenarioBriefing = scenarioQuery.data?.briefing ?? campaignData.description
+  const playerSide = useSelector(activeStore, (state) => state.context.playerSide)
+  const scenarioBriefing =
+    (playerSide === 'red' ? scenarioQuery.data?.opponentBriefing : undefined) ??
+    scenarioQuery.data?.briefing ??
+    campaignData.description
   const scenarioName = scenarioQuery.data?.name ?? campaignData.name
   const briefingParagraphs = React.useMemo(
     () => scenarioBriefing.split(/\n{2,}/).filter((paragraph) => paragraph.trim().length > 0),

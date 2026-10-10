@@ -937,7 +937,7 @@ export async function generateMizFromCampaign(
   }
   const missionLua = missionLuaResult.value
 
-  const optionsLuaResult = luaTable.stringify(options(), { mixedKeyTypes: true })
+  const optionsLuaResult = luaTable.stringify(options(campaign), { mixedKeyTypes: true })
   if (optionsLuaResult.isErr()) {
     return err(optionsLuaResult.error)
   }

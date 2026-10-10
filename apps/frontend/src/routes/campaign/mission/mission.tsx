@@ -27,6 +27,24 @@ type MissionState = z.infer<typeof schemas.missionState>
 type AiWingmanSpawn = NonNullable<NonNullable<Campaign['campaignParams']>['aiWingmanSpawn']>
 type EnemySkill = z.infer<typeof schemas.campaign.enemySkill>
 type FixedEnemySkill = Exclude<EnemySkill, 'Random'> | 'default'
+type DcsCheats = NonNullable<NonNullable<Campaign['campaignParams']>['dcsCheats']>
+
+const dcsAssistSwitches = [
+  { key: 'unlimitedFuel', label: 'Unlimited Fuel', description: 'Disable fuel consumption' },
+  {
+    key: 'unlimitedWeapons',
+    label: 'Unlimited Ammunition',
+    description: 'Fly without weapon limits'
+  },
+  { key: 'immortal', label: 'Invulnerability', description: 'Prevent damage to your aircraft' }
+] as const
+
+const unitLabelOptions: { value: NonNullable<DcsCheats['labels']>; label: string }[] = [
+  { value: 'none', label: 'Off' },
+  { value: 'dot', label: 'Dots' },
+  { value: 'abbreviated', label: 'Abbreviated' },
+  { value: 'full', label: 'Full' }
+]
 
 const enemySkillOptions: { value: FixedEnemySkill; label: string }[] = [
   { value: 'default', label: 'Default' },
@@ -409,6 +427,7 @@ export function Mission() {
   )
   const [lastFixedEnemySkill, setLastFixedEnemySkill] = useState<FixedEnemySkill>('default')
   const fixedEnemySkill = enemySkill === 'Random' ? lastFixedEnemySkill : enemySkill
+  const dcsAssists = useSelector(activeStore, (state) => state.context.campaignParams?.dcsCheats)
   const ewr = useSelector(activeStore, (state) => state.context.campaignParams?.ewr ?? true)
   const iads = useSelector(activeStore, (state) => state.context.campaignParams?.iads ?? true)
   const exactTarget = useSelector(
@@ -900,6 +919,69 @@ export function Mission() {
                                   checked={navigationTargetTacan}
                                   onCheckedChange={(enabled) =>
                                     activeStore.send({ type: 'setNavigationTargetTacan', enabled })
+                                  }
+                                />
+                              </div>
+                              <div className="border-t border-white/10 pt-3 text-xs font-medium text-white/60">
+                                DCS Assists
+                              </div>
+                              {dcsAssistSwitches.map((assist) => (
+                                <div
+                                  key={assist.key}
+                                  className="flex items-center justify-between gap-3"
+                                >
+                                  <div>
+                                    <label
+                                      htmlFor={`dcs-${assist.key}`}
+                                      className="text-sm font-medium text-white"
+                                    >
+                                      {assist.label}
+                                    </label>
+                                    <div
+                                      id={`dcs-${assist.key}-description`}
+                                      className="text-sm text-white/40"
+                                    >
+                                      {assist.description}
+                                    </div>
+                                  </div>
+                                  <Switch
+                                    id={`dcs-${assist.key}`}
+                                    aria-describedby={`dcs-${assist.key}-description`}
+                                    checked={dcsAssists?.[assist.key] ?? false}
+                                    onCheckedChange={(enabled) =>
+                                      activeStore.send({
+                                        type: 'setDcsCheats',
+                                        dcsCheats: { [assist.key]: enabled }
+                                      })
+                                    }
+                                  />
+                                </div>
+                              ))}
+                              <div className="space-y-2">
+                                <div>
+                                  <label
+                                    htmlFor="dcs-unit-labels"
+                                    className="text-sm font-medium text-white"
+                                  >
+                                    Unit Labels
+                                  </label>
+                                  <div
+                                    id="dcs-unit-labels-description"
+                                    className="text-sm text-white/40"
+                                  >
+                                    Identify units in flight
+                                  </div>
+                                </div>
+                                <StepSlider
+                                  id="dcs-unit-labels"
+                                  options={unitLabelOptions}
+                                  value={dcsAssists?.labels ?? 'none'}
+                                  describedBy="dcs-unit-labels-description"
+                                  onValueChange={(labels) =>
+                                    activeStore.send({
+                                      type: 'setDcsCheats',
+                                      dcsCheats: { labels }
+                                    })
                                   }
                                 />
                               </div>

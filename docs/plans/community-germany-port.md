@@ -1,7 +1,7 @@
 # Community Germany fork port plan
 
 Date: 2026-10-07  
-Status: In progress; red-side campaigns, editable map waypoints, map-layer controls, and enemy AI skill ported.
+Status: In progress; red-side campaigns, editable map waypoints, map-layer controls, enemy AI skill, and DCS assists ported.
 
 ## Objective
 
@@ -155,8 +155,10 @@ not establish compatible behavior.
   Save the override with the campaign; apply it to opposing aircraft, AWACS, ground units,
   SAMs, EWRs, and ships while preserving friendly AI and client aircraft. Existing campaigns
   retain per-unit defaults. Live DCS difficulty checks remain outstanding.
-- [ ] Add configurable air activity, optional DCS cheats, and faster campaign time controls
-  with explicit defaults.
+- [x] Add optional DCS assists: unlimited fuel, unlimited ammunition, invulnerability, and unit
+  labels (Off/Dots/Abbreviated/Full). Save per campaign and write generated mission options;
+  existing campaigns keep all assists off. Live DCS checks remain outstanding.
+- [ ] Add configurable air activity and faster campaign time controls with explicit defaults.
 - [ ] Integrate profile-aware radio programming, navigation aids, kneeboard units, mission
   failures, and remaining-ammunition reporting.
 

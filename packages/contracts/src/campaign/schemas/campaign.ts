@@ -368,6 +368,14 @@ export const campaign = z.preprocess(
         aiWingmanSpawn: z.enum(['never', 'landOnly', 'always']).optional(),
         culling: z.boolean().optional(),
         enemySkill: enemySkill.optional(),
+        dcsCheats: z
+          .object({
+            unlimitedFuel: z.boolean().optional(),
+            unlimitedWeapons: z.boolean().optional(),
+            immortal: z.boolean().optional(),
+            labels: z.enum(['none', 'dot', 'abbreviated', 'full']).optional()
+          })
+          .optional(),
         ewr: z.boolean().optional(),
         iads: z.boolean().optional(),
         exactTarget: z.boolean().optional(),

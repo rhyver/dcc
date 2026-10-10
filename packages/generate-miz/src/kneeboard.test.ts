@@ -477,6 +477,10 @@ describe('generateMizFromCampaign kneeboards', () => {
 
       const campaign = createCampaign(scenario.date)
       campaign.scenarioId = scenario.id
+      campaign.campaignParams = {
+        ...campaign.campaignParams,
+        dcsCheats: { unlimitedFuel: true, unlimitedWeapons: true, immortal: true, labels: 'dot' }
+      }
       campaign.coalitions.player.id = 'uk-1982'
       campaign.coalitions.opponent.id = 'argentina-1982-official'
       campaign.coalitions.player.navalGroups = structuredClone(scenario.navalGroups?.player ?? [])
@@ -500,6 +504,11 @@ describe('generateMizFromCampaign kneeboards', () => {
       if (result.isErr()) throw result.error
 
       const zip = new AdmZip(mizPath)
+      const optionsText = zip.getEntry('options')?.getData().toString('utf-8') ?? ''
+      expect(optionsText).toContain('["fuel"] = true')
+      expect(optionsText).toContain('["weapons"] = true')
+      expect(optionsText).toContain('["immortal"] = true')
+      expect(optionsText).toContain('["labels"] = 3')
       const missionText = zip.getEntry('mission')?.getData().toString('utf-8') ?? ''
       expect(zip.getEntry('l10n/')?.isDirectory).toBe(true)
       expect(zip.getEntry('l10n/DEFAULT/')?.isDirectory).toBe(true)

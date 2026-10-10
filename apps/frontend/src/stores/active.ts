@@ -455,6 +455,16 @@ export const activeStore = createStore({
           draft.campaignParams.enemySkill = enemySkill
         }
       }),
+    setDcsCheats: (
+      context,
+      {
+        dcsCheats
+      }: { dcsCheats: NonNullable<NonNullable<Campaign['campaignParams']>['dcsCheats']> }
+    ) =>
+      produce(context, (draft) => {
+        draft.campaignParams ??= {}
+        draft.campaignParams.dcsCheats = { ...draft.campaignParams.dcsCheats, ...dcsCheats }
+      }),
     setEwr: (context, { ewr }: { ewr: boolean }) =>
       produce(context, (draft) => {
         if (!draft.campaignParams) {

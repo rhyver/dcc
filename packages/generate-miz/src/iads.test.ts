@@ -183,6 +183,20 @@ function createCampaign(): Campaign {
 }
 
 describe('buildIadsConfig', () => {
+  test.each([undefined, 'Good', 'Random'] as const)(
+    'generates enemy EWRs at %s skill',
+    (enemySkill) => {
+      const campaign = createCampaign()
+      campaign.campaignParams = { iads: true, enemySkill }
+      const mission = createMission()
+
+      expect(buildIadsConfig(mission, campaign)).not.toBeNull()
+      expect(mission.coalition.red.country?.[0]?.vehicle?.group[0]?.units[0]?.skill).toBe(
+        enemySkill ?? 'High'
+      )
+    }
+  )
+
   test('generates opponent IADS config and EWR groups', () => {
     const mission = createMission()
     const config = buildIadsConfig(mission, createCampaign())

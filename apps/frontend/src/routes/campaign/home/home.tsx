@@ -34,6 +34,8 @@ import {
   DialogTrigger
 } from '@/components/ui/dialog'
 import type { SelectedItem } from './map'
+import { MapLayerFilter } from './map-layer-filter'
+import { getCoalitionSide } from './coalition-display'
 import { activeStore } from '@/stores/active'
 import { uiStore } from '@/stores/ui'
 import { coreClient, orpc } from '@/lib/orpc'
@@ -115,7 +117,11 @@ export function Home() {
       input: scenarioId
     })
   )
-  const scenarioBriefing = scenarioQuery.data?.briefing ?? campaignData.description
+  const playerSide = useSelector(activeStore, (state) => state.context.playerSide)
+  const scenarioBriefing =
+    (playerSide === 'red' ? scenarioQuery.data?.opponentBriefing : undefined) ??
+    scenarioQuery.data?.briefing ??
+    campaignData.description
   const scenarioName = scenarioQuery.data?.name ?? campaignData.name
   const briefingParagraphs = React.useMemo(
     () => scenarioBriefing.split(/\n{2,}/).filter((paragraph) => paragraph.trim().length > 0),
@@ -260,6 +266,7 @@ export function Home() {
         <div className="absolute inset-0 flex flex-col overflow-hidden">
           {/* Map Controls & Weather - Floating bottom right */}
           <div className="absolute right-3 bottom-16 z-1100 flex flex-col items-end gap-3">
+            <MapLayerFilter />
             {/* Zoom Controls */}
             <div className="tactical-inset flex flex-col gap-2 rounded-full p-2">
               <Button
@@ -510,7 +517,7 @@ export function Home() {
                         >
                           <div
                             className={`rounded border px-2 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${
-                              entry.coalition === 'player'
+                              getCoalitionSide(entry.coalition, playerSide) === 'blue'
                                 ? 'border-cyan-400/30 bg-cyan-950/30'
                                 : 'border-red-400/30 bg-red-950/30'
                             } ${
@@ -550,7 +557,7 @@ export function Home() {
                             </div>
                             <div
                               className={
-                                entry.coalition === 'player'
+                                getCoalitionSide(entry.coalition, playerSide) === 'blue'
                                   ? 'mt-0.5 text-cyan-100'
                                   : 'mt-0.5 text-red-100'
                               }

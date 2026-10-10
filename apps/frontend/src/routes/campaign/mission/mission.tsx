@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { samTemplates } from '@dcc/data'
 import { ArrowLeft, ChevronDown, Clock, CloudSun, Plane, Sun, Target, Wind, X } from 'lucide-react'
 import { useNavigate } from 'react-router'
-import type { schemas } from '@dcc/contracts'
+import { schemas } from '@dcc/contracts'
 import type * as z from 'zod'
 
 import { activeStore, resetFlightGroupClientSelections } from '@/stores/active'
@@ -13,7 +13,6 @@ import { coreClient, orpc } from '@/lib/orpc'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Switch } from '@/components/ui/switch'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { cn } from '@/lib/utils'
 import { getTaskAircraftTypeOptions } from '@/lib/aircraft-display'
 
@@ -26,6 +25,34 @@ type Campaign = z.infer<typeof schemas.campaign.campaign>
 type FlightGroup = Campaign['coalitions']['player']['flightGroups'][number]
 type MissionState = z.infer<typeof schemas.missionState>
 type AiWingmanSpawn = NonNullable<NonNullable<Campaign['campaignParams']>['aiWingmanSpawn']>
+type EnemySkill = z.infer<typeof schemas.campaign.enemySkill>
+type FixedEnemySkill = Exclude<EnemySkill, 'Random'> | 'default'
+type DcsCheats = NonNullable<NonNullable<Campaign['campaignParams']>['dcsCheats']>
+
+const dcsAssistSwitches = [
+  { key: 'unlimitedFuel', label: 'Unlimited Fuel', description: 'Disable fuel consumption' },
+  {
+    key: 'unlimitedWeapons',
+    label: 'Unlimited Ammunition',
+    description: 'Fly without weapon limits'
+  },
+  { key: 'immortal', label: 'Invulnerability', description: 'Prevent damage to your aircraft' },
+  { key: 'miniHud', label: 'Mini HUD', description: 'Flight cues for Flaming Cliffs aircraft' }
+] as const
+
+const unitLabelOptions: { value: NonNullable<DcsCheats['labels']>; label: string }[] = [
+  { value: 'none', label: 'Off' },
+  { value: 'dot', label: 'Dots' },
+  { value: 'abbreviated', label: 'Abbreviated' },
+  { value: 'full', label: 'Full' }
+]
+
+const enemySkillOptions: { value: FixedEnemySkill; label: string }[] = [
+  { value: 'default', label: 'Default' },
+  ...schemas.campaign.enemySkill.options
+    .filter((skill): skill is Exclude<EnemySkill, 'Random'> => skill !== 'Random')
+    .map((skill) => ({ value: skill, label: skill }))
+]
 
 const eraLabels: Partial<Record<z.infer<typeof schemas.era>, string>> = {
   'Late CW': 'Late Cold War'
@@ -33,6 +60,97 @@ const eraLabels: Partial<Record<z.infer<typeof schemas.era>, string>> = {
 
 function formatEra(era: z.infer<typeof schemas.era>) {
   return eraLabels[era] ?? era
+}
+
+const aiWingmanSpawnOptions: { value: AiWingmanSpawn; label: string }[] = [
+  { value: 'never', label: 'Never' },
+  { value: 'landOnly', label: 'Land only' },
+  { value: 'always', label: 'Always' }
+]
+
+function StepSlider<T extends string>({
+  id,
+  options,
+  value,
+  onValueChange,
+  disabled,
+  describedBy
+}: {
+  id: string
+  options: readonly { value: T; label: string }[]
+  value: T
+  onValueChange: (value: T) => void
+  disabled?: boolean
+  describedBy?: string
+}) {
+  const selectedIndex = Math.max(
+    0,
+    options.findIndex((option) => option.value === value)
+  )
+  const lastIndex = options.length - 1
+
+  return (
+    <div className={cn('space-y-1', disabled && 'opacity-40')}>
+      <div className="relative h-5">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-2 top-1/2 h-1 -translate-y-1/2 rounded-full bg-white/10"
+        >
+          <div
+            className="h-full rounded-full bg-primary/30"
+            style={{ width: `${(selectedIndex / lastIndex) * 100}%` }}
+          />
+          {options.map((option, index) => (
+            <span
+              key={option.value}
+              className={cn(
+                'absolute top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full',
+                index <= selectedIndex ? 'bg-primary/60' : 'bg-[#6b4767]'
+              )}
+              style={{ left: `${(index / lastIndex) * 100}%` }}
+            />
+          ))}
+        </div>
+        <input
+          id={id}
+          type="range"
+          min={0}
+          max={lastIndex}
+          step={1}
+          value={selectedIndex}
+          disabled={disabled}
+          aria-describedby={describedBy}
+          aria-valuetext={options[selectedIndex]?.label}
+          onChange={(event) => {
+            const option = options[Number(event.target.value)]
+            if (option) onValueChange(option.value)
+          }}
+          className="step-slider relative h-5 w-full cursor-pointer disabled:cursor-not-allowed"
+        />
+      </div>
+      <div aria-hidden="true" className="relative h-4 text-[10px]">
+        {options.map((option, index) => (
+          <span
+            key={option.value}
+            className={cn(
+              'absolute -translate-x-1/2 whitespace-nowrap text-white/40 first:translate-x-0 last:-translate-x-full',
+              index === selectedIndex && 'font-medium text-primary'
+            )}
+            style={{
+              left:
+                index === 0
+                  ? '0%'
+                  : index === lastIndex
+                    ? '100%'
+                    : `calc(${(index / lastIndex) * 100}% + ${8 - (index / lastIndex) * 16}px)`
+            }}
+          >
+            {option.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 function formatTargetOutcome(progress: { destroyed: number; total: number }): TargetOutcome {
@@ -304,6 +422,13 @@ export function Mission() {
     (state) => state.context.campaignParams?.aiWingmanSpawn ?? 'landOnly'
   )
   const culling = useSelector(activeStore, (state) => state.context.campaignParams?.culling ?? true)
+  const enemySkill = useSelector(
+    activeStore,
+    (state) => state.context.campaignParams?.enemySkill ?? 'default'
+  )
+  const [lastFixedEnemySkill, setLastFixedEnemySkill] = useState<FixedEnemySkill>('default')
+  const fixedEnemySkill = enemySkill === 'Random' ? lastFixedEnemySkill : enemySkill
+  const dcsAssists = useSelector(activeStore, (state) => state.context.campaignParams?.dcsCheats)
   const ewr = useSelector(activeStore, (state) => state.context.campaignParams?.ewr ?? true)
   const iads = useSelector(activeStore, (state) => state.context.campaignParams?.iads ?? true)
   const exactTarget = useSelector(
@@ -601,7 +726,7 @@ export function Mission() {
                                 Advanced Mission Options
                               </div>
                               <div className="text-sm text-white/40">
-                                AI wingmen, performance, navigation, and mission support
+                                AI difficulty, wingmen, performance, and mission support
                               </div>
                             </div>
                             <ChevronDown
@@ -613,50 +738,87 @@ export function Mission() {
                           </button>
                           {missionOptionsOpen && (
                             <div className="space-y-3 border-t border-[#ff00aa]/15 p-3">
-                              <div className="flex items-center justify-between gap-3">
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between gap-3">
+                                  <div>
+                                    <label
+                                      htmlFor="enemy-ai-skill"
+                                      className="text-sm font-medium text-white"
+                                    >
+                                      Enemy AI Skill
+                                    </label>
+                                    <div
+                                      id="enemy-ai-skill-description"
+                                      className="text-sm text-white/40"
+                                    >
+                                      Difficulty for all enemy units
+                                    </div>
+                                  </div>
+                                  <div className="flex shrink-0 items-center gap-2">
+                                    <label
+                                      htmlFor="enemy-ai-skill-random"
+                                      className="text-xs text-white/60"
+                                    >
+                                      Random
+                                    </label>
+                                    <Switch
+                                      id="enemy-ai-skill-random"
+                                      checked={enemySkill === 'Random'}
+                                      onCheckedChange={(random) => {
+                                        if (random) setLastFixedEnemySkill(fixedEnemySkill)
+                                        activeStore.send({
+                                          type: 'setEnemySkill',
+                                          enemySkill: random
+                                            ? 'Random'
+                                            : fixedEnemySkill === 'default'
+                                              ? undefined
+                                              : fixedEnemySkill
+                                        })
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                                <StepSlider
+                                  id="enemy-ai-skill"
+                                  options={enemySkillOptions}
+                                  value={fixedEnemySkill}
+                                  disabled={enemySkill === 'Random'}
+                                  describedBy="enemy-ai-skill-description"
+                                  onValueChange={(skill) =>
+                                    activeStore.send({
+                                      type: 'setEnemySkill',
+                                      enemySkill: skill === 'default' ? undefined : skill
+                                    })
+                                  }
+                                />
+                              </div>
+                              <div className="space-y-2">
                                 <div>
-                                  <div className="text-sm font-medium text-white">AI Wingman</div>
-                                  <div className="text-sm text-white/40">
+                                  <label
+                                    htmlFor="ai-wingman-spawn"
+                                    className="text-sm font-medium text-white"
+                                  >
+                                    AI Wingman
+                                  </label>
+                                  <div
+                                    id="ai-wingman-spawn-description"
+                                    className="text-sm text-white/40"
+                                  >
                                     Choose when AI wingmen are added to client flights
                                   </div>
                                 </div>
-                                <ToggleGroup
-                                  type="single"
+                                <StepSlider
+                                  id="ai-wingman-spawn"
+                                  options={aiWingmanSpawnOptions}
                                   value={aiWingmanSpawn}
-                                  variant="outline"
-                                  size="sm"
-                                  aria-label="AI wingman spawn behavior"
-                                  onValueChange={(value) => {
-                                    if (!value) return
+                                  describedBy="ai-wingman-spawn-description"
+                                  onValueChange={(value) =>
                                     activeStore.send({
                                       type: 'setAiWingmanSpawn',
-                                      aiWingmanSpawn: value as AiWingmanSpawn
+                                      aiWingmanSpawn: value
                                     })
-                                  }}
-                                  className="shrink-0"
-                                >
-                                  <ToggleGroupItem
-                                    value="never"
-                                    aria-label="Never spawn AI wingmen"
-                                    className="border-[#ff00aa]/25 bg-transparent text-white/55 hover:bg-[#ff00aa]/10 hover:text-white data-[state=on]:bg-[#ff00aa]/20 data-[state=on]:text-[#ff66cc]"
-                                  >
-                                    Never
-                                  </ToggleGroupItem>
-                                  <ToggleGroupItem
-                                    value="landOnly"
-                                    aria-label="Spawn AI wingmen at land bases only, not on carriers or airborne"
-                                    className="border-[#ff00aa]/25 bg-transparent text-white/55 hover:bg-[#ff00aa]/10 hover:text-white data-[state=on]:bg-[#ff00aa]/20 data-[state=on]:text-[#ff66cc]"
-                                  >
-                                    Land only
-                                  </ToggleGroupItem>
-                                  <ToggleGroupItem
-                                    value="always"
-                                    aria-label="Always spawn AI wingmen"
-                                    className="border-[#ff00aa]/25 bg-transparent text-white/55 hover:bg-[#ff00aa]/10 hover:text-white data-[state=on]:bg-[#ff00aa]/20 data-[state=on]:text-[#ff66cc]"
-                                  >
-                                    Always
-                                  </ToggleGroupItem>
-                                </ToggleGroup>
+                                  }
+                                />
                               </div>
                               <div className="flex items-center justify-between gap-3">
                                 <div>
@@ -758,6 +920,69 @@ export function Mission() {
                                   checked={navigationTargetTacan}
                                   onCheckedChange={(enabled) =>
                                     activeStore.send({ type: 'setNavigationTargetTacan', enabled })
+                                  }
+                                />
+                              </div>
+                              <div className="border-t border-white/10 pt-3 text-xs font-medium text-white/60">
+                                DCS Assists
+                              </div>
+                              {dcsAssistSwitches.map((assist) => (
+                                <div
+                                  key={assist.key}
+                                  className="flex items-center justify-between gap-3"
+                                >
+                                  <div>
+                                    <label
+                                      htmlFor={`dcs-${assist.key}`}
+                                      className="text-sm font-medium text-white"
+                                    >
+                                      {assist.label}
+                                    </label>
+                                    <div
+                                      id={`dcs-${assist.key}-description`}
+                                      className="text-sm text-white/40"
+                                    >
+                                      {assist.description}
+                                    </div>
+                                  </div>
+                                  <Switch
+                                    id={`dcs-${assist.key}`}
+                                    aria-describedby={`dcs-${assist.key}-description`}
+                                    checked={dcsAssists?.[assist.key] ?? false}
+                                    onCheckedChange={(enabled) =>
+                                      activeStore.send({
+                                        type: 'setDcsCheats',
+                                        dcsCheats: { [assist.key]: enabled }
+                                      })
+                                    }
+                                  />
+                                </div>
+                              ))}
+                              <div className="space-y-2">
+                                <div>
+                                  <label
+                                    htmlFor="dcs-unit-labels"
+                                    className="text-sm font-medium text-white"
+                                  >
+                                    Unit Labels
+                                  </label>
+                                  <div
+                                    id="dcs-unit-labels-description"
+                                    className="text-sm text-white/40"
+                                  >
+                                    Identify units in flight
+                                  </div>
+                                </div>
+                                <StepSlider
+                                  id="dcs-unit-labels"
+                                  options={unitLabelOptions}
+                                  value={dcsAssists?.labels ?? 'none'}
+                                  describedBy="dcs-unit-labels-description"
+                                  onValueChange={(labels) =>
+                                    activeStore.send({
+                                      type: 'setDcsCheats',
+                                      dcsCheats: { labels }
+                                    })
                                   }
                                 />
                               </div>

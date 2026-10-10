@@ -19,6 +19,7 @@ import { assignObjectivesToCoalitions } from './assign-objectives-to-coalitions'
 import { assignSams } from './assign-sams'
 import { assignStructures } from '@dcc/frontend/mission-generator'
 import { assignGroundGroups } from './assign-ground-groups'
+import { mirrorScenarioSides } from './mirror-scenario-sides'
 import { campaignsDir, stateFile } from '../../app-data'
 
 type Coalition = z.infer<typeof schemas.coalition>
@@ -165,12 +166,22 @@ async function setActiveCampaignId(id: string) {
 
 export const createCampaign = pub.campaign.createCampaign.handler(async ({ errors, input }) => {
   const scenarios = getScenarios()
-  const scenario = scenarios.find((entry) => entry.id === input.scenarioId && entry.available)
-  if (scenario == null) {
+  const baseScenario = scenarios.find((entry) => entry.id === input.scenarioId && entry.available)
+  if (baseScenario == null) {
     throw errors.NOT_FOUND({
       data: { message: 'Scenario not found or unavailable', path: input.scenarioId }
     })
   }
+  const playerSide = input.playerSide ?? 'blue'
+  if (playerSide === 'red' && baseScenario.sideSelectable !== true) {
+    throw errors.NOT_FOUND({
+      data: {
+        message: 'This scenario can only be played from the blue side',
+        path: input.scenarioId
+      }
+    })
+  }
+  const scenario = playerSide === 'red' ? mirrorScenarioSides(baseScenario) : baseScenario
 
   const theatre = getTheatre(scenario.theatreName)
   if (theatre == null) {
@@ -529,6 +540,7 @@ export const createCampaign = pub.campaign.createCampaign.handler(async ({ error
     id: crypto.randomUUID(),
     name: scenario.name,
     era: input.era,
+    playerSide,
     time: campaignTime,
     timeMultiplier: 0,
     campaignParams: {

@@ -60,7 +60,8 @@ const createCampaign = base
       playerFaction: schemas.faction.optional(),
       opponentFaction: schemas.faction.optional(),
       campaignYear: z.number().int().optional(),
-      forceGpsEnabledDate: z.boolean().optional()
+      forceGpsEnabledDate: z.boolean().optional(),
+      playerSide: z.enum(['blue', 'red']).optional()
     })
   )
   .errors({

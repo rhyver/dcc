@@ -302,6 +302,34 @@ describe('OH-58D mission generation', () => {
 })
 
 describe('addFlightGroups carrier compatibility', () => {
+  test.each([undefined, 'Average', 'Random'] as const)(
+    'generates enemy ships at %s skill while preserving friendly ship defaults',
+    (enemySkill) => {
+      const campaign = createCampaign(new Date('1982-05-01T09:00:00Z'))
+      const scenario = scenarios.find((candidate) => candidate.id === 'falklands-1982')!
+      campaign.scenarioId = scenario.id
+      campaign.campaignParams = { enemySkill }
+      campaign.coalitions.player.navalGroups = structuredClone(scenario.navalGroups?.player ?? [])
+      campaign.coalitions.opponent.navalGroups = structuredClone(
+        scenario.navalGroups?.opponent ?? []
+      )
+      const mission = createMission()
+
+      expect(addNavalGroups(mission, campaign).isOk()).toBe(true)
+
+      const friendlyUnits =
+        mission.coalition.blue.country?.[0]?.ship?.group.flatMap((g) => g.units) ?? []
+      const enemyUnits =
+        mission.coalition.red.country?.[0]?.ship?.group.flatMap((g) => g.units) ?? []
+      expect(friendlyUnits.length).toBeGreaterThan(0)
+      expect(enemyUnits.length).toBeGreaterThan(0)
+      expect(new Set(friendlyUnits.map((unit) => unit.skill))).toEqual(new Set(['Excellent']))
+      expect(new Set(enemyUnits.map((unit) => unit.skill))).toEqual(
+        new Set([enemySkill ?? 'Excellent'])
+      )
+    }
+  )
+
   test('spawns carriers facing into the surface wind used by their startup route', () => {
     const startTime = new Date('2026-01-01T00:00:00Z')
     const mission = createMission()
@@ -971,6 +999,26 @@ describe('addFlightGroups route timing', () => {
 })
 
 describe('addFlightGroups mission script config', () => {
+  test.each([undefined, ...schemas.campaign.enemySkill.options])(
+    'generates enemy aircraft at %s skill while preserving friendly AI and clients',
+    (enemySkill) => {
+      const startTime = new Date('2026-01-01T00:00:00Z')
+      const campaign = createCampaign(startTime)
+      campaign.playerSide = 'red'
+      campaign.campaignParams = { enemySkill, aiWingmanSpawn: 'always' }
+      campaign.coalitions.player.flightGroups[0]!.aircrafts[0]!.client = true
+      campaign.coalitions.opponent.flightGroups[0]!.aircrafts[0]!.client = true
+      const mission = createMission()
+
+      expect(addFlightGroups(mission, campaign, theatre).isOk()).toBe(true)
+
+      const friendlyUnits = mission.coalition.blue.country?.[0]?.plane?.group[0]?.units
+      const enemyUnits = mission.coalition.red.country?.[0]?.plane?.group[0]?.units
+      expect(friendlyUnits?.map((unit) => unit.skill)).toEqual(['Client', 'High'])
+      expect(enemyUnits?.map((unit) => unit.skill)).toEqual(['Client', enemySkill ?? 'High'])
+    }
+  )
+
   test('sets a single selected client aircraft to client skill', () => {
     const startTime = new Date('2026-01-01T00:00:00Z')
     const mission = createMission()

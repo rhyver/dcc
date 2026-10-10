@@ -27,6 +27,8 @@ const campaignLogEntry = z.object({
 
 const campaignStatus = z.enum(['active', 'won', 'lost'])
 
+export const enemySkill = z.enum(['Average', 'Good', 'High', 'Excellent', 'Random'])
+
 const campaignGoal = z.object({
   coalition,
   objectiveIds: z.array(z.string()).min(1)
@@ -340,6 +342,8 @@ export const campaign = z.preprocess(
     createdAt: z.date(),
     updatedAt: z.date(),
     era: era.optional(),
+    /** Scenario side the player took; red campaigns were created from the mirrored scenario. */
+    playerSide: z.enum(['blue', 'red']).optional(),
     time: z.date(),
     timeMultiplier: z.number(),
     timeTarget: z.date().optional(),
@@ -363,6 +367,16 @@ export const campaign = z.preprocess(
         hotStart: z.boolean().optional(),
         aiWingmanSpawn: z.enum(['never', 'landOnly', 'always']).optional(),
         culling: z.boolean().optional(),
+        enemySkill: enemySkill.optional(),
+        dcsCheats: z
+          .object({
+            unlimitedFuel: z.boolean().optional(),
+            unlimitedWeapons: z.boolean().optional(),
+            immortal: z.boolean().optional(),
+            miniHud: z.boolean().optional(),
+            labels: z.enum(['none', 'dot', 'abbreviated', 'full']).optional()
+          })
+          .optional(),
         ewr: z.boolean().optional(),
         iads: z.boolean().optional(),
         exactTarget: z.boolean().optional(),

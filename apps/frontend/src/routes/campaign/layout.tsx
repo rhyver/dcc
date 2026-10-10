@@ -39,7 +39,11 @@ export function CampaignLayout() {
       input: scenarioId
     })
   )
-  const scenarioBriefing = scenarioQuery.data?.briefing
+  const playerSide = useSelector(activeStore, (state) => state.context.playerSide)
+  const scenarioBriefing =
+    playerSide === 'red'
+      ? (scenarioQuery.data?.opponentBriefing ?? scenarioQuery.data?.briefing)
+      : scenarioQuery.data?.briefing
   const scenarioGoal = campaignGoal ?? scenarioQuery.data?.goal
 
   const saveCurrentCampaign = async (setTimeMultiplierToZero = false) => {

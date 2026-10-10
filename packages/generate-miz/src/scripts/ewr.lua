@@ -11,7 +11,7 @@ local bvrRangeMeters = 160000
 local wvrRangeMeters = 10000
 local bvrIntervalSeconds = 20
 local wvrIntervalSeconds = 5
-local magneticVariationDegrees = 7
+local magneticVariationDegrees = (config and config.magneticVariationDegrees) or 0
 
 local function sendMessageToUnits(text, unitNames, duration)
     if not text or text == "" then

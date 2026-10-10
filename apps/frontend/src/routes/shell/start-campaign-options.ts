@@ -4,6 +4,7 @@ import * as z from 'zod'
 
 export type CampaignEra = 'Korea' | 'Vietnam' | 'Late CW' | 'Modern'
 export type ScenarioStep = 'scenario' | 'era' | 'factions'
+export type PlayerSide = 'blue' | 'red'
 export type Scenario = (typeof scenarios)[number]
 export type Faction = z.infer<typeof schemas.faction>
 

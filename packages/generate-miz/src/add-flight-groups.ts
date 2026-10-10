@@ -10,6 +10,7 @@ import { err, ok, Result } from 'neverthrow'
 import * as z from 'zod'
 
 import { findCarrierMissionUnit } from './add-naval-groups'
+import { resolveAiSkill } from './ai-skill'
 import {
   AWACS_FREQUENCY,
   DEFAULT_ATC_FREQUENCY,
@@ -1556,7 +1557,7 @@ export function addFlightGroups(
           datalinks: createDatalinks(aircraftDef, index, unitIds, link16NetworkUnitIds),
           ...(ac.client && flightRadioConfig ? { Radio: flightRadioConfig.radios } : {}),
           livery_id: 'default',
-          skill: ac.client ? 'Client' : 'High',
+          skill: ac.client ? 'Client' : resolveAiSkill(campaign, coalitionKey, 'High'),
           speed: speed,
           type: aircraftDef.name,
           unitId: unitId,

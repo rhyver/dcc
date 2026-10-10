@@ -14,6 +14,13 @@ export const RedBullet: z.infer<typeof schemas.scenario> = {
     coalition: 'player',
     objectiveIds: ['Enguri Dam']
   },
+  sideSelectable: true,
+  opponentBriefing:
+    'Russian forces hold the Enguri Dam and the crossings of western Georgia, but NATO has landed a bridgehead around Kobuleti and is massing to break out along the coast.\n\nOperating from Sukhumi-Babushara and Nalchik, Russian air and ground forces must hold the river line, blunt the NATO air campaign, and drive the coalition out of Maharadze and Hidmagala before reinforcements turn the bridgehead into a front.',
+  opponentGoal: {
+    coalition: 'player',
+    objectiveIds: ['Maharadze', 'Hidmagala']
+  },
   start: {
     player: {
       airdromeNames: ['Kobuleti'],

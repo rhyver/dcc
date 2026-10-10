@@ -19,40 +19,44 @@ function createMission(): Mission {
 }
 
 describe('addAwacsGroups', () => {
-  test('adds AWACS to the carrier-based Falklands coalition', () => {
-    const scenario = scenarios.find((candidate) => candidate.id === 'falklands-1982')
-    const theatre = theatres.find((candidate) => candidate.name === scenario?.theatreName)
-    if (!scenario || !theatre) throw new Error('Falklands scenario data is missing')
+  test.each([undefined, 'Good', 'Random'] as const)(
+    'adds AWACS to the carrier-based Falklands coalition with %s enemy skill',
+    (enemySkill) => {
+      const scenario = scenarios.find((candidate) => candidate.id === 'falklands-1982')
+      const theatre = theatres.find((candidate) => candidate.name === scenario?.theatreName)
+      if (!scenario || !theatre) throw new Error('Falklands scenario data is missing')
 
-    const campaign = {
-      scenarioId: scenario.id,
-      coalitions: {
-        player: {
-          airdromeNames: scenario.start.player.airdromeNames,
-          aircraftTypes: { AWACS: [] },
-          navalGroups: structuredClone(scenario.navalGroups?.player ?? [])
-        },
-        opponent: {
-          airdromeNames: scenario.start.opponent.airdromeNames,
-          aircraftTypes: { AWACS: [] },
-          navalGroups: structuredClone(scenario.navalGroups?.opponent ?? [])
+      const campaign = {
+        campaignParams: { enemySkill },
+        scenarioId: scenario.id,
+        coalitions: {
+          player: {
+            airdromeNames: scenario.start.player.airdromeNames,
+            aircraftTypes: { AWACS: [] },
+            navalGroups: structuredClone(scenario.navalGroups?.player ?? [])
+          },
+          opponent: {
+            airdromeNames: scenario.start.opponent.airdromeNames,
+            aircraftTypes: { AWACS: [] },
+            navalGroups: structuredClone(scenario.navalGroups?.opponent ?? [])
+          }
         }
-      }
-    } as unknown as Campaign
-    const mission = createMission()
+      } as unknown as Campaign
+      const mission = createMission()
 
-    const result = addAwacsGroups(mission, campaign, theatre)
+      const result = addAwacsGroups(mission, campaign, theatre)
 
-    expect(result.isOk()).toBe(true)
-    expect(mission.coalition.blue.country?.[0]?.plane?.group[0]).toMatchObject({
-      name: 'AWACS-blue',
-      task: 'AWACS',
-      units: [{ type: 'E-3A' }]
-    })
-    expect(mission.coalition.red.country?.[0]?.plane?.group[0]).toMatchObject({
-      name: 'AWACS-red',
-      task: 'AWACS',
-      units: [{ type: 'A-50' }]
-    })
-  })
+      expect(result.isOk()).toBe(true)
+      expect(mission.coalition.blue.country?.[0]?.plane?.group[0]).toMatchObject({
+        name: 'AWACS-blue',
+        task: 'AWACS',
+        units: [{ type: 'E-3A', skill: 'High' }]
+      })
+      expect(mission.coalition.red.country?.[0]?.plane?.group[0]).toMatchObject({
+        name: 'AWACS-red',
+        task: 'AWACS',
+        units: [{ type: 'A-50', skill: enemySkill ?? 'High' }]
+      })
+    }
+  )
 })

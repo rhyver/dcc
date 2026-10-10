@@ -14,6 +14,7 @@ import {
   createManualFlightGroup,
   type ManualFlightTarget
 } from '@/logic/systems/spawn/manual-flight-group'
+import { hasFlightGroupTakenOff } from '@/logic/entities/flight-status'
 import {
   applyFlightGroupClientCount,
   removeUnusedClientAircraft
@@ -245,6 +246,20 @@ function getFlightGroupPackageMembers(coalition: CoalitionData, group: FlightGro
   return packageMembers.length > 0 ? packageMembers : [group]
 }
 
+export function isEditableWaypoint(waypoint: z.infer<typeof schemas.waypoint>) {
+  return waypoint.type !== 'TakeOff' && waypoint.type !== 'Landing'
+}
+
+export function isFlightRouteEditable(group: FlightGroup, campaignTime: Date) {
+  return !hasFlightGroupTakenOff(group, campaignTime)
+}
+
+function editableFlightGroup(draft: Campaign, flightGroupId: string) {
+  const group = draft.coalitions.player.flightGroups.find((entry) => entry.id === flightGroupId)
+  if (!group || !isFlightRouteEditable(group, draft.time)) return undefined
+  return group
+}
+
 function syncPackageTimingForClientGroups(draft: Campaign) {
   const coalitions = [draft.coalitions.player, draft.coalitions.opponent]
   const allFlightGroups = coalitions.flatMap((coalition) => coalition.flightGroups)
@@ -428,6 +443,28 @@ export const activeStore = createStore({
         }
         draft.campaignParams.culling = culling
       }),
+    setEnemySkill: (
+      context,
+      { enemySkill }: { enemySkill: NonNullable<Campaign['campaignParams']>['enemySkill'] }
+    ) =>
+      produce(context, (draft) => {
+        draft.campaignParams ??= {}
+        if (enemySkill == null) {
+          delete draft.campaignParams.enemySkill
+        } else {
+          draft.campaignParams.enemySkill = enemySkill
+        }
+      }),
+    setDcsCheats: (
+      context,
+      {
+        dcsCheats
+      }: { dcsCheats: NonNullable<NonNullable<Campaign['campaignParams']>['dcsCheats']> }
+    ) =>
+      produce(context, (draft) => {
+        draft.campaignParams ??= {}
+        draft.campaignParams.dcsCheats = { ...draft.campaignParams.dcsCheats, ...dcsCheats }
+      }),
     setEwr: (context, { ewr }: { ewr: boolean }) =>
       produce(context, (draft) => {
         if (!draft.campaignParams) {
@@ -469,6 +506,51 @@ export const activeStore = createStore({
           draft.campaignParams = {}
         }
         draft.campaignParams.navigationTargetTacan = enabled
+      }),
+    moveWaypoint: (
+      context,
+      {
+        flightGroupId,
+        index,
+        position
+      }: { flightGroupId: string; index: number; position: { x: number; y: number } }
+    ) =>
+      produce(context, (draft) => {
+        const group = editableFlightGroup(draft, flightGroupId)
+        const waypoint = group?.flightplan.waypoints[index]
+        if (!waypoint || !isEditableWaypoint(waypoint)) return
+        waypoint.position = { x: position.x, y: position.y }
+      }),
+    insertWaypoint: (
+      context,
+      {
+        flightGroupId,
+        afterIndex,
+        position
+      }: { flightGroupId: string; afterIndex: number; position: { x: number; y: number } }
+    ) =>
+      produce(context, (draft) => {
+        const group = editableFlightGroup(draft, flightGroupId)
+        if (!group) return
+        const waypoints = group.flightplan.waypoints
+        const previous = waypoints[afterIndex]
+        const next = waypoints[afterIndex + 1]
+        if (!previous || !next) return
+        waypoints.splice(afterIndex + 1, 0, {
+          name: 'Nav',
+          position: { x: position.x, y: position.y },
+          altitude: Math.max(previous.altitude, next.altitude),
+          altitudeType: previous.altitudeType ?? next.altitudeType,
+          speed: Math.max(previous.speed, next.speed),
+          type: 'Nav'
+        })
+      }),
+    removeWaypoint: (context, { flightGroupId, index }: { flightGroupId: string; index: number }) =>
+      produce(context, (draft) => {
+        const group = editableFlightGroup(draft, flightGroupId)
+        const waypoint = group?.flightplan.waypoints[index]
+        if (!group || !waypoint || waypoint.type !== 'Nav') return
+        group.flightplan.waypoints.splice(index, 1)
       }),
     tick: (
       context,

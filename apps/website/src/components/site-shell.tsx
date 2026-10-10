@@ -18,8 +18,8 @@ export function Footer() {
         <a href="https://discord.gg/jZZ3pFpY3e" onClick={trackDiscordClicked}>
           Discord
         </a>
-        <a href="https://codeberg.org/rhyver/dcc" onClick={trackSourceClicked}>
-          Codeberg
+        <a href="https://github.com/rhyver/dcc" onClick={trackSourceClicked}>
+          GitHub
         </a>
       </div>
     </footer>

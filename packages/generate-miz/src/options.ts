@@ -1,7 +1,20 @@
 import { schemas } from '@dcc/contracts'
 import * as z from 'zod'
 
-export function options(): z.infer<typeof schemas.dcs.options> {
+type Campaign = z.infer<typeof schemas.campaign.campaign>
+type DcsCheats = NonNullable<NonNullable<Campaign['campaignParams']>['dcsCheats']>
+
+const labelValues: Record<NonNullable<DcsCheats['labels']>, number> = {
+  none: 0,
+  full: 1,
+  abbreviated: 2,
+  dot: 3
+}
+
+export function options(
+  campaign?: Pick<Campaign, 'campaignParams'>
+): z.infer<typeof schemas.dcs.options> {
+  const assists = campaign?.campaignParams?.dcsCheats
   return {
     playerName: 'FoxDelta2',
     miscellaneous: {
@@ -27,9 +40,9 @@ export function options(): z.infer<typeof schemas.dcs.options> {
       force_feedback_enabled: true
     },
     difficulty: {
-      fuel: false,
+      fuel: assists?.unlimitedFuel === true,
       spottingDot: 2,
-      miniHUD: false,
+      miniHUD: assists?.miniHud === true,
       optionsView: 'optview_all',
       setGlobal: true,
       avionicsLanguage: 'english',
@@ -39,11 +52,11 @@ export function options(): z.infer<typeof schemas.dcs.options> {
       spectatorExternalViews: true,
       userSnapView: true,
       iconsTheme: 'nato',
-      weapons: false,
+      weapons: assists?.unlimitedWeapons === true,
       padlock: true,
       birds: 440,
       permitCrash: true,
-      immortal: false,
+      immortal: assists?.immortal === true,
       easyCommunication: true,
       wakeTurbulence: true,
       easyFlight: false,
@@ -60,7 +73,7 @@ export function options(): z.infer<typeof schemas.dcs.options> {
       controlsIndicator: true,
       units: 'imperial',
       userMarks: true,
-      labels: 0
+      labels: labelValues[assists?.labels ?? 'none']
     },
     VR: {
       handOffsetZ: 0,

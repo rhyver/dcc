@@ -4,7 +4,7 @@ import { Crosshair, Map as MapIcon, Plane, ShieldAlert, Table2 } from 'lucide-re
 import { schemas } from '@dcc/contracts'
 import { useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/store/react'
-import maplibregl from 'maplibre-gl'
+import { maplibregl } from '@/lib/maplibre'
 import { Protocol } from 'pmtiles'
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import MaplibreMap, { Marker as MaplibreMarker, type MapRef } from 'react-map-gl/maplibre'

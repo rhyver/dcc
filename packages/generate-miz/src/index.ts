@@ -76,6 +76,7 @@ type MissionScriptConfig = {
   crashPilotSurvivalChance: number
   welcomeMessage?: MissionWelcomeMessage
   cullingManifest?: MissionCullingManifest
+  magneticVariationDegrees?: number
 }
 
 type CarrierOpsConfig = {
@@ -97,7 +98,9 @@ const DCS_COUNTRY_IDS: Record<string, number> = {
   USA: 2,
   UK: 4,
   France: 5,
+  Germany: 6,
   Israel: 15,
+  GDR: 78,
   Argentina: 83
 }
 
@@ -873,7 +876,10 @@ export async function generateMizFromCampaign(
     ...(carrierOps.length > 0 ? { carrierOps } : {}),
     crashPilotSurvivalChance: config.packages.CSAR.pilotSurvivalChance,
     ...(welcomeMessage ? { welcomeMessage } : {}),
-    ...(cullingPlan.enabled ? { cullingManifest: cullingPlan.manifest } : {})
+    ...(cullingPlan.enabled ? { cullingManifest: cullingPlan.manifest } : {}),
+    ...(theatre.info.magneticVariationDegrees != null
+      ? { magneticVariationDegrees: theatre.info.magneticVariationDegrees }
+      : {})
   }
   const scriptConfigLuaResult = luaTable.stringify(scriptConfig, {
     mixedKeyTypes: true,
@@ -933,7 +939,7 @@ export async function generateMizFromCampaign(
   }
   const missionLua = missionLuaResult.value
 
-  const optionsLuaResult = luaTable.stringify(options(), { mixedKeyTypes: true })
+  const optionsLuaResult = luaTable.stringify(options(campaign), { mixedKeyTypes: true })
   if (optionsLuaResult.isErr()) {
     return err(optionsLuaResult.error)
   }

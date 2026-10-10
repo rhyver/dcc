@@ -1,5 +1,5 @@
 import { schemas } from '@dcc/contracts'
-import { scenarios, theatres } from '@dcc/data'
+import { factions, scenarios, templates, theatres } from '@dcc/data'
 import AdmZip from 'adm-zip'
 import { mkdtemp, rm } from 'fs/promises'
 import { tmpdir } from 'os'
@@ -466,6 +466,51 @@ describe('kneeboard TACAN summaries', () => {
 })
 
 describe('generateMizFromCampaign kneeboards', () => {
+  test.each([
+    ['west-germany-1985', 'east-germany-1985', 1985],
+    ['usa-germany-1955', 'russia-germany-1955', 1955],
+    ['usa-germany-1967', 'russia-germany-1967', 1967]
+  ] as const)('generates a mission with %s and %s aircraft', async (playerId, opponentId, year) => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'dcc-germany-factions-'))
+    const mizPath = path.join(dir, 'mission.miz')
+    try {
+      const startTime = new Date(`${year}-06-01T09:00:00Z`)
+      const campaign = createCampaign(startTime)
+      campaign.scenarioId = 'red-bullet'
+      for (const [coalition, factionId] of [
+        ['player', playerId],
+        ['opponent', opponentId]
+      ] as const) {
+        const faction = factions.find((entry) => entry.id === factionId)!
+        const template = templates.find((entry) => entry.name === faction.templateName)!
+        const group = createFlightGroup(
+          coalition,
+          coalition === 'player' ? 'Enfield-1' : 'Uzi-1',
+          startTime
+        )
+        for (const aircraft of group.aircrafts)
+          aircraft.aircraftName = schemas.dcs.aircraftName.parse(faction.aircraftTypes.CAP[0])
+        Object.assign(campaign.coalitions[coalition], {
+          id: faction.id,
+          countryName: faction.countryName,
+          aircraftTypes: faction.aircraftTypes,
+          groundUnitTypes: template.groundUnitTypes,
+          flightGroups: [group]
+        })
+      }
+      const result = await generateMizFromCampaign(campaign, theatre, mizPath)
+      expect(result.isOk()).toBe(true)
+      if (result.isErr()) throw result.error
+      const missionText = new AdmZip(mizPath).getEntry('mission')?.getData().toString('utf-8') ?? ''
+      for (const coalition of [campaign.coalitions.player, campaign.coalitions.opponent]) {
+        expect(missionText).toContain(`["name"] = "${coalition.countryName}"`)
+        expect(missionText).toContain(`["type"] = "${coalition.aircraftTypes.CAP[0]}"`)
+      }
+      expect(missionText).toContain(`["Year"] = ${year}`)
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
   test('smoke-generates a South Atlantic mission with persistent naval groups', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'dcc-south-atlantic-'))
     const mizPath = path.join(dir, 'mission.miz')
@@ -477,6 +522,16 @@ describe('generateMizFromCampaign kneeboards', () => {
 
       const campaign = createCampaign(scenario.date)
       campaign.scenarioId = scenario.id
+      campaign.campaignParams = {
+        ...campaign.campaignParams,
+        dcsCheats: {
+          unlimitedFuel: true,
+          unlimitedWeapons: true,
+          immortal: true,
+          miniHud: true,
+          labels: 'dot'
+        }
+      }
       campaign.coalitions.player.id = 'uk-1982'
       campaign.coalitions.opponent.id = 'argentina-1982-official'
       campaign.coalitions.player.navalGroups = structuredClone(scenario.navalGroups?.player ?? [])
@@ -500,6 +555,12 @@ describe('generateMizFromCampaign kneeboards', () => {
       if (result.isErr()) throw result.error
 
       const zip = new AdmZip(mizPath)
+      const optionsText = zip.getEntry('options')?.getData().toString('utf-8') ?? ''
+      expect(optionsText).toContain('["fuel"] = true')
+      expect(optionsText).toContain('["weapons"] = true')
+      expect(optionsText).toContain('["immortal"] = true')
+      expect(optionsText).toContain('["miniHUD"] = true')
+      expect(optionsText).toContain('["labels"] = 3')
       const missionText = zip.getEntry('mission')?.getData().toString('utf-8') ?? ''
       expect(zip.getEntry('l10n/')?.isDirectory).toBe(true)
       expect(zip.getEntry('l10n/DEFAULT/')?.isDirectory).toBe(true)

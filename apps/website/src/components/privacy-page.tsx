@@ -17,8 +17,8 @@ export function PrivacyPage() {
             This website is an open-source project page operated by digitalcrewchief.at for Digital
             Crew Chief. Privacy-related questions can be raised through the public project
             repository at{' '}
-            <a href="https://codeberg.org/rhyver/dcc" target="_blank" rel="noreferrer">
-              codeberg.org/rhyver/dcc
+            <a href="https://github.com/rhyver/dcc" target="_blank" rel="noreferrer">
+              github.com/rhyver/dcc
             </a>
             .
           </p>
@@ -27,7 +27,7 @@ export function PrivacyPage() {
             <h2>Who Runs This Site</h2>
             <p>
               The site is maintained for the Digital Crew Chief open-source project. The project
-              source code, issue tracker, and release history are available on Codeberg.
+              source code, issue tracker, and release history are available on GitHub.
             </p>
           </section>
 
@@ -73,7 +73,7 @@ export function PrivacyPage() {
           <section>
             <h2>Open-Source Repository And External Links</h2>
             <p>
-              This website links to external services such as Codeberg, Discord, and documentation
+              This website links to external services such as GitHub, Discord, and documentation
               pages. When you follow external links, the privacy policies of those services apply.
             </p>
           </section>
@@ -90,8 +90,8 @@ export function PrivacyPage() {
             <h2>Contact</h2>
             <p>
               For privacy-related questions, use the public project repository at{' '}
-              <a href="https://codeberg.org/rhyver/dcc" target="_blank" rel="noreferrer">
-                codeberg.org/rhyver/dcc
+              <a href="https://github.com/rhyver/dcc" target="_blank" rel="noreferrer">
+                github.com/rhyver/dcc
               </a>
               .
             </p>

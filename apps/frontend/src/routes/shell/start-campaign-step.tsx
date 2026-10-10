@@ -10,6 +10,7 @@ import {
   getFactionAircraft,
   type CampaignEra,
   type Faction,
+  type PlayerSide,
   type Scenario,
   type ScenarioStep
 } from './start-campaign-options'
@@ -24,6 +25,9 @@ type CampaignStepProps = {
   campaignYear: number
   isCreatingCampaign: boolean
   forceGpsEnabledDate: boolean
+  playerSide: PlayerSide
+  sideSelectable: boolean
+  onSelectPlayerSide: (side: PlayerSide) => void
   onSelectEra: (era: CampaignEra) => void
   onSelectPlayerFaction: (factionId: string) => void
   onSelectOpponentFaction: (factionId: string) => void
@@ -44,6 +48,9 @@ export function CampaignStep({
   campaignYear,
   isCreatingCampaign,
   forceGpsEnabledDate,
+  playerSide,
+  sideSelectable,
+  onSelectPlayerSide,
   onSelectEra,
   onSelectPlayerFaction,
   onSelectOpponentFaction,
@@ -67,6 +74,42 @@ export function CampaignStep({
   return (
     <div className="grid min-h-0 flex-1 gap-5 lg:grid-cols-[minmax(0,1fr)_400px]">
       <div className="synthwave-scrollbar grid min-h-0 content-start gap-2.5 overflow-x-hidden overflow-y-auto pr-2 [scrollbar-gutter:stable]">
+        {step === 'era' && sideSelectable ? (
+          <div className="rounded-md border border-synthwave-purple/45 bg-synthwave-dark/78 p-3 backdrop-blur">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <div className="retro-font text-sm tracking-wide text-synthwave-cyan">PLAY AS</div>
+              <div className="text-[0.65rem] uppercase tracking-[0.18em] text-synthwave-light/45">
+                Swaps territory, bases, factions and goal
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {(
+                [
+                  { side: 'blue', label: 'BLUE SIDE', hint: 'Scenario player territory' },
+                  { side: 'red', label: 'RED SIDE', hint: 'Scenario opponent territory' }
+                ] as const
+              ).map((option) => (
+                <button
+                  key={option.side}
+                  type="button"
+                  aria-pressed={playerSide === option.side}
+                  className={cn(
+                    'rounded-md border p-2.5 text-left transition-all',
+                    playerSide === option.side
+                      ? option.side === 'blue'
+                        ? 'border-synthwave-cyan bg-synthwave-cyan/10 text-white'
+                        : 'border-synthwave-pink bg-synthwave-pink/10 text-white'
+                      : 'border-synthwave-purple/45 text-synthwave-light hover:border-synthwave-cyan'
+                  )}
+                  onClick={() => onSelectPlayerSide(option.side)}
+                >
+                  <div className="retro-font text-sm tracking-wide">{option.label}</div>
+                  <div className="mt-0.5 text-xs text-synthwave-light/55">{option.hint}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
         {step === 'era' ? (
           eraOptions.map((era) => {
             const isSelected = era.id === selectedEra

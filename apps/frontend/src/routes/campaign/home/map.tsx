@@ -1,7 +1,8 @@
 import 'maplibre-gl/dist/maplibre-gl.css'
 
 import { useSelector } from '@xstate/store/react'
-import { activeStore } from '@/stores/active'
+import { activeStore, isEditableWaypoint, isFlightRouteEditable } from '@/stores/active'
+import { uiStore, type MapLayerKey } from '@/stores/ui'
 import { useQuery } from '@tanstack/react-query'
 import { orpc } from '@/lib/orpc'
 import { memo, useMemo, useState, useEffect, useRef, useCallback } from 'react'
@@ -15,17 +16,28 @@ import MaplibreMap, {
   type MapLayerMouseEvent,
   type MapRef
 } from 'react-map-gl/maplibre'
-import maplibregl from 'maplibre-gl'
+import { maplibregl } from '@/lib/maplibre'
 import { Protocol } from 'pmtiles'
 import { RotateCcw, Star } from 'lucide-react'
-import MilSymbol from 'milsymbol'
 import * as turf from '@turf/turf'
-import { getMilSymbolCode } from './unit-code'
+import { getMilSymbolSvg } from './unit-code'
+import { getCoalitionColor, type PlayerSide } from './coalition-display'
 import { type ObjectiveMarker as ObjectiveMarkerType, useMapItems } from './use-map-items'
 import { cn } from '@/lib/utils'
 import { DetailsCard } from './details-card'
 import { CAUCASUS_DETAIL_MAX_ZOOM, offlineCaucasusMapStyle } from './offline-map-style'
-import { tryDcsPositionToLngLat } from '@/logic/dcs-coordinates'
+import { tryDcsPositionToLngLat, tryLngLatToDcsPosition } from '@/logic/dcs-coordinates'
+
+const mapItemLayers: Record<z.infer<typeof schemas.MapItem>['type'], MapLayerKey> = {
+  Airdrome: 'airdromes',
+  'Flight Group': 'flights',
+  'Ground Group': 'ground',
+  'Naval Group': 'naval',
+  Structure: 'structures',
+  SAM: 'sam',
+  EWR: 'ewr',
+  'Downed Pilot': 'pilots'
+}
 
 const globalWithPmtiles = globalThis as typeof globalThis & {
   __dccPmtilesProtocol?: Protocol
@@ -37,24 +49,21 @@ if (!globalWithPmtiles.__dccPmtilesProtocol) {
 
 const Marker = memo(function Marker({
   item,
+  playerSide,
   onClick,
   isSelected
 }: {
   item: z.infer<typeof schemas.MapItem>
+  playerSide: PlayerSide
   onClick: () => void
   isSelected: boolean
 }) {
-  const symbol = useMemo(() => {
-    const symbol = new MilSymbol.Symbol(getMilSymbolCode(item), {
-      size: 20
-    })
-    return symbol.asSVG()
-  }, [item])
+  const symbol = useMemo(() => getMilSymbolSvg(item, playerSide), [item, playerSide])
 
   const isPersistentCommandAsset = item.type === 'Airdrome' || item.type === 'Naval Group'
   const showTitleCard = isPersistentCommandAsset || isSelected
   const isInactive = 'active' in item && item.active === false
-  const coalitionColor = item.coalition === 'player' ? 'var(--synthwave-cyan)' : 'var(--enemy-red)'
+  const coalitionColor = getCoalitionColor(item.coalition, playerSide)
 
   return (
     <MaplibreMarker
@@ -110,14 +119,16 @@ const Marker = memo(function Marker({
 
 const ObjectiveCircleMarker = memo(function ObjectiveCircleMarker({
   marker,
+  playerSide,
   onClick,
   isSelected
 }: {
   marker: ObjectiveMarkerType
+  playerSide: PlayerSide
   onClick: () => void
   isSelected: boolean
 }) {
-  const color = marker.coalition === 'player' ? 'var(--synthwave-cyan)' : 'var(--enemy-red)'
+  const color = getCoalitionColor(marker.coalition, playerSide)
   const showTitleCard = marker.isGoal || isSelected
 
   return (
@@ -315,6 +326,108 @@ const WaypointLabelMarker = memo(function WaypointLabelMarker({
   )
 })
 
+type RouteDragPreview = {
+  kind: 'move' | 'insert'
+  index: number
+  lng: number
+  lat: number
+}
+
+const EditableWaypointMarker = memo(function EditableWaypointMarker({
+  waypoint,
+  index,
+  lngLat,
+  onDrag,
+  onDragEnd,
+  onRemove
+}: {
+  waypoint: z.infer<typeof schemas.waypoint>
+  index: number
+  lngLat: { lng: number; lat: number }
+  onDrag: (preview: RouteDragPreview) => void
+  onDragEnd: (preview: RouteDragPreview) => void
+  onRemove: (index: number) => void
+}) {
+  const removable = waypoint.type === 'Nav'
+  return (
+    <MaplibreMarker
+      longitude={lngLat.lng}
+      latitude={lngLat.lat}
+      anchor="center"
+      draggable
+      style={{ zIndex: 50 }}
+      onDrag={(event) =>
+        onDrag({ kind: 'move', index, lng: event.lngLat.lng, lat: event.lngLat.lat })
+      }
+      onDragEnd={(event) =>
+        onDragEnd({ kind: 'move', index, lng: event.lngLat.lng, lat: event.lngLat.lat })
+      }
+    >
+      <div
+        className="group relative flex cursor-move flex-col items-center"
+        title={
+          removable
+            ? `${waypoint.name}: drag to move, right-click to delete`
+            : `${waypoint.name}: drag to move`
+        }
+        onContextMenu={(event) => {
+          event.preventDefault()
+          event.stopPropagation()
+          if (removable) onRemove(index)
+        }}
+      >
+        <span className="block h-3.5 w-3.5 rounded-full border-2 border-synthwave-pink bg-synthwave-dark shadow-[0_0_8px_rgba(255,0,170,0.6)] transition-transform group-hover:scale-125" />
+        <span className="pointer-events-none absolute top-4 whitespace-nowrap rounded-full bg-synthwave-dark/80 px-2 py-0.5 text-xs text-synthwave-light ring-1 ring-synthwave-pink/40">
+          {waypoint.name}
+        </span>
+      </div>
+    </MaplibreMarker>
+  )
+})
+
+const RouteInsertHandle = memo(function RouteInsertHandle({
+  afterIndex,
+  lngLat,
+  onDrag,
+  onDragEnd
+}: {
+  afterIndex: number
+  lngLat: { lng: number; lat: number }
+  onDrag: (preview: RouteDragPreview) => void
+  onDragEnd: (preview: RouteDragPreview) => void
+}) {
+  return (
+    <MaplibreMarker
+      longitude={lngLat.lng}
+      latitude={lngLat.lat}
+      anchor="center"
+      draggable
+      style={{ zIndex: 45 }}
+      onDrag={(event) =>
+        onDrag({
+          kind: 'insert',
+          index: afterIndex,
+          lng: event.lngLat.lng,
+          lat: event.lngLat.lat
+        })
+      }
+      onDragEnd={(event) =>
+        onDragEnd({
+          kind: 'insert',
+          index: afterIndex,
+          lng: event.lngLat.lng,
+          lat: event.lngLat.lat
+        })
+      }
+    >
+      <span
+        className="block h-2.5 w-2.5 cursor-copy rounded-full border border-synthwave-pink/80 bg-synthwave-pink/30 opacity-70 hover:opacity-100"
+        title="Drag to add a waypoint here"
+      />
+    </MaplibreMarker>
+  )
+})
+
 const GroundGroupPathOverlay = memo(function GroundGroupPathOverlay({
   groupPosition,
   targetPosition,
@@ -389,6 +502,7 @@ export function Map({
   showGoalMarkers?: boolean
 }) {
   const scenarioId = useSelector(activeStore, (state) => state.context.scenarioId)
+  const mapLayers = useSelector(uiStore, (state) => state.context.mapLayers)
   const mapRef = useRef<MapRef | null>(null)
   const lastCenteredSelectionIdRef = useRef<string | null>(null)
   const [measureState, setMeasureState] = useState<MeasureState>({
@@ -426,8 +540,13 @@ export function Map({
     }
   }, [theatreQuery.data, zoom])
   const { mapItems, objectiveMarkers, frontline, flightGroups } = useMapItems({
-    showGoalMarkers
+    showGoalMarkers,
+    showObjectiveMarkers: mapLayers.towns
   })
+  const visibleMapItems = useMemo(
+    () => mapItems.filter((item) => mapLayers[mapItemLayers[item.type]]),
+    [mapItems, mapLayers]
+  )
 
   const measureSegments = useMemo<MeasureSegment[]>(() => {
     const segments: MeasureSegment[] = []
@@ -517,6 +636,89 @@ export function Map({
   }, [livePreviewItem, liveSelectedItem])
 
   const campaign = useSelector(activeStore, (state) => state.context)
+  const playerColor = getCoalitionColor('player', campaign.playerSide)
+  const opponentColor = getCoalitionColor('opponent', campaign.playerSide)
+  const selectedPlayerFlight = useMemo(() => {
+    if (!selectedItem || !('id' in selectedItem)) return null
+    return (
+      campaign.coalitions.player.flightGroups.find((group) => group.id === selectedItem.id) ?? null
+    )
+  }, [campaign, selectedItem])
+  const [routeDragPreview, setRouteDragPreview] = useState<RouteDragPreview | null>(null)
+  // Remounts the draggable markers after each drag so they follow the stored route.
+  const [routeRevision, setRouteRevision] = useState(0)
+  const editableFlight = useMemo(() => {
+    if (!flightPlanDisplayItem || !selectedPlayerFlight) return null
+    if (flightPlanDisplayItem.id !== selectedPlayerFlight.id) return null
+    return isFlightRouteEditable(selectedPlayerFlight, campaign.time) ? selectedPlayerFlight : null
+  }, [campaign.time, flightPlanDisplayItem, selectedPlayerFlight])
+  const displayedFlightplan = useMemo(() => {
+    if (!flightPlanDisplayItem) return null
+    const flightplan = flightPlanDisplayItem.flightplan
+    if (!routeDragPreview || !editableFlight || !theatreQuery.data) return flightplan
+    const position = tryLngLatToDcsPosition(
+      theatreQuery.data.name,
+      routeDragPreview.lng,
+      routeDragPreview.lat
+    )
+    if (!position) return flightplan
+    const waypoints = [...flightplan.waypoints]
+    if (routeDragPreview.kind === 'move') {
+      const waypoint = waypoints[routeDragPreview.index]
+      if (!waypoint) return flightplan
+      waypoints[routeDragPreview.index] = { ...waypoint, position }
+    } else {
+      const previous = waypoints[routeDragPreview.index]
+      if (!previous) return flightplan
+      waypoints.splice(routeDragPreview.index + 1, 0, {
+        ...previous,
+        name: 'Nav',
+        type: 'Nav',
+        position
+      })
+    }
+    return { ...flightplan, waypoints }
+  }, [editableFlight, flightPlanDisplayItem, routeDragPreview, theatreQuery.data])
+  const handleRouteDragEnd = useCallback(
+    (preview: RouteDragPreview) => {
+      setRouteDragPreview(null)
+      setRouteRevision((revision) => revision + 1)
+      if (!editableFlight || !theatreQuery.data) return
+      const position = tryLngLatToDcsPosition(theatreQuery.data.name, preview.lng, preview.lat)
+      if (!position) return
+      if (preview.kind === 'move') {
+        activeStore.send({
+          type: 'moveWaypoint',
+          flightGroupId: editableFlight.id,
+          index: preview.index,
+          position
+        })
+      } else {
+        activeStore.send({
+          type: 'insertWaypoint',
+          flightGroupId: editableFlight.id,
+          afterIndex: preview.index,
+          position
+        })
+      }
+    },
+    [editableFlight, theatreQuery.data]
+  )
+  const handleRemoveWaypoint = useCallback(
+    (index: number) => {
+      if (!editableFlight) return
+      activeStore.send({ type: 'removeWaypoint', flightGroupId: editableFlight.id, index })
+    },
+    [editableFlight]
+  )
+  const editableWaypointPositions = useMemo(() => {
+    if (!editableFlight || !theatreQuery.data) return []
+    const theatreName = theatreQuery.data.name
+    return editableFlight.flightplan.waypoints.map((waypoint) =>
+      tryDcsPositionToLngLat(theatreName, waypoint.position.x, waypoint.position.y)
+    )
+  }, [editableFlight, theatreQuery.data])
+
   const showDeploymentOverlay =
     import.meta.env.DEV && new URLSearchParams(window.location.search).has('deployment-overlay')
   const deploymentOverlay = useMemo(() => {
@@ -644,8 +846,9 @@ export function Map({
   // Generate GeoJSON for SAM range circles
   const samRangeGeoJson = useMemo(() => {
     const features: GeoJSON.Feature<GeoJSON.Polygon>[] = []
+    if (!mapLayers.sam || !mapLayers.samRange) return turf.featureCollection(features)
 
-    for (const item of mapItems) {
+    for (const item of visibleMapItems) {
       if (item.type !== 'SAM') continue
       if (!item.active) continue
 
@@ -666,7 +869,7 @@ export function Map({
     }
 
     return turf.featureCollection(features)
-  }, [mapItems])
+  }, [mapLayers.sam, mapLayers.samRange, visibleMapItems])
 
   // Only show the map if the view state is available
   if (initialViewState == null) return null
@@ -685,9 +888,9 @@ export function Map({
         maxZoom={CAUCASUS_DETAIL_MAX_ZOOM}
         onClick={handleMapClick}
       >
-        {flightPlanDisplayItem && theatreQuery.data && (
+        {displayedFlightplan && theatreQuery.data && (
           <FlightPlanOverlay
-            flightplan={flightPlanDisplayItem.flightplan}
+            flightplan={displayedFlightplan}
             theatreName={theatreQuery.data.name}
           />
         )}
@@ -700,13 +903,44 @@ export function Map({
         )}
         {flightPlanDisplayItem && theatreQuery.data && (
           <>
-            {flightPlanDisplayItem.flightplan.waypoints.map((waypoint, index) => (
-              <WaypointLabelMarker
-                key={`${waypoint.name}-${index}`}
-                waypoint={waypoint}
-                theatreName={theatreQuery.data.name}
-              />
-            ))}
+            {flightPlanDisplayItem.flightplan.waypoints.map((waypoint, index) => {
+              const lngLat = editableWaypointPositions[index]
+              if (editableFlight && lngLat && isEditableWaypoint(waypoint)) {
+                return (
+                  <EditableWaypointMarker
+                    key={`edit-${routeRevision}-${index}`}
+                    waypoint={waypoint}
+                    index={index}
+                    lngLat={lngLat}
+                    onDrag={setRouteDragPreview}
+                    onDragEnd={handleRouteDragEnd}
+                    onRemove={handleRemoveWaypoint}
+                  />
+                )
+              }
+              return (
+                <WaypointLabelMarker
+                  key={`${waypoint.name}-${index}`}
+                  waypoint={waypoint}
+                  theatreName={theatreQuery.data.name}
+                />
+              )
+            })}
+            {editableFlight &&
+              !routeDragPreview &&
+              editableWaypointPositions.slice(0, -1).map((from, index) => {
+                const to = editableWaypointPositions[index + 1]
+                if (!from || !to) return null
+                return (
+                  <RouteInsertHandle
+                    key={`insert-${routeRevision}-${index}`}
+                    afterIndex={index}
+                    lngLat={{ lng: (from.lng + to.lng) / 2, lat: (from.lat + to.lat) / 2 }}
+                    onDrag={setRouteDragPreview}
+                    onDragEnd={handleRouteDragEnd}
+                  />
+                )
+              })}
           </>
         )}
         {/* SAM Range Circles - rendered first so they appear below other markers */}
@@ -718,7 +952,7 @@ export function Map({
               type="fill"
               filter={['==', ['get', 'coalition'], 'player']}
               paint={{
-                'fill-color': '#00d4ff',
+                'fill-color': playerColor,
                 'fill-opacity': 0.1
               }}
             />
@@ -728,7 +962,7 @@ export function Map({
               type="line"
               filter={['==', ['get', 'coalition'], 'player']}
               paint={{
-                'line-color': '#00d4ff',
+                'line-color': playerColor,
                 'line-width': 2,
                 'line-opacity': 0.6,
                 'line-dasharray': [4, 2]
@@ -740,7 +974,7 @@ export function Map({
               type="fill"
               filter={['==', ['get', 'coalition'], 'opponent']}
               paint={{
-                'fill-color': '#ff4444',
+                'fill-color': opponentColor,
                 'fill-opacity': 0.1
               }}
             />
@@ -750,7 +984,7 @@ export function Map({
               type="line"
               filter={['==', ['get', 'coalition'], 'opponent']}
               paint={{
-                'line-color': '#ff4444',
+                'line-color': opponentColor,
                 'line-width': 2,
                 'line-opacity': 0.6,
                 'line-dasharray': [4, 2]
@@ -758,13 +992,13 @@ export function Map({
             />
           </Source>
         )}
-        {frontline && (
+        {mapLayers.frontline && frontline && (
           <Source id="frontline-source" type="geojson" data={frontline}>
             <Layer
               id="frontline-player"
               type="line"
               paint={{
-                'line-color': '#00ddff',
+                'line-color': playerColor,
                 'line-width': 2,
                 'line-opacity': 0.85,
                 'line-offset': -4,
@@ -775,7 +1009,7 @@ export function Map({
               id="frontline-opponent"
               type="line"
               paint={{
-                'line-color': '#ff4d4f',
+                'line-color': opponentColor,
                 'line-width': 2,
                 'line-opacity': 0.85,
                 'line-offset': 4,
@@ -896,10 +1130,11 @@ export function Map({
               </div>
             </MaplibreMarker>
           ))}
-        {mapItems.map((item) => (
+        {visibleMapItems.map((item) => (
           <Marker
             key={item.id}
             item={item}
+            playerSide={campaign.playerSide}
             onClick={() => onSelect(item)}
             isSelected={liveSelectedItem?.id === item.id}
           />
@@ -908,6 +1143,7 @@ export function Map({
           <ObjectiveCircleMarker
             key={marker.id}
             marker={marker}
+            playerSide={campaign.playerSide}
             onClick={() => onSelect(marker)}
             isSelected={liveSelectedItem?.id === marker.id}
           />

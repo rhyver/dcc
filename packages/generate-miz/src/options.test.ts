@@ -10,6 +10,7 @@ describe('DCS mission assists', () => {
         fuel: false,
         weapons: false,
         immortal: false,
+        miniHUD: false,
         labels: 0
       })
     }
@@ -18,7 +19,8 @@ describe('DCS mission assists', () => {
   test.each([
     ['unlimitedFuel', 'fuel'],
     ['unlimitedWeapons', 'weapons'],
-    ['immortal', 'immortal']
+    ['immortal', 'immortal'],
+    ['miniHud', 'miniHUD']
   ] as const)('enables only the requested %s assist', (setting, dcsOption) => {
     const difficulty = options({ campaignParams: { dcsCheats: { [setting]: true } } }).difficulty
     expect(difficulty).toMatchObject({
@@ -26,7 +28,7 @@ describe('DCS mission assists', () => {
       weapons: dcsOption === 'weapons',
       immortal: dcsOption === 'immortal',
       labels: 0,
-      miniHUD: false,
+      miniHUD: dcsOption === 'miniHUD',
       easyFlight: false
     })
   })
@@ -48,10 +50,11 @@ describe('DCS mission assists', () => {
             unlimitedFuel: false,
             unlimitedWeapons: false,
             immortal: false,
+            miniHud: false,
             labels: 'none'
           }
         }
       }).difficulty
-    ).toMatchObject({ fuel: false, weapons: false, immortal: false, labels: 0 })
+    ).toMatchObject({ fuel: false, weapons: false, immortal: false, miniHUD: false, labels: 0 })
   })
 })

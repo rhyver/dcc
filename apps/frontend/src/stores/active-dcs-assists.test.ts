@@ -16,6 +16,7 @@ describe('campaign DCS assists', () => {
     activeStore.send({ type: 'setDcsCheats', dcsCheats: { unlimitedFuel: true } })
     activeStore.send({ type: 'setDcsCheats', dcsCheats: { unlimitedWeapons: true } })
     activeStore.send({ type: 'setDcsCheats', dcsCheats: { immortal: true, labels: 'abbreviated' } })
+    activeStore.send({ type: 'setDcsCheats', dcsCheats: { miniHud: true } })
 
     const saved = schemas.campaign.campaign.parse(
       structuredClone(activeStore.getSnapshot().context)
@@ -25,6 +26,7 @@ describe('campaign DCS assists', () => {
       unlimitedFuel: true,
       unlimitedWeapons: true,
       immortal: true,
+      miniHud: true,
       labels: 'abbreviated'
     })
   })
@@ -34,14 +36,29 @@ describe('campaign DCS assists', () => {
     campaign.campaignParams = {
       culling: false,
       enemySkill: 'Excellent',
-      dcsCheats: { unlimitedFuel: true, unlimitedWeapons: true, immortal: true, labels: 'full' }
+      dcsCheats: {
+        unlimitedFuel: true,
+        unlimitedWeapons: true,
+        immortal: true,
+        miniHud: true,
+        labels: 'full'
+      }
     }
     activeStore.send({ type: 'loadCampaign', campaign })
-    activeStore.send({ type: 'setDcsCheats', dcsCheats: { unlimitedFuel: false, labels: 'none' } })
+    activeStore.send({
+      type: 'setDcsCheats',
+      dcsCheats: { unlimitedFuel: false, miniHud: false, labels: 'none' }
+    })
     expect(activeStore.getSnapshot().context.campaignParams).toEqual({
       culling: false,
       enemySkill: 'Excellent',
-      dcsCheats: { unlimitedFuel: false, unlimitedWeapons: true, immortal: true, labels: 'none' }
+      dcsCheats: {
+        unlimitedFuel: false,
+        unlimitedWeapons: true,
+        immortal: true,
+        miniHud: false,
+        labels: 'none'
+      }
     })
   })
 
@@ -49,7 +66,11 @@ describe('campaign DCS assists', () => {
     const campaign = structuredClone(originalCampaign)
     campaign.campaignParams = { culling: true }
     expect(schemas.campaign.campaign.parse(campaign).campaignParams?.dcsCheats).toBeUndefined()
-    for (const dcsCheats of [{ labels: 'invalid' }, { unlimitedFuel: 'true' }]) {
+    for (const dcsCheats of [
+      { labels: 'invalid' },
+      { unlimitedFuel: 'true' },
+      { miniHud: 'true' }
+    ]) {
       expect(
         schemas.campaign.campaign.safeParse({ ...campaign, campaignParams: { dcsCheats } }).success
       ).toBe(false)

@@ -42,7 +42,7 @@ export function options(
     difficulty: {
       fuel: assists?.unlimitedFuel === true,
       spottingDot: 2,
-      miniHUD: false,
+      miniHUD: assists?.miniHud === true,
       optionsView: 'optview_all',
       setGlobal: true,
       avionicsLanguage: 'english',

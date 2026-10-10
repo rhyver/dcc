@@ -158,8 +158,9 @@ not establish compatible behavior.
   Save the override with the campaign; apply it to opposing aircraft, AWACS, ground units,
   SAMs, EWRs, and ships while preserving friendly AI and client aircraft. Existing campaigns
   retain per-unit defaults. Live DCS difficulty checks remain outstanding.
-- [x] Add optional DCS assists: unlimited fuel, unlimited ammunition, invulnerability, and unit
-  labels (Off/Dots/Abbreviated/Full). Save per campaign and write generated mission options;
+- [x] Add optional DCS assists: unlimited fuel, unlimited ammunition, invulnerability, Mini HUD,
+  and unit labels (Off/Dots/Abbreviated/Full). Mini HUD supplies flight cues for Flaming Cliffs
+  aircraft. Save per campaign and write generated mission options;
   existing campaigns keep all assists off. Live DCS checks remain outstanding.
 - [ ] Add configurable air activity and faster campaign time controls with explicit defaults.
 - [ ] Integrate profile-aware radio programming, navigation aids, kneeboard units, mission

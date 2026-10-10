@@ -36,7 +36,8 @@ const dcsAssistSwitches = [
     label: 'Unlimited Ammunition',
     description: 'Fly without weapon limits'
   },
-  { key: 'immortal', label: 'Invulnerability', description: 'Prevent damage to your aircraft' }
+  { key: 'immortal', label: 'Invulnerability', description: 'Prevent damage to your aircraft' },
+  { key: 'miniHud', label: 'Mini HUD', description: 'Flight cues for Flaming Cliffs aircraft' }
 ] as const
 
 const unitLabelOptions: { value: NonNullable<DcsCheats['labels']>; label: string }[] = [

@@ -373,6 +373,7 @@ export const campaign = z.preprocess(
             unlimitedFuel: z.boolean().optional(),
             unlimitedWeapons: z.boolean().optional(),
             immortal: z.boolean().optional(),
+            miniHud: z.boolean().optional(),
             labels: z.enum(['none', 'dot', 'abbreviated', 'full']).optional()
           })
           .optional(),

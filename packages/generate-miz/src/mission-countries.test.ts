@@ -1,4 +1,5 @@
 import { schemas } from '@dcc/contracts'
+import { factions } from '@dcc/data'
 import { describe, expect, test } from 'vitest'
 import * as z from 'zod'
 
@@ -46,6 +47,37 @@ function createCampaign(playerAircraftType: string, client = true): Campaign {
 }
 
 describe('configureMissionCountries', () => {
+  test.each([
+    ['west-germany-1985', 'east-germany-1985', 'Germany', 6, 'GDR', 78],
+    ['east-germany-1985', 'west-germany-1985', 'GDR', 78, 'Germany', 6],
+    ['usa-germany-1955', 'russia-germany-1955', 'USA', 2, 'Russia', 0],
+    ['usa-germany-1967', 'russia-germany-1967', 'USA', 2, 'Russia', 0]
+  ] as const)(
+    'assigns mission countries for %s against %s',
+    (playerId, opponentId, playerName, playerCountryId, opponentName, opponentCountryId) => {
+      const player = factions.find((faction) => faction.id === playerId)!
+      const opponent = factions.find((faction) => faction.id === opponentId)!
+      const campaign = createCampaign(player.aircraftTypes.CAP[0]!)
+      campaign.coalitions.player.id = playerId
+      campaign.coalitions.player.aircraftTypes = player.aircraftTypes
+      campaign.coalitions.opponent.id = opponentId
+      campaign.coalitions.opponent.aircraftTypes = opponent.aircraftTypes
+      const mission = createMission()
+      configureMissionCountries(mission, campaign)
+      expect(mission.coalition.blue.country?.[0]).toMatchObject({
+        id: playerCountryId,
+        name: playerName
+      })
+      expect(mission.coalition.red.country?.[0]).toMatchObject({
+        id: opponentCountryId,
+        name: opponentName
+      })
+      expect(mission.coalitions.blue).toContain(playerCountryId)
+      expect(mission.coalitions.red).toContain(opponentCountryId)
+      expect(mission.coalitions.blue).not.toContain(opponentCountryId)
+      expect(mission.coalitions.red).not.toContain(playerCountryId)
+    }
+  )
   test('uses the faction country for a client aircraft in the faction roster', () => {
     const mission = createMission()
 

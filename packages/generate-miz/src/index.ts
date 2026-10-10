@@ -98,7 +98,9 @@ const DCS_COUNTRY_IDS: Record<string, number> = {
   USA: 2,
   UK: 4,
   France: 5,
+  Germany: 6,
   Israel: 15,
+  GDR: 78,
   Argentina: 83
 }
 

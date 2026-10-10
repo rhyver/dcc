@@ -80,7 +80,10 @@ not establish compatible behavior.
   ground deployment sites, weather, and coordinate conversion.
 - [ ] Add the Fulda Gap scenario with NATO's Leipzig objective and the Pact's Frankfurt
   objective, initial ownership, authored structures, and briefings.
-- [ ] Import East/West Germany 1985 and US/Soviet Germany 1955/1967 factions and templates.
+- [x] Import East/West Germany 1985 and US/Soviet Germany 1955/1967 factions and templates.
+  Available through the existing faction picker; German mission countries are registered.
+  Keep aircraft rosters and ground templates from the source snapshot, omitting its unsupported
+  Training task. Germany terrain and Fulda Gap remain separate work.
 - [x] Add supported blue/red player selection and scenario mirroring, preserving scenarios that
   restrict player-side selection.
 - [ ] Add Germany map caching, offline renderer support, and kneeboard map lookup. Keep the

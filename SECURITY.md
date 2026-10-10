@@ -3,7 +3,8 @@
 ## Supported Versions
 
 DCC is in alpha. Only the latest release receives security fixes. The app
-updates itself automatically, so please make sure you are on the newest version
+updates itself automatically on Windows; Linux users install newer packages manually.
+Please make sure you are on the newest version
 before reporting.
 
 ## Reporting a Vulnerability

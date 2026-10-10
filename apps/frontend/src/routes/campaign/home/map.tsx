@@ -16,7 +16,7 @@ import MaplibreMap, {
   type MapLayerMouseEvent,
   type MapRef
 } from 'react-map-gl/maplibre'
-import maplibregl from 'maplibre-gl'
+import { maplibregl } from '@/lib/maplibre'
 import { Protocol } from 'pmtiles'
 import { RotateCcw, Star } from 'lucide-react'
 import * as turf from '@turf/turf'

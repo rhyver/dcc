@@ -3,6 +3,7 @@
 ## v0.5.0-2026101001 - 2026-10-10
 
 - Move downloads, source links, and new Windows automatic updates to GitHub.
+- Update ZIP handling, image processing, and map rendering dependencies.
 - Add supported red-side campaigns with matching factions, goals, briefings, and map colors.
 - Edit navigation waypoints for player flights before takeoff.
 - Toggle campaign map layers and SAM threat ranges.

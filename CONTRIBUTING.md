@@ -81,7 +81,8 @@ user-facing changes in your pull request so they can be picked up there.
 ## Releases
 
 Releases are cut by the maintainers with `bun run release`, which bumps the
-version, builds the Windows and Linux packages, tags and publishes. See
+version, builds the Windows and Linux packages, tags and uploads a draft. Publish a checked
+draft with `bun run release --resume --publish`. See
 [Releasing](./README.md#releasing) in the README.
 
 ## License

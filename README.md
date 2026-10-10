@@ -160,8 +160,10 @@ Tests run with Vitest in `@dcc/frontend`, `@dcc/campaign` and
 ## Releasing
 
 `bun run release` bumps the version (`<base>-YYYYMMDDNN`), builds, commits,
-tags and publishes the release to Codeberg. Publishing needs a
-`CODEBERG_TOKEN` environment variable.
+tags and uploads a draft release to GitHub. Install the GitHub CLI and run `gh auth login`
+before uploading. Releases are published from `main`, which must match `origin/main`.
+Keep the existing `0.5.0-YYYYMMDDNN` version format and write release notes in
+`docs/releases/v<version>.md` before starting a release.
 
 Releases include the Windows installer and Linux x64 AppImage and Debian packages,
 plus update manifests for both platforms. Start Docker Desktop with Linux containers
@@ -174,11 +176,17 @@ To verify Linux packaging without committing, tagging, or publishing, run
 original build.
 
 ```bash
-bun run release                # auto version, build, tag, publish
-bun run release 0.6.0          # manual version override
-bun run release --no-publish   # build and tag locally only
-bun run release --resume       # retry publishing after a failed upload
+bun run release                         # auto version, build, tag, upload draft
+bun run release 0.5.0-2026101001         # explicit version
+bun run release --no-publish            # build and tag locally; no push or upload
+bun run release --resume                # retry draft upload with existing artifacts
+bun run release --resume --publish      # publish checked draft and update feed
 ```
+
+Windows automatic updates use the public GitHub `dcc-latest` release as a generic feed,
+preserving compatibility with date-based versions. Versioned releases retain their artifacts;
+the update channel uploads binaries before replacing its manifests. Linux updates remain manual.
+See [the migration checklist](docs/plans/github-release-migration.md) for Codeberg users.
 
 ## Mission Generator Notes
 

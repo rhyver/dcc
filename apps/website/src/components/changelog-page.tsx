@@ -1,5 +1,32 @@
 import { Footer, Nav } from './site-shell'
 
+const october10ReleaseChanges = [
+  {
+    title: 'GitHub downloads and updates',
+    body: 'Downloads and new Windows automatic updates move to GitHub. Existing installations can migrate by installing this release.'
+  },
+  {
+    title: 'Red-side campaigns',
+    body: 'Choose either supported coalition, with matching map colors, factions, briefings, and campaign goals.'
+  },
+  {
+    title: 'Editable flight routes',
+    body: 'Move, insert, and remove navigation waypoints for player flights before takeoff.'
+  },
+  {
+    title: 'Map visibility controls',
+    body: 'Toggle campaign map layers and SAM threat ranges, or reset their visibility.'
+  },
+  {
+    title: 'Mission difficulty and assists',
+    body: 'Choose enemy AI skill, randomize it per unit, or enable optional fuel, ammunition, invulnerability, Mini HUD, and unit-label assists.'
+  },
+  {
+    title: 'Cold War factions',
+    body: 'Add East/West Germany 1985, USAFE 1955/1967, and GSFG 1955/1967. Germany terrain and Fulda Gap are not included.'
+  }
+]
+
 const october6ReleaseChanges = [
   {
     title: 'Linux packages',
@@ -273,6 +300,22 @@ export function ChangelogPage() {
           <section className="release-block current">
             <div className="release-meta">
               <span>Current release</span>
+              <span>10 October 2026</span>
+            </div>
+            <h2>v0.5.0-2026101001</h2>
+            <div className="change-list">
+              {october10ReleaseChanges.map((change) => (
+                <div className="change-item" key={change.title}>
+                  <h3>{change.title}</h3>
+                  <p>{change.body}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="release-block">
+            <div className="release-meta">
+              <span />
               <span>6 October 2026</span>
             </div>
             <h2>v0.5.0-2026100601</h2>
@@ -397,13 +440,13 @@ export function ChangelogPage() {
           <section className="release-block">
             <div className="release-meta">
               <span>Source of truth</span>
-              <span>Codeberg</span>
+              <span>GitHub</span>
             </div>
             <h2>Full release history</h2>
             <p>
               For installer assets, older builds, and exact tags, visit the project releases on{' '}
-              <a href="https://codeberg.org/rhyver/dcc/releases" target="_blank" rel="noreferrer">
-                Codeberg
+              <a href="https://github.com/rhyver/dcc/releases" target="_blank" rel="noreferrer">
+                GitHub
               </a>
               .
             </p>

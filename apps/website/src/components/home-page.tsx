@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { trackDownloadModalOpened, trackSourceClicked } from '../tracking'
 import { CopySections } from './copy-sections'
-import { CodebergIcon, DlIcon } from './icons'
+import { GitHubIcon, DlIcon } from './icons'
 import { DownloadModal, Footer, Nav } from './site-shell'
 import { AppScreenshotPreview, F14Hero } from './visuals'
 
@@ -57,12 +57,12 @@ export function HomePage() {
             </button>
             <a
               className="btn btn-outline"
-              href="https://codeberg.org/rhyver/dcc"
+              href="https://github.com/rhyver/dcc"
               target="_blank"
               rel="noreferrer"
               onClick={trackSourceClicked}
             >
-              <CodebergIcon />
+              <GitHubIcon />
               View Source Code
             </a>
           </div>

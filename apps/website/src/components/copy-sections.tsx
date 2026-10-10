@@ -1,5 +1,5 @@
 import { trackSourceClicked } from '../tracking'
-import { CodebergIcon, DlIcon } from './icons'
+import { GitHubIcon, DlIcon } from './icons'
 import { ViggenStage } from './visuals'
 
 export function CopySections({ onDownloadClick }: { onDownloadClick?: () => void }) {
@@ -83,16 +83,16 @@ export function CopySections({ onDownloadClick }: { onDownloadClick?: () => void
         <div className="copy-cta-row">
           <p className="copy-cta-text">
             Help us improve it — DCC is open source (MIT). Fork it, report bugs, or send a patch on
-            Codeberg.
+            GitHub.
           </p>
           <a
             className="btn btn-outline btn-lg"
-            href="https://codeberg.org/rhyver/dcc"
+            href="https://github.com/rhyver/dcc"
             target="_blank"
             rel="noreferrer"
             onClick={trackSourceClicked}
           >
-            <CodebergIcon />
+            <GitHubIcon />
             View repository
           </a>
         </div>

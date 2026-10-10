@@ -1,6 +1,6 @@
 {
   "name": "@dcc/core",
-  "version": "0.5.0-2026100601",
+  "version": "0.5.0-2026101001",
   "private": true,
   "main": "./out/main/index.js",
   "scripts": {
@@ -8,7 +8,7 @@
     "build": "electron-vite build",
     "clean:dist": "node -e \"require('node:fs').rmSync('../../dist', { recursive: true, force: true })\"",
     "build:unpack": "bun run clean:dist && electron-builder --projectDir ../.. -c apps/core/electron-builder.yml --dir",
-    "build:win": "bun run clean:dist && electron-builder --projectDir ../.. -c apps/core/electron-builder.yml --win",
+    "build:win": "bun run clean:dist && electron-builder --projectDir ../.. -c apps/core/electron-builder.yml --win --publish never",
     "build:mac": "bun run clean:dist && electron-builder --projectDir ../.. -c apps/core/electron-builder.yml --mac",
     "build:linux": "bun run clean:dist && electron-builder --projectDir ../.. -c apps/core/electron-builder.yml --linux",
     "tsc": "tsc --noEmit",

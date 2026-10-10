@@ -70,5 +70,5 @@ deb:
 npmRebuild: false
 publish:
   provider: generic
-  url: https://codeberg.org/rhyver/dcc/releases/download/dcc-latest
+  url: https://github.com/rhyver/dcc/releases/download/dcc-latest
   channel: latest

@@ -73,8 +73,8 @@ export function DocsPage() {
             <h2>Project links</h2>
             <p>
               Read the source, report issues, and inspect release assets on{' '}
-              <a href="https://codeberg.org/rhyver/dcc" target="_blank" rel="noreferrer">
-                Codeberg
+              <a href="https://github.com/rhyver/dcc" target="_blank" rel="noreferrer">
+                GitHub
               </a>
               . Join the pilot community on{' '}
               <a href="https://discord.gg/jZZ3pFpY3e" target="_blank" rel="noreferrer">

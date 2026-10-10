@@ -156,8 +156,11 @@ const channel = await $`gh release view ${LATEST_TAG} --repo ${REPO} --json isDr
   .quiet()
   .nothrow()
 if (channel.exitCode !== 0) {
+  const remoteTag = (await $`git ls-remote --tags origin ${`refs/tags/${LATEST_TAG}`}`.text())
+    .trim()
+    .split(/\s/)[0]
   await $`git tag -f ${LATEST_TAG} HEAD`
-  await $`git push origin ${`refs/tags/${LATEST_TAG}`}`
+  await $`git push ${`--force-with-lease=refs/tags/${LATEST_TAG}:${remoteTag}`} origin ${`refs/tags/${LATEST_TAG}`}`
   await $`gh release create ${LATEST_TAG} --repo ${REPO} --verify-tag --draft --prerelease --title ${`Auto-update channel (${version})`} --notes ${`Update feed for ${tag}. Use versioned releases for release history.`}`
 }
 for (const path of artifacts)

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and discussion
+    url: https://discord.gg/jZZ3pFpY3e
+    about: Ask questions and talk with other DCC users on Discord.
+  - name: Report a security vulnerability
+    url: https://github.com/rhyver/dcc/security/advisories/new
+    about: Please report security problems privately, not as a public issue.

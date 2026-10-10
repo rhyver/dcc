@@ -1,0 +1,61 @@
+name: Bug report
+description: Something in DCC is broken or behaves unexpectedly
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please search existing issues first to avoid duplicates.
+        Security problems belong in a private report instead: see SECURITY.md.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the problem and what you expected to happen instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Create a campaign on Caucasus with ...
+        2. Generate the next mission
+        3. Start it in DCS and ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: DCC version
+      description: For example 0.5.0-2026100601 (part of the installer file name).
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - Linux (AppImage)
+        - Linux (.deb)
+        - Running from source
+    validations:
+      required: true
+  - type: input
+    id: dcs
+    attributes:
+      label: DCS version and theatre
+      description: Only if the problem shows up in DCS, e.g. "2.9.x, Persian Gulf".
+  - type: textarea
+    id: debug-bundle
+    attributes:
+      label: Debug bundle and logs
+      description: |
+        In DCC, open the title bar **Dev** menu and choose **Create Debug Bundle**, then attach the zip here.
+        It contains your active campaign, the generated mission and log files. Check it for anything you don't want to share.
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Screenshots, related issues, or ideas about the cause.

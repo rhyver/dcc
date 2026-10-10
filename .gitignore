@@ -13,3 +13,9 @@ out
 
 .vercel
 /feedback/
+
+# Local tooling and debug output
+.claude/settings.local.json
+.cursor/
+artifacts/
+cargo-mission

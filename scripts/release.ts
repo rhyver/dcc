@@ -3,7 +3,6 @@ import { $ } from 'bun'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 
 const REPO = 'rhyver/dcc'
-const LATEST_TAG = 'dcc-latest'
 const argv = process.argv.slice(2)
 const skipPublish = argv.includes('--no-publish')
 const resume = argv.includes('--resume')
@@ -126,7 +125,7 @@ if (lookup.exitCode === 0) {
     await $`gh release list --repo ${REPO} --limit 100 --json tagName`.text()
   ) as { tagName: string }[]
   if (releases.some((item) => item.tagName === tag)) throw new Error(`Could not inspect ${tag}`)
-  await $`gh release create ${tag} --repo ${REPO} --verify-tag --draft --prerelease --title ${tag} --notes-file ${notes}`
+  await $`gh release create ${tag} --repo ${REPO} --verify-tag --draft --title ${tag} --notes-file ${notes}`
   release = JSON.parse(
     await $`gh release view ${tag} --repo ${REPO} --json isDraft,url`.text()
   ) as Release
@@ -148,25 +147,8 @@ if (!publish) {
   )
   process.exit(0)
 }
-if (release.isDraft) await $`gh release edit ${tag} --repo ${REPO} --draft=false`
-
-// Keep the generic update feed: numeric date prereleases do not form a single GitHub-native channel.
-// Upload binaries first and manifests last, so installed apps only discover complete downloads.
-const channel = await $`gh release view ${LATEST_TAG} --repo ${REPO} --json isDraft`
-  .quiet()
-  .nothrow()
-if (channel.exitCode !== 0) {
-  const remoteTag = (await $`git ls-remote --tags origin ${`refs/tags/${LATEST_TAG}`}`.text())
-    .trim()
-    .split(/\s/)[0]
-  await $`git tag -f ${LATEST_TAG} HEAD`
-  await $`git push ${`--force-with-lease=refs/tags/${LATEST_TAG}:${remoteTag}`} origin ${`refs/tags/${LATEST_TAG}`}`
-  await $`gh release create ${LATEST_TAG} --repo ${REPO} --verify-tag --draft --prerelease --title ${`Auto-update channel (${version})`} --notes ${`Update feed for ${tag}. Use versioned releases for release history.`}`
-}
-for (const path of artifacts)
-  await $`gh release upload ${LATEST_TAG} --repo ${REPO} --clobber ${path}`
-await $`gh release edit ${LATEST_TAG} --repo ${REPO} --draft=false --title ${`Auto-update channel (${version})`} --notes ${`Update feed for [${tag}](https://github.com/${REPO}/releases/tag/${tag}).`}`
+// Installed apps read the generic feed at releases/latest/download, so the published release must
+// become GitHub's latest release. Drafts are invisible there until every artifact is uploaded.
+if (release.isDraft) await $`gh release edit ${tag} --repo ${REPO} --draft=false --latest`
 console.log(`Published ${tag}: ${release.url}`)
-console.log(
-  `Auto-update feed: https://github.com/${REPO}/releases/download/${LATEST_TAG}/latest.yml`
-)
+console.log(`Auto-update feed: https://github.com/${REPO}/releases/latest/download/latest.yml`)

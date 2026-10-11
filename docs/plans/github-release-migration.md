@@ -5,9 +5,10 @@ Release: `v0.5.0-2026101001`; preserve `0.5.0-YYYYMMDDNN` versioning.
 
 ## Implementation
 
-- Use GitHub's `dcc-latest` release as a generic updater feed. The GitHub-native updater
-  interprets numeric prerelease identifiers as individual channels; the generic feed preserves
-  existing date-based versioning.
+- Use GitHub's latest release (`releases/latest/download`) as a generic updater feed. The
+  GitHub-native updater interprets numeric prerelease identifiers as individual channels; the
+  generic feed preserves existing date-based versioning. Versioned releases are therefore
+  published as regular releases, not GitHub prereleases.
 - Keep the application ID, executable name, and campaign save locations unchanged.
 - Build Windows NSIS and Linux x64 AppImage/Debian packages with publishing disabled during builds.
 - Upload all installers, blockmaps, and both update manifests to a draft versioned release.
@@ -22,7 +23,7 @@ Release: `v0.5.0-2026101001`; preserve `0.5.0-YYYYMMDDNN` versioning.
 - [ ] Confirm embedded update config points to public GitHub and preserves `latest` channel.
 - [ ] Smoke-test the packaged app with an existing campaign and generate a mission.
 - [ ] Make `rhyver/dcc` public.
-- [ ] Publish the versioned GitHub release and refresh `dcc-latest`.
+- [ ] Publish the versioned GitHub release as the latest release.
 - [ ] Verify anonymous installer/manifest access and update discovery/download.
 - [ ] Publish the transition build to Codeberg's existing `dcc-latest` feed.
 - [ ] Deploy the updated website through its existing hosting process.

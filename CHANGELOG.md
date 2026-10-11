@@ -1,17 +1,26 @@
 # Changelog
 
-## v0.5.0-2026101001 - 2026-10-10
+## v0.5.0-2026101101 - 2026-10-11
 
-- Move downloads, source links, and new Windows automatic updates to GitHub.
-- Update ZIP handling, image processing, and map rendering dependencies.
-- Add supported red-side campaigns with matching factions, goals, briefings, and map colors.
-- Edit navigation waypoints for player flights before takeoff.
-- Toggle campaign map layers and SAM threat ranges.
-- Configure enemy AI skill with visual steps and an independent Random switch.
-- Save optional DCS assists per campaign: unlimited fuel/ammunition, invulnerability,
-  Mini HUD for Flaming Cliffs aircraft, and stepped unit labels. Defaults remain off.
-- Add East/West Germany 1985, USAFE 1955/1967, and GSFG 1955/1967 factions and templates.
-  Germany terrain and Fulda Gap remain pending.
+### New
+
+- Supported scenarios can now be played from either coalition. Red-side campaigns use matching
+  factions, goals, briefings, and map colors.
+- Navigation waypoints for player flights can be moved, inserted, and removed before takeoff.
+- Campaign map layers and SAM threat ranges can be shown or hidden individually.
+- Enemy AI skill can be set with a stepped slider, or randomized per unit with a separate
+  Random switch.
+- Optional DCS assists can be saved per campaign: unlimited fuel and ammunition,
+  invulnerability, Mini HUD for Flaming Cliffs aircraft, and stepped unit labels. All default
+  to off.
+- East/West Germany 1985, USAFE 1955/1967, and GSFG 1955/1967 factions with aircraft rosters
+  and ground templates. Germany terrain and Fulda Gap remain pending.
+
+### Improved
+
+- Downloads, source links, and new Windows automatic updates moved to GitHub.
+- Mission option toggles are now accessible step sliders.
+- Updated ZIP handling, image processing, and map rendering dependencies.
 
 ## v0.5.0-2026100601 - 2026-10-06
 

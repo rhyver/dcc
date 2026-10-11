@@ -159,29 +159,25 @@ Tests run with Vitest in `@dcc/frontend`, `@dcc/campaign` and
 
 ## Releasing
 
-`bun run release` bumps the version (`<base>-YYYYMMDDNN`), builds, commits,
-tags and uploads a draft release to GitHub. Install the GitHub CLI and run `gh auth login`
-before uploading. Releases are published from `main`, which must match `origin/main`.
-Keep the existing `0.5.0-YYYYMMDDNN` version format and write release notes in
-`docs/releases/v<version>.md` before starting a release.
+`bun run release` bumps the version (`<base>-YYYYMMDDNN`), commits, tags, and pushes to
+`main`. The tag starts the [Release workflow](.github/workflows/release.yml), which builds
+the Windows installer and the Linux x64 AppImage and Debian packages from the tag, verifies
+them, and uploads them with both update manifests to a draft GitHub release. Install the
+GitHub CLI and run `gh auth login` first. Releases are cut from `main`, which must match
+`origin/main`. Keep the existing `0.5.0-YYYYMMDDNN` version format and write release notes
+in `docs/releases/v<version>.md` before starting a release.
 
-Releases include the Windows installer and Linux x64 AppImage and Debian packages,
-plus update manifests for both platforms. Start Docker Desktop with Linux containers
-before releasing. Linux builds run with separate dependencies inside Docker and write
-to `dist/linux`, preserving the Windows artifacts in `dist`. The first build downloads
-the builder image and dependencies; subsequent builds reuse download caches.
-
-To verify Linux packaging without committing, tagging, or publishing, run
-`bun run build:linux:docker`. `--resume` requires both platforms' artifacts from the
-original build.
+After checking the draft, publish it with `bun run release --publish`. To rebuild a failed
+release, run the Release workflow manually with the existing tag.
 
 ```bash
-bun run release                         # auto version, build, tag, upload draft
-bun run release 0.5.0-2026101001         # explicit version
-bun run release --no-publish            # build and tag locally; no push or upload
-bun run release --resume                # retry draft upload with existing artifacts
-bun run release --resume --publish      # publish checked draft as latest release
+bun run release                         # auto version, commit, tag, push; CI builds the draft
+bun run release 0.5.0-2026101101        # explicit version
+bun run release --publish               # publish the checked draft as the latest release
 ```
+
+To verify packaging locally without releasing, run `bun run build:win` or, with Docker
+Desktop running Linux containers, `bun run build:linux:docker` (output in `dist/linux`).
 
 Windows automatic updates read a generic feed from the latest GitHub release
 (`releases/latest/download`), preserving compatibility with date-based versions. Versioned

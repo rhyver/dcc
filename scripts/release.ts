@@ -4,21 +4,18 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 
 const REPO = 'rhyver/dcc'
 const argv = process.argv.slice(2)
-const skipPublish = argv.includes('--no-publish')
-const resume = argv.includes('--resume')
 const publish = argv.includes('--publish')
 const manualVersion = argv.find((arg) => !arg.startsWith('--'))
-const flags = new Set(['--no-publish', '--resume', '--publish'])
 
-if (argv.some((arg) => arg.startsWith('--') && !flags.has(arg)) || (skipPublish && publish)) {
-  console.error('usage: bun run release [version] [--no-publish | --publish] [--resume]')
-  console.error('Default: build, tag, push to GitHub, and upload a draft release.')
-  console.error('--no-publish: build and tag locally; no push or upload.')
-  console.error('--publish: publish the verified draft and refresh the auto-update channel.')
-  console.error('--resume: reuse the current version, tag, and existing artifacts.')
+if (argv.some((arg) => arg.startsWith('--') && arg !== '--publish') || (publish && manualVersion)) {
+  console.error('usage: bun run release [version] | bun run release --publish')
+  console.error('Default: bump the version, commit, tag, and push. GitHub Actions builds the')
+  console.error('Windows and Linux packages and uploads them to a draft release.')
+  console.error(
+    '--publish: publish the checked draft of the current version as the latest release.'
+  )
   process.exit(1)
 }
-if (resume && manualVersion) throw new Error('--resume cannot be combined with a manual version')
 if (manualVersion && !/^\d+\.\d+\.\d+(-[A-Za-z0-9.]+)?$/.test(manualVersion)) {
   throw new Error(`Invalid semver: ${manualVersion}`)
 }
@@ -27,24 +24,49 @@ process.chdir((await $`git rev-parse --show-toplevel`.text()).trim())
 if ((await $`git status --porcelain`.text()).trim()) {
   throw new Error('Working tree is dirty; commit changes before releasing')
 }
-const branch = (await $`git branch --show-current`.text()).trim()
-if (!skipPublish && branch !== 'main' && branch !== '')
-  throw new Error('Publish releases from main or a detached origin/main checkout')
-if (!skipPublish) {
-  await $`gh auth status`.quiet()
-  await $`git fetch origin main --tags`
-  if (
-    (await $`git rev-parse HEAD`.text()).trim() !==
-    (await $`git rev-parse origin/main`.text()).trim()
-  ) {
-    throw new Error('main must match origin/main before releasing')
-  }
+if ((await $`git branch --show-current`.text()).trim() !== 'main') {
+  throw new Error('Release from main')
+}
+await $`gh auth status`.quiet()
+await $`git fetch origin main --tags`
+if (
+  (await $`git rev-parse HEAD`.text()).trim() !== (await $`git rev-parse origin/main`.text()).trim()
+) {
+  throw new Error('main must match origin/main before releasing')
 }
 
 const currentVersion = (JSON.parse(readFileSync('package.json', 'utf8')) as { version: string })
   .version
+
+if (publish) {
+  const tag = `v${currentVersion}`
+  const release = JSON.parse(
+    await $`gh release view ${tag} --repo ${REPO} --json isDraft,url,assets`.text()
+  ) as { isDraft: boolean; url: string; assets: { name: string }[] }
+  if (!release.isDraft) throw new Error(`${tag} is already published: ${release.url}`)
+  const expected = [
+    `dcc-${currentVersion}-setup.exe`,
+    `dcc-${currentVersion}-setup.exe.blockmap`,
+    `dcc-${currentVersion}.AppImage`,
+    `dcc-${currentVersion}-amd64.deb`,
+    'latest.yml',
+    'latest-linux.yml'
+  ]
+  for (const name of expected) {
+    if (!release.assets.some((asset) => asset.name === name)) {
+      throw new Error(`Draft ${tag} is missing ${name}`)
+    }
+  }
+  // Installed apps read the generic feed at releases/latest/download, so the published release must
+  // become GitHub's latest release. Drafts are invisible there until they are published.
+  await $`gh release edit ${tag} --repo ${REPO} --draft=false --latest`
+  console.log(`Published ${tag}: ${release.url}`)
+  console.log(`Auto-update feed: https://github.com/${REPO}/releases/latest/download/latest.yml`)
+  process.exit(0)
+}
+
 let version = manualVersion ?? currentVersion
-if (!resume && !manualVersion) {
+if (!manualVersion) {
   const base = currentVersion.replace(/-\d{10,}$/, '')
   if (!/^\d+\.\d+\.\d+$/.test(base)) throw new Error(`Cannot derive version from ${currentVersion}`)
   const now = new Date()
@@ -61,94 +83,22 @@ if (!resume && !manualVersion) {
 const tag = `v${version}`
 const notes = `docs/releases/${tag}.md`
 if (!existsSync(notes)) throw new Error(`Write release notes in ${notes} before releasing`)
-
-if (resume) {
-  const tagCommit = (await $`git rev-parse ${`${tag}^{commit}`}`.text()).trim()
-  if (tagCommit !== (await $`git rev-parse HEAD`.text()).trim()) {
-    throw new Error('The release tag must point to the checked-out commit')
-  }
-} else {
-  if ((await $`git rev-parse --verify ${tag}`.quiet().nothrow()).exitCode === 0) {
-    throw new Error(`${tag} already exists`)
-  }
-  for (const path of ['package.json', 'apps/core/package.json']) {
-    const pkg = JSON.parse(readFileSync(path, 'utf8'))
-    pkg.version = version
-    writeFileSync(path, JSON.stringify(pkg, null, 2) + '\n')
-  }
-  await $`bun install`
-  await $`bun run build:win`
-  await $`bun run build:linux:docker`
+if ((await $`git rev-parse --verify ${tag}`.quiet().nothrow()).exitCode === 0) {
+  throw new Error(`${tag} already exists`)
 }
 
-const artifacts = [
-  `dist/dcc-${version}-setup.exe`,
-  `dist/dcc-${version}-setup.exe.blockmap`,
-  `dist/linux/dcc-${version}.AppImage`,
-  `dist/linux/dcc-${version}-amd64.deb`,
-  'dist/latest.yml',
-  'dist/linux/latest-linux.yml'
-]
-for (const path of artifacts) if (!existsSync(path)) throw new Error(`Missing artifact: ${path}`)
-for (const path of ['dist/latest.yml', 'dist/linux/latest-linux.yml']) {
-  if (!readFileSync(path, 'utf8').includes(`version: ${version}`)) {
-    throw new Error(`Wrong release version in ${path}`)
-  }
+for (const path of ['package.json', 'apps/core/package.json']) {
+  const pkg = JSON.parse(readFileSync(path, 'utf8'))
+  pkg.version = version
+  writeFileSync(path, JSON.stringify(pkg, null, 2) + '\n')
 }
-if (
-  (JSON.parse(readFileSync('apps/core/package.json', 'utf8')) as { version: string }).version !==
-  version
-) {
-  throw new Error('App and release versions differ')
-}
-
-if (!resume) {
-  await $`git add package.json apps/core/package.json bun.lock`
-  if ((await $`git diff --cached --quiet`.nothrow()).exitCode !== 0)
-    await $`git commit -m ${`Release ${tag}`}`
-  await $`git tag -a ${tag} -m ${`Release ${tag}`}`
-}
-if (skipPublish) {
-  console.log(`Built and tagged ${tag} locally. Nothing pushed or uploaded.`)
-  process.exit(0)
-}
-
-await $`git push origin HEAD:main ${`refs/tags/${tag}`}`
-type Release = { isDraft: boolean; url: string }
-const lookup = await $`gh release view ${tag} --repo ${REPO} --json isDraft,url`.quiet().nothrow()
-let release: Release
-if (lookup.exitCode === 0) {
-  release = JSON.parse(lookup.stdout.toString()) as Release
-} else {
-  // A failed lookup must not be mistaken for a missing release (e.g. auth/network failure).
-  const releases = JSON.parse(
-    await $`gh release list --repo ${REPO} --limit 100 --json tagName`.text()
-  ) as { tagName: string }[]
-  if (releases.some((item) => item.tagName === tag)) throw new Error(`Could not inspect ${tag}`)
-  await $`gh release create ${tag} --repo ${REPO} --verify-tag --draft --title ${tag} --notes-file ${notes}`
-  release = JSON.parse(
-    await $`gh release view ${tag} --repo ${REPO} --json isDraft,url`.text()
-  ) as Release
-}
-if (release.isDraft) {
-  await $`gh release upload ${tag} --repo ${REPO} --clobber ${artifacts}`
-  const remote = JSON.parse(
-    await $`gh release view ${tag} --repo ${REPO} --json assets`.text()
-  ) as { assets: { name: string; size: number }[] }
-  for (const path of artifacts) {
-    const asset = remote.assets.find((item) => item.name === path.split('/').pop())
-    if (!asset || asset.size !== Bun.file(path).size)
-      throw new Error(`Upload verification failed: ${path}`)
-  }
-}
-if (!publish) {
-  console.log(
-    `Draft ready: ${release.url}. After checking packages, run bun run release --resume --publish`
-  )
-  process.exit(0)
-}
-// Installed apps read the generic feed at releases/latest/download, so the published release must
-// become GitHub's latest release. Drafts are invisible there until every artifact is uploaded.
-if (release.isDraft) await $`gh release edit ${tag} --repo ${REPO} --draft=false --latest`
-console.log(`Published ${tag}: ${release.url}`)
-console.log(`Auto-update feed: https://github.com/${REPO}/releases/latest/download/latest.yml`)
+await $`bun install`
+await $`git add package.json apps/core/package.json bun.lock`
+await $`git commit -m ${`Release ${tag}`}`
+await $`git tag -a ${tag} -m ${`Release ${tag}`}`
+// The tag push starts .github/workflows/release.yml, which builds and uploads the draft release.
+await $`git push --atomic origin HEAD:main ${`refs/tags/${tag}`}`
+console.log(
+  `Pushed ${tag}. Follow the build: https://github.com/${REPO}/actions/workflows/release.yml`
+)
+console.log('After checking the draft release, run bun run release --publish')

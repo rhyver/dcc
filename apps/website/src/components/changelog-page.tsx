@@ -1,6 +1,6 @@
 import { Footer, Nav } from './site-shell'
 
-const october10ReleaseChanges = [
+const october11ReleaseChanges = [
   {
     title: 'GitHub downloads and updates',
     body: 'Downloads and new Windows automatic updates move to GitHub. Existing installations can migrate by installing this release.'
@@ -24,6 +24,14 @@ const october10ReleaseChanges = [
   {
     title: 'Cold War factions',
     body: 'Add East/West Germany 1985, USAFE 1955/1967, and GSFG 1955/1967. Germany terrain and Fulda Gap are not included.'
+  },
+  {
+    title: 'Campaign map fixes',
+    body: 'Selecting a package no longer crashes the campaign map, and zooming behaves normally again.'
+  },
+  {
+    title: 'Correct EWR bearings',
+    body: "EWR bearing calls use each theatre's magnetic variation instead of a fixed 7 degrees."
   }
 ]
 
@@ -300,11 +308,16 @@ export function ChangelogPage() {
           <section className="release-block current">
             <div className="release-meta">
               <span>Current release</span>
-              <span>10 October 2026</span>
+              <span>11 October 2026</span>
             </div>
-            <h2>v0.5.0-2026101001</h2>
+            <h2>v0.5.0-2026101101</h2>
+            <p>
+              The new campaign features are ported from{' '}
+              <a href="https://github.com/Samuelblew/DCC-Project-Germany-">DCC-Project-Germany</a>{' '}
+              by Samuel_Bléw. Thank you!
+            </p>
             <div className="change-list">
-              {october10ReleaseChanges.map((change) => (
+              {october11ReleaseChanges.map((change) => (
                 <div className="change-item" key={change.title}>
                   <h3>{change.title}</h3>
                   <p>{change.body}</p>

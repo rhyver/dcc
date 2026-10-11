@@ -1,0 +1,115 @@
+name: Release
+
+# Started by `bun run release`, which pushes the version tag. Builds the Windows and Linux
+# packages from the tag and uploads them to a draft release. Publish the checked draft with
+# `bun run release --publish`.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to rebuild (for example v0.5.0-2026101101)
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+      # Electron 42 has no postinstall, so bun install does not download the binary.
+      - run: node node_modules/electron/install.js
+      - run: bun run build:win
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          if-no-files-found: error
+          path: |
+            dist/dcc-*-setup.exe
+            dist/dcc-*-setup.exe.blockmap
+            dist/latest.yml
+
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TAG }}
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      # Same pinned Docker builder as local Linux builds.
+      - run: bun scripts/build-linux.ts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          if-no-files-found: error
+          path: |
+            dist/linux/dcc-*.AppImage
+            dist/linux/dcc-*-amd64.deb
+            dist/linux/latest-linux.yml
+
+  draft:
+    needs: [windows, linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/download-artifact@v5
+        with:
+          path: release
+          merge-multiple: true
+      - name: Verify artifacts
+        run: |
+          version="${TAG#v}"
+          for path in package.json apps/core/package.json; do
+            test "$(jq -r .version "$path")" = "$version" || { echo "::error::$path is not $version"; exit 1; }
+          done
+          test -f "docs/releases/$TAG.md" || { echo "::error::Missing docs/releases/$TAG.md"; exit 1; }
+          for name in "dcc-$version-setup.exe" "dcc-$version-setup.exe.blockmap" \
+            "dcc-$version.AppImage" "dcc-$version-amd64.deb" latest.yml latest-linux.yml; do
+            test -f "release/$name" || { echo "::error::Missing artifact $name"; exit 1; }
+          done
+          for manifest in latest.yml latest-linux.yml; do
+            grep -qx "version: $version" "release/$manifest" ||
+              { echo "::error::Wrong version in $manifest"; exit 1; }
+          done
+      - name: Upload draft release
+        run: |
+          if gh release view "$TAG" --json isDraft --jq .isDraft > draft.txt 2> view-error.txt; then
+            test "$(cat draft.txt)" = true || { echo "::error::$TAG is already published"; exit 1; }
+          elif grep -q "release not found" view-error.txt; then
+            gh release create "$TAG" --verify-tag --draft --title "$TAG" --notes-file "docs/releases/$TAG.md"
+          else
+            cat view-error.txt; exit 1
+          fi
+          gh release upload "$TAG" --clobber release/*
+          for path in release/*; do
+            size=$(gh release view "$TAG" --json assets \
+              --jq ".assets[] | select(.name == \"$(basename "$path")\") | .size")
+            test "$size" = "$(stat -c %s "$path")" || { echo "::error::Upload verification failed: $path"; exit 1; }
+          done
+          echo "Draft ready: $(gh release view "$TAG" --json url --jq .url)" >> "$GITHUB_STEP_SUMMARY"

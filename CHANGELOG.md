@@ -2,6 +2,10 @@
 
 ## v0.5.0-2026101101 - 2026-10-11
 
+The new campaign features in this release are ported from
+[DCC-Project-Germany](https://github.com/Samuelblew/DCC-Project-Germany-) by Samuel_Bléw.
+Thank you!
+
 ### New
 
 - Supported scenarios can now be played from either coalition. Red-side campaigns use matching
@@ -21,6 +25,12 @@
 - Downloads, source links, and new Windows automatic updates moved to GitHub.
 - Mission option toggles are now accessible step sliders.
 - Updated ZIP handling, image processing, and map rendering dependencies.
+
+### Fixed
+
+- Selecting a package on the campaign map no longer crashes with "Cannot read properties of
+  undefined (reading 'center')", and zooming the map behaves normally again.
+- EWR bearing calls now use each theatre's magnetic variation instead of a fixed 7 degrees.
 
 ## v0.5.0-2026100601 - 2026-10-06
 

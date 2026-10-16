@@ -1,6 +1,8 @@
 import { schemas } from '@dcc/contracts'
 import * as z from 'zod'
 
+import { carrierStrikeGroup, radians } from './naval-groups'
+
 export const OperationNorthernShield: z.infer<typeof schemas.scenario> = {
   theatreName: 'Syria',
   id: 'operation-northern-shield',
@@ -32,5 +34,10 @@ export const OperationNorthernShield: z.infer<typeof schemas.scenario> = {
       groundGroupSpawnMultiplier: 1,
       objectiveIds: ['El Taebah', 'Al Harah', 'Aadloun']
     }
+  },
+  navalGroups: {
+    // Sails from the theatre's Alpha ship objective, which the campaign excludes as a capture target.
+    player: carrierStrikeGroup({ x: -201_338, y: -125_911 }, radians(0)),
+    opponent: []
   }
 }

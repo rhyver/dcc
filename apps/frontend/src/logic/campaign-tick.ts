@@ -1,6 +1,6 @@
 import { schemas } from '@dcc/contracts'
-import { advanceFalklandsCampaign } from '@dcc/campaign'
-import { theatres } from '@dcc/data'
+import { advanceFalklandsCampaign, ensureSupercarriersForFlightGroups } from '@dcc/campaign'
+import { aircrafts, theatres } from '@dcc/data'
 import * as z from 'zod'
 
 import { debugLog } from '@/lib/debug'
@@ -64,6 +64,9 @@ export function applyLogicTick(draft: Campaign, delta: number) {
     updateGroundGroups(draft, coalition, delta, { move: false })
   )
   forEachActiveCoalition((coalition) => spawn(draft, coalition))
+  ensureSupercarriersForFlightGroups(draft, (aircraftName) =>
+    Object.values(aircrafts).find((aircraft) => aircraft.name === aircraftName)
+  )
   updateFalklandsCampaign(draft)
   updateCampaignGoal(draft)
 }

@@ -2,6 +2,7 @@ import { schemas } from '@dcc/contracts'
 import {
   ensurePersistentIadsEwrs,
   ensureSupercarrierForAircraft,
+  ensureSupercarriersForFlightGroups,
   migrateFalklandsSanCarlosFarp,
   migrateLegacyFalklandsNavalStarts
 } from '@dcc/campaign'
@@ -363,6 +364,9 @@ export function removeEmptyGroundGroups(campaign: Campaign): Campaign {
 function migrateLoadedCampaign(campaign: Campaign): Campaign {
   return produce(campaign, (draft) => {
     migrateLegacyFalklandsNavalStarts(draft)
+    ensureSupercarriersForFlightGroups(draft, (aircraftName) =>
+      Object.values(aircraftDefinitions).find((aircraft) => aircraft.name === aircraftName)
+    )
     const scenario = scenarios.find((entry) => entry.id === draft.scenarioId)
     const theatre = scenario
       ? theatres.find((entry) => entry.name === scenario.theatreName)

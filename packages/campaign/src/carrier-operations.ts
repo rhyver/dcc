@@ -54,3 +54,36 @@ export function ensureSupercarrierForAircraft(
 
   return changed
 }
+
+/**
+ * Adds a Supercarrier to Harrier carrier groups that host fixed-wing carrier aircraft, however the
+ * flight was planned. Without it, mission generation cannot place those flights.
+ */
+export function ensureSupercarriersForFlightGroups(
+  campaign: Campaign,
+  findAircraft: (
+    aircraftName: string
+  ) => Pick<Aircraft, 'carrierCapable' | 'isHelicopter' | 'name'> | undefined
+) {
+  let changed = false
+  for (const coalition of ['player', 'opponent'] as const) {
+    const { flightGroups, navalGroups } = campaign.coalitions[coalition]
+    for (const flightGroup of flightGroups) {
+      const homeCarrier = navalGroups?.find(
+        (group) =>
+          group.id === flightGroup.homeBase &&
+          group.role === 'carrier' &&
+          group.unitTypes.some((unitType) => HARRIER_CARRIER_UNIT_TYPES.has(unitType))
+      )
+      if (!homeCarrier) continue
+
+      for (const aircraft of flightGroup.aircrafts) {
+        const definition = findAircraft(aircraft.aircraftName)
+        if (definition && ensureSupercarrierForAircraft(campaign, coalition, definition)) {
+          changed = true
+        }
+      }
+    }
+  }
+  return changed
+}

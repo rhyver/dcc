@@ -1,6 +1,8 @@
 import { schemas } from '@dcc/contracts'
 import * as z from 'zod'
 
+import { carrierStrikeGroup, radians } from './naval-groups'
+
 export const RedBullet: z.infer<typeof schemas.scenario> = {
   theatreName: 'Caucasus',
   id: 'red-bullet',
@@ -33,5 +35,10 @@ export const RedBullet: z.infer<typeof schemas.scenario> = {
       groundGroupSpawnMultiplier: 1,
       objectiveIds: ['Sukhumi-Babushara', 'Enguri Dam', 'Sarakoni', 'Bataria']
     }
+  },
+  navalGroups: {
+    // Sails from the theatre's Alpha ship objective, which the campaign excludes as a capture target.
+    player: carrierStrikeGroup({ x: -305_484, y: 577_991 }, radians(0)),
+    opponent: []
   }
 }

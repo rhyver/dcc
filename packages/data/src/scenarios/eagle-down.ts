@@ -1,6 +1,8 @@
 import { schemas } from '@dcc/contracts'
 import * as z from 'zod'
 
+import { carrierStrikeGroup, radians } from './naval-groups'
+
 export const EagleDown: z.infer<typeof schemas.scenario> = {
   theatreName: 'PersianGulf',
   id: 'eagle-down',
@@ -34,5 +36,10 @@ export const EagleDown: z.infer<typeof schemas.scenario> = {
       groundGroupSpawnMultiplier: 1,
       objectiveIds: ['Seerik', 'Chahestan', 'Bandar-e Lengeh', 'Bandar-e-Jask']
     }
+  },
+  navalGroups: {
+    // Sails from the theatre's Alpha ship objective, which the campaign excludes as a capture target.
+    player: carrierStrikeGroup({ x: -62_761, y: 28_253 }, radians(0)),
+    opponent: []
   }
 }

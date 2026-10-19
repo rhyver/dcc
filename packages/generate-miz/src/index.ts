@@ -1,3 +1,4 @@
+import { ensurePersistentGciEwrs } from '@dcc/campaign'
 import { config, schemas } from '@dcc/contracts'
 import { factions } from '@dcc/data'
 import * as luaTable from '@dcc/lua-table'
@@ -7,6 +8,7 @@ import * as z from 'zod'
 
 import { addAwacsGroups } from './add-awacs-groups'
 import { addFlightGroups, type MissionFlightConfig } from './add-flight-groups'
+import { addGciStations, configureNativeGci } from './add-gci'
 import { addGroundGroups } from './add-ground-groups'
 import { addNavalGroups } from './add-naval-groups'
 import { addStructures } from './add-structures'
@@ -210,7 +212,7 @@ function createWelcomeMessage(
     features.add('CSAR pilot status, smoke, and pickup')
   }
 
-  if (options.ewrEnabled && flightGroups.length > 0) {
+  if (options.ewrEnabled && flightGroups.some((flight) => !flight.nativeGci)) {
     features.add('EWR picture calls')
   }
 
@@ -222,15 +224,18 @@ function createWelcomeMessage(
     features.add('CTLD cargo commands')
   }
 
-  if (features.size === 0) return undefined
+  const hasNativeGci = flightGroups.some((flight) => flight.nativeGci)
+  if (features.size === 0 && !hasNativeGci) return undefined
 
   const featureList = Array.from(features)
 
   return {
     text: [
       'Welcome aboard. DCC is online and your mission support is ready.',
-      'Open F10 > Other for:',
-      ...featureList.map((feature) => `- ${feature}`),
+      ...(featureList.length > 0
+        ? ['Open F10 > Other for:', ...featureList.map((feature) => `- ${feature}`)]
+        : []),
+      ...(hasNativeGci ? ['MiG-29 KRU GCI: select the WAVE channel shown on your kneeboard.'] : []),
       'Good hunting.'
     ].join('\n'),
     duration: 25
@@ -507,6 +512,7 @@ export async function generateMizFromCampaign(
 
   const ewrEnabled = campaign.campaignParams?.ewr !== false
   const iadsRequested = campaign.campaignParams?.iads !== false
+  ensurePersistentGciEwrs(campaign, theatre)
 
   const mission: z.infer<typeof schemas.dcs.mission> = {
     version: 23,
@@ -865,6 +871,8 @@ export async function generateMizFromCampaign(
   if (flightGroupsResult.isErr()) {
     return err(flightGroupsResult.error)
   }
+  const gciStations = addGciStations(mission, campaign, theatre)
+  configureNativeGci(flightGroupsResult.value, campaign, gciStations)
   const carrierOps = createCarrierOpsConfig(campaign)
   const welcomeMessage = createWelcomeMessage(flightGroupsResult.value, {
     ewrEnabled,

@@ -1,5 +1,6 @@
 import { app } from 'electron'
 import { buildCampaignFromPlan } from '@dcc/frontend/mission-generator'
+import { ensurePersistentGciEwrs } from '@dcc/campaign'
 import { generateMizFromCampaign } from '@dcc/generate-miz'
 import { schemas } from '@dcc/contracts'
 import { existsSync, promises as fs } from 'fs'
@@ -253,6 +254,7 @@ export const generateMission = pub.missionGenerator.generateMission.handler(
     }
 
     const sanitizedTitle = missionPlan.title.replace(/[^a-zA-Z0-9-_]/g, '_').slice(0, 40)
+    ensurePersistentGciEwrs(campaign, theatre)
     const fileBase = `ai_mission_${sanitizedTitle || 'mission'}_${Date.now()}`
     const missionPlanPath = path.join(downloadPath, `${fileBase}.mission-plan.json`)
     const campaignPath = path.join(downloadPath, `${fileBase}.campaign.json`)

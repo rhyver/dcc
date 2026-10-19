@@ -170,6 +170,8 @@ const campaignCoalition = z.object({
   structures: z.array(campaignStructure),
   samGroups: z.array(campaignSamGroup),
   ewrGroups: z.array(campaignEwrGroup).optional(),
+  // Fields whose native GCI radar support has been initialized, even if all radars were lost.
+  gciRadarSites: z.array(z.string()).optional(),
   groundGroups: z.array(groundGroup),
   flightGroups: z.array(flightGroup),
   packages: z.array(missionPackage),
@@ -378,6 +380,7 @@ export const campaign = z.preprocess(
           })
           .optional(),
         ewr: z.boolean().optional(),
+        gci: z.boolean().optional(),
         iads: z.boolean().optional(),
         exactTarget: z.boolean().optional(),
         casJtac: z.boolean().optional(),

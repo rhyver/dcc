@@ -610,45 +610,49 @@ describe('applyMissionStateUpdate culling manifest', () => {
 })
 
 describe('applyMissionStateUpdate EWR groups', () => {
-  test('persists EWR destruction and its last mission position', () => {
-    const campaign = createCampaign()
-    campaign.coalitions.opponent.ewrGroups = [
-      {
-        id: 'ewr-stanley-1',
-        type: '55G6 EWR',
-        objectiveId: 'Stanley Airport',
-        position: { x: 100, y: 200 }
-      }
-    ]
-
-    const updated = applyMissionStateUpdate(
-      campaign,
-      createMissionState({
-        lostUnits: [trackedUnit('IADS-EWR-Unit-ewr-stanley-1', 'IADS-EWR-ewr-stanley-1-201')],
-        groupPositions: {
-          blue: { aircraft: [], ground: [], ships: [] },
-          red: {
-            aircraft: [],
-            ships: [],
-            ground: [
-              {
-                name: 'IADS-EWR-ewr-stanley-1-201',
-                x: 125,
-                y: 225,
-                units: []
-              }
-            ]
-          }
+  test.each(['player', 'opponent'] as const)(
+    'persists %s EWR destruction and its last mission position',
+    (coalition) => {
+      const campaign = createCampaign()
+      campaign.coalitions[coalition].ewrGroups = [
+        {
+          id: 'ewr-stanley-1',
+          type: '55G6 EWR',
+          objectiveId: 'Stanley Airport',
+          position: { x: 100, y: 200 }
         }
-      })
-    )
+      ]
 
-    expect(updated.coalitions.opponent.ewrGroups?.[0]).toMatchObject({
-      id: 'ewr-stanley-1',
-      position: { x: 125, y: 225 },
-      destroyed: true
-    })
-  })
+      const updated = applyMissionStateUpdate(
+        campaign,
+        createMissionState({
+          lostUnits: [trackedUnit('IADS-EWR-Unit-ewr-stanley-1', 'IADS-EWR-ewr-stanley-1-201')],
+          groupPositions: {
+            blue: { aircraft: [], ground: [], ships: [] },
+            red: { aircraft: [], ground: [], ships: [] },
+            [coalition === 'player' ? 'blue' : 'red']: {
+              aircraft: [],
+              ships: [],
+              ground: [
+                {
+                  name: 'IADS-EWR-ewr-stanley-1-201',
+                  x: 125,
+                  y: 225,
+                  units: []
+                }
+              ]
+            }
+          }
+        })
+      )
+
+      expect(updated.coalitions[coalition].ewrGroups?.[0]).toMatchObject({
+        id: 'ewr-stanley-1',
+        position: { x: 125, y: 225 },
+        destroyed: true
+      })
+    }
+  )
 })
 
 describe('applyMissionStateUpdate naval groups', () => {

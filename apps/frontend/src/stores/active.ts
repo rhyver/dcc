@@ -1,5 +1,6 @@
 import { schemas } from '@dcc/contracts'
 import {
+  ensurePersistentGciEwrs,
   ensurePersistentIadsEwrs,
   ensureSupercarrierForAircraft,
   migrateFalklandsSanCarlosFarp,
@@ -39,6 +40,7 @@ const initialState: z.infer<typeof schemas.campaign.campaign> = {
     aiWingmanSpawn: 'landOnly',
     culling: true,
     ewr: true,
+    gci: true,
     iads: true,
     exactTarget: true,
     casJtac: true,
@@ -465,12 +467,23 @@ export const activeStore = createStore({
         draft.campaignParams ??= {}
         draft.campaignParams.dcsCheats = { ...draft.campaignParams.dcsCheats, ...dcsCheats }
       }),
+    prepareGciNetwork: (context) =>
+      produce(context, (draft) => {
+        const scenario = scenarios.find((entry) => entry.id === draft.scenarioId)
+        const theatre = theatres.find((entry) => entry.name === scenario?.theatreName)
+        if (theatre) ensurePersistentGciEwrs(draft, theatre)
+      }),
     setEwr: (context, { ewr }: { ewr: boolean }) =>
       produce(context, (draft) => {
         if (!draft.campaignParams) {
           draft.campaignParams = {}
         }
         draft.campaignParams.ewr = ewr
+      }),
+    setGci: (context, { gci }: { gci: boolean }) =>
+      produce(context, (draft) => {
+        draft.campaignParams ??= {}
+        draft.campaignParams.gci = gci
       }),
     setIads: (context, { iads }: { iads: boolean }) =>
       produce(context, (draft) => {

@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Full-fidelity MiG-29A Fulcrum support, ported from Samuelblew's Germany fork, with
+  module-specific loadouts, Russia 1984 roster entries, and R-862 radio presets.
+- Native KRU GCI networks with separate coalition channels, kneeboard WAVE guidance, and
+  persistent reserve radars. Uses compatible campaign radars and operates independently
+  of the scripted EWR picture toggle. The KRU GCI option defaults to on for full-fidelity
+  MiG-29A client slots and is hidden when none are selected.
+
 ## v0.5.0-2026101101 - 2026-10-11
 
 The new campaign features in this release are ported from

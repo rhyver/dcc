@@ -1,10 +1,11 @@
 import { schemas } from '@dcc/contracts'
-import { scenarios } from '@dcc/data'
+import { aircrafts, scenarios } from '@dcc/data'
 import { describe, expect, test, vi } from 'vitest'
 import * as z from 'zod'
 
 import { addFlightGroups } from './add-flight-groups'
 import { addNavalGroups } from './add-naval-groups'
+import { getKneeboardFlightFrequencySummary, renderKneeboardSvg } from './kneeboard'
 
 type Campaign = z.infer<typeof schemas.campaign.campaign>
 type CampaignCoalition = Campaign['coalitions']['player']
@@ -242,6 +243,83 @@ function getMissionUnitIds(entries: unknown): number[] {
     return entry.missionUnitId as number
   })
 }
+
+describe('full-fidelity MiG-29A Fulcrum mission generation', () => {
+  test.each([
+    ['CAP', '{MISSILE_R-27ER_APU-470}'],
+    ['Escort', '{MISSILE_R-27ER_APU-470}'],
+    ['Intercept', '{MISSILE_R-27R_APU-470}'],
+    ['Fighter Sweep', '{MISSILE_R-27T_APU-470}'],
+    ['CAS', '{ROCKETS_S8-OFP2_BDZ-UMK2-B}'],
+    ['Ground Attack', '{AB_FAB-500_BDZ-UMK2-B}'],
+    ['Runway Attack', '{AB_BETAB-500_BDZ-UMK2-B}'],
+    ['Antiship Strike', '{ROCKETS_S24B_BDZ-UMK2-B}']
+  ] as const)(
+    'generates a client %s flight with the module-specific stores',
+    (task, innerStore) => {
+      const startTime = new Date('1984-06-01T12:00:00Z')
+      const mission = createMission()
+      const campaign = createCampaign(startTime)
+      const group = createTaskFlightGroup('fulcrum', 'Enfield-1', startTime, task)
+      group.aircrafts.forEach((aircraft, index) => {
+        aircraft.aircraftName = 'MiG-29 Fulcrum'
+        aircraft.client = index === 0
+      })
+      campaign.coalitions.player.flightGroups = [group]
+      campaign.coalitions.opponent.flightGroups = []
+
+      expect(schemas.dcs.aircraft.safeParse(aircrafts.mig_29_fulcrum).success).toBe(true)
+      const result = addFlightGroups(mission, campaign, theatre)
+      if (result.isErr()) throw result.error
+
+      const units = mission.coalition.blue.country?.[0]?.plane?.group?.[0]?.units
+      expect(units?.map((unit) => unit.type)).toEqual(['MiG-29 Fulcrum', 'MiG-29 Fulcrum'])
+      expect(units?.map((unit) => unit.skill)).toEqual(['Client', 'High'])
+      for (const unit of units ?? []) {
+        expect(unit.payload).toMatchObject({ fuel: 3376, chaff: 30, flare: 30 })
+        expect(unit.payload?.pylons).toMatchObject({
+          1: { CLSID: '{MISSILE_R-73_APU-73}', num: 1 },
+          3: { CLSID: innerStore, num: 3 },
+          5: { CLSID: innerStore, num: 5 },
+          7: { CLSID: '{MISSILE_R-73_APU-73}', num: 7 }
+        })
+        if (task === 'CAP' || task === 'Escort') {
+          expect(unit.payload?.pylons).toHaveProperty('4', { CLSID: '{PTB_1500_MIG29A}', num: 4 })
+        } else {
+          expect(unit.payload?.pylons).not.toHaveProperty('4')
+        }
+      }
+      expect(units?.[0]?.Radio).toEqual([{ channels: { 1: 251.05, 2: 251, 3: 250, 4: 305 } }])
+      expect(units?.[1]?.Radio).toBeUndefined()
+      expect(result.value[0]?.radioPreset).toEqual({ radio: 1, channel: 1, cockpitChannel: 0 })
+      expect(getKneeboardFlightFrequencySummary(result.value[0])).toBe('251.050 MHz R1 CH0')
+    }
+  )
+
+  test('renders the zero-based R-862 cockpit channels on the kneeboard', async () => {
+    const startTime = new Date('1984-06-01T12:00:00Z')
+    const campaign = createCampaign(startTime)
+    const group = createFlightGroup('fulcrum-radio', 'Enfield-1', startTime)
+    group.aircrafts = [{ ...group.aircrafts[0]!, aircraftName: 'MiG-29 Fulcrum', client: true }]
+    campaign.coalitions.player.flightGroups = [group]
+    campaign.coalitions.opponent.flightGroups = []
+    const result = addFlightGroups(createMission(), campaign, theatre)
+    if (result.isErr()) throw result.error
+
+    const svg = await renderKneeboardSvg({
+      campaign,
+      theatre,
+      coalition: 'player',
+      flightGroup: group,
+      missionFlightConfigs: result.value
+    })
+    expect(svg).toContain('CH0 FLIGHT')
+    expect(svg).toContain('CH1 AWACS')
+    expect(svg).toContain('CH2 ATC')
+    expect(svg).toContain('CH3 JTAC')
+    expect(svg).not.toContain('CH4 JTAC')
+  })
+})
 
 describe('OH-58D mission generation', () => {
   test.each(['CSAR', 'CAS', 'Ground Attack'] as const)(

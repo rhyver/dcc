@@ -395,11 +395,13 @@ end
 
 if config and config.flightGroups then
     for _, flightGroup in ipairs(config.flightGroups) do
-        DCC_EWR.Register(
-            flightGroup.groupId,
-            flightGroup.name,
-            flightGroup.unitNames
-        )
+        if not flightGroup.nativeGci then
+            DCC_EWR.Register(
+                flightGroup.groupId,
+                flightGroup.name,
+                flightGroup.unitNames
+            )
+        end
     end
 
     DCC_EWR.Start()

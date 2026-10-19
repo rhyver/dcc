@@ -113,6 +113,49 @@ function createFlightGroup(params: {
 }
 
 describe('active store client flight timing sync', () => {
+  test('prepares GCI radar state before export and preserves it after reload', () => {
+    const scenario = scenarios.find((scenario) => scenario.id === 'red-bullet')!
+    const theatre = theatres.find((theatre) => theatre.name === scenario.theatreName)!
+    const home = Object.keys(theatre.airdromeDetails)[0]!
+    const campaign = createCampaign()
+    campaign.scenarioId = scenario.id
+    campaign.coalitions.player.airdromeNames = [home]
+    const flight = createFlightGroup({
+      id: 'fulcrum',
+      callsign: 'Enfield-1',
+      startTime: campaignTime.toISOString(),
+      tot: campaignTime.toISOString()
+    })
+    flight.homeBase = home
+    flight.aircrafts[0]!.aircraftName = 'MiG-29 Fulcrum'
+    flight.aircrafts[0]!.client = true
+    campaign.coalitions.player.flightGroups = [flight]
+    activeStore.trigger.loadCampaign({ campaign })
+    activeStore.trigger.prepareGciNetwork()
+    const prepared = activeStore.getSnapshot().context
+    expect(prepared.coalitions.player.ewrGroups).toHaveLength(3)
+    expect(prepared.coalitions.player.gciRadarSites).toEqual([home])
+    const reloaded = structuredClone(prepared)
+    reloaded.coalitions.player.ewrGroups![0]!.destroyed = true
+    activeStore.trigger.loadCampaign({ campaign: reloaded })
+    activeStore.trigger.prepareGciNetwork()
+    expect(activeStore.getSnapshot().context.coalitions.player.ewrGroups).toHaveLength(3)
+    expect(activeStore.getSnapshot().context.coalitions.player.ewrGroups?.[0]?.destroyed).toBe(true)
+
+    activeStore.trigger.setGci({ gci: false })
+    const disabled = schemas.campaign.campaign.parse(
+      structuredClone(activeStore.getSnapshot().context)
+    )
+    activeStore.trigger.loadCampaign({ campaign: disabled })
+    activeStore.trigger.prepareGciNetwork()
+    expect(activeStore.getSnapshot().context.campaignParams?.gci).toBe(false)
+    expect(activeStore.getSnapshot().context.coalitions.player.ewrGroups?.[0]?.destroyed).toBe(true)
+    activeStore.trigger.setGci({ gci: true })
+    activeStore.trigger.prepareGciNetwork()
+    expect(activeStore.getSnapshot().context.coalitions.player.ewrGroups).toHaveLength(3)
+    expect(activeStore.getSnapshot().context.coalitions.player.ewrGroups?.[0]?.destroyed).toBe(true)
+  })
+
   test('updates a legacy Falklands carrier before the campaign map renders', () => {
     const campaign = createCampaign()
     const scenario = scenarios.find((candidate) => candidate.id === 'falklands-1982')

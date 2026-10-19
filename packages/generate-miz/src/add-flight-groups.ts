@@ -50,11 +50,13 @@ type FrequencyRange = [number, number]
 type FlightRadioPreset = {
   radio: number
   channel: number
+  cockpitChannel?: number
 }
 export type FlightRadioChannel = {
   purpose: 'FLIGHT' | 'AWACS' | 'ATC' | 'JTAC'
   radio?: number
   channel: number
+  cockpitChannel?: number
   frequency: number
 }
 type NavigationAid = NonNullable<NonNullable<Campaign['campaignParams']>['navigationAid']>
@@ -87,6 +89,7 @@ const FLIGHT_RADIO_PRESET_INDEX: Readonly<Record<string, number>> = {
   'M-2000C': 2,
   'Mi-24P': 1,
   'Mi-8MT': 1,
+  'MiG-29 Fulcrum': 1,
   'Mirage-F1CE': 2,
   'Mirage-F1EE': 2,
   'UH-1H': 1
@@ -356,6 +359,7 @@ export type CasFlightConfig = {
   task: 'CAS'
   unitNames: string[]
   frequency: number
+  nativeGci?: { channel: number; stationName: string }
   radioPreset?: FlightRadioPreset
   radioChannels?: FlightRadioChannel[]
   isHelicopter?: boolean
@@ -393,6 +397,7 @@ export type MissionFlightConfig =
       task: z.infer<typeof schemas.task>
       unitNames: string[]
       frequency: number
+      nativeGci?: { channel: number; stationName: string }
       radioPreset?: FlightRadioPreset
       radioChannels?: FlightRadioChannel[]
       isHelicopter?: boolean
@@ -495,9 +500,10 @@ function getAtcFrequency(airdrome: z.infer<typeof schemas.airdromeDetails> | und
 function createFlightRadioChannels(
   radio: number | undefined,
   flightFrequency: number,
-  atcFrequency: number
+  atcFrequency: number,
+  aircraftName: string
 ): FlightRadioChannel[] {
-  return [
+  const channels: FlightRadioChannel[] = [
     {
       purpose: 'FLIGHT',
       radio,
@@ -523,6 +529,9 @@ function createFlightRadioChannels(
       frequency: JTAC_FREQUENCY
     }
   ]
+  return aircraftName === 'MiG-29 Fulcrum'
+    ? channels.map((preset) => ({ ...preset, cockpitChannel: preset.channel - 1 }))
+    : channels
 }
 
 function createFlightRadioConfig(
@@ -547,7 +556,12 @@ function createFlightRadioConfig(
   }
 
   return {
-    preset: { radio, channel },
+    // The Fulcrum's R-862 labels its one-based mission presets from zero in the cockpit.
+    preset: {
+      radio,
+      channel,
+      ...(aircraftName === 'MiG-29 Fulcrum' ? { cockpitChannel: channel - 1 } : {})
+    },
     radios
   }
 }
@@ -1415,7 +1429,12 @@ export function addFlightGroups(
       }
       const atcFrequency = getAtcFrequency(airdrome)
       const flightRadioIndex = FLIGHT_RADIO_PRESET_INDEX[aircraftDef.name]
-      const radioChannels = createFlightRadioChannels(flightRadioIndex, frequency, atcFrequency)
+      const radioChannels = createFlightRadioChannels(
+        flightRadioIndex,
+        frequency,
+        atcFrequency,
+        aircraftDef.name
+      )
       const flightRadioConfig = createFlightRadioConfig(aircraftDef.name, radioChannels)
 
       // Initialize used slots for this airdrome if not exists

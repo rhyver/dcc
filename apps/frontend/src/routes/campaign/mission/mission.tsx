@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSelector } from '@xstate/store/react'
 import { useQuery } from '@tanstack/react-query'
-import { samTemplates } from '@dcc/data'
+import { campaignHasFulcrumClient, isNativeGciEnabled, samTemplates } from '@dcc/data'
 import { ArrowLeft, ChevronDown, Clock, CloudSun, Plane, Sun, Target, Wind, X } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { schemas } from '@dcc/contracts'
@@ -430,6 +430,10 @@ export function Mission() {
   const fixedEnemySkill = enemySkill === 'Random' ? lastFixedEnemySkill : enemySkill
   const dcsAssists = useSelector(activeStore, (state) => state.context.campaignParams?.dcsCheats)
   const ewr = useSelector(activeStore, (state) => state.context.campaignParams?.ewr ?? true)
+  const hasFulcrumClient = useSelector(activeStore, (state) =>
+    campaignHasFulcrumClient(state.context)
+  )
+  const gci = useSelector(activeStore, (state) => isNativeGciEnabled(state.context))
   const iads = useSelector(activeStore, (state) => state.context.campaignParams?.iads ?? true)
   const exactTarget = useSelector(
     activeStore,
@@ -485,7 +489,10 @@ export function Mission() {
     if (isGenerating) return
     setIsGenerating(true)
     try {
-      await coreClient.campaign.generateMiz(activeStore.getSnapshot().context)
+      activeStore.trigger.prepareGciNetwork()
+      const campaign = activeStore.getSnapshot().context
+      await coreClient.campaign.saveActiveCampaign(campaign)
+      await coreClient.campaign.generateMiz(campaign)
       setIsGenerated(true)
       setIsMissionStateReady(false)
     } catch (error) {
@@ -848,6 +855,23 @@ export function Mission() {
                                   }
                                 />
                               </div>
+                              {hasFulcrumClient && (
+                                <div className="flex items-center justify-between gap-3">
+                                  <div>
+                                    <div className="text-sm font-medium text-white">KRU GCI</div>
+                                    <div className="text-sm text-white/40">
+                                      Add native interception guidance for the MiG-29A Fulcrum
+                                    </div>
+                                  </div>
+                                  <Switch
+                                    aria-label="KRU GCI"
+                                    checked={gci}
+                                    onCheckedChange={(checked) =>
+                                      activeStore.send({ type: 'setGci', gci: checked })
+                                    }
+                                  />
+                                </div>
+                              )}
                               <div className="flex items-center justify-between gap-3">
                                 <div>
                                   <div className="text-sm font-medium text-white">IADS</div>

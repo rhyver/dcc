@@ -112,7 +112,11 @@ not establish compatible behavior.
   command centers with existing IADS state.
 - [ ] Persist exact Germany SAM losses and define EWR continuity through the IADS Network.
   Mission generation must not recreate destroyed radar sites unintentionally.
-- [ ] Add native MiG-29 KRU GCI networks, compatible radar linking, and fallback radar rules.
+- [x] Add native MiG-29 KRU GCI networks, compatible radar linking, and fallback radar rules.
+  Ported from `4281245` for supported theatres using owned airfields and separate coalition
+  channels. Reserve radars use persistent EWR state and are saved before campaign export;
+  destroyed radars remain absent. Native flights receive kneeboard WAVE guidance and skip
+  scripted EWR picture calls. Live DCS validation remains pending.
 - [ ] Integrate F10 GCI reporting for other aircraft, including unit selection, magnetic
   variation, picture limits, and suppression of repeated messages.
 - [ ] Add optional Korea -> Vietnam -> Late Cold War -> Modern escalation, configurable era
@@ -138,6 +142,11 @@ not establish compatible behavior.
   inventory, and transaction history.
 - [ ] Import the 12 aircraft profiles and career entries, separating module capabilities from
   economy data; verify declared weapons, stations, radios, failures, and waypoint limits.
+  The full-fidelity MiG-29A Fulcrum aircraft definition and eight task loadouts are ported from
+  source snapshot `4281245`, registered independently of the Flaming Cliffs MiG-29A, and
+  available in the Russia 1984 roster. Mission generation programs the R-862 presets and
+  kneeboards use cockpit channel labels 0-3. Career profiles and route limits remain part of
+  the pending profile integration.
 - [ ] Add aircraft purchases/sales, used condition, hidden defects, repairs, overhauls, delivery
   delays, persistent basing, and Fidelity/Arcade acquisition rules.
 - [ ] Add hangar, arsenal, operations, loadout-preset, radio-plan, and career-sidebar interfaces

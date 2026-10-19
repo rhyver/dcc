@@ -1,4 +1,5 @@
 import { schemas } from '@dcc/contracts'
+import { isNativeGciEnabled } from '@dcc/data'
 import * as z from 'zod'
 
 import { resolveAiSkill } from './ai-skill'
@@ -6,7 +7,6 @@ import { resolveAiSkill } from './ai-skill'
 type Campaign = z.infer<typeof schemas.campaign.campaign>
 type Mission = z.infer<typeof schemas.dcs.mission>
 type Coalition = z.infer<typeof schemas.coalition>
-type MissionCountry = NonNullable<Mission['coalition']['red']['country']>[number]
 
 export type MissionIadsConfig = {
   name: string
@@ -19,6 +19,14 @@ export type MissionIadsConfig = {
 }
 
 const IADS_EWR_PREFIX = 'IADS-EWR-'
+
+function isEwrActive(
+  campaign: Campaign,
+  ewr: NonNullable<Campaign['coalitions']['player']['ewrGroups']>[number]
+) {
+  return !ewr.destroyed && (!ewr.id.startsWith('gci-ewr-') || isNativeGciEnabled(campaign))
+}
+
 const INFRASTRUCTURE_TYPES = {
   commandCenters: 'Command Center',
   powerSources: 'Power Plant',
@@ -29,25 +37,31 @@ function missionCoalitionKey(coalition: Coalition) {
   return coalition === 'player' ? 'blue' : coalition === 'opponent' ? 'red' : 'neutrals'
 }
 
-function getOpponentCountry(mission: Mission): MissionCountry | null {
-  return mission.coalition.red.country?.[0] ?? null
-}
-
 function nextMissionKey(mission: Mission) {
   mission.currentKey += 1
   return mission.currentKey
 }
 
-function addOpponentEwrGroups(mission: Mission, campaign: Campaign) {
-  const country = getOpponentCountry(mission)
+export function addPersistentEwrGroups(
+  mission: Mission,
+  campaign: Campaign,
+  coalition: Coalition,
+  include: (
+    ewr: NonNullable<Campaign['coalitions']['player']['ewrGroups']>[number]
+  ) => boolean = () => true
+) {
+  const country = mission.coalition[missionCoalitionKey(coalition)].country?.[0]
   if (!country) return
 
   if (!country.vehicle) {
     country.vehicle = { group: [] }
   }
 
-  for (const ewr of campaign.coalitions.opponent.ewrGroups ?? []) {
-    if (ewr.destroyed) continue
+  for (const ewr of campaign.coalitions[coalition].ewrGroups ?? []) {
+    if (!isEwrActive(campaign, ewr) || !include(ewr)) continue
+    const unitName = `${IADS_EWR_PREFIX}Unit-${ewr.id}`
+    if (country.vehicle.group.some((group) => group.units.some((unit) => unit.name === unitName)))
+      continue
 
     const groupId = nextMissionKey(mission)
     const unitId = nextMissionKey(mission)
@@ -59,12 +73,12 @@ function addOpponentEwrGroups(mission: Mission, campaign: Campaign) {
       units: [
         {
           unitId,
-          name: `${IADS_EWR_PREFIX}Unit-${ewr.id}`,
+          name: unitName,
           x: ewr.position.x,
           y: ewr.position.y,
           type: ewr.type,
           heading: 0,
-          skill: resolveAiSkill(campaign, 'opponent', 'High')
+          skill: resolveAiSkill(campaign, coalition, 'High')
         }
       ],
       x: ewr.position.x,
@@ -124,10 +138,10 @@ function collectAliveStructureUnitNames(
 export function buildIadsConfig(mission: Mission, campaign: Campaign): MissionIadsConfig | null {
   if (campaign.campaignParams?.iads === false) return null
   const hasLivingEwr =
-    campaign.coalitions.opponent.ewrGroups?.some((ewr) => !ewr.destroyed) ?? false
+    campaign.coalitions.opponent.ewrGroups?.some((ewr) => isEwrActive(campaign, ewr)) ?? false
   if (campaign.coalitions.opponent.samGroups.length === 0 && !hasLivingEwr) return null
 
-  addOpponentEwrGroups(mission, campaign)
+  addPersistentEwrGroups(mission, campaign, 'opponent')
 
   return {
     name: `DCC-${campaign.id}-red`,

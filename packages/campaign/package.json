@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@dcc/contracts": "workspace:*",
+    "@dcc/data": "workspace:*",
     "zod": "^4.3.6"
   },
   "devDependencies": {

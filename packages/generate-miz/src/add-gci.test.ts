@@ -456,9 +456,13 @@ describe('native KRU GCI networks', () => {
         campaign.scenarioId = 'red-bullet'
         campaign.campaignParams = { ewr, iads }
         const theatre = createTheatre()
+        // Campaign state is prepared and saved before export; export works on its own copy.
+        ensurePersistentGciEwrs(campaign, theatre)
+        const savedCampaign = structuredClone(campaign)
         const file = path.join(directory, 'mission.miz')
         const exported = await generateMizFromCampaign(campaign, theatre, file)
         if (exported.isErr()) throw exported.error
+        expect(campaign).toEqual(savedCampaign)
         const zip = new AdmZip(file)
         const missionText = zip.getEntry('mission')!.getData().toString('utf-8')
         expect(missionText).toContain('GCI_station_MiG29')

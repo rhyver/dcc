@@ -1,6 +1,6 @@
-import { ensurePersistentGciEwrs } from '@dcc/campaign'
+import { ensurePersistentGciEwrs, ensureSupercarriersForFlightGroups } from '@dcc/campaign'
 import { config, schemas } from '@dcc/contracts'
-import { factions } from '@dcc/data'
+import { aircrafts, factions } from '@dcc/data'
 import * as luaTable from '@dcc/lua-table'
 import AdmZip from 'adm-zip'
 import { err, ok, Result } from 'neverthrow'
@@ -502,13 +502,18 @@ type GenerateMizOptions = {
 }
 
 export async function generateMizFromCampaign(
-  campaign: z.infer<typeof schemas.campaign.campaign>,
+  sourceCampaign: z.infer<typeof schemas.campaign.campaign>,
   theatre: z.infer<typeof schemas.theatre>,
   path: string,
   generationOptions: GenerateMizOptions = {}
 ): Promise<Result<void, Error>> {
   // eslint-disable-next-line no-console
   console.log('generating miz file')
+
+  const campaign = structuredClone(sourceCampaign)
+  ensureSupercarriersForFlightGroups(campaign, (aircraftName) =>
+    Object.values(aircrafts).find((aircraft) => aircraft.name === aircraftName)
+  )
 
   const ewrEnabled = campaign.campaignParams?.ewr !== false
   const iadsRequested = campaign.campaignParams?.iads !== false

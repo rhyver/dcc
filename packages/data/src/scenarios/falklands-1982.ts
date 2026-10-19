@@ -1,39 +1,7 @@
 import { schemas } from '@dcc/contracts'
 import * as z from 'zod'
 
-const operationalGroup = (
-  id: string,
-  name: string,
-  role: 'carrier' | 'escort' | 'transport' | 'surface-combatant',
-  unitTypes: string[],
-  position: { x: number; y: number },
-  heading: number,
-  cargo = 0,
-  missionGroupId?: string
-) => ({
-  id,
-  name,
-  role,
-  missionGroupId,
-  unitTypes,
-  units: unitTypes.map((type, index) => ({
-    id: `${id}-ship-${index + 1}`,
-    type,
-    damage: 0,
-    ammunition: 1,
-    fuel: 1,
-    state: 'operational' as const
-  })),
-  position,
-  heading,
-  damage: 0,
-  fuel: 1,
-  ammunition: 1,
-  cargo,
-  state: 'operational' as const
-})
-
-const radians = (degrees: number) => (degrees * Math.PI) / 180
+import { operationalGroup, radians } from './naval-groups'
 
 export const Falklands1982: z.infer<typeof schemas.scenario> = {
   theatreName: 'SouthAtlantic',
